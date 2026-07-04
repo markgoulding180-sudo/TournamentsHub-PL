@@ -1,0 +1,28 @@
+name: Live Scores Update
+
+on:
+  schedule:
+    # Run every 30 minutes during typical match hours (12:00-22:00 UTC) on match days
+    # Friday, Saturday, Sunday, Monday - Premier League match days
+    - cron: '*/30 12-22 * * 5'   # Friday 12:00-22:00 UTC
+    - cron: '*/30 12-22 * * 6'   # Saturday 12:00-22:00 UTC  
+    - cron: '*/30 12-22 * * 0'   # Sunday 12:00-22:00 UTC
+    - cron: '*/30 19-22 * * 1'   # Monday 19:00-22:00 UTC (usually 1-2 matches)
+    # Midweek fixtures (Tuesday/Wednesday/Thursday)
+    - cron: '*/30 19-22 * * 2'   # Tuesday 19:00-22:00 UTC
+    - cron: '*/30 19-22 * * 3'   # Wednesday 19:00-22:00 UTC
+    - cron: '*/30 19-22 * * 4'   # Thursday 19:00-22:00 UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update-scores:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Live Scores API
+        run: |
+          echo "Calling live scores API at $(date -u)"
+          curl -X POST https://gb-fantasy-app.vercel.app/api/live-scores \
+            -H 'Content-Type: application/json' \
+            --max-time 45 \
+            -v
+          echo "API call completed"

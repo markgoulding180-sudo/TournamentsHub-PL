@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predictions - GB Fantasy</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="stadium-theme.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    .team-shirt {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    .team-logo {
+      display: none;
+    }
+    .fixture {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+    }
+    .fixture-finished {
+      opacity: 0.95;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+    }
+    
+    /* Mobile: 3 cards in a row - Home | VS/Score | Away */
+    .fixture-teams {
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: space-between !important;
+      align-items: stretch !important;
+      gap: 8px !important;
+      margin: 10px 0 !important;
+      width: 100% !important;
+    }
+    
+    .fixture-teams .team-card {
+      flex: 1 1 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: rgba(255,255,255,0.05) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      border-radius: 8px !important;
+      padding: 10px 5px !important;
+      min-width: 0 !important;
+    }
+    
+    .fixture-teams .team-card .team-shirt {
+      width: 40px !important;
+      height: 40px !important;
+      margin-bottom: 6px !important;
+      object-fit: contain !important;
+    }
+    
+    .fixture-teams .team-card .team-name {
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      text-align: center !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      width: 100% !important;
+      line-height: 1.2 !important;
+    }
+    
+    .fixture-teams .score-card {
+      flex: 0 0 auto !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: rgba(255,255,255,0.08) !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      border-radius: 8px !important;
+      padding: 10px 8px !important;
+      min-width: 50px !important;
+    }
+    
+    .fixture-teams .score-card .vs {
+      font-size: 12px !important;
+      color: var(--text-muted) !important;
+      font-weight: 600 !important;
+    }
+    
+    .fixture-teams .score-card .match-score {
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      color: var(--accent-green) !important;
+    }
+    .team-name {
+      color: inherit;
+    }
+    .team-winner {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+    .result-indicator {
+      background: var(--accent-amber);
+      color: var(--bg-primary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.8rem;
+      margin-left: 8px;
+    }
+    .fixture-finished .prediction-form {
+      pointer-events: none;
+    }
+    .final-score {
+      background: var(--accent-green);
+      color: var(--bg-primary);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    .vs {
+      color: inherit;
+    }
+    .badge-success {
+      background: var(--accent-green);
+      color: var(--bg-primary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+    .text-red {
+      color: var(--accent-red);
+    }
+    .text-center {
+      text-align: center;
+    }
+    .p-4 {
+      padding: 1.5rem;
+    }
+
+    /* Mobile-specific styles for predictions page */
+    @media (max-width: 768px) {
+      /* Header - heading and dropdown on same line */
+      .flex.flex-between.items-center.mb-3 {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem !important;
+      }
+      
+      .flex.flex-between.items-center.mb-3 h1 {
+        font-size: 1rem !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+      }
+      
+      .gw-selector {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.25rem !important;
+        flex-shrink: 0 !important;
+      }
+      
+      .gw-selector label {
+        font-size: 0.75rem !important;
+        white-space: nowrap !important;
+      }
+      
+      .gw-selector select {
+        font-size: 0.8rem !important;
+        padding: 0.25rem 0.5rem !important;
+        min-width: auto !important;
+        width: auto !important;
+      }
+      
+      /* Scoring info - compact */
+      .scoring-info {
+        padding: 0.75rem !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      .scoring-info h3 {
+        font-size: 0.9rem !important;
+        margin-bottom: 0.5rem !important;
+      }
+      
+      .scoring-list {
+        font-size: 0.8rem !important;
+      }
+      
+      .scoring-list li {
+        margin-bottom: 0.25rem !important;
+      }
+      
+      /* Fixture cards - standardised layout */
+      .fixture {
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+        border-radius: 0.75rem !important;
+      }
+      
+      /* Top row: Date | Status | Points */
+      .fixture-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 0.8rem !important;
+        margin-bottom: 0.75rem !important;
+        padding-bottom: 0.5rem !important;
+        border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+      }
+      
+      .fixture-header .match-status {
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        font-size: 0.7rem !important;
+        padding: 0.25rem 0.5rem !important;
+        background: rgba(255,255,255,0.1) !important;
+        border-radius: 4px !important;
+      }
+      
+      .fixture-header .points-display {
+        font-weight: 700 !important;
+        font-size: 0.9rem !important;
+        min-width: 45px !important;
+        text-align: right !important;
+      }
+      
+      .fixture-header .points-display.points-20 {
+        color: var(--accent-green) !important;
+      }
+      
+      .fixture-header .points-display.points-10 {
+        color: var(--accent-amber) !important;
+      }
+      
+      .fixture-header .points-display.points-0 {
+        color: var(--text-muted) !important;
+      }
+      
+      /* Middle row: 3 cards in a row - Home | VS/Score | Away */
+      .fixture-teams {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        margin: 10px 0 !important;
+        width: 100% !important;
+      }
+      
+      .fixture-teams .team-card {
+        flex: 1 1 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+        padding: 10px 5px !important;
+        min-width: 0 !important;
+      }
+      
+      .fixture-teams .team-card .team-shirt {
+        width: 40px !important;
+        height: 40px !important;
+        margin-bottom: 6px !important;
+        object-fit: contain !important;
+      }
+      
+      .fixture-teams .team-card .team-name {
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        width: 100% !important;
+        line-height: 1.2 !important;
+      }
+      
+      .fixture-teams .score-card {
+        flex: 0 0 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(255,255,255,0.08) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
+        border-radius: 8px !important;
+        padding: 10px 8px !important;
+        min-width: 50px !important;
+      }
+      
+      .fixture-teams .score-card .vs {
+        font-size: 12px !important;
+        color: var(--text-muted) !important;
+        font-weight: 600 !important;
+      }
+      
+      .fixture-teams .score-card .match-score {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: var(--accent-green) !important;
+      }
+      
+      /* Bottom row: 1/X/2 buttons and score inputs */
+      .prediction-form {
+        margin-top: 0.75rem !important;
+        padding-top: 0.75rem !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+      }
+      
+      .prediction-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+      }
+      
+      /* 1X2 buttons - full width, side by side */
+      .prediction-1x2 {
+        display: flex !important;
+        width: 100% !important;
+        gap: 0.5rem !important;
+      }
+      
+      .prediction-option {
+        flex: 1 !important;
+        min-width: 0 !important;
+      }
+      
+      .prediction-option input {
+        display: none !important;
+      }
+      
+      .prediction-option label {
+        display: flex !important;
+        width: 100% !important;
+        padding: 0.75rem 0.5rem !important;
+        text-align: center !important;
+        background: var(--bg-hover) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 0.375rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        min-height: 44px !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      
+      .prediction-option input:checked + label {
+        background: var(--accent-green) !important;
+        border-color: var(--accent-green) !important;
+        color: var(--bg-primary) !important;
+      }
+      
+      /* Score inputs - centered */
+      .score-inputs {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+      }
+      
+      .score-input {
+        width: 60px !important;
+        height: 44px !important;
+        text-align: center !important;
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+        padding: 0 !important;
+      }
+      
+      .score-input.predicted-score {
+        background: var(--accent-green) !important;
+        border-color: var(--accent-green) !important;
+        color: var(--bg-primary) !important;
+      }
+      
+      .score-separator {
+        font-size: 1.25rem !important;
+        font-weight: 600 !important;
+        color: var(--text-muted) !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Navigation (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-trophy"></i>
+        <span>GB Fantasy</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="predictions.html" class="sidebar-link active" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
+      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
+      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <div class="sidebar-divider"></div>
+      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
+      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        GB Fantasy
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="predictions.html" class="active"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
+        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
+        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
+        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
+        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+      </ul>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <!-- Stadium Hero - Compact for content pages -->
+    <section class="hero-stadium compact right-aligned mb-3">
+      <div class="hero-stadium-bg"></div>
+      <div class="hero-stadium-overlay"></div>
+      <div class="hero-stadium-content">
+        <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.25rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"><i class="fas fa-futbol" style="color: var(--accent-green);"></i> Your Predictions</h1>
+        <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">Predict the scores and climb the leaderboard</p>
+      </div>
+    </section>
+
+    <!-- Page Header -->
+    <div class="flex flex-between items-center mb-3">
+      <h1><i class="fas fa-futbol text-green"></i> GW<span id="current-gw-display">--</span> Predictions</h1>
+      <!-- Gameweek is auto-detected, no selector needed -->
+    </div>
+
+    <!-- Scoring Info -->
+    <div class="scoring-info">
+      <h3><i class="fas fa-info-circle"></i> Scoring System</h3>
+      <ul class="scoring-list">
+        <li><i class="fas fa-check-circle"></i> <strong>10 points</strong> for correct result (1X2)</li>
+        <li><i class="fas fa-check-circle"></i> <strong>+10 bonus points</strong> for correct score (total 20 per match)</li>
+        <li><i class="fas fa-check-circle"></i> <strong>Maximum 200 points</strong> per gameweek available</li>
+      </ul>
+    </div>
+
+    <!-- Fixtures & Predictions -->
+    <form id="predictions-form">
+      <div class="fixture-list">
+        <!-- Fixtures loaded dynamically from API -->
+        <div class="text-center p-4">
+          <i class="fas fa-spinner fa-spin"></i> Loading fixtures...
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="card mt-3" style="text-align: center;">
+        <p class="text-muted mb-2">Make sure all predictions are entered correctly. You can edit until kickoff.</p>
+        <button type="submit" class="btn btn-primary btn-lg">
+          <i class="fas fa-save"></i> Submit Predictions
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
+    </div>
+  </footer>
+
+  <script src="auth-gate.js"></script>
+  <script src="predictions.js"></script>
+  <script>
+    // Sidebar user info only - mobile menu handled by auth-gate.js
+    document.addEventListener('DOMContentLoaded', function() {
+      const userJson = localStorage.getItem('gbf_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          const usernameEl = document.getElementById('sidebar-username');
+          const avatarEl = document.getElementById('sidebar-avatar');
+          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
+          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+        } catch (e) {}
+      }
+    });
+  </script>
+</body>
+</html>

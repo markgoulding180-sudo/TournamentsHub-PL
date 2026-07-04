@@ -1,0 +1,291 @@
+/* GB Fantasy - Stadium Theme */
+/* Dark navy background with stadium hero sections */
+
+:root {
+  --bg-primary: #0a0f2e;
+  --bg-secondary: #0f1535;
+  --bg-card: #141b3d;
+  --bg-hover: #1e2747;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-green: #22c55e;
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --border-color: #1e2747;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #0a0f2e 0%, #0f1535 50%, #0a0f2e 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Stadium Hero Section - Default (centered) */
+.hero-stadium {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  max-height: 320px;
+  border-radius: 1rem;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.hero-stadium-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('images/football-banner.jpg');
+  background-size: cover;
+  background-position: center 55%;
+  filter: brightness(0.75);
+}
+
+.hero-stadium-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(10,15,46,0.92) 0%, rgba(10,15,46,0.7) 50%, rgba(10,15,46,0.3) 100%);
+  z-index: 1;
+}
+
+.hero-stadium-content {
+  position: relative;
+  z-index: 2;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 280px;
+}
+
+/* Stadium Hero - Right aligned (for pages with lots of content) */
+.hero-stadium.right-aligned .hero-stadium-overlay {
+  background: linear-gradient(90deg, rgba(10,15,46,0.95) 0%, rgba(10,15,46,0.8) 40%, rgba(10,15,46,0.4) 70%, rgba(10,15,46,0.2) 100%);
+}
+
+.hero-stadium.right-aligned .hero-stadium-content {
+  max-width: 60%;
+}
+
+/* Stadium Hero - Compact (for inner pages) */
+.hero-stadium.compact {
+  min-height: 180px;
+  max-height: 200px;
+}
+
+.hero-stadium.compact .hero-stadium-content {
+  min-height: 180px;
+  padding: 1rem 1.5rem;
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.card-header i {
+  font-size: 1.25rem;
+  color: var(--accent-blue);
+}
+
+.card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Stat Cards */
+.stat-card {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-blue);
+}
+
+.stat-card-icon {
+  font-size: 1.5rem;
+  color: var(--accent-blue);
+  margin-bottom: 0.5rem;
+}
+
+.stat-card-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-card-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Feature Cards */
+.feature-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.feature-card:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.feature-card-icon {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 1.5rem;
+  color: white;
+}
+
+.feature-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.feature-card p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Live Badge */
+.live-badge {
+  background: var(--accent-red);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark));
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn-green {
+  background: linear-gradient(135deg, var(--accent-green), var(--accent-green-dark));
+  color: white;
+}
+
+/* Navigation updates */
+.navbar {
+  background: rgba(10, 15, 46, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Grid layouts */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+  
+  .hero-stadium.right-aligned .hero-stadium-content {
+    max-width: 100%;
+  }
+}

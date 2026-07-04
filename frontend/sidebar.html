@@ -1,0 +1,77 @@
+<!-- Sidebar Navigation (Desktop) -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <a href="index.html" class="sidebar-logo">
+      <i class="fas fa-trophy"></i>
+      <span>GB Fantasy</span>
+    </a>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <a href="index.html" class="sidebar-link" data-page="index">
+      <i class="fas fa-home"></i>
+      <span>Home</span>
+    </a>
+    <a href="predictions.html" class="sidebar-link" data-page="predictions">
+      <i class="fas fa-futbol"></i>
+      <span>Predictions</span>
+    </a>
+    <a href="tournaments.html" class="sidebar-link" data-page="tournaments">
+      <i class="fas fa-trophy"></i>
+      <span>Tournaments</span>
+    </a>
+    <a href="table.html" class="sidebar-link" data-page="table">
+      <i class="fas fa-table"></i>
+      <span>PL Table</span>
+    </a>
+    <a href="injuries.html" class="sidebar-link" data-page="injuries">
+      <i class="fas fa-medkit"></i>
+      <span>Injuries</span>
+    </a>
+    <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard">
+      <i class="fas fa-chart-line"></i>
+      <span>Leaderboard</span>
+    </a>
+    
+    <div class="sidebar-divider"></div>
+    
+    <a href="profile.html" class="sidebar-link" data-page="profile">
+      <i class="fas fa-user"></i>
+      <span>Profile</span>
+    </a>
+    <a href="admin.html" class="sidebar-link" data-page="admin">
+      <i class="fas fa-cog"></i>
+      <span>Admin</span>
+    </a>
+  </nav>
+  
+  <div class="sidebar-footer">
+    <a href="profile.html" class="sidebar-user" id="sidebar-user">
+      <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebar-username">Guest</div>
+        <div class="sidebar-user-role">View Profile</div>
+      </div>
+    </a>
+  </div>
+</aside>
+
+<script>
+// Set active sidebar link based on current page
+(function() {
+  const path = window.location.pathname;
+  const page = path.split('/').pop().replace('.html', '') || 'index';
+  const link = document.querySelector(`.sidebar-link[data-page="${page}"]`);
+  if (link) link.classList.add('active');
+  
+  // Update user info if logged in
+  const userJson = localStorage.getItem('gbf_user');
+  if (userJson) {
+    try {
+      const user = JSON.parse(userJson);
+      document.getElementById('sidebar-username').textContent = user.display_name || user.username;
+      document.getElementById('sidebar-avatar').textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+    } catch (e) {}
+  }
+})();
+</script>

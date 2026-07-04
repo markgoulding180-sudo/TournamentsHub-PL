@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GB Fantasy - Premier League Predictions</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="stadium-theme.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <!-- Sidebar Navigation (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-trophy"></i>
+        <span>GB Fantasy</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="sidebar-link active" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
+      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
+      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <div class="sidebar-divider"></div>
+      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
+      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        GB Fantasy
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html" class="active"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
+        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
+        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
+        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
+        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+      </ul>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <!-- Hero Section - Stadium Theme -->
+    <section class="hero-stadium">
+      <div class="hero-stadium-bg"></div>
+      <div class="hero-stadium-overlay"></div>
+      <div class="hero-stadium-content">
+        <h1 style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Premier League Predictions</h1>
+        <p style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 1.5rem; max-width: 600px;">Predict match results, climb the leaderboard, and win cash prizes. The ultimate Premier League prediction game.</p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <div class="stat-card" style="min-width: 140px;">
+            <div class="stat-card-icon"><i class="fas fa-trophy"></i></div>
+            <div class="stat-card-value" id="hero-prize-pool" style="color: var(--accent-amber);">£--</div>
+            <div class="stat-card-label">Prize Pool</div>
+          </div>
+          <div class="stat-card" style="min-width: 140px;">
+            <div class="stat-card-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-card-value" id="hero-active-players" style="color: var(--accent-blue);">--</div>
+            <div class="stat-card-label">Active Players</div>
+          </div>
+          <div class="stat-card" style="min-width: 140px;">
+            <div class="stat-card-icon"><i class="fas fa-calendar"></i></div>
+            <div class="stat-card-value" id="hero-current-gw" style="color: var(--accent-green);">GW --</div>
+            <div class="stat-card-label">Current GW</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Prediction Status Bar (Logged in users only) -->
+    <section id="prediction-status-bar" class="mb-3" style="display: none;">
+      <div class="prediction-status-container" style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div id="prediction-status-icon" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+            <i class="fas fa-question-circle"></i>
+          </div>
+          <div>
+            <div id="prediction-status-title" style="font-weight: 600; font-size: 1.1rem;">Checking predictions...</div>
+            <div id="prediction-status-subtitle" class="text-muted" style="font-size: 0.875rem;">Please wait</div>
+          </div>
+        </div>
+        <a href="profile.html" class="btn btn-outline btn-sm" id="prediction-status-btn">
+          <i class="fas fa-user"></i> View Profile
+        </a>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="grid-3 mb-3">
+      <div class="feature-card">
+        <div class="feature-card-icon"><i class="fas fa-futbol"></i></div>
+        <h3>Make Predictions</h3>
+        <p id="quick-action-predictions-text">GW -- fixtures are now live. Submit your predictions before kickoff.</p>
+        <a href="predictions.html" class="btn btn-primary">
+          <i class="fas fa-arrow-right"></i> Predict Now
+        </a>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><i class="fas fa-chart-line"></i></div>
+        <h3>View Leaderboard</h3>
+        <p>Check your ranking and see who's leading the pack this season.</p>
+        <a href="leaderboard.html" class="btn btn-primary">
+          <i class="fas fa-list-ol"></i> See Rankings
+        </a>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon"><i class="fas fa-trophy"></i></div>
+        <h3>Join Tournament</h3>
+        <p>Enter cash tournaments and compete for real money prizes.</p>
+        <a href="tournaments.html" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Join Now
+        </a>
+      </div>
+    </section>
+
+    <!-- Live Tournaments -->
+    <section class="mb-3">
+      <div class="flex flex-between items-center mb-2">
+        <h2><i class="fas fa-fire text-amber"></i> Live Tournaments</h2>
+        <a href="tournaments.html" class="btn btn-sm btn-outline">View All</a>
+      </div>
+      <div class="grid grid-2" id="live-tournaments-container">
+        <!-- Tournaments loaded dynamically -->
+        <div class="tournament-card loading">
+          <div class="tournament-header">
+            <div>
+              <div class="tournament-name">Loading tournaments...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top Players Preview -->
+    <section>
+      <div class="flex flex-between items-center mb-2">
+        <h2><i class="fas fa-crown text-amber"></i> Top Players</h2>
+        <a href="leaderboard.html" class="btn btn-sm btn-outline">Full Leaderboard</a>
+      </div>
+      <div class="card">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th class="text-right">Points</th>
+              <th class="text-right">GW Points</th>
+            </tr>
+          </thead>
+          <tbody id="top-players-tbody">
+            <!-- Top players loaded dynamically -->
+            <tr><td colspan="4" class="text-center">Loading leaderboard...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navLinks = document.querySelector('.nav-links');
+      
+      if (mobileMenuBtn && navLinks) {
+        mobileMenuBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          navLinks.classList.toggle('active');
+          navLinks.style.display = navLinks.classList.contains('active') ? 'flex' : 'none';
+        });
+      }
+      
+      // Sidebar user info
+      const userJson = localStorage.getItem('gbf_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          document.getElementById('sidebar-username').textContent = user.display_name || user.username;
+          document.getElementById('sidebar-avatar').textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+        } catch (e) {}
+      }
+    });
+  </script>
+  <script src="auth-gate.js"></script>
+</body>
+</html>

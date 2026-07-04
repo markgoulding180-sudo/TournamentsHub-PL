@@ -1,0 +1,13 @@
+{
+  "name": "gb-fantasy-scripts",
+  "version": "1.0.0",
+  "description": "Local scripts for GB Fantasy",
+  "scripts": {
+    "seed:test": "node seed-test-data.js",
+    "seed:fixtures": "node seed-fixtures.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.3.1"
+  }
+}

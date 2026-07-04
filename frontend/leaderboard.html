@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Leaderboard - GB Fantasy</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    /* Mobile-specific styles for leaderboard */
+    @media (max-width: 428px) {
+      body {
+        overflow-x: hidden;
+        min-width: 320px;
+      }
+      
+      /* Navbar fixes */
+      .navbar {
+        padding: 0 0.75rem;
+      }
+      
+      .nav-container {
+        padding: 0.5rem 0;
+        position: relative;
+      }
+      
+      .logo {
+        font-size: 1rem;
+        white-space: nowrap;
+      }
+      
+      .mobile-menu-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        cursor: pointer;
+        z-index: 100;
+      }
+      
+      /* Podium - vertical stack, compact, horizontal layout */
+      .grid.grid-3.mb-3 {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+      }
+      
+      .grid.grid-3.mb-3 .card {
+        order: unset !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        padding: 0.5rem 0.75rem !important;
+        height: auto !important;
+        min-height: 60px;
+        gap: 0.75rem;
+        text-align: left !important;
+      }
+      
+      /* Medal icon */
+      .grid.grid-3.mb-3 .card > div:first-child {
+        font-size: 1.5rem !important;
+        margin: 0 !important;
+        flex-shrink: 0;
+        width: 32px;
+        text-align: center;
+      }
+      
+      /* Avatar */
+      .grid.grid-3.mb-3 .card .player-avatar {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 0.875rem !important;
+        margin: 0 !important;
+        flex-shrink: 0;
+      }
+      
+      /* Name and points container */
+      .grid.grid-3.mb-3 .card > div:nth-child(3),
+      .grid.grid-3.mb-3 .card > div:nth-child(4),
+      .grid.grid-3.mb-3 .card > div:nth-child(5),
+      .grid.grid-3.mb-3 .card > div:nth-child(6) {
+        margin: 0 !important;
+      }
+      
+      /* Player name */
+      .grid.grid-3.mb-3 .card > div:nth-child(3) {
+        font-size: 0.9rem !important;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      /* Username - hide on mobile */
+      .grid.grid-3.mb-3 .card > div:nth-child(4) {
+        display: none !important;
+      }
+      
+      /* Points */
+      .grid.grid-3.mb-3 .card > div:nth-child(5) {
+        font-size: 1rem !important;
+        font-weight: 700;
+        color: var(--accent-green);
+        flex-shrink: 0;
+      }
+      
+      /* "Total Points" label - hide on mobile */
+      .grid.grid-3.mb-3 .card > div:nth-child(6) {
+        display: none !important;
+      }
+      
+      /* Header adjustments */
+      h1 {
+        font-size: 1.25rem;
+      }
+      
+      /* Tournament dropdown */
+      .gw-selector {
+        width: 100%;
+      }
+      
+      .gw-selector select {
+        width: 100%;
+        max-width: 100%;
+        font-size: 0.875rem;
+        padding: 0.5rem;
+        min-height: 44px;
+      }
+      
+      /* Table adjustments */
+      .leaderboard-table {
+        font-size: 0.8rem;
+      }
+      
+      .leaderboard-table th,
+      .leaderboard-table td {
+        padding: 0.5rem 0.25rem;
+      }
+      
+      .player-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+      }
+      
+      /* Hide some table columns on mobile */
+      .leaderboard-table th:nth-child(4),
+      .leaderboard-table td:nth-child(4),
+      .leaderboard-table th:nth-child(5),
+      .leaderboard-table td:nth-child(5) {
+        display: none;
+      }
+      
+      /* Card padding */
+      .card {
+        padding: 0.75rem;
+      }
+      
+      /* Button tap targets */
+      .btn {
+        min-height: 44px;
+        min-width: 44px;
+      }
+    }
+    
+    @media (max-width: 375px) {
+      .container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+      }
+      
+      .leaderboard-table {
+        font-size: 0.75rem;
+      }
+      
+      /* Hide more columns on smallest screens */
+      .leaderboard-table th:nth-child(6),
+      .leaderboard-table td:nth-child(6) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Navigation (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-trophy"></i>
+        <span>GB Fantasy</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
+      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
+      <a href="leaderboard.html" class="sidebar-link active" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <div class="sidebar-divider"></div>
+      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
+      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        GB Fantasy
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
+        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
+        <li><a href="leaderboard.html" class="active"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
+        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+      </ul>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <!-- Page Header -->
+    <div class="flex flex-between items-center mb-3" style="flex-wrap: wrap; gap: 1rem;">
+      <h1><i class="fas fa-chart-line text-green"></i> Leaderboard</h1>
+      <div class="gw-selector" style="max-width: 100%; flex-shrink: 0;">
+        <label for="tournament-filter" class="text-muted">Tournament:</label>
+        <select id="tournament-filter" class="gw-select" style="max-width: 100%; width: auto; min-width: 150px;">
+          <option value="all">All Tournaments</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Top 3 Podium -->
+    <div class="grid grid-3 mb-3" style="text-align: center;">
+      <div class="card" style="order: 2; transform: scale(1.05);">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🥇</div>
+        <div class="player-avatar" style="margin: 0 auto 1rem; width: 64px; height: 64px; font-size: 1.5rem;">SR</div>
+        <div style="font-size: 1.25rem; font-weight: 700;">SuperRed</div>
+        <div class="text-muted mb-2">@superred</div>
+        <div style="font-size: 2rem; font-weight: 700; color: var(--accent-green);">2,840</div>
+        <div class="text-muted">Total Points</div>
+      </div>
+      <div class="card" style="order: 1;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🥈</div>
+        <div class="player-avatar" style="margin: 0 auto 1rem; width: 56px; height: 56px; font-size: 1.25rem; background-color: var(--accent-red);">FK</div>
+        <div style="font-size: 1.1rem; font-weight: 600;">FantasyKing</div>
+        <div class="text-muted mb-2">@fantasyking</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary);">2,765</div>
+        <div class="text-muted">Total Points</div>
+      </div>
+      <div class="card" style="order: 3;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🥉</div>
+        <div class="player-avatar" style="margin: 0 auto 1rem; width: 56px; height: 56px; font-size: 1.25rem; background-color: var(--accent-amber);">PL</div>
+        <div style="font-size: 1.1rem; font-weight: 600;">PremierLegend</div>
+        <div class="text-muted mb-2">@premierlegend</div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary);">2,720</div>
+        <div class="text-muted">Total Points</div>
+      </div>
+    </div>
+
+    <!-- Full Leaderboard -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-list-ol"></i> Full Rankings</h3>
+        <span class="text-muted">Showing 1-20 of 1,247 players</span>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th class="text-right">Total Points</th>
+              <th class="text-right">GW 34</th>
+              <th class="text-right">GW 33</th>
+              <th class="text-right">Correct Scores</th>
+              <th class="text-right">Streak</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="rank rank-1">1</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar">SR</div>
+                  <div>
+                    <div style="font-weight: 600;">SuperRed</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@superred</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,840</td>
+              <td class="text-right text-green">180</td>
+              <td class="text-right">165</td>
+              <td class="text-right">47</td>
+              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 5</span></td>
+            </tr>
+            <tr>
+              <td><span class="rank rank-2">2</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: var(--accent-red);">FK</div>
+                  <div>
+                    <div style="font-weight: 600;">FantasyKing</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@fantasyking</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,765</td>
+              <td class="text-right text-green">165</td>
+              <td class="text-right">170</td>
+              <td class="text-right">44</td>
+              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 3</span></td>
+            </tr>
+            <tr>
+              <td><span class="rank rank-3">3</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: var(--accent-amber);">PL</div>
+                  <div>
+                    <div style="font-weight: 600;">PremierLegend</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@premierlegend</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,720</td>
+              <td class="text-right text-green">155</td>
+              <td class="text-right">160</td>
+              <td class="text-right">42</td>
+              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 2</span></td>
+            </tr>
+            <tr>
+              <td><span class="rank">4</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #8b5cf6;">GP</div>
+                  <div>
+                    <div style="font-weight: 600;">GoalPredictor</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@goalpredictor</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,685</td>
+              <td class="text-right text-green">140</td>
+              <td class="text-right">145</td>
+              <td class="text-right">41</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">5</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #ec4899;">MS</div>
+                  <div>
+                    <div style="font-weight: 600;">MatchSage</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@matchsage</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,640</td>
+              <td class="text-right text-green">135</td>
+              <td class="text-right">150</td>
+              <td class="text-right">39</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">6</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #06b6d4;">FW</div>
+                  <div>
+                    <div style="font-weight: 600;">FootballWizard</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@footballwizard</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,615</td>
+              <td class="text-right text-green">130</td>
+              <td class="text-right">140</td>
+              <td class="text-right">38</td>
+              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 4</span></td>
+            </tr>
+            <tr>
+              <td><span class="rank">7</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #f97316;">PP</div>
+                  <div>
+                    <div style="font-weight: 600;">PremPro</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@prempro</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,590</td>
+              <td class="text-right text-green">125</td>
+              <td class="text-right">135</td>
+              <td class="text-right">37</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">8</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #84cc16;">SC</div>
+                  <div>
+                    <div style="font-weight: 600;">ScoreChaser</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@scorechaser</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,565</td>
+              <td class="text-right text-green">120</td>
+              <td class="text-right">130</td>
+              <td class="text-right">36</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">9</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #6366f1;">PM</div>
+                  <div>
+                    <div style="font-weight: 600;">PredictionMaster</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@predictionmaster</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,540</td>
+              <td class="text-right text-green">115</td>
+              <td class="text-right">125</td>
+              <td class="text-right">35</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">10</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #14b8a6;">LG</div>
+                  <div>
+                    <div style="font-weight: 600;">LeagueGuru</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@leagueguru</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,515</td>
+              <td class="text-right text-green">110</td>
+              <td class="text-right">120</td>
+              <td class="text-right">34</td>
+              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 2</span></td>
+            </tr>
+            <tr>
+              <td><span class="rank">11</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #a855f7;">FP</div>
+                  <div>
+                    <div style="font-weight: 600;">FantasyPro</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@fantasypro</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,490</td>
+              <td class="text-right">105</td>
+              <td class="text-right">115</td>
+              <td class="text-right">33</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">12</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #ef4444;">SG</div>
+                  <div>
+                    <div style="font-weight: 600;">ScoreGenius</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@scoregenius</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,465</td>
+              <td class="text-right">100</td>
+              <td class="text-right">110</td>
+              <td class="text-right">32</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">13</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #3b82f6;">MP</div>
+                  <div>
+                    <div style="font-weight: 600;">MatchPredictor</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@matchpredictor</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,440</td>
+              <td class="text-right">95</td>
+              <td class="text-right">105</td>
+              <td class="text-right">31</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">14</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #22c55e;">PG</div>
+                  <div>
+                    <div style="font-weight: 600;">PremierGuru</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@premierguru</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,415</td>
+              <td class="text-right">90</td>
+              <td class="text-right">100</td>
+              <td class="text-right">30</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">15</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #f59e0b;">FC</div>
+                  <div>
+                    <div style="font-weight: 600;">FootballChamp</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@footballchamp</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,390</td>
+              <td class="text-right">85</td>
+              <td class="text-right">95</td>
+              <td class="text-right">29</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">16</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #ec4899;">GL</div>
+                  <div>
+                    <div style="font-weight: 600;">GoalLegend</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@goalleger</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,365</td>
+              <td class="text-right">80</td>
+              <td class="text-right">90</td>
+              <td class="text-right">28</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">17</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #8b5cf6;">PS</div>
+                  <div>
+                    <div style="font-weight: 600;">PredictStar</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@predictstar</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,340</td>
+              <td class="text-right">75</td>
+              <td class="text-right">85</td>
+              <td class="text-right">27</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">18</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #06b6d4;">FS</div>
+                  <div>
+                    <div style="font-weight: 600;">FantasyStar</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@fantasystar</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,315</td>
+              <td class="text-right">70</td>
+              <td class="text-right">80</td>
+              <td class="text-right">26</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">19</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #f97316;">ML</div>
+                  <div>
+                    <div style="font-weight: 600;">MatchLegend</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@matchlegend</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,290</td>
+              <td class="text-right">65</td>
+              <td class="text-right">75</td>
+              <td class="text-right">25</td>
+              <td class="text-right">-</td>
+            </tr>
+            <tr>
+              <td><span class="rank">20</span></td>
+              <td>
+                <div class="player-info">
+                  <div class="player-avatar" style="background-color: #84cc16;">SG</div>
+                  <div>
+                    <div style="font-weight: 600;">ScoreGuru</div>
+                    <div class="text-muted" style="font-size: 0.875rem;">@scoreguru</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-right points">2,265</td>
+              <td class="text-right">60</td>
+              <td class="text-right">70</td>
+              <td class="text-right">24</td>
+              <td class="text-right">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="text-align: center; margin-top: 1.5rem;">
+        <button class="btn btn-secondary">
+          <i class="fas fa-chevron-down"></i> Load More
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
+    </div>
+  </footer>
+
+  <script src="auth-gate.js"></script>
+  <script src="app.js"></script>
+  <script src="leaderboard.js"></script>
+  <script>
+    // Sidebar user info only - mobile menu handled by auth-gate.js
+    document.addEventListener('DOMContentLoaded', function() {
+      const userJson = localStorage.getItem('gbf_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          const usernameEl = document.getElementById('sidebar-username');
+          const avatarEl = document.getElementById('sidebar-avatar');
+          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
+          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+        } catch (e) {}
+      }
+    });
+  </script>
+</body>
+</html>

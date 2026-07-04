@@ -1,0 +1,182 @@
+/* ============================================================
+   GB FANTASY — DESIGN TOKENS
+   Reference file for consistent styling across all pages
+   ============================================================ */
+
+:root {
+  /* ── COLOURS ── */
+  --bg-page:          #0a0f2e;   /* Page background — very dark navy */
+  --bg-card:          #0f1a3e;   /* Card/section background */
+  --bg-card-hover:    #132040;   /* Card hover state */
+  --bg-input:         #0d1535;   /* Input fields */
+
+  --border-subtle:    rgba(59, 130, 246, 0.15);  /* Card borders */
+  --border-medium:    rgba(59, 130, 246, 0.3);   /* Stronger borders */
+  --border-bright:    rgba(59, 130, 246, 0.6);   /* Active/focus borders */
+
+  --accent-blue:      #3b82f6;   /* Primary blue — buttons, highlights */
+  --accent-blue-dark: #2563eb;   /* Button hover */
+  --accent-blue-glow: rgba(59, 130, 246, 0.25); /* Glow/shadow */
+  --accent-green:     #22c55e;   /* Success, points, entered */
+  --accent-amber:     #f59e0b;   /* Warnings, partial points */
+  --accent-red:       #ef4444;   /* Live, errors */
+
+  --text-primary:     #ffffff;
+  --text-secondary:   rgba(255, 255, 255, 0.6);
+  --text-muted:       rgba(255, 255, 255, 0.35);
+
+  /* ── GRADIENTS ── */
+  --gradient-hero:    linear-gradient(135deg, #0a0f2e 0%, #0f2060 50%, #0a1a4e 100%);
+  --gradient-card:    linear-gradient(135deg, #0f1a3e 0%, #0d1535 100%);
+  --gradient-blue:    linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  --gradient-green:   linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  --gradient-banner-overlay: linear-gradient(90deg, rgba(10,15,46,0.95) 0%, rgba(10,15,46,0.7) 40%, rgba(10,15,46,0.1) 100%);
+
+  /* ── SHADOWS ── */
+  --shadow-card:      0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-blue:      0 0 20px rgba(59, 130, 246, 0.2);
+  --shadow-button:    0 4px 12px rgba(59, 130, 246, 0.3);
+
+  /* ── SPACING ── */
+  --radius-sm:        0.5rem;
+  --radius-md:        0.75rem;
+  --radius-lg:        1rem;
+  --radius-xl:        1.25rem;
+
+  /* ── TYPOGRAPHY ── */
+  --font-family:      'Inter', sans-serif;
+  --font-size-xs:     0.75rem;
+  --font-size-sm:     0.875rem;
+  --font-size-base:   1rem;
+  --font-size-lg:     1.125rem;
+  --font-size-xl:     1.25rem;
+  --font-size-2xl:    1.5rem;
+  --font-size-3xl:    1.875rem;
+  --font-size-4xl:    2.25rem;
+}
+
+/* ── BASE RESETS ── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ── CARD COMPONENT ── */
+.gb-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.gb-card:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-card), var(--shadow-blue);
+}
+
+/* ── BUTTON COMPONENTS ── */
+.btn-primary {
+  background: var(--gradient-blue);
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59,130,246,0.4); }
+
+.btn-green {
+  background: var(--gradient-green);
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--accent-blue);
+  border: 1px solid var(--border-medium);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-outline:hover { background: var(--accent-blue-glow); border-color: var(--border-bright); }
+
+/* ── BADGE COMPONENTS ── */
+.badge-live {
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  animation: pulse-red 1.5s infinite;
+}
+.badge-entered {
+  color: var(--accent-green);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ── STAT BOX ── */
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  text-align: center;
+}
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+.stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes pulse-blue {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
+}
+
+/* ── SECTION HEADER ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.section-header i { color: var(--accent-blue); }

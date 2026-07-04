@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Injury Updates - GB Fantasy</title>
+  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .injury-filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .injury-filter {
+      padding: 0.5rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 2rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    .injury-filter:hover, .injury-filter.active {
+      background: var(--accent-green);
+      color: #000;
+      border-color: var(--accent-green);
+    }
+    .injury-list {
+      display: grid;
+      gap: 1rem;
+    }
+    .injury-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .injury-player {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      min-width: 200px;
+    }
+    .player-image-container {
+      position: relative;
+      width: 60px;
+      height: 60px;
+      margin-right: 1rem;
+    }
+    .player-image {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--border);
+    }
+    .player-avatar-fallback {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      border: 3px solid var(--border);
+    }
+    .team-shirt-badge {
+      position: absolute;
+      bottom: -5px;
+      right: -5px;
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      border-radius: 50%;
+      background: white;
+      padding: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .player-info h4 {
+      margin-bottom: 0.25rem;
+    }
+    .player-team {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+    .injury-details {
+      flex: 1;
+    }
+    .injury-type {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .injury-out { background: var(--accent-red); color: #fff; }
+    .injury-doubt { background: var(--accent-amber); color: #000; }
+    .injury-return { background: var(--accent-green); color: #000; }
+    .injury-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    .injury-timeline {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .timeline-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-hover);
+      border-radius: 3px;
+      overflow: hidden;
+      max-width: 150px;
+    }
+    .timeline-progress {
+      height: 100%;
+      background: var(--accent-green);
+      border-radius: 3px;
+    }
+    .injury-return-date {
+      text-align: right;
+      min-width: 100px;
+    }
+    .return-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .return-date {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .summary-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      text-align: center;
+    }
+    .summary-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+    .summary-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    .summary-out { color: var(--accent-red); }
+    .summary-doubt { color: var(--accent-amber); }
+    .summary-return { color: var(--accent-green); }
+    .summary-total { color: var(--accent-blue); }
+    @media (max-width: 768px) {
+      .injury-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .injury-player {
+        min-width: auto;
+      }
+      .injury-return-date {
+        text-align: left;
+        width: 100%;
+      }
+      .stats-summary {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      /* Force mobile nav to work */
+      .nav-links.active {
+        display: flex !important;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        z-index: 999;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Navigation (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-trophy"></i>
+        <span>GB Fantasy</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
+      <a href="injuries.html" class="sidebar-link active" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
+      <a href="links.html" class="sidebar-link" data-page="links"><i class="fas fa-link"></i><span>Links</span></a>
+      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <div class="sidebar-divider"></div>
+      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
+      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        GB Fantasy
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
+        <li><a href="injuries.html" class="active"><i class="fas fa-medkit"></i> Injuries</a></li>
+        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
+        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
+        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+      </ul>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <h1><i class="fas fa-medkit text-red"></i> Injury Updates</h1>
+    <p class="text-muted mb-3">Player availability and injury status for Premier League teams.</p>
+
+    <!-- Stats Summary -->
+    <div class="stats-summary">
+      <div class="summary-card">
+        <div class="summary-value summary-out" id="count-out">0</div>
+        <div class="summary-label">Out</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value summary-doubt" id="count-doubt">0</div>
+        <div class="summary-label">Doubtful</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value summary-return" id="count-return">0</div>
+        <div class="summary-label">Returning</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-value summary-total" id="count-total">0</div>
+        <div class="summary-label">Total</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="injury-filters">
+      <div class="injury-filter active" data-filter="all">All Teams</div>
+      <div class="injury-filter" data-filter="out">Out</div>
+      <div class="injury-filter" data-filter="doubt">Doubtful</div>
+      <div class="injury-filter" data-filter="return">Returning</div>
+    </div>
+
+    <!-- Injury List -->
+    <div class="injury-list" id="injury-list">
+      <!-- Injuries will be loaded here -->
+      <div class="card" style="padding: 3rem; text-align: center;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+        <p>Loading injury data...</p>
+      </div>
+    </div>
+
+    <!-- Data Source Note -->
+    <div class="card mt-3" style="background: var(--bg-hover);">
+      <p class="text-muted" style="font-size: 0.875rem; margin: 0;">
+        <i class="fas fa-info-circle"></i> Injury data is for informational purposes. Always check official team news before making predictions.
+      </p>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 GB Fantasy. Injury Updates.</p>
+    </div>
+  </footer>
+
+  <script src="injuries.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navLinks = document.querySelector('.nav-links');
+      
+      if (mobileMenuBtn && navLinks) {
+        mobileMenuBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isActive = navLinks.classList.toggle('active');
+          navLinks.style.display = isActive ? 'flex' : 'none';
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!navLinks.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+            navLinks.classList.remove('active');
+            navLinks.style.display = 'none';
+          }
+        });
+      }
+      
+      // Sidebar user info
+      const userJson = localStorage.getItem('gbf_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          const usernameEl = document.getElementById('sidebar-username');
+          const avatarEl = document.getElementById('sidebar-avatar');
+          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
+          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+        } catch (e) {}
+      }
+    });
+  </script>
+  <script src="auth-gate.js"></script>
+</body>
+</html>

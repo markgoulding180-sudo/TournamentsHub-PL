@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Premier League Table - GB Fantasy</title>
+  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .pl-table-container {
+      overflow-x: auto;
+    }
+    .pl-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .pl-table th {
+      background: var(--bg-hover);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--border);
+    }
+    .pl-table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .pl-table tr:hover {
+      background: var(--bg-hover);
+    }
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .team-shirt-small {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+    }
+    .position {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.875rem;
+    }
+    .pos-champions { background: var(--accent-green); color: #000; }
+    .pos-europa { background: var(--accent-blue); color: #fff; }
+    .pos-conference { background: #8b5cf6; color: #fff; }
+    .pos-mid { background: var(--bg-hover); color: var(--text-secondary); }
+    .pos-relegation { background: var(--accent-red); color: #fff; }
+    .form-indicator {
+      display: inline-flex;
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.625rem;
+      font-weight: 700;
+      margin-right: 2px;
+    }
+    .form-w { background: var(--accent-green); color: #000; }
+    .form-d { background: #94a3b8; color: #000; }
+    .form-l { background: var(--accent-red); color: #fff; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .stat-card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+    .stat-card-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    .legend {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .pl-table th, .pl-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+      }
+      /* Force mobile nav to work */
+      .nav-links.active {
+        display: flex !important;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        z-index: 999;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Navigation (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-trophy"></i>
+        <span>GB Fantasy</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="table.html" class="sidebar-link active" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
+      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
+      <a href="links.html" class="sidebar-link" data-page="links"><i class="fas fa-link"></i><span>Links</span></a>
+      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <div class="sidebar-divider"></div>
+      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
+      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        GB Fantasy
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="table.html" class="active"><i class="fas fa-table"></i> PL Table</a></li>
+        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
+        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
+        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+      </ul>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <h1><i class="fas fa-table text-green"></i> Premier League Table 2025/26</h1>
+    <p class="text-muted mb-3">Live standings and team statistics.</p>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-value" id="total-matches">0</div>
+        <div class="stat-card-label">Matches Played</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-value" id="total-goals">0</div>
+        <div class="stat-card-label">Goals Scored</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-value" id="avg-goals">0</div>
+        <div class="stat-card-label">Avg Goals/Match</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-value" id="current-gameweek">GW1</div>
+        <div class="stat-card-label">Current Gameweek</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot pos-champions"></div>
+        <span>Champions League</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot pos-europa"></div>
+        <span>Europa League</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot pos-conference"></div>
+        <span>Conference League</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot pos-relegation"></div>
+        <span>Relegation</span>
+      </div>
+    </div>
+
+    <!-- League Table -->
+    <div class="card pl-table-container">
+      <table class="pl-table">
+        <thead>
+          <tr>
+            <th>Pos</th>
+            <th>Team</th>
+            <th>P</th>
+            <th>W</th>
+            <th>D</th>
+            <th>L</th>
+            <th>GF</th>
+            <th>GA</th>
+            <th>GD</th>
+            <th>Pts</th>
+            <th>Form</th>
+          </tr>
+        </thead>
+        <tbody id="league-table-body">
+          <tr>
+            <td colspan="11" class="text-center" style="padding: 3rem;">
+              <i class="fas fa-spinner fa-spin"></i> Loading table data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Last Updated -->
+    <p class="text-muted text-right mt-2" style="font-size: 0.875rem;">
+      <i class="fas fa-sync"></i> Last updated: <span id="last-updated">--</span>
+    </p>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 GB Fantasy. Premier League Table.</p>
+    </div>
+  </footer>
+
+  <script src="table.js?v=2"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navLinks = document.querySelector('.nav-links');
+      
+      if (mobileMenuBtn && navLinks) {
+        mobileMenuBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isActive = navLinks.classList.toggle('active');
+          navLinks.style.display = isActive ? 'flex' : 'none';
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!navLinks.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+            navLinks.classList.remove('active');
+            navLinks.style.display = 'none';
+          }
+        });
+      }
+      
+      // Sidebar user info
+      const userJson = localStorage.getItem('gbf_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          const usernameEl = document.getElementById('sidebar-username');
+          const avatarEl = document.getElementById('sidebar-avatar');
+          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
+          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+        } catch (e) {}
+      }
+    });
+  </script>
+  <script src="auth-gate.js"></script>
+</body>
+</html>
