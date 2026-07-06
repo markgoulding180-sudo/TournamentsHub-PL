@@ -273,7 +273,11 @@ async function syncFixtures() {
     }
     
     const data = await response.json();
-    log(`Synced ${data.matches?.length || 0} matches`, 'success');
+    const total = (data.created || 0) + (data.updated || 0);
+    log(`Synced ${total} matches (${data.created || 0} new, ${data.updated || 0} updated)`, 'success');
+    if (data.errors && data.errors.length > 0) {
+      log(`${data.errors.length} fixtures had errors — check server logs`, 'error');
+    }
     refreshStatus();
     
   } catch (error) {
