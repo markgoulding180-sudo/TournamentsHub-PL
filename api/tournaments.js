@@ -43,8 +43,8 @@ module.exports = async (req, res) => {
 
       // Which schema to query: 'predictions' (Score Predictions, default —
       // existing callers that don't send this keep working unchanged) or
-      // 'fantasy_manager' (Fantasy Manager's own separate tables).
-      const schemaName = params.get('tournament_type') === 'fantasy_manager' ? 'fantasy_manager' : 'predictions';
+      // 'fantasy' (Fantasy Manager's own separate tables).
+      const schemaName = params.get('tournament_type') === 'fantasy' ? 'fantasy' : 'predictions';
       
       // Return user's tournament entries
       if (myEntries) {
@@ -134,7 +134,7 @@ module.exports = async (req, res) => {
         // entry_points value — no cron/finalise step needed.
         let scoredEntries = entries || [];
 
-        if (schemaName === 'fantasy_manager' && scoredEntries.length > 0) {
+        if (schemaName === 'fantasy' && scoredEntries.length > 0) {
           const allIds = new Set();
           scoredEntries.forEach(e => (e.squad_players || []).forEach(id => allIds.add(id)));
 
@@ -271,7 +271,7 @@ module.exports = async (req, res) => {
       console.log('Tournaments API - User authenticated:', user.id);
 
       const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type } = req.body;
-      const schemaName = tournament_type === 'fantasy_manager' ? 'fantasy_manager' : 'predictions';
+      const schemaName = tournament_type === 'fantasy' ? 'fantasy' : 'predictions';
 
       // CREATE tournament (admin action)
       if (action === 'create') {
@@ -344,7 +344,7 @@ module.exports = async (req, res) => {
           };
 
           // Fantasy Manager entries require & validate squad_players/captain_id
-          if (schemaName === 'fantasy_manager') {
+          if (schemaName === 'fantasy') {
             if (!Array.isArray(squad_players) || squad_players.length !== 15) {
               return res.status(400).json({ error: 'squad_players must be an array of 15 player ids' });
             }
