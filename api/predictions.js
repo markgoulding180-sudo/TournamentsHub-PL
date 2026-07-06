@@ -54,6 +54,13 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET
   );
+
+  // Master project: matches — shared PL facts, synced from FPL.
+  // Used server-side only, so the service key is fine here.
+  const masterDb = createClient(
+    process.env.MASTER_SUPABASE_URL,
+    process.env.MASTER_SUPABASE_SERVICE_KEY
+  );
   
   // Use admin client for POST operations
   const dbClient = req.method === 'POST' ? supabaseAdmin : supabase;
@@ -118,11 +125,11 @@ module.exports = async (req, res) => {
       // Handle trends request - aggregate prediction data for all users
       const trends = params.get('trends');
       if (trends === 'true') {
-        return await getTrendsData(supabaseAdmin, gameweek, res);
+        return await getTrendsData(supabaseAdmin, masterDb, gameweek, res);
       }
 
-      // Get matches for the gameweek
-      const { data: matches, error: matchesError } = await supabase
+      // Get matches for the gameweek (master project)
+      const { data: matches, error: matchesError } = await masterDb
         .from('matches')
         .select('*')
         .eq('gameweek', gameweek)
@@ -248,9 +255,9 @@ module.exports = async (req, res) => {
         }
       }
 
-      // Get match details for human-readable columns
+      // Get match details for human-readable columns (master project)
       const matchIds = predictions.map(p => p.match_id);
-      const { data: matches } = await supabase
+      const { data: matches } = await masterDb
         .from('matches')
         .select('id, home_team, away_team, gameweek')
         .in('id', matchIds);
@@ -298,8 +305,8 @@ module.exports = async (req, res) => {
           const parts = matchId.split('-');
           const matchNum = parseInt(parts[2]) || 1;
           
-          // Check if match exists, if not create it
-          const { data: existingMatch, error: findError } = await supabase
+          // Check if match exists, if not create it (master project)
+          const { data: existingMatch, error: findError } = await masterDb
             .from('matches')
             .select('id')
             .eq('gameweek', gameweek)
@@ -315,9 +322,9 @@ module.exports = async (req, res) => {
             matchId = existingMatch.id;
             console.log(`Resolved temp ID to match:`, matchId);
           } else {
-            // Create a placeholder match
+            // Create a placeholder match (master project)
             console.log(`Creating placeholder match for temp ID:`, matchId);
-            const { data: newMatch, error: createError } = await supabaseAdmin
+            const { data: newMatch, error: createError } = await masterDb
               .from('matches')
               .insert({
                 gameweek: parseInt(gameweek),
@@ -384,10 +391,10 @@ module.exports = async (req, res) => {
 };
 
 // Helper function to get trends data - aggregate predictions across all users
-async function getTrendsData(supabase, gameweek, res) {
+async function getTrendsData(localDb, masterDb, gameweek, res) {
   try {
-    // Get all matches for this gameweek
-    const { data: matches, error: matchesError } = await supabase
+    // Get all matches for this gameweek (master project)
+    const { data: matches, error: matchesError } = await masterDb
       .from('matches')
       .select('*')
       .eq('gameweek', gameweek)
@@ -401,15 +408,20 @@ async function getTrendsData(supabase, gameweek, res) {
       return res.status(200).json({ trends: [], total_users: 0 });
     }
 
-    // Get all predictions for this gameweek (with match details for matching)
-    const { data: allPredictions, error: predError } = await supabase
+    // Get all predictions for this gameweek (local project).
+    // No cross-project join here (matches lives in a different project),
+    // so match/team lookups are done in-memory below via matchesById.
+    const { data: allPredictions, error: predError } = await localDb
       .from('predictions')
-      .select('*, matches:match_id(home_team, away_team)')
+      .select('*')
       .eq('gameweek', parseInt(gameweek));
 
     if (predError) {
       return res.status(500).json({ error: 'Failed to fetch predictions', details: predError.message });
     }
+
+    const matchesById = {};
+    matches.forEach(m => { matchesById[m.id] = m; });
 
     // Count unique users who predicted
     const uniqueUsers = new Set(allPredictions?.map(p => p.user_id) || []);
@@ -427,9 +439,10 @@ async function getTrendsData(supabase, gameweek, res) {
       const matchPreds = allPredictions?.filter(p => {
         // Direct match_id match
         if (p.match_id === match.id) return true;
-        // Fallback: match by team names if predictions have match details
-        if (p.matches) {
-          return p.matches.home_team === match.home_team && p.matches.away_team === match.away_team;
+        // Fallback: match by team names via the in-memory match lookup
+        const predMatch = matchesById[p.match_id];
+        if (predMatch) {
+          return predMatch.home_team === match.home_team && predMatch.away_team === match.away_team;
         }
         return false;
       }) || [];

@@ -14,13 +14,40 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SECRET
-    );
+  // This function only ever touches the shared master PL-facts project
+  // (players/teams) — never the app's own users/predictions database.
+  const supabase = createClient(
+    process.env.MASTER_SUPABASE_URL,
+    process.env.MASTER_SUPABASE_SERVICE_KEY
+  );
 
-    // Fetch from FPL API
+  // Read-only mode: GET /api/sync-players?list=true
+  // Returns players already stored in the DB — no FPL fetch, no writes.
+  // Used by the Fantasy Manager squad builder so browsing players is cheap.
+  const params = new URLSearchParams(req.query);
+  if (req.method === 'GET' && params.get('list') === 'true') {
+    try {
+      const { data: players, error } = await supabase
+        .from('players')
+        .select('id, web_name, first_name, second_name, team, element_type, now_cost, total_points, form, status, photo')
+        .order('total_points', { ascending: false });
+
+      if (error) {
+        return res.status(500).json({ error: 'Failed to fetch players', details: error.message });
+      }
+
+      const { data: teams } = await supabase
+        .from('teams')
+        .select('id, name, short_name');
+
+      return res.status(200).json({ players: players || [], teams: teams || [] });
+    } catch (error) {
+      console.error('Players list error:', error);
+      return res.status(500).json({ error: 'Failed to fetch players', details: error.message });
+    }
+  }
+
+  try {    // Fetch from FPL API
     const response = await fetch(FPL_BOOTSTRAP_URL);
     const data = await response.json();
 

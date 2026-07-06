@@ -25,6 +25,12 @@ module.exports = async (req, res) => {
     process.env.SUPABASE_SECRET
   );
 
+  // Master project: players — used for Fantasy Manager squad validation/scoring
+  const masterDb = createClient(
+    process.env.MASTER_SUPABASE_URL,
+    process.env.MASTER_SUPABASE_SERVICE_KEY
+  );
+
   // GET - List tournaments
   if (req.method === 'GET') {
     try {
@@ -78,6 +84,34 @@ module.exports = async (req, res) => {
         return res.status(200).json({ tournaments: tournaments || [] });
       }
 
+      // Return the current user's own entry for one tournament (used by
+      // the Fantasy Manager page to know if a squad has already been saved)
+      const myEntry = params.get('my_entry');
+      if (myEntry && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) {
+          return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const { data: entry, error: entryError } = await supabaseAdmin
+          .from('tournament_entries')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (entryError) {
+          return res.status(500).json({ error: 'Failed to fetch entry', details: entryError.message });
+        }
+
+        return res.status(200).json({ entry: entry || null });
+      }
+
       // Return leaderboard for specific tournament
       if (leaderboard && tournamentId) {
         const { data: entries, error: entriesError } = await supabaseAdmin
@@ -89,9 +123,43 @@ module.exports = async (req, res) => {
         if (entriesError) {
           return res.status(500).json({ error: 'Failed to fetch leaderboard', details: entriesError.message });
         }
-        
+
+        // Fantasy-squad tournaments score at read time from live FPL player
+        // points (players.total_points), rather than a stored entry_points
+        // value — no cron/finalise step needed.
+        const { data: tData } = await supabase
+          .from('tournaments')
+          .select('format')
+          .eq('id', tournamentId)
+          .single();
+
+        let scoredEntries = entries || [];
+
+        if (tData && tData.format === 'fantasy_squad' && scoredEntries.length > 0) {
+          const allIds = new Set();
+          scoredEntries.forEach(e => (e.squad_players || []).forEach(id => allIds.add(id)));
+
+          let pointsMap = {};
+          if (allIds.size > 0) {
+            const { data: playersData } = await masterDb
+              .from('players')
+              .select('id, total_points')
+              .in('id', Array.from(allIds));
+            (playersData || []).forEach(p => { pointsMap[p.id] = p.total_points || 0; });
+          }
+
+          scoredEntries = scoredEntries.map(e => {
+            const squad = e.squad_players || [];
+            const total = squad.reduce((sum, pid) => {
+              const pts = pointsMap[pid] || 0;
+              return sum + (pid === e.captain_id ? pts * 2 : pts);
+            }, 0);
+            return { ...e, entry_points: total };
+          }).sort((a, b) => b.entry_points - a.entry_points);
+        }
+
         // Add rank to each entry
-        const rankedEntries = (entries || []).map((entry, index) => ({
+        const rankedEntries = scoredEntries.map((entry, index) => ({
           ...entry,
           rank: index + 1
         }));
@@ -100,6 +168,21 @@ module.exports = async (req, res) => {
           tournament_id: tournamentId,
           leaderboard: rankedEntries
         });
+      }
+
+      // Return a single tournament by id (no leaderboard/join, just details)
+      if (tournamentId && !leaderboard) {
+        const { data: singleTournament, error: singleError } = await supabase
+          .from('tournaments')
+          .select('*')
+          .eq('id', tournamentId)
+          .single();
+
+        if (singleError || !singleTournament) {
+          return res.status(404).json({ error: 'Tournament not found' });
+        }
+
+        return res.status(200).json({ tournament: singleTournament });
       }
 
       let query = supabase
@@ -188,7 +271,7 @@ module.exports = async (req, res) => {
       
       console.log('Tournaments API - User authenticated:', user.id);
 
-      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at } = req.body;
+      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id } = req.body;
 
       // CREATE tournament (admin action)
       if (action === 'create') {
@@ -229,7 +312,8 @@ module.exports = async (req, res) => {
         });
       }
 
-      // JOIN tournament (user action)
+      // JOIN tournament (user action) — also used to save/update a Fantasy
+      // Manager squad, since a squad is just extra payload on the entry.
       if (action === 'join') {
         try {
           console.log('Join action - tournament_id:', tournament_id, 'user_id:', user.id);
@@ -253,29 +337,90 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Tournament is not open for entries' });
           }
 
-          // Create entry (use admin client to bypass RLS)
-          const { data: entry, error: entryError } = await supabaseAdmin
-            .from('tournament_entries')
-            .insert({
-              tournament_id: tournament_id,
-              user_id: user.id,
-              entry_points: 0,
-              entered_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+          const entryPayload = {
+            tournament_id: tournament_id,
+            user_id: user.id,
+            entered_at: new Date().toISOString()
+          };
 
-          console.log('Insert result:', entry, 'Error:', entryError);
+          // Fantasy squad tournaments require & validate squad_players/captain_id
+          if (tournament.format === 'fantasy_squad') {
+            if (!Array.isArray(squad_players) || squad_players.length !== 15) {
+              return res.status(400).json({ error: 'squad_players must be an array of 15 player ids' });
+            }
+            const uniqueIds = new Set(squad_players);
+            if (uniqueIds.size !== 15) {
+              return res.status(400).json({ error: 'squad_players must not contain duplicates' });
+            }
+            if (!captain_id || !uniqueIds.has(captain_id)) {
+              return res.status(400).json({ error: 'captain_id must be one of the squad_players' });
+            }
+
+            const { data: squadRows, error: squadError } = await masterDb
+              .from('players')
+              .select('id, element_type, now_cost')
+              .in('id', squad_players);
+
+            if (squadError) {
+              return res.status(500).json({ error: 'Failed to validate squad', details: squadError.message });
+            }
+            if (!squadRows || squadRows.length !== 15) {
+              return res.status(400).json({ error: 'One or more player ids were not recognised' });
+            }
+
+            const counts = { 1: 0, 2: 0, 3: 0, 4: 0 }; // GK, DEF, MID, FWD
+            let totalCost = 0;
+            squadRows.forEach(p => {
+              counts[p.element_type] = (counts[p.element_type] || 0) + 1;
+              totalCost += p.now_cost || 0;
+            });
+
+            if (counts[1] !== 2 || counts[2] !== 5 || counts[3] !== 5 || counts[4] !== 3) {
+              return res.status(400).json({
+                error: 'Squad must be exactly 2 GK, 5 DEF, 5 MID, 3 FWD',
+                counts
+              });
+            }
+            if (totalCost > 1000) { // now_cost is in tenths of £m — 1000 = £100.0m
+              return res.status(400).json({ error: `Squad costs £${(totalCost/10).toFixed(1)}m, budget is £100.0m` });
+            }
+
+            entryPayload.squad_players = squad_players;
+            entryPayload.captain_id = captain_id;
+          }
+
+          // Try insert first; if the user already has an entry (unique
+          // constraint on tournament_id+user_id), update it instead so a
+          // Fantasy Manager squad can be edited before the deadline.
+          let entry, entryError;
+          ({ data: entry, error: entryError } = await supabaseAdmin
+            .from('tournament_entries')
+            .insert({ ...entryPayload, entry_points: 0 })
+            .select()
+            .single());
+
+          if (entryError && entryError.code === '23505') {
+            // Already entered — update existing row instead (squad edits etc.)
+            ({ data: entry, error: entryError } = await supabaseAdmin
+              .from('tournament_entries')
+              .update(entryPayload)
+              .eq('tournament_id', tournament_id)
+              .eq('user_id', user.id)
+              .select()
+              .single());
+          } else if (!entryError) {
+            // Brand-new entry — bump the tournament's entry count
+            await supabaseAdmin
+              .from('tournaments')
+              .update({ current_entries: tournament.current_entries + 1 })
+              .eq('id', tournament_id);
+          }
+
+          console.log('Join/update result:', entry, 'Error:', entryError);
 
           if (entryError) {
             return res.status(400).json({ error: entryError.message });
           }
-          
-          // Update tournament entry count
-          await supabaseAdmin
-            .from('tournaments')
-            .update({ current_entries: tournament.current_entries + 1 })
-            .eq('id', tournament_id);
           
           return res.status(200).json({ success: true, entry });
           

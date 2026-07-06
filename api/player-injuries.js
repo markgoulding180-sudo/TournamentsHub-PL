@@ -16,9 +16,10 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Pure master PL-facts data — reads from the shared master project
     const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY
+      process.env.MASTER_SUPABASE_URL,
+      process.env.MASTER_SUPABASE_ANON_KEY
     );
 
     // Get players with injuries/news

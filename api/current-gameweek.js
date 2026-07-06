@@ -15,9 +15,10 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // master_clock lives in the shared master PL-facts project now
   const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SECRET
+    process.env.MASTER_SUPABASE_URL,
+    process.env.MASTER_SUPABASE_SERVICE_KEY
   );
 
   // GET - Read current gameweek from Master Clock

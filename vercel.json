@@ -11,6 +11,7 @@
     { "source": "/injuries", "destination": "/injuries.html" },
     { "source": "/table", "destination": "/table.html" },
     { "source": "/links", "destination": "/links.html" },
-    { "source": "/tournaments", "destination": "/tournaments.html" }
+    { "source": "/tournaments", "destination": "/tournaments.html" },
+    { "source": "/fantasy-manager", "destination": "/fantasy-manager.html" }
   ]
 }

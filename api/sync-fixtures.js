@@ -25,10 +25,15 @@ module.exports = async (req, res) => {
     const params = new URLSearchParams(req.query);
     const gameweek = params.get('gameweek');
 
-    // Initialize Supabase
-    const supabase = createClient(
+    // Local project: predictions/users/tournaments (scoring side-effects)
+    const localDb = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SECRET
+    );
+    // Master project: matches — shared PL facts, synced from FPL
+    const masterDb = createClient(
+      process.env.MASTER_SUPABASE_URL,
+      process.env.MASTER_SUPABASE_SERVICE_KEY
     );
 
     // Fetch team data from FPL
@@ -127,7 +132,7 @@ module.exports = async (req, res) => {
       }
 
       // Use FPL fixture ID to check if match exists
-      const { data: existingMatch } = await supabase
+      const { data: existingMatch } = await masterDb
         .from('matches')
         .select('id')
         .eq('id', fixture.id)
@@ -135,7 +140,7 @@ module.exports = async (req, res) => {
 
       if (existingMatch) {
         // Update existing match
-        const { error } = await supabase
+        const { error } = await masterDb
           .from('matches')
           .update(matchData)
           .eq('id', fixture.id);
@@ -147,7 +152,7 @@ module.exports = async (req, res) => {
         }
       } else {
         // Create new match with FPL fixture ID
-        const { error } = await supabase
+        const { error } = await masterDb
           .from('matches')
           .insert(matchData);
 
@@ -161,7 +166,7 @@ module.exports = async (req, res) => {
 
     // If any matches were updated with results, trigger scoring
     if (results.updated > 0) {
-      await calculatePointsForGameweek(supabase, gameweek);
+      await calculatePointsForGameweek(localDb, masterDb, gameweek);
     }
 
     return res.status(200).json({
@@ -200,9 +205,9 @@ function calculateResult(homeScore, awayScore) {
   return 'D';
 }
 
-async function calculatePointsForGameweek(supabase, gameweek) {
-  // Get all finished matches for this gameweek
-  const { data: matches } = await supabase
+async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
+  // Get all finished matches for this gameweek (master project)
+  const { data: matches } = await masterDb
     .from('matches')
     .select('*')
     .eq('gameweek', gameweek)
@@ -216,7 +221,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
 
   for (const match of matches) {
     // Get all predictions for this match
-    const { data: predictions } = await supabase
+    const { data: predictions } = await localDb
       .from('predictions')
       .select('*')
       .eq('match_id', match.id);
@@ -237,7 +242,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
       }
 
       // Update prediction with points
-      await supabase
+      await localDb
         .from('predictions')
         .update({ points_earned: points })
         .eq('id', pred.id);
@@ -248,12 +253,12 @@ async function calculatePointsForGameweek(supabase, gameweek) {
   }
 
   // Update user totals
-  const { data: users } = await supabase
+  const { data: users } = await localDb
     .from('users')
     .select('id');
 
   for (const user of users) {
-    const { data: userPreds } = await supabase
+    const { data: userPreds } = await localDb
       .from('predictions')
       .select('points_earned, home_score, away_score')
       .eq('user_id', user.id);
@@ -261,7 +266,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
     const totalPoints = userPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0);
     const correctScores = userPreds.filter(p => p.points_earned === 20).length;
 
-    await supabase
+    await localDb
       .from('users')
       .update({ 
         total_points: totalPoints,
@@ -273,7 +278,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
   
   // Update tournament entries for affected users
   // Get all tournaments for this gameweek
-  const { data: tournaments } = await supabase
+  const { data: tournaments } = await localDb
     .from('tournaments')
     .select('id')
     .eq('gameweek', gameweek);
@@ -282,7 +287,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
     for (const userId of usersToUpdate) {
       for (const tournament of tournaments) {
         // Check if user is entered in this tournament
-        const { data: entries } = await supabase
+        const { data: entries } = await localDb
           .from('tournament_entries')
           .select('id')
           .eq('tournament_id', tournament.id)
@@ -291,7 +296,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
         if (!entries || entries.length === 0) continue;
         
         // Get all predictions for matches in this gameweek for this user
-        const { data: userGameweekPreds } = await supabase
+        const { data: userGameweekPreds } = await localDb
           .from('predictions')
           .select('points_earned')
           .eq('user_id', userId)
@@ -300,7 +305,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
         const gameweekPoints = userGameweekPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0);
         
         // Update the tournament entry with new points
-        await supabase
+        await localDb
           .from('tournament_entries')
           .update({ entry_points: gameweekPoints })
           .eq('tournament_id', tournament.id)
@@ -310,7 +315,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
     
     // Recalculate ranks for all tournaments
     for (const tournament of tournaments) {
-      const { data: entries } = await supabase
+      const { data: entries } = await localDb
         .from('tournament_entries')
         .select('id, entry_points')
         .eq('tournament_id', tournament.id)
@@ -318,7 +323,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
       
       if (entries) {
         for (let i = 0; i < entries.length; i++) {
-          await supabase
+          await localDb
             .from('tournament_entries')
             .update({ rank: i + 1 })
             .eq('id', entries[i].id);

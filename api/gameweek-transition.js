@@ -17,13 +17,19 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const supabase = createClient(
+    // Local project: users/predictions/tournaments/tournament_entries/etc.
+    const localDb = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SECRET
     );
+    // Master project: master_clock/matches — shared PL facts
+    const masterDb = createClient(
+      process.env.MASTER_SUPABASE_URL,
+      process.env.MASTER_SUPABASE_SERVICE_KEY
+    );
 
     // Get Master Clock - this is the source of truth
-    const { data: masterClock, error: clockError } = await supabase
+    const { data: masterClock, error: clockError } = await masterDb
       .from('master_clock')
       .select('*')
       .eq('id', 'current')
@@ -62,16 +68,16 @@ module.exports = async (req, res) => {
     // Finalise the current gameweek
     if (isManualFinalise) {
       // Finalise points
-      await finaliseGameweek(supabase, currentGW);
+      await finaliseGameweek(localDb, masterDb, currentGW);
       result.actions.push('finalised_points');
 
       // Update tournament entries with final rankings
-      await updateTournamentRankings(supabase, currentGW);
+      await updateTournamentRankings(localDb, currentGW);
       result.actions.push('updated_tournament_rankings');
 
       // Advance Master Clock to next gameweek
       const nextGW = currentGW + 1;
-      const { error: updateError } = await supabase
+      const { error: updateError } = await masterDb
         .from('master_clock')
         .update({
           current_gameweek: nextGW,
@@ -101,9 +107,9 @@ module.exports = async (req, res) => {
   }
 };
 
-async function finaliseGameweek(supabase, gameweek) {
-  // Get all finished matches for this gameweek
-  const { data: matches } = await supabase
+async function finaliseGameweek(localDb, masterDb, gameweek) {
+  // Get all finished matches for this gameweek (master project)
+  const { data: matches } = await masterDb
     .from('matches')
     .select('*')
     .eq('gameweek', gameweek)
@@ -112,7 +118,7 @@ async function finaliseGameweek(supabase, gameweek) {
   if (!matches || matches.length === 0) return;
 
   // Get all users who made predictions this gameweek (with usernames)
-  const { data: userPredictions } = await supabase
+  const { data: userPredictions } = await localDb
     .from('predictions')
     .select('user_id, username')
     .eq('gameweek', gameweek);
@@ -132,7 +138,7 @@ async function finaliseGameweek(supabase, gameweek) {
 
     for (const match of matches) {
       // Get user's prediction for this match
-      const { data: pred } = await supabase
+      const { data: pred } = await localDb
         .from('predictions')
         .select('*')
         .eq('user_id', userId)
@@ -154,7 +160,7 @@ async function finaliseGameweek(supabase, gameweek) {
         gwTotalPredictions++;
 
         // Save to permanent prediction_history
-        await supabase
+        await localDb
           .from('prediction_history')
           .upsert({
             user_id: userId,
@@ -176,7 +182,7 @@ async function finaliseGameweek(supabase, gameweek) {
           });
 
         // Update the prediction record
-        await supabase
+        await localDb
           .from('predictions')
           .update({ points_earned: points })
           .eq('id', pred.id);
@@ -184,7 +190,7 @@ async function finaliseGameweek(supabase, gameweek) {
     }
 
     // Save gameweek summary for this user
-    await supabase
+    await localDb
       .from('gameweek_summary')
       .upsert({
         user_id: userId,
@@ -200,14 +206,14 @@ async function finaliseGameweek(supabase, gameweek) {
       });
     
     // Update tournament entries for this user
-    const { data: userTournaments } = await supabase
+    const { data: userTournaments } = await localDb
       .from('tournament_entries')
       .select('tournament_id, entry_points')
       .eq('user_id', userId);
     
     for (const entry of userTournaments || []) {
       // Check if this tournament includes the current gameweek
-      const { data: tournament } = await supabase
+      const { data: tournament } = await localDb
         .from('tournaments')
         .select('gameweek, end_gameweek')
         .eq('id', entry.tournament_id)
@@ -220,7 +226,7 @@ async function finaliseGameweek(supabase, gameweek) {
         // Check if current gameweek is within tournament range
         if (gameweek >= startGW && gameweek <= endGW) {
           // For multi-week tournaments, accumulate points
-          const { data: gwSummaries } = await supabase
+          const { data: gwSummaries } = await localDb
             .from('gameweek_summary')
             .select('total_points')
             .eq('user_id', userId)
@@ -230,7 +236,7 @@ async function finaliseGameweek(supabase, gameweek) {
           const totalTournamentPoints = (gwSummaries || [])
             .reduce((sum, s) => sum + (s.total_points || 0), 0);
           
-          await supabase
+          await localDb
             .from('tournament_entries')
             .update({ entry_points: totalTournamentPoints })
             .eq('tournament_id', entry.tournament_id)
@@ -242,7 +248,7 @@ async function finaliseGameweek(supabase, gameweek) {
 
   // Update all user totals from prediction_history
   for (const userId of userIds) {
-    const { data: historyPredictions } = await supabase
+    const { data: historyPredictions } = await localDb
       .from('prediction_history')
       .select('points_earned')
       .eq('user_id', userId);
@@ -250,7 +256,7 @@ async function finaliseGameweek(supabase, gameweek) {
     const total = (historyPredictions || []).reduce((sum, p) => sum + (p.points_earned || 0), 0);
     const correct = (historyPredictions || []).filter(p => p.points_earned === 20).length;
 
-    await supabase
+    await localDb
       .from('users')
       .update({
         total_points: total,
@@ -261,15 +267,15 @@ async function finaliseGameweek(supabase, gameweek) {
   }
 
   // Clear predictions for this gameweek
-  await supabase
+  await localDb
     .from('predictions')
     .delete()
     .eq('gameweek', gameweek);
 }
 
-async function updateTournamentRankings(supabase, gameweek) {
+async function updateTournamentRankings(localDb, gameweek) {
   // Get tournaments that include this gameweek in their range
-  const { data: tournaments } = await supabase
+  const { data: tournaments } = await localDb
     .from('tournaments')
     .select('*')
     .lte('gameweek', gameweek)
@@ -277,7 +283,7 @@ async function updateTournamentRankings(supabase, gameweek) {
 
   for (const tournament of tournaments || []) {
     // Get all entries sorted by points
-    const { data: entries } = await supabase
+    const { data: entries } = await localDb
       .from('tournament_entries')
       .select('*, users:user_id(*)')
       .eq('tournament_id', tournament.id)
@@ -292,7 +298,7 @@ async function updateTournamentRankings(supabase, gameweek) {
       else if (rank === 2) prize = Math.floor(tournament.top_prize * 0.5);
       else if (rank === 3) prize = Math.floor(tournament.top_prize * 0.25);
 
-      await supabase
+      await localDb
         .from('tournament_entries')
         .update({ rank, prize_won: prize })
         .eq('id', entries[i].id);
@@ -302,7 +308,7 @@ async function updateTournamentRankings(supabase, gameweek) {
     const tournamentEndGW = tournament.end_gameweek || tournament.gameweek;
     
     if (gameweek >= tournamentEndGW) {
-      await supabase
+      await localDb
         .from('tournaments')
         .update({ status: 'finished' })
         .eq('id', tournament.id);

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fantasy Manager - GB Fantasy</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    .fm-hero{display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem;}
+    .fm-status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .8rem; border-radius:2rem; font-size:.8rem; font-weight:600; background:var(--bg-hover); border:1px solid var(--border-color); color:var(--text-secondary);}
+    .fm-status-badge.entered{background:rgba(34,197,94,0.12); border-color:var(--accent-green); color:var(--accent-green);}
+    .fm-budget-bar{display:flex; gap:1rem; flex-wrap:wrap; margin:1.25rem 0 1.5rem;}
+    .fm-stat{background:var(--bg-card); border:1px solid var(--border-color); border-radius:0.75rem; padding:.85rem 1.2rem; min-width:110px;}
+    .fm-stat-label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.2rem;}
+    .fm-stat-value{font-size:1.25rem; font-weight:700;}
+    .fm-stat-value.over{color:var(--accent-red);}
+    .fm-layout{display:grid; grid-template-columns:1.4fr 1fr; gap:1.5rem; align-items:start;}
+    @media (max-width:900px){.fm-layout{grid-template-columns:1fr;}}
+    .fm-pool-filters{display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;}
+    .fm-filter-btn{padding:.4rem .9rem; border-radius:2rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-secondary); font-size:.8rem; cursor:pointer;}
+    .fm-filter-btn.active{background:var(--accent-green); color:var(--bg-primary); border-color:var(--accent-green);}
+    .fm-search{width:100%; margin-bottom:1rem;}
+    .fm-player-list{display:flex; flex-direction:column; gap:.5rem; max-height:600px; overflow-y:auto; padding-right:4px;}
+    .fm-player-row{display:flex; align-items:center; gap:.7rem; background:var(--bg-hover); border:1px solid var(--border-color); border-radius:.6rem; padding:.55rem .8rem;}
+    .fm-player-row.disabled{opacity:.4;}
+    .fm-pos-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex:none;}
+    .fm-pos-badge.gk{background:rgba(245,158,11,0.2);color:var(--accent-amber);}
+    .fm-pos-badge.def{background:rgba(59,130,246,0.2);color:var(--accent-blue);}
+    .fm-pos-badge.mid{background:rgba(34,197,94,0.2);color:var(--accent-green);}
+    .fm-pos-badge.fwd{background:rgba(239,68,68,0.2);color:var(--accent-red);}
+    .fm-player-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .fm-player-name .team{font-size:.72rem; color:var(--text-muted); display:block;}
+    .fm-player-meta{display:flex; gap:.9rem; font-size:.8rem; color:var(--text-secondary); flex:none; text-align:right;}
+    .fm-player-meta span{display:block; min-width:38px;}
+    .fm-add-btn{flex:none; width:28px; height:28px; border-radius:50%; border:none; background:var(--accent-green); color:var(--bg-primary); font-weight:700; cursor:pointer; font-size:.9rem;}
+    .fm-add-btn:disabled{background:var(--border-color); color:var(--text-muted); cursor:not-allowed;}
+    .fm-squad-group-title{font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin:.9rem 0 .4rem;}
+    .fm-squad-group-title:first-child{margin-top:0;}
+    .fm-squad-slot{display:flex; align-items:center; gap:.6rem; background:var(--bg-hover); border:1px solid var(--border-color); border-radius:.6rem; padding:.5rem .7rem; margin-bottom:.4rem;}
+    .fm-squad-slot.empty{opacity:.4; font-style:italic;}
+    .fm-squad-slot .fm-player-name{font-size:.88rem;}
+    .fm-cap-btn{flex:none; width:24px; height:24px; border-radius:50%; border:1px solid var(--accent-amber); background:transparent; color:var(--accent-amber); font-size:.65rem; cursor:pointer;}
+    .fm-cap-btn.active{background:var(--accent-amber); color:var(--bg-primary);}
+    .fm-remove-btn{flex:none; background:none; border:none; color:var(--accent-red); cursor:pointer; font-size:1rem; line-height:1;}
+    .fm-lb-row{display:flex; align-items:center; gap:.8rem; padding:.5rem 0; border-bottom:1px solid var(--border-color); font-size:.9rem;}
+    .fm-lb-row:last-child{border-bottom:none;}
+    .fm-save-bar{position:sticky; bottom:0; background:var(--bg-card); border:1px solid var(--border-color); border-radius:.75rem; padding:1rem; margin-top:1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;}
+  </style>
+</head>
+<body>
+  <!-- Sidebar Navigation (Desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="index.html" class="sidebar-logo">
+        <i class="fas fa-trophy"></i>
+        <span>GB Fantasy</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="fantasy-manager.html" class="sidebar-link active" data-page="fantasy-manager"><i class="fas fa-people-group"></i><span>Fantasy Manager</span></a>
+      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
+      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
+      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <div class="sidebar-divider"></div>
+      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
+      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="index.html" class="logo">
+        <i class="fas fa-trophy"></i>
+        GB Fantasy
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="fantasy-manager.html" class="active"><i class="fas fa-people-group"></i> Fantasy Manager</a></li>
+        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
+        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
+        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
+        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+      </ul>
+      <button class="mobile-menu-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <div class="hero mb-3 fm-hero">
+      <div>
+        <h1><i class="fas fa-people-group text-amber"></i> Fantasy Football Manager</h1>
+        <p>Build a 15-player squad within a £100.0m budget. Score points every gameweek from real Premier League performances — your captain scores double.</p>
+      </div>
+      <span class="fm-status-badge" id="fmStatusBadge"><i class="fas fa-circle-notch fa-spin"></i> Checking your squad…</span>
+    </div>
+
+    <div class="fm-budget-bar">
+      <div class="fm-stat">
+        <div class="fm-stat-label">Budget Left</div>
+        <div class="fm-stat-value" id="fmBudgetLeft">£100.0m</div>
+      </div>
+      <div class="fm-stat">
+        <div class="fm-stat-label">Squad</div>
+        <div class="fm-stat-value" id="fmSquadCount">0 / 15</div>
+      </div>
+      <div class="fm-stat">
+        <div class="fm-stat-label">GK</div>
+        <div class="fm-stat-value" id="fmCountGK">0 / 2</div>
+      </div>
+      <div class="fm-stat">
+        <div class="fm-stat-label">DEF</div>
+        <div class="fm-stat-value" id="fmCountDEF">0 / 5</div>
+      </div>
+      <div class="fm-stat">
+        <div class="fm-stat-label">MID</div>
+        <div class="fm-stat-value" id="fmCountMID">0 / 5</div>
+      </div>
+      <div class="fm-stat">
+        <div class="fm-stat-label">FWD</div>
+        <div class="fm-stat-value" id="fmCountFWD">0 / 3</div>
+      </div>
+    </div>
+
+    <div class="fm-layout">
+      <!-- Player pool -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-list"></i> Player Pool</div>
+        </div>
+        <input type="text" class="form-input fm-search" id="fmSearch" placeholder="Search players…">
+        <div class="fm-pool-filters" id="fmFilters">
+          <button class="fm-filter-btn active" data-pos="all">All</button>
+          <button class="fm-filter-btn" data-pos="1">GK</button>
+          <button class="fm-filter-btn" data-pos="2">DEF</button>
+          <button class="fm-filter-btn" data-pos="3">MID</button>
+          <button class="fm-filter-btn" data-pos="4">FWD</button>
+        </div>
+        <div class="fm-player-list" id="fmPlayerList">
+          <p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading players…</p>
+        </div>
+      </section>
+
+      <!-- My squad -->
+      <div>
+        <section class="card mb-3">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-shirt"></i> My Squad</div>
+          </div>
+          <div id="fmSquadPanel"></div>
+          <div class="fm-save-bar">
+            <span class="text-muted" style="font-size:.8rem;">Tap <i class="fas fa-star" style="color:var(--accent-amber)"></i> to set captain (2x points)</span>
+            <button class="btn btn-primary" id="fmSaveBtn" disabled>
+              <i class="fas fa-floppy-disk"></i> Save Squad
+            </button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-chart-line"></i> Top of the Table</div>
+          </div>
+          <div id="fmLeaderboard">
+            <p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
+    </div>
+  </footer>
+
+  <script src="auth-gate.js"></script>
+  <script src="fantasy-manager.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const userJson = localStorage.getItem('gbf_user');
+      if (userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          const usernameEl = document.getElementById('sidebar-username');
+          const avatarEl = document.getElementById('sidebar-avatar');
+          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
+          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+        } catch (e) {}
+      }
+    });
+  </script>
+</body>
+</html>

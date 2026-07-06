@@ -17,9 +17,15 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const supabase = createClient(
+    // Local project: predictions/users/tournaments (scoring side-effects)
+    const localDb = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SECRET
+    );
+    // Master project: matches — shared PL facts, synced from FPL
+    const masterDb = createClient(
+      process.env.MASTER_SUPABASE_URL,
+      process.env.MASTER_SUPABASE_SERVICE_KEY
     );
 
     // Get current gameweek from FPL API directly (no settings table needed)
@@ -59,7 +65,7 @@ module.exports = async (req, res) => {
     }
 
     // Get all GW matches from our database
-    const { data: dbMatches } = await supabase
+    const { data: dbMatches } = await masterDb
       .from('matches')
       .select('*')
       .eq('gameweek', currentGW);
@@ -175,7 +181,7 @@ module.exports = async (req, res) => {
         console.log(`Match live: ${fplHomeName} ${fixture.team_h_score}-${fixture.team_a_score} ${fplAwayName} (${fixture.minutes}')`);
       }
 
-      const { error } = await supabase
+      const { error } = await masterDb
         .from('matches')
         .update(updateData)
         .eq('id', dbMatch.id);
@@ -190,14 +196,14 @@ module.exports = async (req, res) => {
     // Calculate points for finished matches
     if (results.finished > 0) {
       console.log(`Calculating points for ${results.finished} finished matches`);
-      await calculatePointsForGameweek(supabase, currentGW);
+      await calculatePointsForGameweek(localDb, masterDb, currentGW);
     }
     
     // Recalculate points when matches transition from provisional to fully finished
     // This ensures accuracy as FPL finalizes their data
     if (provisionalToFinishedCount > 0) {
       console.log(`Recalculating points for ${provisionalToFinishedCount} matches that transitioned provisional→finished`);
-      await calculatePointsForGameweek(supabase, currentGW);
+      await calculatePointsForGameweek(localDb, masterDb, currentGW);
       results.provisionalToFinished = provisionalToFinishedCount;
     }
 
@@ -216,10 +222,10 @@ module.exports = async (req, res) => {
   }
 };
 
-async function calculatePointsForGameweek(supabase, gameweek) {
+async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   console.log(`=== POINTS CALCULATION START - GW${gameweek} ===`);
   
-  const { data: matches } = await supabase
+  const { data: matches } = await masterDb
     .from('matches')
     .select('*')
     .eq('gameweek', gameweek)
@@ -240,7 +246,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
   for (const match of matches) {
     console.log(`\nProcessing match: ${match.home_team} ${match.home_score}-${match.away_score} ${match.away_team} [Result: ${match.result}]`);
     
-    const { data: predictions } = await supabase
+    const { data: predictions } = await localDb
       .from('predictions')
       .select('*, users(username)')
       .eq('match_id', match.id);
@@ -271,7 +277,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
 
       console.log(`      → Awarded ${points} points`);
 
-      const { error } = await supabase
+      const { error } = await localDb
         .from('predictions')
         .update({ points_earned: points })
         .eq('id', pred.id);
@@ -293,11 +299,11 @@ async function calculatePointsForGameweek(supabase, gameweek) {
 
   // Update user total points
   console.log(`\n=== UPDATING USER TOTALS ===`);
-  const { data: users } = await supabase.from('users').select('id, username');
+  const { data: users } = await localDb.from('users').select('id, username');
   let usersUpdated = 0;
 
   for (const user of users || []) {
-    const { data: userPreds } = await supabase
+    const { data: userPreds } = await localDb
       .from('predictions')
       .select('points_earned')
       .eq('user_id', user.id);
@@ -305,7 +311,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
     const totalPoints = (userPreds || []).reduce((sum, p) => sum + (p.points_earned || 0), 0);
     const correctScores = (userPreds || []).filter(p => p.points_earned === 20).length;
 
-    const { error } = await supabase
+    const { error } = await localDb
       .from('users')
       .update({
         total_points: totalPoints,
@@ -325,7 +331,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
 
   // Update tournament entry points
   console.log(`\n=== UPDATING TOURNAMENT ENTRIES ===`);
-  const { data: tournaments } = await supabase
+  const { data: tournaments } = await localDb
     .from('tournaments')
     .select('id, gameweek, end_gameweek, name');
 
@@ -345,7 +351,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
     
     for (const userId of usersToUpdate) {
       for (const tournament of relevantTournaments) {
-        const { data: entries } = await supabase
+        const { data: entries } = await localDb
           .from('tournament_entries')
           .select('id, user_id')
           .eq('tournament_id', tournament.id)
@@ -356,8 +362,8 @@ async function calculatePointsForGameweek(supabase, gameweek) {
         const startGW = tournament.gameweek;
         const endGW = tournament.end_gameweek || tournament.gameweek;
 
-        // Get ALL matches across ALL gameweeks in the tournament range
-        const { data: tournamentMatches } = await supabase
+        // Get ALL matches across ALL gameweeks in the tournament range (master project)
+        const { data: tournamentMatches } = await masterDb
           .from('matches')
           .select('id')
           .gte('gameweek', startGW)
@@ -365,7 +371,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
 
         const tournamentMatchIds = new Set((tournamentMatches || []).map(m => m.id));
 
-        const { data: predPoints } = await supabase
+        const { data: predPoints } = await localDb
           .from('predictions')
           .select('points_earned, match_id')
           .eq('user_id', userId);
@@ -375,7 +381,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
           .filter(p => tournamentMatchIds.has(p.match_id))
           .reduce((sum, p) => sum + (p.points_earned || 0), 0);
 
-        const { error } = await supabase
+        const { error } = await localDb
           .from('tournament_entries')
           .update({ entry_points: totalPoints })
           .eq('tournament_id', tournament.id)
@@ -390,7 +396,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
     // Recalculate ranks
     console.log(`\n=== RECALCULATING TOURNAMENT RANKS ===`);
     for (const tournament of relevantTournaments) {
-      const { data: entries } = await supabase
+      const { data: entries } = await localDb
         .from('tournament_entries')
         .select('id, entry_points, rank')
         .eq('tournament_id', tournament.id)
@@ -401,7 +407,7 @@ async function calculatePointsForGameweek(supabase, gameweek) {
         for (let i = 0; i < entries.length; i++) {
           const newRank = i + 1;
           const oldRank = entries[i].rank;
-          await supabase
+          await localDb
             .from('tournament_entries')
             .update({ rank: newRank })
             .eq('id', entries[i].id);
