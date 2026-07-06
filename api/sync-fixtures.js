@@ -105,7 +105,9 @@ module.exports = async (req, res) => {
     console.log('Sync fixtures - Teams object keys count:', Object.keys(teams).length);
     console.log('Sync fixtures - Teams object sample:', Object.entries(teams).slice(0, 3));
     console.log('Sync fixtures - First fixture team IDs:', { team_h: gameweekFixtures[0]?.team_h, team_a: gameweekFixtures[0]?.team_a });
-    
+
+    // Build every match row first (in memory, no DB calls yet)
+    const matchRows = [];
     for (const fixture of gameweekFixtures) {
       // Skip if teams not found
       if (!teams[fixture.team_h] || !teams[fixture.team_a]) {
@@ -121,7 +123,10 @@ module.exports = async (req, res) => {
         home_team_code: teams[fixture.team_h].short_name,
         away_team_code: teams[fixture.team_a].short_name,
         kickoff_time: fixture.kickoff_time,
-        status: mapFPLStatus(fixture.finished, fixture.started)
+        status: mapFPLStatus(fixture.finished, fixture.started),
+        home_score: null,
+        away_score: null,
+        result: null
       };
 
       // Add scores if match is finished
@@ -131,36 +136,41 @@ module.exports = async (req, res) => {
         matchData.result = calculateResult(fixture.team_h_score, fixture.team_a_score);
       }
 
-      // Use FPL fixture ID to check if match exists
-      const { data: existingMatch } = await masterDb
+      matchRows.push(matchData);
+    }
+
+    // Know which ids already existed, so we can report created vs updated
+    // without doing a per-row lookup (one query instead of hundreds).
+    const allIds = matchRows.map(m => m.id);
+    let existingIdSet = new Set();
+    if (allIds.length > 0) {
+      const { data: existingRows } = await masterDb
         .from('matches')
         .select('id')
-        .eq('id', fixture.id)
-        .single();
+        .in('id', allIds);
+      existingIdSet = new Set((existingRows || []).map(r => r.id));
+    }
 
-      if (existingMatch) {
-        // Update existing match
-        const { error } = await masterDb
-          .from('matches')
-          .update(matchData)
-          .eq('id', fixture.id);
+    // One bulk upsert per chunk instead of two DB calls per fixture.
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < matchRows.length; i += CHUNK_SIZE) {
+      const chunk = matchRows.slice(i, i + CHUNK_SIZE);
+      const { error } = await masterDb
+        .from('matches')
+        .upsert(chunk, { onConflict: 'id' });
 
-        if (error) {
-          results.errors.push({ match: `${matchData.home_team} vs ${matchData.away_team}`, error: error.message });
-        } else {
-          results.updated++;
-        }
+      if (error) {
+        chunk.forEach(m => {
+          results.errors.push({ match: `${m.home_team} vs ${m.away_team}`, error: error.message });
+        });
       } else {
-        // Create new match with FPL fixture ID
-        const { error } = await masterDb
-          .from('matches')
-          .insert(matchData);
-
-        if (error) {
-          results.errors.push({ match: `${matchData.home_team} vs ${matchData.away_team}`, error: error.message });
-        } else {
-          results.created++;
-        }
+        chunk.forEach(m => {
+          if (existingIdSet.has(m.id)) {
+            results.updated++;
+          } else {
+            results.created++;
+          }
+        });
       }
     }
 
