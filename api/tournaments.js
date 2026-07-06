@@ -121,7 +121,7 @@ module.exports = async (req, res) => {
       if (leaderboard && tournamentId) {
         const { data: entries, error: entriesError } = await supabaseAdmin
           .schema(schemaName).from('tournament_entries')
-          .select('*, users:user_id(username, display_name)')
+          .select('*')
           .eq('tournament_id', tournamentId)
           .order('entry_points', { ascending: false });
         
@@ -129,10 +129,24 @@ module.exports = async (req, res) => {
           return res.status(500).json({ error: 'Failed to fetch leaderboard', details: entriesError.message });
         }
 
-        // Fantasy Manager's tournaments score at read time from live FPL
-        // player points (players.total_points), rather than a stored
-        // entry_points value — no cron/finalise step needed.
-        let scoredEntries = entries || [];
+        // Fetch usernames separately rather than relying on PostgREST's
+        // automatic FK-relationship embedding (users:user_id(...)) — that
+        // depends on its schema cache picking up cross-schema foreign keys,
+        // which has proven unreliable for this project's custom schemas.
+        let usersById = {};
+        const userIds = [...new Set((entries || []).map(e => e.user_id))];
+        if (userIds.length > 0) {
+          const { data: usersData } = await supabaseAdmin
+            .from('users')
+            .select('id, username, display_name')
+            .in('id', userIds);
+          (usersData || []).forEach(u => { usersById[u.id] = u; });
+        }
+
+        let scoredEntries = (entries || []).map(e => ({
+          ...e,
+          users: usersById[e.user_id] || null
+        }));
 
         if (schemaName === 'fantasy' && scoredEntries.length > 0) {
           const allIds = new Set();
