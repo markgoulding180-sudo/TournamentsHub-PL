@@ -247,7 +247,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
     console.log(`\nProcessing match: ${match.home_team} ${match.home_score}-${match.away_score} ${match.away_team} [Result: ${match.result}]`);
     
     const { data: predictions } = await localDb
-      .from('predictions')
+      .schema('predictions').from('predictions')
       .select('*, users(username)')
       .eq('match_id', match.id);
 
@@ -278,7 +278,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
       console.log(`      → Awarded ${points} points`);
 
       const { error } = await localDb
-        .from('predictions')
+        .schema('predictions').from('predictions')
         .update({ points_earned: points })
         .eq('id', pred.id);
 
@@ -304,7 +304,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
 
   for (const user of users || []) {
     const { data: userPreds } = await localDb
-      .from('predictions')
+      .schema('predictions').from('predictions')
       .select('points_earned')
       .eq('user_id', user.id);
 
@@ -332,7 +332,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   // Update tournament entry points
   console.log(`\n=== UPDATING TOURNAMENT ENTRIES ===`);
   const { data: tournaments } = await localDb
-    .from('tournaments')
+    .schema('predictions').from('tournaments')
     .select('id, gameweek, end_gameweek, name');
 
   // Filter tournaments that include this gameweek in their range
@@ -352,7 +352,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
     for (const userId of usersToUpdate) {
       for (const tournament of relevantTournaments) {
         const { data: entries } = await localDb
-          .from('tournament_entries')
+          .schema('predictions').from('tournament_entries')
           .select('id, user_id')
           .eq('tournament_id', tournament.id)
           .eq('user_id', userId);
@@ -372,7 +372,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
         const tournamentMatchIds = new Set((tournamentMatches || []).map(m => m.id));
 
         const { data: predPoints } = await localDb
-          .from('predictions')
+          .schema('predictions').from('predictions')
           .select('points_earned, match_id')
           .eq('user_id', userId);
 
@@ -382,7 +382,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
           .reduce((sum, p) => sum + (p.points_earned || 0), 0);
 
         const { error } = await localDb
-          .from('tournament_entries')
+          .schema('predictions').from('tournament_entries')
           .update({ entry_points: totalPoints })
           .eq('tournament_id', tournament.id)
           .eq('user_id', userId);
@@ -397,7 +397,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
     console.log(`\n=== RECALCULATING TOURNAMENT RANKS ===`);
     for (const tournament of relevantTournaments) {
       const { data: entries } = await localDb
-        .from('tournament_entries')
+        .schema('predictions').from('tournament_entries')
         .select('id, entry_points, rank')
         .eq('tournament_id', tournament.id)
         .order('entry_points', { ascending: false });
@@ -408,7 +408,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
           const newRank = i + 1;
           const oldRank = entries[i].rank;
           await localDb
-            .from('tournament_entries')
+            .schema('predictions').from('tournament_entries')
             .update({ rank: newRank })
             .eq('id', entries[i].id);
           if (oldRank !== newRank) {

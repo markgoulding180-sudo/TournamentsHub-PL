@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
           
           // Get prediction history for this user (with match details for readability)
           const { data: history, error: historyError } = await supabaseAdmin
-            .from('prediction_history')
+            .schema('predictions').from('prediction_history')
             .select('*')
             .eq('user_id', user.id)
             .order('gameweek', { ascending: false })
@@ -103,7 +103,7 @@ module.exports = async (req, res) => {
           
           // Get gameweek summaries
           const { data: summaries, error: summaryError } = await supabaseAdmin
-            .from('gameweek_summary')
+            .schema('predictions').from('gameweek_summary')
             .select('*')
             .eq('user_id', user.id)
             .order('gameweek', { ascending: false });
@@ -165,7 +165,7 @@ module.exports = async (req, res) => {
           
           // Get predictions with match details for human readability
           const { data: predictions, error: predError } = await supabaseAdmin
-            .from('predictions')
+            .schema('predictions').from('predictions')
             .select('*')
             .eq('user_id', user.id)
             .eq('gameweek', gameweek);
@@ -362,7 +362,7 @@ module.exports = async (req, res) => {
 
       // Upsert predictions (insert or update if exists) - use admin client for RLS
       const { data, error } = await supabaseAdmin
-        .from('predictions')
+        .schema('predictions').from('predictions')
         .upsert(predictionsToInsert, {
           onConflict: 'user_id,match_id',
           ignoreDuplicates: false
@@ -412,7 +412,7 @@ async function getTrendsData(localDb, masterDb, gameweek, res) {
     // No cross-project join here (matches lives in a different project),
     // so match/team lookups are done in-memory below via matchesById.
     const { data: allPredictions, error: predError } = await localDb
-      .from('predictions')
+      .schema('predictions').from('predictions')
       .select('*')
       .eq('gameweek', parseInt(gameweek));
 

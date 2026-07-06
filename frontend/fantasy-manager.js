@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   // ---------- Load data ----------
   async function loadTournament() {
     try {
-      const res = await fetch('/api/tournaments?status=live');
+      const res = await fetch('/api/tournaments?status=live&tournament_type=fantasy_manager');
       const data = await res.json();
       const t = (data.tournaments || []).find(t => t.format === 'fantasy_squad');
       if (!t) {
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       return;
     }
     try {
-      const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&my_entry=true`, {
+      const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&my_entry=true&tournament_type=fantasy_manager`, {
         headers: authHeaders()
       });
       const data = await res.json();
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   async function loadLeaderboard() {
     if (!tournamentId) return;
     try {
-      const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&leaderboard=true`);
+      const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&leaderboard=true&tournament_type=fantasy_manager`);
       const data = await res.json();
       const rows = (data.leaderboard || []).slice(0, 10);
       if (rows.length === 0) {
@@ -284,6 +284,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           action: 'join',
+          tournament_type: 'fantasy_manager',
           tournament_id: tournamentId,
           squad_players: squad.map(p => p.id),
           captain_id: captainId

@@ -119,7 +119,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
 
   // Get all users who made predictions this gameweek (with usernames)
   const { data: userPredictions } = await localDb
-    .from('predictions')
+    .schema('predictions').from('predictions')
     .select('user_id, username')
     .eq('gameweek', gameweek);
 
@@ -139,7 +139,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
     for (const match of matches) {
       // Get user's prediction for this match
       const { data: pred } = await localDb
-        .from('predictions')
+        .schema('predictions').from('predictions')
         .select('*')
         .eq('user_id', userId)
         .eq('match_id', match.id)
@@ -161,7 +161,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
 
         // Save to permanent prediction_history
         await localDb
-          .from('prediction_history')
+          .schema('predictions').from('prediction_history')
           .upsert({
             user_id: userId,
             username: userMap[userId] || 'Unknown',
@@ -183,7 +183,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
 
         // Update the prediction record
         await localDb
-          .from('predictions')
+          .schema('predictions').from('predictions')
           .update({ points_earned: points })
           .eq('id', pred.id);
       }
@@ -191,7 +191,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
 
     // Save gameweek summary for this user
     await localDb
-      .from('gameweek_summary')
+      .schema('predictions').from('gameweek_summary')
       .upsert({
         user_id: userId,
         username: userMap[userId] || 'Unknown',
@@ -207,14 +207,14 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
     
     // Update tournament entries for this user
     const { data: userTournaments } = await localDb
-      .from('tournament_entries')
+      .schema('predictions').from('tournament_entries')
       .select('tournament_id, entry_points')
       .eq('user_id', userId);
     
     for (const entry of userTournaments || []) {
       // Check if this tournament includes the current gameweek
       const { data: tournament } = await localDb
-        .from('tournaments')
+        .schema('predictions').from('tournaments')
         .select('gameweek, end_gameweek')
         .eq('id', entry.tournament_id)
         .single();
@@ -227,7 +227,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
         if (gameweek >= startGW && gameweek <= endGW) {
           // For multi-week tournaments, accumulate points
           const { data: gwSummaries } = await localDb
-            .from('gameweek_summary')
+            .schema('predictions').from('gameweek_summary')
             .select('total_points')
             .eq('user_id', userId)
             .gte('gameweek', startGW)
@@ -237,7 +237,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
             .reduce((sum, s) => sum + (s.total_points || 0), 0);
           
           await localDb
-            .from('tournament_entries')
+            .schema('predictions').from('tournament_entries')
             .update({ entry_points: totalTournamentPoints })
             .eq('tournament_id', entry.tournament_id)
             .eq('user_id', userId);
@@ -249,7 +249,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
   // Update all user totals from prediction_history
   for (const userId of userIds) {
     const { data: historyPredictions } = await localDb
-      .from('prediction_history')
+      .schema('predictions').from('prediction_history')
       .select('points_earned')
       .eq('user_id', userId);
 
@@ -268,7 +268,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
 
   // Clear predictions for this gameweek
   await localDb
-    .from('predictions')
+    .schema('predictions').from('predictions')
     .delete()
     .eq('gameweek', gameweek);
 }
@@ -276,7 +276,7 @@ async function finaliseGameweek(localDb, masterDb, gameweek) {
 async function updateTournamentRankings(localDb, gameweek) {
   // Get tournaments that include this gameweek in their range
   const { data: tournaments } = await localDb
-    .from('tournaments')
+    .schema('predictions').from('tournaments')
     .select('*')
     .lte('gameweek', gameweek)
     .gte('end_gameweek', gameweek);
@@ -284,7 +284,7 @@ async function updateTournamentRankings(localDb, gameweek) {
   for (const tournament of tournaments || []) {
     // Get all entries sorted by points
     const { data: entries } = await localDb
-      .from('tournament_entries')
+      .schema('predictions').from('tournament_entries')
       .select('*, users:user_id(*)')
       .eq('tournament_id', tournament.id)
       .order('entry_points', { ascending: false });
@@ -299,7 +299,7 @@ async function updateTournamentRankings(localDb, gameweek) {
       else if (rank === 3) prize = Math.floor(tournament.top_prize * 0.25);
 
       await localDb
-        .from('tournament_entries')
+        .schema('predictions').from('tournament_entries')
         .update({ rank, prize_won: prize })
         .eq('id', entries[i].id);
     }
@@ -309,7 +309,7 @@ async function updateTournamentRankings(localDb, gameweek) {
     
     if (gameweek >= tournamentEndGW) {
       await localDb
-        .from('tournaments')
+        .schema('predictions').from('tournaments')
         .update({ status: 'finished' })
         .eq('id', tournament.id);
     }

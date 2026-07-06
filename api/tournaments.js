@@ -40,6 +40,11 @@ module.exports = async (req, res) => {
       const tournamentId = params.get('tournament_id');
       const leaderboard = params.get('leaderboard'); // if set, return leaderboard
       const myEntries = params.get('my_entries'); // if set, return user's entered tournaments
+
+      // Which schema to query: 'predictions' (Score Predictions, default —
+      // existing callers that don't send this keep working unchanged) or
+      // 'fantasy_manager' (Fantasy Manager's own separate tables).
+      const schemaName = params.get('tournament_type') === 'fantasy_manager' ? 'fantasy_manager' : 'predictions';
       
       // Return user's tournament entries
       if (myEntries) {
@@ -57,7 +62,7 @@ module.exports = async (req, res) => {
 
         // Get tournaments the user has entered
         const { data: entries, error: entriesError } = await supabaseAdmin
-          .from('tournament_entries')
+          .schema(schemaName).from('tournament_entries')
           .select('tournament_id')
           .eq('user_id', user.id);
 
@@ -73,7 +78,7 @@ module.exports = async (req, res) => {
         }
 
         const { data: tournaments, error: tournamentsError } = await supabase
-          .from('tournaments')
+          .schema(schemaName).from('tournaments')
           .select('*')
           .in('id', tournamentIds);
 
@@ -99,7 +104,7 @@ module.exports = async (req, res) => {
         }
 
         const { data: entry, error: entryError } = await supabaseAdmin
-          .from('tournament_entries')
+          .schema(schemaName).from('tournament_entries')
           .select('*')
           .eq('tournament_id', tournamentId)
           .eq('user_id', user.id)
@@ -115,7 +120,7 @@ module.exports = async (req, res) => {
       // Return leaderboard for specific tournament
       if (leaderboard && tournamentId) {
         const { data: entries, error: entriesError } = await supabaseAdmin
-          .from('tournament_entries')
+          .schema(schemaName).from('tournament_entries')
           .select('*, users:user_id(username, display_name)')
           .eq('tournament_id', tournamentId)
           .order('entry_points', { ascending: false });
@@ -124,18 +129,12 @@ module.exports = async (req, res) => {
           return res.status(500).json({ error: 'Failed to fetch leaderboard', details: entriesError.message });
         }
 
-        // Fantasy-squad tournaments score at read time from live FPL player
-        // points (players.total_points), rather than a stored entry_points
-        // value — no cron/finalise step needed.
-        const { data: tData } = await supabase
-          .from('tournaments')
-          .select('format')
-          .eq('id', tournamentId)
-          .single();
-
+        // Fantasy Manager's tournaments score at read time from live FPL
+        // player points (players.total_points), rather than a stored
+        // entry_points value — no cron/finalise step needed.
         let scoredEntries = entries || [];
 
-        if (tData && tData.format === 'fantasy_squad' && scoredEntries.length > 0) {
+        if (schemaName === 'fantasy_manager' && scoredEntries.length > 0) {
           const allIds = new Set();
           scoredEntries.forEach(e => (e.squad_players || []).forEach(id => allIds.add(id)));
 
@@ -173,7 +172,7 @@ module.exports = async (req, res) => {
       // Return a single tournament by id (no leaderboard/join, just details)
       if (tournamentId && !leaderboard) {
         const { data: singleTournament, error: singleError } = await supabase
-          .from('tournaments')
+          .schema(schemaName).from('tournaments')
           .select('*')
           .eq('id', tournamentId)
           .single();
@@ -186,7 +185,7 @@ module.exports = async (req, res) => {
       }
 
       let query = supabase
-        .from('tournaments')
+        .schema(schemaName).from('tournaments')
         .select('*')
         .order('closes_at', { ascending: true });
 
@@ -271,7 +270,8 @@ module.exports = async (req, res) => {
       
       console.log('Tournaments API - User authenticated:', user.id);
 
-      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id } = req.body;
+      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type } = req.body;
+      const schemaName = tournament_type === 'fantasy_manager' ? 'fantasy_manager' : 'predictions';
 
       // CREATE tournament (admin action)
       if (action === 'create') {
@@ -280,7 +280,7 @@ module.exports = async (req, res) => {
         }
 
         const { data, error } = await supabaseAdmin
-          .from('tournaments')
+          .schema(schemaName).from('tournaments')
           .insert({
             name,
             entry_fee: entry_fee || 0,
@@ -316,7 +316,7 @@ module.exports = async (req, res) => {
       // Manager squad, since a squad is just extra payload on the entry.
       if (action === 'join') {
         try {
-          console.log('Join action - tournament_id:', tournament_id, 'user_id:', user.id);
+          console.log('Join action - tournament_id:', tournament_id, 'user_id:', user.id, 'schema:', schemaName);
           
           if (!tournament_id) {
             return res.status(400).json({ error: 'tournament_id is required' });
@@ -324,7 +324,7 @@ module.exports = async (req, res) => {
 
           // Check if tournament exists and is open
           const { data: tournament, error: tournamentError } = await supabase
-            .from('tournaments')
+            .schema(schemaName).from('tournaments')
             .select('*')
             .eq('id', tournament_id)
             .single();
@@ -343,8 +343,8 @@ module.exports = async (req, res) => {
             entered_at: new Date().toISOString()
           };
 
-          // Fantasy squad tournaments require & validate squad_players/captain_id
-          if (tournament.format === 'fantasy_squad') {
+          // Fantasy Manager entries require & validate squad_players/captain_id
+          if (schemaName === 'fantasy_manager') {
             if (!Array.isArray(squad_players) || squad_players.length !== 15) {
               return res.status(400).json({ error: 'squad_players must be an array of 15 player ids' });
             }
@@ -394,7 +394,7 @@ module.exports = async (req, res) => {
           // Fantasy Manager squad can be edited before the deadline.
           let entry, entryError;
           ({ data: entry, error: entryError } = await supabaseAdmin
-            .from('tournament_entries')
+            .schema(schemaName).from('tournament_entries')
             .insert({ ...entryPayload, entry_points: 0 })
             .select()
             .single());
@@ -402,7 +402,7 @@ module.exports = async (req, res) => {
           if (entryError && entryError.code === '23505') {
             // Already entered — update existing row instead (squad edits etc.)
             ({ data: entry, error: entryError } = await supabaseAdmin
-              .from('tournament_entries')
+              .schema(schemaName).from('tournament_entries')
               .update(entryPayload)
               .eq('tournament_id', tournament_id)
               .eq('user_id', user.id)
@@ -411,7 +411,7 @@ module.exports = async (req, res) => {
           } else if (!entryError) {
             // Brand-new entry — bump the tournament's entry count
             await supabaseAdmin
-              .from('tournaments')
+              .schema(schemaName).from('tournaments')
               .update({ current_entries: tournament.current_entries + 1 })
               .eq('id', tournament_id);
           }
