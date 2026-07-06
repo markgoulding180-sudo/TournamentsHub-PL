@@ -1,5 +1,11 @@
 {
   "outputDirectory": "frontend",
+  "functions": {
+    "api/sync-players.js": { "maxDuration": 60 },
+    "api/sync-fixtures.js": { "maxDuration": 60 },
+    "api/live-scores.js": { "maxDuration": 60 },
+    "api/gameweek-transition.js": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/register", "destination": "/register.html" },

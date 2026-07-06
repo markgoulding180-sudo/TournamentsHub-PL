@@ -47,75 +47,98 @@ module.exports = async (req, res) => {
     }
   }
 
-  try {    // Fetch from FPL API
+  try {
+    // Fetch from FPL API
     const response = await fetch(FPL_BOOTSTRAP_URL);
     const data = await response.json();
 
-    const players = data.elements;
     const results = {
-      created: 0,
-      updated: 0,
+      teams_synced: 0,
+      players_synced: 0,
       errors: []
     };
 
-    for (const player of players) {
-      const playerData = {
-        id: player.id,
-        first_name: player.first_name,
-        second_name: player.second_name,
-        web_name: player.web_name,
-        team: player.team,
-        element_type: player.element_type,
-        now_cost: player.now_cost,
-        photo: player.photo,
-        news: player.news || null,
-        news_added: player.news_added || null,
-        chance_of_playing_next_round: player.chance_of_playing_next_round,
-        chance_of_playing_this_round: player.chance_of_playing_this_round,
-        status: player.status,
-        form: parseFloat(player.form) || 0,
-        total_points: player.total_points,
-        points_per_game: parseFloat(player.points_per_game) || 0,
-        minutes: player.minutes,
-        goals_scored: player.goals_scored,
-        assists: player.assists,
-        clean_sheets: player.clean_sheets,
-        goals_conceded: player.goals_conceded,
-        own_goals: player.own_goals,
-        penalties_saved: player.penalties_saved,
-        penalties_missed: player.penalties_missed,
-        yellow_cards: player.yellow_cards,
-        red_cards: player.red_cards,
-        saves: player.saves,
-        bonus: player.bonus,
-        bps: player.bps,
-        influence: parseFloat(player.influence) || 0,
-        creativity: parseFloat(player.creativity) || 0,
-        threat: parseFloat(player.threat) || 0,
-        ict_index: parseFloat(player.ict_index) || 0,
-        updated_at: new Date().toISOString()
-      };
+    // --- Teams first: players.team is a foreign key referencing teams(id),
+    // so teams must exist before players are written. ---
+    const teamRows = (data.teams || []).map(team => ({
+      id: team.id,
+      name: team.name,
+      short_name: team.short_name,
+      code: team.code,
+      strength: team.strength,
+      strength_overall_home: team.strength_overall_home,
+      strength_overall_away: team.strength_overall_away,
+      strength_attack_home: team.strength_attack_home,
+      strength_attack_away: team.strength_attack_away,
+      strength_defence_home: team.strength_defence_home,
+      strength_defence_away: team.strength_defence_away,
+      updated_at: new Date().toISOString()
+    }));
 
-      // Upsert player
+    if (teamRows.length > 0) {
+      const { error: teamsError } = await supabase
+        .from('teams')
+        .upsert(teamRows, { onConflict: 'id' });
+
+      if (teamsError) {
+        results.errors.push({ stage: 'teams', error: teamsError.message });
+      } else {
+        results.teams_synced = teamRows.length;
+      }
+    }
+
+    // --- Players: one bulk upsert instead of one request per player. ---
+    const players = data.elements;
+    const playerRows = players.map(player => ({
+      id: player.id,
+      first_name: player.first_name,
+      second_name: player.second_name,
+      web_name: player.web_name,
+      team: player.team,
+      element_type: player.element_type,
+      now_cost: player.now_cost,
+      photo: player.photo,
+      news: player.news || null,
+      news_added: player.news_added || null,
+      chance_of_playing_next_round: player.chance_of_playing_next_round,
+      chance_of_playing_this_round: player.chance_of_playing_this_round,
+      status: player.status,
+      form: parseFloat(player.form) || 0,
+      total_points: player.total_points,
+      points_per_game: parseFloat(player.points_per_game) || 0,
+      minutes: player.minutes,
+      goals_scored: player.goals_scored,
+      assists: player.assists,
+      clean_sheets: player.clean_sheets,
+      goals_conceded: player.goals_conceded,
+      own_goals: player.own_goals,
+      penalties_saved: player.penalties_saved,
+      penalties_missed: player.penalties_missed,
+      yellow_cards: player.yellow_cards,
+      red_cards: player.red_cards,
+      saves: player.saves,
+      bonus: player.bonus,
+      bps: player.bps,
+      influence: parseFloat(player.influence) || 0,
+      creativity: parseFloat(player.creativity) || 0,
+      threat: parseFloat(player.threat) || 0,
+      ict_index: parseFloat(player.ict_index) || 0,
+      updated_at: new Date().toISOString()
+    }));
+
+    // Supabase/Postgres can choke on one gigantic multi-thousand-row upsert
+    // over HTTP, so chunk it — still only ~7 requests instead of 700+.
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < playerRows.length; i += CHUNK_SIZE) {
+      const chunk = playerRows.slice(i, i + CHUNK_SIZE);
       const { error } = await supabase
         .from('players')
-        .upsert(playerData, { onConflict: 'id' });
+        .upsert(chunk, { onConflict: 'id' });
 
       if (error) {
-        results.errors.push({ player: player.web_name, error: error.message });
+        results.errors.push({ stage: 'players', chunk_start: i, error: error.message });
       } else {
-        // Check if this was insert or update
-        const { data: existing } = await supabase
-          .from('players')
-          .select('id')
-          .eq('id', player.id)
-          .single();
-        
-        if (existing) {
-          results.updated++;
-        } else {
-          results.created++;
-        }
+        results.players_synced += chunk.length;
       }
     }
 
