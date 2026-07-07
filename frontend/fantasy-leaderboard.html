@@ -78,6 +78,14 @@
     .stat-row .stat-value{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
     .note{ font-size:12px; color:var(--text-faint); margin-top:10px; line-height:1.5; }
 
+    .records-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:24px; }
+    .record-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
+    .record-card .rc-label{ font-family:var(--font-head); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+    .record-card .rc-name{ font-family:var(--font-head); font-size:19px; font-weight:700; margin-bottom:2px; }
+    .record-card .rc-meta{ font-size:12px; color:var(--text-dim); }
+    .record-card .rc-value{ font-family:var(--font-display); font-size:26px; color:var(--gold); margin-top:8px; }
+    .record-card.empty{ display:flex; align-items:center; justify-content:center; min-height:96px; color:var(--text-faint); font-size:13px; text-align:center; }
+
     .loading, .empty{ text-align:center; padding:50px 20px; color:var(--text-faint); }
     footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
   </style>
@@ -110,6 +118,10 @@
     <div class="header">
       <h1><i class="fas fa-chart-line" style="color:var(--gold);"></i> Fantasy Manager Leaderboard</h1>
       <p>Ranked by season total points. Captain's points are doubled.</p>
+    </div>
+
+    <div class="records-row" id="recordsRow">
+      <div class="record-card empty"><i class="fas fa-spinner fa-spin"></i>&nbsp; Loading records…</div>
     </div>
 
     <div class="layout">
@@ -269,14 +281,86 @@
       }
     }
 
+    async function loadRecords() {
+      const container = document.getElementById('recordsRow');
+      try {
+        const res = await fetch('/api/sync-players?records=true');
+        const data = await res.json();
+
+        const cards = [];
+
+        const best = (data.bestGameweeks || [])[0];
+        if (best) {
+          cards.push(`
+            <div class="record-card">
+              <div class="rc-label"><i class="fas fa-fire" style="color:var(--red);"></i> Best Single Gameweek</div>
+              <div class="rc-name">${escapeHtml(best.web_name)}</div>
+              <div class="rc-meta">${escapeHtml(best.team)} · Gameweek ${best.gameweek}</div>
+              <div class="rc-value">${best.points} pts</div>
+            </div>`);
+        } else {
+          cards.push(`
+            <div class="record-card empty">
+              <div><i class="fas fa-fire" style="color:var(--red);"></i> Best Single Gameweek<br><span style="font-size:11.5px;">No finished gameweeks recorded yet</span></div>
+            </div>`);
+        }
+
+        const streak = (data.streaks || [])[0];
+        if (streak) {
+          cards.push(`
+            <div class="record-card">
+              <div class="rc-label"><i class="fas fa-arrow-trend-up" style="color:var(--green);"></i> Longest Scoring Streak</div>
+              <div class="rc-name">${escapeHtml(streak.web_name)}</div>
+              <div class="rc-meta">${escapeHtml(streak.team)} · through GW${streak.through_gameweek}</div>
+              <div class="rc-value">${streak.streak} GW${streak.streak === 1 ? '' : 's'}</div>
+            </div>`);
+        } else {
+          cards.push(`
+            <div class="record-card empty">
+              <div><i class="fas fa-arrow-trend-up" style="color:var(--green);"></i> Longest Scoring Streak<br><span style="font-size:11.5px;">Needs at least 2 finished gameweeks</span></div>
+            </div>`);
+        }
+
+        // Runners-up for each, if we have them — extra context, same card style
+        if (data.bestGameweeks && data.bestGameweeks.length > 1) {
+          const runner = data.bestGameweeks[1];
+          cards.push(`
+            <div class="record-card">
+              <div class="rc-label"><i class="fas fa-medal" style="color:#c7cdd6;"></i> 2nd Best Gameweek</div>
+              <div class="rc-name">${escapeHtml(runner.web_name)}</div>
+              <div class="rc-meta">${escapeHtml(runner.team)} · Gameweek ${runner.gameweek}</div>
+              <div class="rc-value">${runner.points} pts</div>
+            </div>`);
+        }
+
+        if (data.streaks && data.streaks.length > 1) {
+          const runner = data.streaks[1];
+          cards.push(`
+            <div class="record-card">
+              <div class="rc-label"><i class="fas fa-medal" style="color:#c7cdd6;"></i> 2nd Longest Streak</div>
+              <div class="rc-name">${escapeHtml(runner.web_name)}</div>
+              <div class="rc-meta">${escapeHtml(runner.team)} · through GW${runner.through_gameweek}</div>
+              <div class="rc-value">${runner.streak} GW${runner.streak === 1 ? '' : 's'}</div>
+            </div>`);
+        }
+
+        container.innerHTML = cards.join('');
+      } catch (e) {
+        console.error('Failed to load records:', e);
+        container.innerHTML = '<div class="record-card empty">Couldn\'t load records right now.</div>';
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       initAuthButton();
       loadBoard();
       loadStatLeaders();
+      loadRecords();
     });
     window.addEventListener('gbf-data-refreshed', () => {
       loadBoard();
       loadStatLeaders();
+      loadRecords();
     });
   </script>
 </body>

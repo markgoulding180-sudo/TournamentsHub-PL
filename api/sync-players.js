@@ -47,6 +47,74 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Read-only mode: GET /api/sync-players?records=true
+  // Computes "best single gameweek ever" and "longest consecutive scoring
+  // streak" from the history table snapshotted after each finished gameweek.
+  if (req.method === 'GET' && params.get('records') === 'true') {
+    try {
+      const [historyRes, playersRes, teamsRes] = await Promise.all([
+        supabase.from('player_gameweek_history').select('player_id, gameweek, event_points').order('gameweek', { ascending: true }),
+        supabase.from('players').select('id, web_name, team'),
+        supabase.from('teams').select('id, name, short_name')
+      ]);
+
+      const history = historyRes.data || [];
+      const playersById = {};
+      (playersRes.data || []).forEach(p => { playersById[p.id] = p; });
+      const teamsById = {};
+      (teamsRes.data || []).forEach(t => { teamsById[t.id] = t; });
+
+      function playerInfo(id) {
+        const p = playersById[id];
+        const team = p ? teamsById[p.team] : null;
+        return {
+          player_id: id,
+          web_name: p ? p.web_name : 'Unknown',
+          team: team ? (team.short_name || team.name) : ''
+        };
+      }
+
+      // Best single gameweek: top 5 highest event_points rows ever recorded
+      const bestGameweeks = [...history]
+        .sort((a, b) => b.event_points - a.event_points)
+        .slice(0, 5)
+        .map(h => ({ ...playerInfo(h.player_id), gameweek: h.gameweek, points: h.event_points }));
+
+      // Longest consecutive-scoring streaks: group by player, walk gameweeks
+      // in order, count consecutive rows with event_points > 0
+      const byPlayer = {};
+      history.forEach(h => {
+        if (!byPlayer[h.player_id]) byPlayer[h.player_id] = [];
+        byPlayer[h.player_id].push(h);
+      });
+
+      const streaks = Object.keys(byPlayer).map(pid => {
+        const rows = byPlayer[pid].sort((a, b) => a.gameweek - b.gameweek);
+        let best = 0, current = 0, bestEndGw = null;
+        let prevGw = null;
+        for (const row of rows) {
+          const consecutive = prevGw !== null && row.gameweek === prevGw + 1;
+          if (row.event_points > 0) {
+            current = consecutive ? current + 1 : 1;
+            if (current > best) { best = current; bestEndGw = row.gameweek; }
+          } else {
+            current = 0;
+          }
+          prevGw = row.gameweek;
+        }
+        return { ...playerInfo(parseInt(pid, 10)), streak: best, through_gameweek: bestEndGw };
+      })
+      .filter(s => s.streak > 0)
+      .sort((a, b) => b.streak - a.streak)
+      .slice(0, 5);
+
+      return res.status(200).json({ bestGameweeks, streaks, gameweeksRecorded: [...new Set(history.map(h => h.gameweek))].length });
+    } catch (error) {
+      console.error('Records fetch error:', error);
+      return res.status(500).json({ error: 'Failed to fetch records', details: error.message });
+    }
+  }
+
   // Read-only mode: GET /api/sync-players?summary=123
   // Proxies FPL's per-gameweek history for one player (goals/assists/cards
   // etc *for that specific gameweek*, not season totals) — FPL blocks
