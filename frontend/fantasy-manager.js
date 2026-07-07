@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       const team = teamsById[p.team];
 
       return `
-        <div class="fm-player-row ${disabled && !inSquad ? 'disabled' : ''}">
+        <div class="fm-player-row ${disabled && !inSquad ? 'disabled' : ''}" data-player-id="${p.id}" style="cursor:pointer;">
           <span class="fm-pos-badge ${posClass}">${posLabel}</span>
           <span class="fm-player-name">
             ${escapeHtml(p.web_name)}
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (p) {
           const isCaptain = p.id === captainId;
           html += `
-            <div class="fm-squad-slot">
+            <div class="fm-squad-slot" data-player-id="${p.id}">
               <button class="fm-cap-btn ${isCaptain ? 'active' : ''}" data-captain="${p.id}" title="Set as captain">C</button>
               <span class="fm-player-name">${escapeHtml(p.web_name)}<span class="team">£${fmt(p.now_cost)}m</span></span>
               <span style="color:var(--gold); font-size:.8rem; font-weight:700; flex:none;">${(p.event_points ?? 0) * (isCaptain ? 2 : 1)} GW</span>
@@ -237,25 +237,34 @@ document.addEventListener('DOMContentLoaded', async function () {
   // ---------- Interactions ----------
   els.playerList.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-add]');
-    if (!btn || btn.disabled) return;
-    const id = parseInt(btn.dataset.add, 10);
-    const player = allPlayers.find(p => p.id === id);
-    if (!player) return;
+    if (btn) {
+      if (btn.disabled) return;
+      const id = parseInt(btn.dataset.add, 10);
+      const player = allPlayers.find(p => p.id === id);
+      if (!player) return;
 
-    if (squad.length >= 15) { alert('Your squad already has 15 players.'); return; }
-    if (countByType(player.element_type) >= POSITION_QUOTA[player.element_type]) {
-      alert(`You already have the maximum number of ${POSITION_LABELS[player.element_type]}s.`);
+      if (squad.length >= 15) { alert('Your squad already has 15 players.'); return; }
+      if (countByType(player.element_type) >= POSITION_QUOTA[player.element_type]) {
+        alert(`You already have the maximum number of ${POSITION_LABELS[player.element_type]}s.`);
+        return;
+      }
+      if (squadCost() + player.now_cost > BUDGET_LIMIT) {
+        alert('Adding this player would take you over the £100.0m budget.');
+        return;
+      }
+
+      squad.push(player);
+      if (squad.length === 1) captainId = player.id; // sensible default
+      renderSquad();
+      renderPlayerList();
       return;
     }
-    if (squadCost() + player.now_cost > BUDGET_LIMIT) {
-      alert('Adding this player would take you over the £100.0m budget.');
-      return;
-    }
 
-    squad.push(player);
-    if (squad.length === 1) captainId = player.id; // sensible default
-    renderSquad();
-    renderPlayerList();
+    // Clicked the row itself (not the add button) — open the player's page
+    const row = e.target.closest('[data-player-id]');
+    if (row) {
+      window.location.href = `/player?id=${row.dataset.playerId}`;
+    }
   });
 
   els.squadPanel.addEventListener('click', function (e) {
@@ -272,6 +281,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (capBtn) {
       captainId = parseInt(capBtn.dataset.captain, 10);
       renderSquad();
+      return;
+    }
+    const slot = e.target.closest('[data-player-id]');
+    if (slot) {
+      window.location.href = `/player?id=${slot.dataset.playerId}`;
     }
   });
 

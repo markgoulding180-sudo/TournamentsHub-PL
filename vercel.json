@@ -19,6 +19,7 @@
     { "source": "/links", "destination": "/links.html" },
     { "source": "/tournaments", "destination": "/tournaments.html" },
     { "source": "/fantasy-manager", "destination": "/fantasy-manager.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" }
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/player", "destination": "/player.html" }
   ]
 }

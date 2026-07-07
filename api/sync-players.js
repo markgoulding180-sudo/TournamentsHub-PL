@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     try {
       const { data: players, error } = await supabase
         .from('players')
-        .select('id, web_name, first_name, second_name, team, element_type, now_cost, total_points, event_points, form, status, photo')
+        .select('id, web_name, first_name, second_name, team, element_type, now_cost, total_points, event_points, form, status, photo, news, chance_of_playing_next_round, chance_of_playing_this_round, points_per_game, minutes, goals_scored, assists, clean_sheets, goals_conceded, own_goals, penalties_saved, penalties_missed, yellow_cards, red_cards, saves, bonus, bps, influence, creativity, threat, ict_index')
         .order('total_points', { ascending: false });
 
       if (error) {
