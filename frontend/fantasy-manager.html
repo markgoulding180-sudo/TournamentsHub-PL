@@ -122,6 +122,7 @@
     .btn-primary:disabled{ background:var(--border); color:var(--text-faint); cursor:not-allowed; }
 
     .text-muted{color:var(--text-faint); font-size:13.5px;}
+    .text-amber{color:var(--gold);}
 
     footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
   </style>
@@ -162,6 +163,10 @@
     </div>
 
     <div class="fm-budget-bar">
+      <div class="fm-stat">
+        <div class="fm-stat-label">This Gameweek</div>
+        <div class="fm-stat-value" id="fmGwPoints" style="color:var(--gold);">-- pts</div>
+      </div>
       <div class="fm-stat">
         <div class="fm-stat-label">Budget Left</div>
         <div class="fm-stat-value" id="fmBudgetLeft">£100.0m</div>

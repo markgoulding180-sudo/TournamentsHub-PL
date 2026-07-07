@@ -28,7 +28,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     saveBtn: document.getElementById('fmSaveBtn'),
     leaderboard: document.getElementById('fmLeaderboard'),
     search: document.getElementById('fmSearch'),
-    filters: document.getElementById('fmFilters')
+    filters: document.getElementById('fmFilters'),
+    gwPoints: document.getElementById('fmGwPoints')
   };
 
   function authHeaders() {
@@ -120,7 +121,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         <div class="fm-lb-row">
           <span class="rank ${r.rank <= 3 ? 'rank-' + r.rank : ''}" style="width:22px;">${r.rank}</span>
           <span style="flex:1;">${escapeHtml(r.users ? (r.users.display_name || r.users.username) : 'Player')}</span>
-          <span class="text-amber" style="font-weight:700;">${r.entry_points || 0} pts</span>
+          <span style="text-align:right;">
+            <span class="text-amber" style="font-weight:700; display:block;">${r.entry_points || 0} pts</span>
+            <span class="text-muted" style="font-size:.72rem;">${r.gw_points || 0} this GW</span>
+          </span>
         </div>`).join('');
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
@@ -143,6 +147,20 @@ document.addEventListener('DOMContentLoaded', async function () {
     els.countDEF.textContent = `${countByType(2)} / 5`;
     els.countMID.textContent = `${countByType(3)} / 5`;
     els.countFWD.textContent = `${countByType(4)} / 3`;
+
+    // This gameweek's live points for the squad as currently built —
+    // uses each player's event_points (this gameweek only), captain doubled.
+    if (els.gwPoints) {
+      if (squad.length === 0) {
+        els.gwPoints.textContent = '-- pts';
+      } else {
+        const gw = squad.reduce((sum, p) => {
+          const pts = p.event_points || 0;
+          return sum + (p.id === captainId ? pts * 2 : pts);
+        }, 0);
+        els.gwPoints.textContent = `${gw} pts`;
+      }
+    }
 
     const complete = squad.length === 15 && captainId && squadCost() <= BUDGET_LIMIT;
     els.saveBtn.disabled = !complete;

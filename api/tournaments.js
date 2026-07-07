@@ -156,18 +156,23 @@ module.exports = async (req, res) => {
           if (allIds.size > 0) {
             const { data: playersData } = await masterDb
               .from('players')
-              .select('id, total_points')
+              .select('id, total_points, event_points')
               .in('id', Array.from(allIds));
-            (playersData || []).forEach(p => { pointsMap[p.id] = p.total_points || 0; });
+            (playersData || []).forEach(p => {
+              pointsMap[p.id] = { total: p.total_points || 0, gw: p.event_points || 0 };
+            });
           }
 
           scoredEntries = scoredEntries.map(e => {
             const squad = e.squad_players || [];
-            const total = squad.reduce((sum, pid) => {
-              const pts = pointsMap[pid] || 0;
-              return sum + (pid === e.captain_id ? pts * 2 : pts);
-            }, 0);
-            return { ...e, entry_points: total };
+            let total = 0, gw = 0;
+            squad.forEach(pid => {
+              const pts = pointsMap[pid] || { total: 0, gw: 0 };
+              const mult = pid === e.captain_id ? 2 : 1;
+              total += pts.total * mult;
+              gw += pts.gw * mult;
+            });
+            return { ...e, entry_points: total, gw_points: gw };
           }).sort((a, b) => b.entry_points - a.entry_points);
         }
 
