@@ -162,6 +162,22 @@
       <span class="fm-status-badge" id="fmStatusBadge"><i class="fas fa-circle-notch fa-spin"></i> Checking your squad…</span>
     </div>
 
+    <!-- Shown only once locked (deadline passed, gameweek not finished yet) -->
+    <div class="fm-status-badge" id="fmLockBanner" style="display:none; background:rgba(239,68,68,0.12); border-color:var(--red); color:#fca5a5; margin-bottom:16px; width:100%; box-sizing:border-box;">
+      <i class="fas fa-lock"></i> <span id="fmLockText"></span>
+    </div>
+
+    <!-- Shown only before the user has entered the tournament -->
+    <div class="fm-card" id="fmEnterGate" style="display:none; text-align:center; padding:44px 24px;">
+      <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+      <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter Fantasy Football Manager</h2>
+      <p class="text-muted" style="max-width:440px; margin:0 auto 22px; font-size:14px;" id="fmEnterDesc">
+        Once you're entered, build your 15-player squad below — you can edit it any time until the next gameweek deadline.
+      </p>
+      <button class="btn-primary" id="fmEnterBtn"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
+    </div>
+
+    <div id="fmMainContent" style="display:none;">
     <div class="fm-budget-bar">
       <div class="fm-stat">
         <div class="fm-stat-label">This Gameweek</div>
@@ -230,6 +246,7 @@
           </div>
         </section>
       </div>
+    </div>
     </div>
   </main>
 

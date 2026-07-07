@@ -91,6 +91,14 @@ module.exports = async (req, res) => {
 
       // Return the current user's own entry for one tournament (used by
       // the Fantasy Manager page to know if a squad has already been saved)
+      // Return Fantasy Manager's current squad-lock status (public, no auth
+      // needed — just tells the page whether editing is currently allowed)
+      const lockStatus = params.get('lock_status');
+      if (lockStatus === 'true') {
+        const lock = await getFantasyLockStatus(masterDb);
+        return res.status(200).json(lock);
+      }
+
       const myEntry = params.get('my_entry');
       if (myEntry && tournamentId) {
         const authHeader = req.headers.authorization;
@@ -362,8 +370,15 @@ module.exports = async (req, res) => {
             entered_at: new Date().toISOString()
           };
 
-          // Fantasy Manager entries require & validate squad_players/captain_id
-          if (schemaName === 'fantasy') {
+          // Fantasy Manager: squad_players is optional — omitting it just
+          // "enters" the tournament with no squad yet. If it IS provided
+          // (saving/editing a squad), validate it and check the lock first.
+          if (schemaName === 'fantasy' && squad_players !== undefined) {
+            const lock = await getFantasyLockStatus(masterDb);
+            if (lock.locked) {
+              return res.status(403).json({ error: lock.reason || 'Squad is currently locked.', lock });
+            }
+
             if (!Array.isArray(squad_players) || squad_players.length !== 15) {
               return res.status(400).json({ error: 'squad_players must be an array of 15 player ids' });
             }
@@ -459,3 +474,44 @@ module.exports = async (req, res) => {
 
   return res.status(405).json({ error: 'Method not allowed' });
 };
+
+// Fantasy Manager squad lock status: locked once the current gameweek's
+// real deadline (pulled live from FPL, not the manually-set master_clock
+// field which isn't populated by the admin UI) has passed, unlocked again
+// once every match in that gameweek has finished.
+async function getFantasyLockStatus(masterDb) {
+  try {
+    const bootstrapRes = await fetch('https://fantasy.premierleague.com/api/bootstrap-static/');
+    const bootstrapData = await bootstrapRes.json();
+    const currentEvent = bootstrapData.events?.find(e => e.is_current) || bootstrapData.events?.find(e => e.is_next);
+
+    if (!currentEvent) {
+      return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const deadlinePassed = now >= currentEvent.deadline_time_epoch;
+
+    if (!deadlinePassed) {
+      return { locked: false, gameweek: currentEvent.id, deadline_epoch: currentEvent.deadline_time_epoch, reason: null };
+    }
+
+    const { data: matches } = await masterDb
+      .from('matches')
+      .select('status')
+      .eq('gameweek', currentEvent.id);
+
+    const allFinished = !!matches && matches.length > 0 && matches.every(m => m.status === 'finished');
+
+    return {
+      locked: !allFinished,
+      gameweek: currentEvent.id,
+      deadline_epoch: currentEvent.deadline_time_epoch,
+      reason: allFinished ? null : 'Squad is locked until every match in this gameweek has finished.'
+    };
+  } catch (error) {
+    console.error('getFantasyLockStatus error:', error);
+    // Fail open rather than locking everyone out if FPL's API is briefly down
+    return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
+  }
+}

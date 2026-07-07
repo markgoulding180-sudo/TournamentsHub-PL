@@ -29,8 +29,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     leaderboard: document.getElementById('fmLeaderboard'),
     search: document.getElementById('fmSearch'),
     filters: document.getElementById('fmFilters'),
-    gwPoints: document.getElementById('fmGwPoints')
+    gwPoints: document.getElementById('fmGwPoints'),
+    enterGate: document.getElementById('fmEnterGate'),
+    enterDesc: document.getElementById('fmEnterDesc'),
+    enterBtn: document.getElementById('fmEnterBtn'),
+    mainContent: document.getElementById('fmMainContent'),
+    lockBanner: document.getElementById('fmLockBanner'),
+    lockText: document.getElementById('fmLockText')
   };
+
+  let hasEntered = false;
+  let lockInfo = { locked: false };
+  let tournamentInfo = null;
 
   function authHeaders() {
     const token = localStorage.getItem('gbf_token');
@@ -58,6 +68,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         return;
       }
       tournamentId = t.id;
+      tournamentInfo = t;
+      if (els.enterDesc) {
+        const fee = ((t.entry_fee || 0) / 100).toFixed(2);
+        els.enterDesc.textContent = `Entry fee £${fee}. Once you're entered, build your 15-player squad — you can edit it any time until the next gameweek deadline.`;
+      }
+      await loadLockStatus();
       await loadMyEntry();
       await loadLeaderboard();
     } catch (e) {
@@ -66,10 +82,43 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
   }
 
+  async function loadLockStatus() {
+    if (!tournamentId) return;
+    try {
+      const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&lock_status=true&tournament_type=fantasy`);
+      lockInfo = await res.json();
+      applyLockUI();
+    } catch (e) {
+      console.error('Failed to load lock status:', e);
+    }
+  }
+
+  function applyLockUI() {
+    if (!els.lockBanner) return;
+    if (lockInfo.locked) {
+      els.lockBanner.style.display = 'inline-flex';
+      els.lockText.textContent = lockInfo.reason || 'Squad is currently locked.';
+      els.saveBtn.disabled = true;
+      els.playerList.style.pointerEvents = 'none';
+      els.playerList.style.opacity = '0.5';
+      els.squadPanel.style.pointerEvents = 'none';
+      els.squadPanel.style.opacity = '0.7';
+    } else {
+      els.lockBanner.style.display = 'none';
+      els.playerList.style.pointerEvents = '';
+      els.playerList.style.opacity = '';
+      els.squadPanel.style.pointerEvents = '';
+      els.squadPanel.style.opacity = '';
+      renderStats(); // re-enables Save Squad if the squad is otherwise complete
+    }
+  }
+
   async function loadMyEntry() {
     const token = localStorage.getItem('gbf_token');
     if (!token || !tournamentId) {
-      els.statusBadge.innerHTML = '<i class="fas fa-lock"></i> Log in to build a squad';
+      els.statusBadge.innerHTML = '<i class="fas fa-lock"></i> Log in to enter';
+      if (els.enterGate) els.enterGate.style.display = 'none';
+      if (els.mainContent) els.mainContent.style.display = 'none';
       return;
     }
     try {
@@ -77,7 +126,22 @@ document.addEventListener('DOMContentLoaded', async function () {
         headers: authHeaders()
       });
       const data = await res.json();
-      if (data.entry && data.entry.squad_players) {
+
+      hasEntered = !!data.entry;
+
+      if (!hasEntered) {
+        // Not entered yet — show the Enter Tournament gate, hide the builder
+        els.statusBadge.innerHTML = '<i class="fas fa-circle-info"></i> Not entered yet';
+        if (els.enterGate) els.enterGate.style.display = 'block';
+        if (els.mainContent) els.mainContent.style.display = 'none';
+        return;
+      }
+
+      // Entered — show the squad builder
+      if (els.enterGate) els.enterGate.style.display = 'none';
+      if (els.mainContent) els.mainContent.style.display = 'block';
+
+      if (data.entry.squad_players) {
         squad = data.entry.squad_players
           .map(id => allPlayers.find(p => p.id === id))
           .filter(Boolean);
@@ -85,13 +149,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         els.statusBadge.className = 'fm-status-badge entered';
         els.statusBadge.innerHTML = '<i class="fas fa-circle-check"></i> Squad saved — edit any time before your next gameweek deadline';
       } else {
-        els.statusBadge.innerHTML = '<i class="fas fa-circle-info"></i> No squad saved yet';
+        els.statusBadge.innerHTML = '<i class="fas fa-circle-info"></i> Entered — build your squad below';
       }
     } catch (e) {
       console.error('Failed to load entry:', e);
     }
     renderSquad();
     renderPlayerList();
+    applyLockUI();
   }
 
   async function loadPlayers() {
@@ -307,6 +372,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     const token = localStorage.getItem('gbf_token');
     if (!token) { alert('Please log in to save your squad.'); return; }
     if (!tournamentId) { alert('Fantasy Manager tournament is not available right now.'); return; }
+    if (!hasEntered) { alert('Enter the tournament first.'); return; }
+    if (lockInfo.locked) { alert(lockInfo.reason || 'Squad is currently locked.'); return; }
     if (squad.length !== 15 || !captainId) { alert('Pick a full 15-player squad and a captain first.'); return; }
 
     els.saveBtn.disabled = true;
@@ -342,6 +409,43 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
   });
 
+  if (els.enterBtn) {
+    els.enterBtn.addEventListener('click', async function () {
+      const token = localStorage.getItem('gbf_token');
+      if (!token) { alert('Please log in first.'); return; }
+      if (!tournamentId) { alert('Fantasy Manager tournament is not available right now.'); return; }
+
+      els.enterBtn.disabled = true;
+      els.enterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
+
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({
+            action: 'join',
+            tournament_type: 'fantasy',
+            tournament_id: tournamentId
+            // no squad_players — this just enters the tournament
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'Failed to enter tournament');
+        } else {
+          hasEntered = true;
+          await loadMyEntry();
+        }
+      } catch (e) {
+        console.error('Enter tournament failed:', e);
+        alert('Error entering tournament. Please try again.');
+      } finally {
+        els.enterBtn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now';
+        els.enterBtn.disabled = false;
+      }
+    });
+  }
+
   // ---------- Init ----------
   await loadPlayers();
   await loadTournament();
@@ -355,5 +459,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     renderSquad();
     renderPlayerList();
     await loadLeaderboard();
+    await loadLockStatus();
   });
 });
