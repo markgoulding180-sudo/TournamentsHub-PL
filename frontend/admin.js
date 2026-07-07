@@ -394,6 +394,54 @@ async function syncFixtures() {
   }
 }
 
+async function refreshLiveMatches() {
+  const container = document.getElementById('live-matches');
+  container.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/live-scores', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      container.innerHTML = `<span style="color:var(--accent-red);">Error: ${data.error || 'Failed to load'}</span>`;
+      return;
+    }
+
+    const results = data.results;
+    if (!results) {
+      container.innerHTML = `<span class="text-muted">${data.message || 'No data returned'}</span>`;
+      return;
+    }
+
+    const liveMatches = results.live || [];
+    let html = `<p class="text-muted mb-2">GW${data.gameweek} — ${results.finished || 0} finished, ${liveMatches.length} live, ${results.updated || 0} updated</p>`;
+
+    if (liveMatches.length > 0) {
+      html += liveMatches.map(m => `
+        <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--border-color);">
+          <span>${m.home_team} vs ${m.away_team}</span>
+          <span><strong>${m.home} - ${m.away}</strong> (${m.minute}')</span>
+        </div>
+      `).join('');
+    } else {
+      html += '<p class="text-muted">No matches currently live.</p>';
+    }
+
+    if (results.errors && results.errors.length > 0) {
+      html += `<p style="color:var(--accent-amber); font-size:0.8rem; margin-top:0.5rem;">${results.errors.length} warning(s) — check activity log for sync issues.</p>`;
+    }
+
+    container.innerHTML = html;
+    log(`Live matches refreshed: ${results.finished || 0} finished, ${liveMatches.length} live`, 'success');
+  } catch (error) {
+    container.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+    log(`Live matches refresh error: ${error.message}`, 'error');
+  }
+}
+
 async function syncLiveScores() {
   log('Updating live scores...');
   
