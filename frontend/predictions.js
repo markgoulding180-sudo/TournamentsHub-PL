@@ -148,15 +148,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <div class="prediction-1x2">
                   <div class="prediction-option">
                     <input type="radio" name="match${matchNum}_result" id="match${matchNum}_h" value="H" ${resultH} ${disabled}>
-                    <label for="match${matchNum}_h">1</label>
+                    <label for="match${matchNum}_h">1<span class="sub-label">${match.home_team}</span></label>
                   </div>
                   <div class="prediction-option">
                     <input type="radio" name="match${matchNum}_result" id="match${matchNum}_d" value="D" ${resultD} ${disabled}>
-                    <label for="match${matchNum}_d">X</label>
+                    <label for="match${matchNum}_d">X<span class="sub-label">Draw</span></label>
                   </div>
                   <div class="prediction-option">
                     <input type="radio" name="match${matchNum}_result" id="match${matchNum}_a" value="A" ${resultA} ${disabled}>
-                    <label for="match${matchNum}_a">2</label>
+                    <label for="match${matchNum}_a">2<span class="sub-label">${match.away_team}</span></label>
                   </div>
                 </div>
                 <div class="score-inputs">
