@@ -475,37 +475,40 @@ module.exports = async (req, res) => {
   return res.status(405).json({ error: 'Method not allowed' });
 };
 
-// Fantasy Manager squad lock status — derived entirely from OUR OWN
-// synced matches table (master source of truth for every tournament),
-// not FPL's live is_current/is_next flags. This means the lock is exactly
-// as fresh as our last sync (background poll every 2 min while any page
-// is open, or the admin's Sync Everything button) — consistent with how
-// every other tournament already relies on this same synced data, rather
-// than each feature independently re-asking FPL what "current" means.
+// Fantasy Manager squad lock status — follows master_clock.current_gameweek
+// as the ONE global pointer every tournament respects (admin-controlled,
+// same clock Predictions uses). This function doesn't decide "what
+// gameweek is it" — it only asks "for whichever gameweek admin has the
+// clock set to, has that gameweek's deadline passed, and has it finished?"
 //
-// "Current gameweek" = the earliest gameweek that still has an unfinished
-// match. Locked once that gameweek's earliest kickoff has passed; unlocked
-// again once every match in it shows finished.
+// Locked once that gameweek's earliest kickoff has passed; unlocked again
+// once every match in it shows finished. If admin manually moves the
+// clock (forward, or back to fix a mistake), this immediately reflects
+// whatever gameweek the clock now points at — nothing else to reconcile,
+// since match/player data for every gameweek stays in the database either way.
 async function getFantasyLockStatus(masterDb) {
   try {
-    const { data: allMatches } = await masterDb
-      .from('matches')
-      .select('gameweek, status, kickoff_time')
-      .order('gameweek', { ascending: true });
+    const { data: clock } = await masterDb
+      .from('master_clock')
+      .select('current_gameweek')
+      .eq('id', 'current')
+      .maybeSingle();
 
-    if (!allMatches || allMatches.length === 0) {
-      return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
+    if (!clock || !clock.current_gameweek) {
+      return { locked: false, gameweek: null, deadline_epoch: null, reason: 'Master clock not set yet.' };
     }
 
-    const unfinishedGWs = [...new Set(
-      allMatches.filter(m => m.status !== 'finished').map(m => m.gameweek)
-    )].sort((a, b) => a - b);
+    const currentGW = clock.current_gameweek;
 
-    const currentGW = unfinishedGWs.length > 0
-      ? unfinishedGWs[0]
-      : Math.max(...allMatches.map(m => m.gameweek));
+    const { data: gwMatches } = await masterDb
+      .from('matches')
+      .select('status, kickoff_time')
+      .eq('gameweek', currentGW);
 
-    const gwMatches = allMatches.filter(m => m.gameweek === currentGW);
+    if (!gwMatches || gwMatches.length === 0) {
+      return { locked: false, gameweek: currentGW, deadline_epoch: null, reason: null };
+    }
+
     const earliestKickoffMs = gwMatches.reduce((min, m) => {
       const t = new Date(m.kickoff_time).getTime();
       return (min === null || t < min) ? t : min;
@@ -518,7 +521,7 @@ async function getFantasyLockStatus(masterDb) {
       return { locked: false, gameweek: currentGW, deadline_epoch: deadlineEpoch, reason: null };
     }
 
-    const allFinished = gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
+    const allFinished = gwMatches.every(m => m.status === 'finished');
 
     if (allFinished) {
       await snapshotGameweekIfNeeded(masterDb, currentGW);
@@ -537,9 +540,6 @@ async function getFantasyLockStatus(masterDb) {
   }
 }
 
-// Saves each player's points for a finished gameweek, once, so records
-// like "best single gameweek" and scoring streaks become possible later.
-// Cheap to call repeatedly: does nothing once that gameweek's already saved.
 async function snapshotGameweekIfNeeded(masterDb, gameweek) {
   try {
     const { count } = await masterDb

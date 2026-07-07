@@ -154,6 +154,7 @@ async function refreshStatus() {
       document.getElementById('next-gw').textContent = '⚠️ Initialize Master Clock';
       document.getElementById('next-gw').style.color = 'var(--accent-amber)';
       document.getElementById('deadline').textContent = 'N/A';
+      updateGameweekPanel(null);
       return;
     }
     
@@ -167,9 +168,71 @@ async function refreshStatus() {
     const nextGWLabel = document.querySelector('#status-panel .admin-status-item:nth-child(2) span');
     if (lastCompletedLabel) lastCompletedLabel.textContent = 'Last Finalised:';
     if (nextGWLabel) nextGWLabel.textContent = 'Current GW (Master Clock):';
+
+    updateGameweekPanel(gwData);
     
   } catch (error) {
     console.error('Error refreshing status:', error);
+  }
+}
+
+function updateGameweekPanel(gwData) {
+  const currentDisplay = document.getElementById('gw-current-display');
+  const matchCount = document.getElementById('gw-match-count');
+  const hint = document.getElementById('gw-advance-hint');
+  const advanceBtn = document.getElementById('gw-advance-btn');
+  if (!currentDisplay) return;
+
+  if (!gwData) {
+    currentDisplay.textContent = '--';
+    matchCount.textContent = '--';
+    hint.innerHTML = '<span class="text-muted">Set a gameweek below to get started.</span>';
+    advanceBtn.disabled = true;
+    return;
+  }
+
+  currentDisplay.textContent = `GW${gwData.current_gameweek}`;
+  matchCount.textContent = `${gwData.matches_finished ?? 0} / ${gwData.matches_total ?? 0}`;
+
+  if (!gwData.matches_total) {
+    hint.innerHTML = '<span class="text-muted"><i class="fas fa-circle-info"></i> No fixtures synced for this gameweek yet.</span>';
+    advanceBtn.disabled = false;
+  } else if (gwData.all_matches_finished) {
+    matchCount.style.color = 'var(--accent-green)';
+    hint.innerHTML = '<span style="color:var(--accent-green);"><i class="fas fa-circle-check"></i> All matches finished — safe to advance.</span>';
+    advanceBtn.disabled = false;
+  } else {
+    matchCount.style.color = 'var(--accent-amber)';
+    hint.innerHTML = '<span style="color:var(--accent-amber);"><i class="fas fa-triangle-exclamation"></i> Some matches still in progress — you can still advance manually if you want to, but double check first.</span>';
+    advanceBtn.disabled = false;
+  }
+}
+
+async function advanceGameweek() {
+  const currentText = document.getElementById('gw-current-display').textContent;
+  if (!confirm(`Finalise ${currentText} (archives Predictions' results, calculates rankings/prizes) and advance to the next gameweek?`)) return;
+
+  log(`Finalising and advancing gameweek...`);
+  try {
+    const token = localStorage.getItem('gbf_token');
+    // This is the ONE action that does the complete job: archives
+    // Predictions' prediction_history, computes gameweek_summary, ranks
+    // tournament_entries with prizes, AND advances master_clock — all in
+    // one step, so there's only ever one button to click, not two that
+    // silently do different amounts of work.
+    const response = await fetch('/api/gameweek-transition?manual=true', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      log(`Failed to advance: ${data.error}`, 'error');
+      return;
+    }
+    log(`${data.message || 'Advanced'} — actions: ${(data.actions || []).join(', ')}`, 'success');
+    refreshStatus();
+  } catch (error) {
+    log(`Error advancing gameweek: ${error.message}`, 'error');
   }
 }
 
@@ -251,6 +314,52 @@ async function launchTournament() {
     log(`Error: ${error.message}`, 'error');
     alert('Failed to launch tournament: ' + error.message);
   }
+}
+
+async function syncEverything() {
+  log('=== Sync Everything: starting ===');
+  const token = localStorage.getItem('gbf_token');
+
+  // 1. Players (teams + players, full FPL bulk sync)
+  try {
+    log('Syncing players and teams…');
+    const res = await fetch('/api/sync-players');
+    const data = await res.json();
+    log(`Players: ${data.results?.teams_synced || 0} teams, ${data.results?.players_synced || 0} players synced`, 'success');
+    if (data.results?.errors?.length > 0) {
+      log(`Players sync had ${data.results.errors.length} errors`, 'error');
+    }
+  } catch (error) {
+    log(`Players sync failed: ${error.message}`, 'error');
+  }
+
+  // 2. Fixtures (all gameweeks)
+  try {
+    log('Syncing fixtures…');
+    const res = await fetch('/api/sync-fixtures', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const total = (data.created || 0) + (data.updated || 0);
+    log(`Fixtures: ${total} matches synced (${data.created || 0} new, ${data.updated || 0} updated)`, 'success');
+  } catch (error) {
+    log(`Fixtures sync failed: ${error.message}`, 'error');
+  }
+
+  // 3. Live scores (updates match status/results, triggers points calc)
+  try {
+    log('Updating live scores…');
+    const res = await fetch('/api/live-scores', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    log(`Live scores: ${data.message || 'updated'}`, 'success');
+  } catch (error) {
+    log(`Live scores update failed: ${error.message}`, 'error');
+  }
+
+  log('=== Sync Everything: complete ===', 'success');
+  refreshStatus();
 }
 
 async function syncFixtures() {

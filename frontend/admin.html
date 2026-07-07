@@ -137,6 +137,17 @@
     <h1><i class="fas fa-cog text-amber"></i> Admin Panel</h1>
     <p class="text-muted mb-3">Manage gameweeks, sync fixtures, and finalise points.</p>
 
+    <!-- Sync Everything -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue);">
+      <h3><i class="fas fa-bolt"></i> Sync Everything</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Runs players, fixtures, and live scores in one go — the fastest way to refresh all data on demand.
+      </p>
+      <button class="btn btn-primary btn-lg" onclick="syncEverything()" style="width: 100%;">
+        <i class="fas fa-rotate"></i> Sync Everything Now
+      </button>
+    </div>
+
     <!-- Current Status -->
     <div class="admin-card">
       <h3><i class="fas fa-info-circle"></i> Current Status</h3>
@@ -175,13 +186,34 @@
       </button>
     </div>
 
-    <div class="grid grid-2">
-      <!-- Master Clock Setup -->
-      <div class="admin-card" style="border: 2px solid var(--accent-amber);">
-        <h3><i class="fas fa-clock text-amber"></i> Step 1: Master Clock Setup</h3>
-        <p class="text-muted mb-2">Set the current gameweek. This is the source of truth for the entire system.</p>
-        <div class="override-mode" id="master-clock-panel">
-          <label class="form-label">Current Gameweek (Master Clock)</label>
+    <!-- Game Weeks — the one clock every tournament using the master
+         database follows (Predictions, Fantasy Manager, future ones) -->
+    <div class="admin-card" style="border: 2px solid var(--accent-amber);">
+      <h3><i class="fas fa-clock text-amber"></i> Game Weeks</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        One global gameweek pointer every tournament reads from. Moving it — forward or back — is always safe: all match and player data stays saved regardless, so nothing is lost by correcting a mistake.
+      </p>
+
+      <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+        <div style="background:var(--bg-hover); border:1px solid var(--border-color); border-radius:0.75rem; padding:1rem 1.5rem; flex:1; min-width:140px;">
+          <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Current Gameweek</div>
+          <div style="font-family:var(--font-head, inherit); font-size:2rem; font-weight:700;" id="gw-current-display">--</div>
+        </div>
+        <div style="background:var(--bg-hover); border:1px solid var(--border-color); border-radius:0.75rem; padding:1rem 1.5rem; flex:1; min-width:140px;">
+          <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Matches Finished</div>
+          <div style="font-family:var(--font-head, inherit); font-size:2rem; font-weight:700;" id="gw-match-count">--</div>
+        </div>
+      </div>
+
+      <div id="gw-advance-hint" class="mb-2" style="font-size:0.875rem;"></div>
+
+      <button class="btn btn-primary btn-lg mb-2" id="gw-advance-btn" onclick="advanceGameweek()" style="width:100%;">
+        <i class="fas fa-forward"></i> Advance to Next Gameweek
+      </button>
+
+      <details style="margin-top:0.75rem;">
+        <summary class="text-muted" style="cursor:pointer; font-size:0.875rem;">Manually jump to a specific gameweek (for corrections)</summary>
+        <div style="margin-top:0.75rem;">
           <select id="master-gw-select" class="form-input mb-2">
             <option value="">-- Select Gameweek --</option>
             <option value="1">Gameweek 1</option>
@@ -223,6 +255,19 @@
             <option value="37">Gameweek 37</option>
             <option value="38">Gameweek 38</option>
           </select>
+          <button class="btn btn-amber admin-btn" onclick="initMasterClock()">
+            <i class="fas fa-arrows-rotate"></i> Set Gameweek
+          </button>
+        </div>
+      </details>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- Master Clock Setup -->
+      <div class="admin-card" style="border: 2px solid var(--accent-amber); display:none;">
+        <h3><i class="fas fa-clock text-amber"></i> Step 1: Master Clock Setup</h3>
+        <p class="text-muted mb-2">Set the current gameweek. This is the source of truth for the entire system.</p>
+        <div class="override-mode" id="master-clock-panel">
           <button class="btn btn-amber admin-btn btn-lg" onclick="initMasterClock()">
             <i class="fas fa-play"></i> Initialize Master Clock
           </button>
@@ -261,8 +306,10 @@
         </button>
       </div>
 
-    <!-- Gameweek Actions -->
-      <div class="admin-card">
+    <!-- Gameweek Actions — folded into the "Advance to Next Gameweek" button
+         in the Game Weeks panel above; kept here only in case it's ever
+         needed directly without also advancing the clock. -->
+      <div class="admin-card" style="display:none;">
         <h3><i class="fas fa-forward"></i> Gameweek Actions</h3>
         <button class="btn btn-primary admin-btn" onclick="finalisePoints()">
           <i class="fas fa-calculator"></i> Finalise All Points

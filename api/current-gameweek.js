@@ -63,6 +63,21 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Match completion count for the current gameweek — lets the admin
+      // see at a glance whether it's actually safe to advance yet.
+      let matchesFinished = 0;
+      let matchesTotal = 0;
+      try {
+        const { data: gwMatches } = await supabase
+          .from('matches')
+          .select('status')
+          .eq('gameweek', masterClock.current_gameweek);
+        matchesTotal = gwMatches ? gwMatches.length : 0;
+        matchesFinished = gwMatches ? gwMatches.filter(m => m.status === 'finished').length : 0;
+      } catch (e) {
+        console.log('Match count fetch failed:', e.message);
+      }
+
       return res.status(200).json({
         // Master Clock values (source of truth)
         current_gameweek: masterClock.current_gameweek,
@@ -73,6 +88,11 @@ module.exports = async (req, res) => {
         // Deadline (from Master Clock, fallback to FPL)
         deadline: masterClock.deadline || fplDeadline,
         deadline_epoch: masterClock.deadline_epoch || fplDeadlineEpoch,
+
+        // Match completion for the current gameweek
+        matches_finished: matchesFinished,
+        matches_total: matchesTotal,
+        all_matches_finished: matchesTotal > 0 && matchesFinished === matchesTotal,
         
         // FPL reference (for info only)
         fpl_current_gameweek: fplCurrentGW,
