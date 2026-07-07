@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     search: document.getElementById('fmSearch'),
     filters: document.getElementById('fmFilters'),
     gwPoints: document.getElementById('fmGwPoints'),
+    deadlineLabel: document.getElementById('fmDeadlineLabel'),
+    deadlineValue: document.getElementById('fmDeadlineValue'),
     enterGate: document.getElementById('fmEnterGate'),
     enterDesc: document.getElementById('fmEnterDesc'),
     enterBtn: document.getElementById('fmEnterBtn'),
@@ -111,6 +113,64 @@ document.addEventListener('DOMContentLoaded', async function () {
       els.squadPanel.style.opacity = '';
       renderStats(); // re-enables Save Squad if the squad is otherwise complete
     }
+    updateDeadlineDisplay();
+  }
+
+  // ---------- Deadline countdown ----------
+  let deadlineTickInterval = null;
+
+  function updateDeadlineDisplay() {
+    if (!els.deadlineValue) return;
+
+    if (lockInfo.locked) {
+      els.deadlineLabel.textContent = `Gameweek ${lockInfo.gameweek || ''}`;
+      els.deadlineValue.textContent = 'LOCKED';
+      els.deadlineValue.style.color = 'var(--red)';
+      if (deadlineTickInterval) { clearInterval(deadlineTickInterval); deadlineTickInterval = null; }
+      return;
+    }
+
+    const deadlineMs = lockInfo.deadline_epoch ? lockInfo.deadline_epoch * 1000 : null;
+    const isFutureDeadline = deadlineMs && deadlineMs > Date.now();
+
+    if (!isFutureDeadline) {
+      // Gameweek already finished and no next fixture deadline known yet
+      // (e.g. next gameweek's fixtures not synced/scheduled yet)
+      els.deadlineLabel.textContent = 'Squad';
+      els.deadlineValue.textContent = 'Open';
+      els.deadlineValue.style.color = 'var(--green)';
+      if (deadlineTickInterval) { clearInterval(deadlineTickInterval); deadlineTickInterval = null; }
+      return;
+    }
+
+    els.deadlineLabel.textContent = `Deadline — GW${lockInfo.gameweek || ''}`;
+    els.deadlineValue.style.color = 'var(--accent-2)';
+
+    function tick() {
+      const remainingMs = deadlineMs - Date.now();
+      if (remainingMs <= 0) {
+        els.deadlineValue.textContent = 'Locking…';
+        if (deadlineTickInterval) { clearInterval(deadlineTickInterval); deadlineTickInterval = null; }
+        return;
+      }
+      const totalSeconds = Math.floor(remainingMs / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      if (days > 0) {
+        els.deadlineValue.textContent = `${days}d ${hours}h ${minutes}m`;
+      } else if (hours > 0) {
+        els.deadlineValue.textContent = `${hours}h ${minutes}m ${seconds}s`;
+      } else {
+        els.deadlineValue.textContent = `${minutes}m ${seconds}s`;
+      }
+    }
+
+    if (deadlineTickInterval) clearInterval(deadlineTickInterval);
+    tick();
+    deadlineTickInterval = setInterval(tick, 1000);
   }
 
   async function loadMyEntry() {
