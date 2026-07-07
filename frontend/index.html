@@ -428,10 +428,11 @@
   <div class="nav-right">
     <button class="icon-btn" title="Notifications"><svg class="icon"><use href="#i-bell"/></svg><span class="notif-dot"></span></button>
     <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
-    <button class="avatar-btn">
-      <div class="avatar"><svg class="icon"><use href="#i-user"/></svg></div>
+    <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2F" title="Log in">
+      <div class="avatar" id="navAvatar"><svg class="icon"><use href="#i-user"/></svg></div>
+      <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim); display:none;">Log In</span>
       <svg class="icon chev"><use href="#i-chevron"/></svg>
-    </button>
+    </a>
   </div>
 </header>
 
@@ -1067,6 +1068,31 @@
       document.getElementById('plLeaders').innerHTML = '<li class="pl-live-empty">Couldn\'t load leaderboard right now.</li>';
     }
   }
+
+  // ---- Login state, shared with the rest of the site (same origin now) ----
+  (function initAuthButton() {
+    const token = localStorage.getItem('gbf_token');
+    const userJson = localStorage.getItem('gbf_user');
+    const btn = document.getElementById('navAuthBtn');
+    const label = document.getElementById('navAuthLabel');
+    const avatar = document.getElementById('navAvatar');
+    if (!btn) return;
+
+    if (token && userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {
+        // corrupted user JSON — fall through to logged-out state below
+      }
+    }
+  })();
 
   loadPLLive();
 </script>
