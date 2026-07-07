@@ -962,6 +962,7 @@
   </main>
 </div>
 
+<script src="live-poll.js"></script>
 <script>
   const sidebar = document.getElementById('sidebar');
   const sidebarToggle = document.getElementById('sidebarToggle');
@@ -1094,6 +1095,9 @@
     }
   })();
 
+  // Live data refresh is handled by the shared live-poll.js script — just
+  // re-render this page's own live strip whenever it runs.
+  window.addEventListener('gbf-data-refreshed', loadPLLive);
   loadPLLive();
 </script>
 

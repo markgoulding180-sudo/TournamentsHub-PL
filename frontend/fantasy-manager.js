@@ -346,4 +346,14 @@ document.addEventListener('DOMContentLoaded', async function () {
   await loadPlayers();
   await loadTournament();
   renderStats();
+
+  // Live data refresh is handled by the shared live-poll.js script (see
+  // fantasy-manager.html) — re-render this page's own view whenever it runs.
+  window.addEventListener('gbf-data-refreshed', async () => {
+    await loadPlayers();
+    squad = squad.map(p => allPlayers.find(ap => ap.id === p.id) || p);
+    renderSquad();
+    renderPlayerList();
+    await loadLeaderboard();
+  });
 });
