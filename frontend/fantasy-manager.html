@@ -3,113 +3,159 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fantasy Manager - GB Fantasy</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Fantasy Manager - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    .fm-hero{display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem;}
-    .fm-status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .8rem; border-radius:2rem; font-size:.8rem; font-weight:600; background:var(--bg-hover); border:1px solid var(--border-color); color:var(--text-secondary);}
-    .fm-status-badge.entered{background:rgba(34,197,94,0.12); border-color:var(--accent-green); color:var(--accent-green);}
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f; --bg-card-2:#0d1526;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+    .bg-glow{
+      position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%);
+      background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%);
+      pointer-events:none; z-index:0;
+    }
+
+    /* ================= NAVBAR (matches the Hub) ================= */
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-mark .icon{width:20px;height:20px;stroke:#fff;stroke-width:1.9;}
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); transition:border-color .2s, transform .2s; position:relative; }
+    .icon-btn .icon{width:17px;height:17px; color:var(--text-dim);}
+    .icon-btn:hover{border-color:var(--accent); transform:translateY(-1px);}
+    .icon-btn:hover .icon{color:var(--accent-2);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+    .avatar .icon{width:17px;height:17px;color:var(--text-dim);}
+
+    /* ================= PAGE CONTENT ================= */
+    main{ position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:32px 24px 60px; }
+    .fm-hero{display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:8px;}
+    .fm-hero h1{font-family:var(--font-display); font-size:26px; letter-spacing:.4px; margin-bottom:6px;}
+    .fm-hero p{color:var(--text-dim); font-size:14px; max-width:560px;}
+    .fm-status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .9rem; border-radius:2rem; font-size:.8rem; font-weight:600; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); white-space:nowrap;}
+    .fm-status-badge.entered{background:rgba(34,197,94,0.12); border-color:var(--green); color:var(--green);}
+
     .fm-budget-bar{display:flex; gap:1rem; flex-wrap:wrap; margin:1.25rem 0 1.5rem;}
-    .fm-stat{background:var(--bg-card); border:1px solid var(--border-color); border-radius:0.75rem; padding:.85rem 1.2rem; min-width:110px;}
-    .fm-stat-label{font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.2rem;}
-    .fm-stat-value{font-size:1.25rem; font-weight:700;}
-    .fm-stat-value.over{color:var(--accent-red);}
+    .fm-stat{background:var(--bg-panel); border:1px solid var(--border); border-radius:0.75rem; padding:.85rem 1.2rem; min-width:110px;}
+    .fm-stat-label{font-size:.7rem; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.2rem;}
+    .fm-stat-value{font-size:1.25rem; font-weight:700; font-family:var(--font-head);}
+    .fm-stat-value.over{color:var(--red);}
+
     .fm-layout{display:grid; grid-template-columns:1.4fr 1fr; gap:1.5rem; align-items:start;}
     @media (max-width:900px){.fm-layout{grid-template-columns:1fr;}}
+
+    .fm-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .fm-card-title{ font-family:var(--font-head); font-size:16px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+
+    .fm-search{width:100%; margin-bottom:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:14px;}
+    .fm-search::placeholder{color:var(--text-faint);}
+    .fm-search:focus{outline:none; border-color:var(--border-hover);}
+
     .fm-pool-filters{display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;}
-    .fm-filter-btn{padding:.4rem .9rem; border-radius:2rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-secondary); font-size:.8rem; cursor:pointer;}
-    .fm-filter-btn.active{background:var(--accent-green); color:var(--bg-primary); border-color:var(--accent-green);}
-    .fm-search{width:100%; margin-bottom:1rem;}
+    .fm-filter-btn{padding:.4rem .9rem; border-radius:2rem; border:1px solid var(--border); background:var(--bg-card); color:var(--text-dim); font-size:.8rem; cursor:pointer; font-family:var(--font-head); font-weight:600;}
+    .fm-filter-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
     .fm-player-list{display:flex; flex-direction:column; gap:.5rem; max-height:600px; overflow-y:auto; padding-right:4px;}
-    .fm-player-row{display:flex; align-items:center; gap:.7rem; background:var(--bg-hover); border:1px solid var(--border-color); border-radius:.6rem; padding:.55rem .8rem;}
+    .fm-player-row{display:flex; align-items:center; gap:.7rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.55rem .8rem;}
     .fm-player-row.disabled{opacity:.4;}
     .fm-pos-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex:none;}
-    .fm-pos-badge.gk{background:rgba(245,158,11,0.2);color:var(--accent-amber);}
-    .fm-pos-badge.def{background:rgba(59,130,246,0.2);color:var(--accent-blue);}
-    .fm-pos-badge.mid{background:rgba(34,197,94,0.2);color:var(--accent-green);}
-    .fm-pos-badge.fwd{background:rgba(239,68,68,0.2);color:var(--accent-red);}
-    .fm-player-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-    .fm-player-name .team{font-size:.72rem; color:var(--text-muted); display:block;}
-    .fm-player-meta{display:flex; gap:.9rem; font-size:.8rem; color:var(--text-secondary); flex:none; text-align:right;}
+    .fm-pos-badge.gk{background:rgba(242,185,61,0.2);color:var(--gold);}
+    .fm-pos-badge.def{background:rgba(59,130,246,0.2);color:var(--accent-2);}
+    .fm-pos-badge.mid{background:rgba(34,197,94,0.2);color:var(--green);}
+    .fm-pos-badge.fwd{background:rgba(239,68,68,0.2);color:var(--red);}
+    .fm-player-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px;}
+    .fm-player-name .team{font-size:.72rem; color:var(--text-faint); display:block;}
+    .fm-player-meta{display:flex; gap:.9rem; font-size:.8rem; color:var(--text-dim); flex:none; text-align:right;}
     .fm-player-meta span{display:block; min-width:38px;}
-    .fm-add-btn{flex:none; width:28px; height:28px; border-radius:50%; border:none; background:var(--accent-green); color:var(--bg-primary); font-weight:700; cursor:pointer; font-size:.9rem;}
-    .fm-add-btn:disabled{background:var(--border-color); color:var(--text-muted); cursor:not-allowed;}
-    .fm-squad-group-title{font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin:.9rem 0 .4rem;}
+    .fm-add-btn{flex:none; width:28px; height:28px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; font-size:.9rem;}
+    .fm-add-btn:disabled{background:var(--border); color:var(--text-faint); cursor:not-allowed;}
+
+    .fm-squad-group-title{font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin:.9rem 0 .4rem; font-family:var(--font-head); font-weight:700;}
     .fm-squad-group-title:first-child{margin-top:0;}
-    .fm-squad-slot{display:flex; align-items:center; gap:.6rem; background:var(--bg-hover); border:1px solid var(--border-color); border-radius:.6rem; padding:.5rem .7rem; margin-bottom:.4rem;}
-    .fm-squad-slot.empty{opacity:.4; font-style:italic;}
+    .fm-squad-slot{display:flex; align-items:center; gap:.6rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.5rem .7rem; margin-bottom:.4rem;}
+    .fm-squad-slot.empty{opacity:.4; font-style:italic; color:var(--text-faint); font-size:.85rem;}
     .fm-squad-slot .fm-player-name{font-size:.88rem;}
-    .fm-cap-btn{flex:none; width:24px; height:24px; border-radius:50%; border:1px solid var(--accent-amber); background:transparent; color:var(--accent-amber); font-size:.65rem; cursor:pointer;}
-    .fm-cap-btn.active{background:var(--accent-amber); color:var(--bg-primary);}
-    .fm-remove-btn{flex:none; background:none; border:none; color:var(--accent-red); cursor:pointer; font-size:1rem; line-height:1;}
-    .fm-lb-row{display:flex; align-items:center; gap:.8rem; padding:.5rem 0; border-bottom:1px solid var(--border-color); font-size:.9rem;}
+    .fm-cap-btn{flex:none; width:24px; height:24px; border-radius:50%; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:.65rem; cursor:pointer; font-weight:700;}
+    .fm-cap-btn.active{background:var(--gold); color:#111;}
+    .fm-remove-btn{flex:none; background:none; border:none; color:var(--red); cursor:pointer; font-size:1rem; line-height:1;}
+
+    .fm-lb-row{display:flex; align-items:center; gap:.8rem; padding:.6rem 0; border-bottom:1px solid var(--border); font-size:.9rem;}
     .fm-lb-row:last-child{border-bottom:none;}
-    .fm-save-bar{position:sticky; bottom:0; background:var(--bg-card); border:1px solid var(--border-color); border-radius:.75rem; padding:1rem; margin-top:1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;}
+    .fm-lb-row .rank{font-family:var(--font-head); font-weight:700; color:var(--text-faint);}
+    .fm-lb-row .rank-1{color:var(--gold);}
+    .fm-lb-row .rank-2{color:#c7cdd6;}
+    .fm-lb-row .rank-3{color:#c98a4b;}
+
+    .fm-save-bar{position:sticky; bottom:0; background:var(--bg-card); border:1px solid var(--border); border-radius:.75rem; padding:1rem; margin-top:1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;}
+    .fm-save-bar span{font-size:.8rem; color:var(--text-dim);}
+    .fm-save-bar .gold{color:var(--gold);}
+
+    .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; border:none; border-radius:10px; padding:11px 22px; font-family:var(--font-head); font-weight:700; font-size:14.5px; letter-spacing:.3px; cursor:pointer; transition:filter .2s, transform .2s; }
+    .btn-primary:hover:not(:disabled){ filter:brightness(1.1); transform:translateY(-1px); }
+    .btn-primary:disabled{ background:var(--border); color:var(--text-faint); cursor:not-allowed; }
+
+    .text-muted{color:var(--text-faint); font-size:13.5px;}
+
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
   </style>
 </head>
 <body>
-  <!-- Sidebar Navigation (Desktop) -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <a href="index.html" class="sidebar-logo">
-        <i class="fas fa-trophy"></i>
-        <span>GB Fantasy</span>
-      </a>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
-      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
-      <a href="fantasy-manager.html" class="sidebar-link active" data-page="fantasy-manager"><i class="fas fa-people-group"></i><span>Fantasy Manager</span></a>
-      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
-      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
-      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
-      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
-      <div class="sidebar-divider"></div>
-      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
-      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-user" id="sidebar-user">
-        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
-        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
-      </a>
-    </div>
-  </aside>
+  <div class="bg-glow"></div>
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="logo">
-        <i class="fas fa-trophy"></i>
-        GB Fantasy
+  <!-- ================= NAVBAR ================= -->
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
       </a>
-      <ul class="nav-links">
-        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
-        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
-        <li><a href="fantasy-manager.html" class="active"><i class="fas fa-people-group"></i> Fantasy Manager</a></li>
-        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
-        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
-        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
-        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
-        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
-      </ul>
-      <button class="mobile-menu-btn">
-        <i class="fas fa-bars"></i>
-      </button>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/tournaments">Predictions</a>
+        <a href="/fantasy-manager" class="active">Fantasy Manager</a>
+        <a href="/leaderboard">Leaderboard</a>
+      </nav>
     </div>
-  </nav>
+    <div class="nav-right">
+      <button class="icon-btn" title="Notifications"><i class="fas fa-bell" style="font-size:15px;color:var(--text-dim);"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Ffantasy-manager" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim); display:none;">Log In</span>
+      </a>
+    </div>
+  </header>
 
-  <!-- Main Content -->
-  <main class="container">
-    <div class="hero mb-3 fm-hero">
+  <main>
+    <div class="fm-hero">
       <div>
-        <h1><i class="fas fa-people-group text-amber"></i> Fantasy Football Manager</h1>
+        <h1><i class="fas fa-people-group" style="color:var(--gold);"></i> Fantasy Football Manager</h1>
         <p>Build a 15-player squad within a £100.0m budget. Score points every gameweek from real Premier League performances — your captain scores double.</p>
       </div>
       <span class="fm-status-badge" id="fmStatusBadge"><i class="fas fa-circle-notch fa-spin"></i> Checking your squad…</span>
@@ -144,11 +190,9 @@
 
     <div class="fm-layout">
       <!-- Player pool -->
-      <section class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-list"></i> Player Pool</div>
-        </div>
-        <input type="text" class="form-input fm-search" id="fmSearch" placeholder="Search players…">
+      <section class="fm-card">
+        <div class="fm-card-title"><i class="fas fa-list"></i> Player Pool</div>
+        <input type="text" class="fm-search" id="fmSearch" placeholder="Search players…">
         <div class="fm-pool-filters" id="fmFilters">
           <button class="fm-filter-btn active" data-pos="all">All</button>
           <button class="fm-filter-btn" data-pos="1">GK</button>
@@ -163,23 +207,19 @@
 
       <!-- My squad -->
       <div>
-        <section class="card mb-3">
-          <div class="card-header">
-            <div class="card-title"><i class="fas fa-shirt"></i> My Squad</div>
-          </div>
+        <section class="fm-card" style="margin-bottom:20px;">
+          <div class="fm-card-title"><i class="fas fa-shirt"></i> My Squad</div>
           <div id="fmSquadPanel"></div>
           <div class="fm-save-bar">
-            <span class="text-muted" style="font-size:.8rem;">Tap <i class="fas fa-star" style="color:var(--accent-amber)"></i> to set captain (2x points)</span>
-            <button class="btn btn-primary" id="fmSaveBtn" disabled>
+            <span>Tap <i class="fas fa-star gold" style="color:var(--gold);"></i> to set captain (2x points)</span>
+            <button class="btn-primary" id="fmSaveBtn" disabled>
               <i class="fas fa-floppy-disk"></i> Save Squad
             </button>
           </div>
         </section>
 
-        <section class="card">
-          <div class="card-header">
-            <div class="card-title"><i class="fas fa-chart-line"></i> Top of the Table</div>
-          </div>
+        <section class="fm-card">
+          <div class="fm-card-title"><i class="fas fa-chart-line"></i> Top of the Table</div>
           <div id="fmLeaderboard">
             <p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</p>
           </div>
@@ -188,28 +228,31 @@
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
-    </div>
-  </footer>
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
   <script src="auth-gate.js"></script>
   <script src="fantasy-manager.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    // Login state for the navbar avatar — same pattern used on the Hub,
+    // now that this page shares the same login/localStorage (same site).
+    (function () {
+      const token = localStorage.getItem('gbf_token');
       const userJson = localStorage.getItem('gbf_user');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson);
-          const usernameEl = document.getElementById('sidebar-username');
-          const avatarEl = document.getElementById('sidebar-avatar');
-          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
-          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
-        } catch (e) {}
-      }
-    });
+      const btn = document.getElementById('navAuthBtn');
+      const label = document.getElementById('navAuthLabel');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    })();
   </script>
 </body>
 </html>
