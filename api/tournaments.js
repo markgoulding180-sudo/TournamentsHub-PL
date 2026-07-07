@@ -475,45 +475,60 @@ module.exports = async (req, res) => {
   return res.status(405).json({ error: 'Method not allowed' });
 };
 
-// Fantasy Manager squad lock status: locked once the current gameweek's
-// real deadline (pulled live from FPL, not the manually-set master_clock
-// field which isn't populated by the admin UI) has passed, unlocked again
-// once every match in that gameweek has finished.
+// Fantasy Manager squad lock status — derived entirely from OUR OWN
+// synced matches table (master source of truth for every tournament),
+// not FPL's live is_current/is_next flags. This means the lock is exactly
+// as fresh as our last sync (background poll every 2 min while any page
+// is open, or the admin's Sync Everything button) — consistent with how
+// every other tournament already relies on this same synced data, rather
+// than each feature independently re-asking FPL what "current" means.
+//
+// "Current gameweek" = the earliest gameweek that still has an unfinished
+// match. Locked once that gameweek's earliest kickoff has passed; unlocked
+// again once every match in it shows finished.
 async function getFantasyLockStatus(masterDb) {
   try {
-    const bootstrapRes = await fetch('https://fantasy.premierleague.com/api/bootstrap-static/');
-    const bootstrapData = await bootstrapRes.json();
-    const currentEvent = bootstrapData.events?.find(e => e.is_current) || bootstrapData.events?.find(e => e.is_next);
+    const { data: allMatches } = await masterDb
+      .from('matches')
+      .select('gameweek, status, kickoff_time')
+      .order('gameweek', { ascending: true });
 
-    if (!currentEvent) {
+    if (!allMatches || allMatches.length === 0) {
       return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const deadlinePassed = now >= currentEvent.deadline_time_epoch;
+    const unfinishedGWs = [...new Set(
+      allMatches.filter(m => m.status !== 'finished').map(m => m.gameweek)
+    )].sort((a, b) => a - b);
+
+    const currentGW = unfinishedGWs.length > 0
+      ? unfinishedGWs[0]
+      : Math.max(...allMatches.map(m => m.gameweek));
+
+    const gwMatches = allMatches.filter(m => m.gameweek === currentGW);
+    const earliestKickoffMs = gwMatches.reduce((min, m) => {
+      const t = new Date(m.kickoff_time).getTime();
+      return (min === null || t < min) ? t : min;
+    }, null);
+
+    const deadlinePassed = earliestKickoffMs !== null && Date.now() >= earliestKickoffMs;
+    const deadlineEpoch = earliestKickoffMs !== null ? Math.floor(earliestKickoffMs / 1000) : null;
 
     if (!deadlinePassed) {
-      return { locked: false, gameweek: currentEvent.id, deadline_epoch: currentEvent.deadline_time_epoch, reason: null };
+      return { locked: false, gameweek: currentGW, deadline_epoch: deadlineEpoch, reason: null };
     }
 
-    // Check FPL's own live fixture data directly for "has everything
-    // finished" — deliberately NOT our own matches table, since that only
-    // updates when something syncs it (background poll or admin button).
-    // This way the unlock is exactly as fresh as FPL's own data, with no
-    // dependency on anyone having triggered a sync recently.
-    const fixturesRes = await fetch(`https://fantasy.premierleague.com/api/fixtures/?event=${currentEvent.id}`);
-    const fixtures = await fixturesRes.json();
-    const allFinished = Array.isArray(fixtures) && fixtures.length > 0 && fixtures.every(f => f.finished === true);
+    const allFinished = gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
 
     return {
       locked: !allFinished,
-      gameweek: currentEvent.id,
-      deadline_epoch: currentEvent.deadline_time_epoch,
+      gameweek: currentGW,
+      deadline_epoch: deadlineEpoch,
       reason: allFinished ? null : 'Squad is locked until every match in this gameweek has finished.'
     };
   } catch (error) {
     console.error('getFantasyLockStatus error:', error);
-    // Fail open rather than locking everyone out if FPL's API is briefly down
+    // Fail open rather than locking everyone out on an unexpected error
     return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
   }
 }
