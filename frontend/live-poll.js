@@ -1,20 +1,62 @@
 // live-poll.js — shared background refresh, included on every page that
 // matters (Hub, Predictions, Fantasy Manager, Tournaments, Leaderboard).
 //
-// While a logged-in user has any of these pages open, this quietly keeps
-// the shared PL data fresh every 2 minutes:
+// Two things happen here, both while a logged-in user has any of these
+// pages open:
+//
+// 1. Data refresh, every 2 minutes:
 //   - /api/live-scores   -> match scores/status, recalculates prediction points
 //   - /api/sync-players  -> player points (season total + this gameweek)
+//   Both write to the shared master data, so ANY user with ANY of these
+//   pages open keeps things fresh for EVERYONE, not just themselves.
 //
-// Both write to the shared master data, so ANY user with ANY of these
-// pages open keeps things fresh for EVERYONE, not just themselves.
-// No server cron needed — same trade-off the app already relied on before
-// this file existed, just consolidated into one place instead of being
-// duplicated (inconsistently) per page.
+// 2. Session refresh, every 10 minutes:
+//   Supabase login tokens expire (usually after ~1 hour). Previously only
+//   a couple of pages tried to renew this, only once on page load, so any
+//   session running longer than that eventually broke with "Invalid or
+//   expired token". This renews it proactively, repeatedly, on every page.
+
+const SUPABASE_URL = 'https://liuuzvboeesimvovnooh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdXV6dmJvZWVzaW12b3Zub29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTA1MjYsImV4cCI6MjA5ODc2NjUyNn0.rfV-5DZ-06GIQ5vJcT0rCzmruSjXdCOP__XhhPv7jDs';
 
 (function () {
-  const POLL_INTERVAL_MS = 120000; // 2 minutes
+  const POLL_INTERVAL_MS = 120000;    // 2 minutes — data refresh
+  const REFRESH_INTERVAL_MS = 600000; // 10 minutes — session refresh (well under the ~1hr expiry)
   let pollTimer = null;
+  let refreshTimer = null;
+  let supabaseClient = null;
+
+  function getClient() {
+    if (supabaseClient) return supabaseClient;
+    if (typeof window !== 'undefined' && window.supabase) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    return supabaseClient;
+  }
+
+  async function refreshSessionToken() {
+    const refreshToken = localStorage.getItem('gbf_refresh');
+    if (!refreshToken) return;
+
+    const client = getClient();
+    if (!client) {
+      console.warn('[live-poll] supabase-js not loaded on this page — cannot refresh session');
+      return;
+    }
+
+    try {
+      const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
+      if (error || !data?.session) {
+        console.warn('[live-poll] Session refresh failed:', error?.message);
+        return;
+      }
+      localStorage.setItem('gbf_token', data.session.access_token);
+      localStorage.setItem('gbf_refresh', data.session.refresh_token);
+      console.log('[live-poll] Session token refreshed');
+    } catch (e) {
+      console.error('[live-poll] Session refresh error:', e);
+    }
+  }
 
   async function pollAll() {
     const token = localStorage.getItem('gbf_token');
@@ -43,15 +85,18 @@
 
   function start() {
     if (pollTimer) clearInterval(pollTimer);
+    if (refreshTimer) clearInterval(refreshTimer);
+
     pollAll(); // immediate first run
+    refreshSessionToken(); // immediate first refresh too
+
     pollTimer = setInterval(pollAll, POLL_INTERVAL_MS);
+    refreshTimer = setInterval(refreshSessionToken, REFRESH_INTERVAL_MS);
   }
 
   function stop() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   }
 
   // Only start if logged in; if the user logs in/out later without a full
