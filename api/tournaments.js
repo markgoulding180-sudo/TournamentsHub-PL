@@ -520,6 +520,10 @@ async function getFantasyLockStatus(masterDb) {
 
     const allFinished = gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
 
+    if (allFinished) {
+      await snapshotGameweekIfNeeded(masterDb, currentGW);
+    }
+
     return {
       locked: !allFinished,
       gameweek: currentGW,
@@ -530,5 +534,42 @@ async function getFantasyLockStatus(masterDb) {
     console.error('getFantasyLockStatus error:', error);
     // Fail open rather than locking everyone out on an unexpected error
     return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
+  }
+}
+
+// Saves each player's points for a finished gameweek, once, so records
+// like "best single gameweek" and scoring streaks become possible later.
+// Cheap to call repeatedly: does nothing once that gameweek's already saved.
+async function snapshotGameweekIfNeeded(masterDb, gameweek) {
+  try {
+    const { count } = await masterDb
+      .from('player_gameweek_history')
+      .select('id', { count: 'exact', head: true })
+      .eq('gameweek', gameweek);
+
+    if (count && count > 0) return; // already snapshotted
+
+    const { data: players } = await masterDb
+      .from('players')
+      .select('id, event_points');
+
+    if (!players || players.length === 0) return;
+
+    const rows = players.map(p => ({
+      player_id: p.id,
+      gameweek: gameweek,
+      event_points: p.event_points || 0
+    }));
+
+    const CHUNK = 200;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      await masterDb
+        .from('player_gameweek_history')
+        .upsert(rows.slice(i, i + CHUNK), { onConflict: 'player_id,gameweek' });
+    }
+
+    console.log(`Snapshotted GW${gameweek} for ${rows.length} players`);
+  } catch (error) {
+    console.error('snapshotGameweekIfNeeded error:', error);
   }
 }
