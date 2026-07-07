@@ -3,162 +3,186 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - GB Fantasy</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Sign In - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f; --bg-card-2:#0d1526;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0; padding:0; box-sizing:border-box;}
+    body{
+      background:var(--bg); color:var(--text); font-family:var(--font-body);
+      -webkit-font-smoothing:antialiased; min-height:100vh; position:relative; overflow-x:hidden;
+    }
+    a{color:inherit; text-decoration:none;}
+    .bg-glow{
+      position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%);
+      background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%);
+      pointer-events:none; z-index:0;
+    }
+    header{
+      position:relative; z-index:2; display:flex; align-items:center; padding:20px 32px;
+    }
+    .logo{display:flex; align-items:center; gap:10px; font-family:var(--font-head); font-weight:700; font-size:19px; letter-spacing:.3px;}
+    .logo-badge{
+      width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(135deg, var(--accent), var(--accent-dim)); font-size:16px;
+    }
+    main{
+      position:relative; z-index:1; max-width:1080px; margin:20px auto 60px; padding:0 24px;
+      display:grid; grid-template-columns:1.2fr 1fr; gap:24px; align-items:start;
+    }
+    @media (max-width:860px){ main{grid-template-columns:1fr;} }
+
+    .auth-card{
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius);
+      padding:36px 40px; transition:border-color .25s;
+    }
+    .auth-icon{
+      width:64px; height:64px; border-radius:16px; margin:0 auto 18px;
+      background:linear-gradient(135deg, var(--accent), var(--accent-dim));
+      display:flex; align-items:center; justify-content:center; font-size:26px; color:#fff;
+    }
+    .auth-card h1{
+      font-family:var(--font-display); font-size:28px; text-align:center; letter-spacing:.5px; margin-bottom:6px;
+    }
+    .auth-card .sub{ text-align:center; color:var(--text-dim); font-size:14px; margin-bottom:28px; }
+
+    .form-group{ margin-bottom:18px; }
+    .form-label{
+      display:flex; align-items:center; gap:7px; font-family:var(--font-head); font-weight:600; font-size:13px;
+      letter-spacing:.3px; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;
+    }
+    .form-input{
+      width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+      padding:12px 14px; color:var(--text); font-family:var(--font-body); font-size:14.5px; transition:border-color .2s;
+    }
+    .form-input::placeholder{ color:var(--text-faint); }
+    .form-input:focus{ outline:none; border-color:var(--border-hover); }
+
+    .row-between{ display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; font-size:13.5px; }
+    .checkbox-line{ display:flex; align-items:center; gap:8px; color:var(--text-dim); cursor:pointer; }
+    .link-accent{ color:var(--accent-2); }
+    .link-accent:hover{ text-decoration:underline; }
+
+    .btn-primary{
+      width:100%; display:flex; align-items:center; justify-content:center; gap:9px;
+      background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; border:none;
+      border-radius:10px; padding:14px; font-family:var(--font-head); font-weight:700; font-size:15.5px;
+      letter-spacing:.3px; cursor:pointer; transition:filter .2s, transform .2s;
+    }
+    .btn-primary:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+
+    .switch-line{ text-align:center; margin-top:22px; font-size:14px; color:var(--text-dim); }
+
+    .side-card{
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 24px; margin-bottom:16px;
+    }
+    .side-card.highlight{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+    .side-card h3{
+      font-family:var(--font-head); font-size:16px; font-weight:700; letter-spacing:.3px; margin-bottom:14px;
+      display:flex; align-items:center; gap:9px;
+    }
+    .side-card ul{ list-style:none; }
+    .side-card li{
+      display:flex; align-items:center; gap:10px; padding:7px 0; font-size:14px; color:var(--text-dim);
+    }
+    .side-card li i{ color:var(--accent-2); width:16px; text-align:center; }
+    .side-card p{ font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+    .btn-outline{
+      display:inline-flex; align-items:center; gap:8px; margin-top:12px; padding:9px 16px;
+      border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13.5px; font-family:var(--font-head); font-weight:600;
+      transition:border-color .2s;
+    }
+    .btn-outline:hover{ border-color:var(--border-hover); }
+
+    footer{ position:relative; z-index:1; text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
+  </style>
 </head>
 <body>
-  <!-- Sidebar Navigation (Desktop) -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <a href="index.html" class="sidebar-logo">
-        <i class="fas fa-trophy"></i>
-        <span>GB Fantasy</span>
-      </a>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
-      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
-      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
-      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
-      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
-      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
-      <div class="sidebar-divider"></div>
-      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
-      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-user" id="sidebar-user">
-        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
-        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
-      </a>
-    </div>
-  </aside>
+  <div class="bg-glow"></div>
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="logo">
-        <i class="fas fa-trophy"></i>
-        GB Fantasy
-      </a>
-      <ul class="nav-links">
-        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
-        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
-        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
-        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
-        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
-        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
-        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
-        <li><a href="login.html" class="active"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
-      </ul>
-      <button class="mobile-menu-btn">
-        <i class="fas fa-bars"></i>
-      </button>
-    </div>
-  </nav>
+  <header>
+    <a href="/" class="logo">
+      <div class="logo-badge"><i class="fas fa-trophy"></i></div>
+      GB TOURNAMENTS
+    </a>
+  </header>
 
-  <!-- Main Content -->
-  <main class="container">
-    <div class="grid grid-2" style="max-width: 900px; margin: 0 auto;">
-      <!-- Login Form -->
-      <div class="card" style="padding: 2rem;">
-        <div class="text-center mb-3">
-          <div style="font-size: 3rem; color: var(--accent-green); margin-bottom: 1rem;">
-            <i class="fas fa-sign-in-alt"></i>
-          </div>
-          <h1>Sign In</h1>
-          <p class="text-muted">Welcome back to GB Fantasy</p>
+  <main>
+    <div class="auth-card">
+      <div class="auth-icon"><i class="fas fa-right-to-bracket"></i></div>
+      <h1>Sign In</h1>
+      <p class="sub">Welcome back to GB Tournaments</p>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label for="email" class="form-label"><i class="fas fa-envelope"></i> Email Address</label>
+          <input type="email" id="email" name="email" class="form-input" placeholder="your@email.com" required>
         </div>
 
-        <form id="login-form">
-          <div class="form-group">
-            <label for="email" class="form-label">
-              <i class="fas fa-envelope"></i> Email Address
-            </label>
-            <input type="email" id="email" name="email" class="form-input" placeholder="your@email.com" required>
-          </div>
-
-          <div class="form-group">
-            <label for="password" class="form-label">
-              <i class="fas fa-lock"></i> Password
-            </label>
-            <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
-          </div>
-
-          <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.875rem; color: var(--text-secondary);">
-              <input type="checkbox" name="remember" style="margin: 0;">
-              Remember me
-            </label>
-            <a href="#" style="font-size: 0.875rem; color: var(--accent-green);">Forgot password?</a>
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
-            <i class="fas fa-sign-in-alt"></i> Sign In
-          </button>
-        </form>
-
-        <div class="text-center mt-3">
-          <p class="text-muted">Don't have an account? <a href="register.html" style="color: var(--accent-green);">Register</a></p>
+        <div class="form-group">
+          <label for="password" class="form-label"><i class="fas fa-lock"></i> Password</label>
+          <input type="password" id="password" name="password" class="form-input" placeholder="Enter your password" required>
         </div>
+
+        <div class="row-between">
+          <label class="checkbox-line">
+            <input type="checkbox" name="remember">
+            Remember me
+          </label>
+          <a href="#" class="link-accent">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn-primary">
+          <i class="fas fa-right-to-bracket"></i> Sign In
+        </button>
+      </form>
+
+      <div class="switch-line">
+        Don't have an account? <a href="register.html" class="link-accent">Register</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="side-card highlight">
+        <h3><i class="fas fa-circle-check" style="color:var(--green);"></i> Welcome Back!</h3>
+        <ul>
+          <li><i class="fas fa-futbol"></i> Submit your predictions for this gameweek</li>
+          <li><i class="fas fa-trophy"></i> Enter cash tournaments</li>
+          <li><i class="fas fa-chart-line"></i> Check your leaderboard position</li>
+          <li><i class="fas fa-sterling-sign"></i> Win real cash prizes</li>
+        </ul>
       </div>
 
-      <!-- Benefits -->
-      <div>
-        <div class="card mb-2" style="background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border-left: 4px solid var(--accent-green);">
-          <h3 class="card-title" style="color: var(--accent-green);"><i class="fas fa-check-circle"></i> Welcome Back!</h3>
-          <ul style="list-style: none; color: var(--text-secondary);">
-            <li style="padding: 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
-              <i class="fas fa-futbol text-green"></i> Submit your predictions for this gameweek
-            </li>
-            <li style="padding: 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
-              <i class="fas fa-trophy text-amber"></i> Enter cash tournaments
-            </li>
-            <li style="padding: 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
-              <i class="fas fa-chart-line text-green"></i> Check your leaderboard position
-            </li>
-            <li style="padding: 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
-              <i class="fas fa-pound-sign text-green"></i> Win real cash prizes
-            </li>
-          </ul>
-        </div>
+      <div class="side-card">
+        <h3><i class="fas fa-shield-halved" style="color:var(--gold);"></i> Safe & Secure</h3>
+        <p>Your account is protected with secure authentication.</p>
+      </div>
 
-        <div class="card mb-2">
-          <h3 class="card-title"><i class="fas fa-shield-alt text-green"></i> Safe & Secure</h3>
-          <p class="text-muted" style="font-size: 0.875rem;">
-            Your account is protected with secure authentication.
-          </p>
-        </div>
-
-        <div class="card">
-          <h3 class="card-title"><i class="fas fa-headset text-amber"></i> Need Help?</h3>
-          <p class="text-muted mb-2" style="font-size: 0.875rem;">
-            Our support team is available 24/7 to assist you.
-          </p>
-          <a href="#" class="btn btn-secondary btn-sm">
-            <i class="fas fa-envelope"></i> Contact Support
-          </a>
-        </div>
+      <div class="side-card">
+        <h3><i class="fas fa-headset" style="color:var(--gold);"></i> Need Help?</h3>
+        <p>Our support team is available 24/7 to assist you.</p>
+        <a href="#" class="btn-outline"><i class="fas fa-envelope"></i> Contact Support</a>
       </div>
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
-    </div>
-  </footer>
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js?v=6"></script>
   <script>
-    // Carry the ?redirect=... param through to the Register links too, so
+    // Carry the ?redirect=... param through to the Register link too, so
     // someone sent here by a specific page (e.g. Fantasy Manager) who
     // registers instead of logging in still ends up back where they meant
     // to go, once they log in after registering.
