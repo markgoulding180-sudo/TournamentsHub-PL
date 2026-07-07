@@ -47,6 +47,56 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Read-only mode: GET /api/sync-players?table=true
+  // Computes the current Premier League table from our own synced match
+  // results — table.html's own endpoint (/api/table) doesn't actually
+  // exist, so this fills that gap without needing a new function.
+  if (req.method === 'GET' && params.get('table') === 'true') {
+    try {
+      const [teamsRes, matchesRes] = await Promise.all([
+        supabase.from('teams').select('id, name, short_name'),
+        supabase.from('matches').select('home_team, away_team, home_score, away_score, status').eq('status', 'finished')
+      ]);
+
+      const teams = teamsRes.data || [];
+      const finishedMatches = matchesRes.data || [];
+
+      const stats = {};
+      teams.forEach(t => {
+        stats[t.name] = {
+          team: t.name, short_name: t.short_name,
+          played: 0, won: 0, drawn: 0, lost: 0,
+          goals_for: 0, goals_against: 0, goal_difference: 0, points: 0
+        };
+      });
+
+      finishedMatches.forEach(m => {
+        const home = stats[m.home_team];
+        const away = stats[m.away_team];
+        if (!home || !away || m.home_score === null || m.away_score === null) return;
+
+        home.played++; away.played++;
+        home.goals_for += m.home_score; home.goals_against += m.away_score;
+        away.goals_for += m.away_score; away.goals_against += m.home_score;
+
+        if (m.home_score > m.away_score) { home.won++; home.points += 3; away.lost++; }
+        else if (m.home_score < m.away_score) { away.won++; away.points += 3; home.lost++; }
+        else { home.drawn++; away.drawn++; home.points += 1; away.points += 1; }
+      });
+
+      const table = Object.values(stats).map(t => ({
+        ...t, goal_difference: t.goals_for - t.goals_against
+      })).sort((a, b) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for);
+
+      table.forEach((t, i) => { t.position = i + 1; });
+
+      return res.status(200).json({ table });
+    } catch (error) {
+      console.error('Table computation error:', error);
+      return res.status(500).json({ error: 'Failed to compute table', details: error.message });
+    }
+  }
+
   // Read-only mode: GET /api/sync-players?records=true
   // Computes "best single gameweek ever" and "longest consecutive scoring
   // streak" from the history table snapshotted after each finished gameweek.

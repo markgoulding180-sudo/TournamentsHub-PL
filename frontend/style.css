@@ -2,21 +2,21 @@
 /* Dark Professional Theme - OLBG Inspired */
 
 :root {
-  --bg-primary: #0a0f2e;
-  --bg-secondary: #0f1535;
-  --bg-card: #141b3d;
-  --bg-hover: #1e2747;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --bg-primary: #040812;
+  --bg-secondary: #070d1a;
+  --bg-card: #0a101f;
+  --bg-hover: #0d1526;
+  --text-primary: #f1f5fc;
+  --text-secondary: #8a97b0;
+  --text-muted: #4d5972;
   --accent-green: #22c55e;
   --accent-green-dark: #16a34a;
-  --accent-amber: #f59e0b;
+  --accent-amber: #f2b93d;
   --accent-amber-dark: #d97706;
   --accent-blue: #3b82f6;
-  --accent-blue-dark: #2563eb;
+  --accent-blue-dark: #1d4ed8;
   --accent-red: #ef4444;
-  --border-color: #334155;
+  --border-color: #131f35;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
 }
@@ -29,7 +29,7 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #0a0f2e 0%, #0f1535 50%, #0a0f2e 100%);
+  background: linear-gradient(135deg, #040812 0%, #070d1a 50%, #040812 100%);
   background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.6;

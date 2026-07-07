@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predictions - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    /* ================= NAVBAR (matches the Hub) ================= */
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:32px 24px 60px; }
+    h1{ font-family:var(--font-display); font-size:28px; letter-spacing:.4px; margin-bottom:4px; }
+    .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
+
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+    .card-title .view-all{ margin-left:auto; font-size:12px; color:var(--accent-2); text-transform:none; letter-spacing:0; font-weight:600; }
+
+    /* Full-width This Week's Games card */
+    .week-card{ margin-bottom:20px; }
+    .week-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .predict-status{ display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:10px; font-family:var(--font-head); font-weight:700; font-size:14px; }
+    .predict-status.done{ background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); }
+    .predict-status.todo{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; cursor:pointer; border:none; transition:filter .2s, transform .2s; }
+    .predict-status.todo:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
+    .fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
+    .fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; }
+    .fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
+    .fixture-chip .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); margin-top:4px; display:block; }
+
+    .cards-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:18px; }
+    @media (max-width:800px){ .cards-grid{ grid-template-columns:1fr; } }
+
+    .t-stat-row{ display:flex; gap:14px; margin-bottom:14px; }
+    .t-stat{ flex:1; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+    .t-stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px; }
+    .t-stat .value{ font-family:var(--font-head); font-size:18px; font-weight:700; }
+    .entry-badge{ display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px; font-family:var(--font-head); font-weight:700; font-size:13.5px; width:100%; justify-content:center; }
+    .entry-badge.in{ background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); }
+    .entry-badge.out{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; cursor:pointer; border:none; }
+
+    .lb-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+    .lb-row:last-child{ border-bottom:none; }
+    .lb-row .rank{ width:20px; font-family:var(--font-head); font-weight:700; color:var(--text-faint); }
+    .lb-row .rank.r1{ color:var(--gold); } .lb-row .rank.r2{ color:#c7cdd6; } .lb-row .rank.r3{ color:#c98a4b; }
+    .lb-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lb-row .pts{ font-family:var(--font-head); font-weight:700; color:var(--gold); }
+
+    .inj-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+    .inj-row:last-child{ border-bottom:none; }
+    .inj-dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+    .inj-dot.out{ background:var(--red); } .inj-dot.doubt{ background:var(--gold); } .inj-dot.return{ background:var(--green); }
+    .inj-row .name{ flex:1; }
+    .inj-row .team{ color:var(--text-faint); font-size:11.5px; }
+
+    .table-row{ display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12.5px; }
+    .table-row:last-child{ border-bottom:none; }
+    .table-row .pos{ width:18px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; }
+    .table-row .team{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .table-row .stat{ width:26px; text-align:center; color:var(--text-dim); }
+    .table-row .pts{ width:30px; text-align:center; font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
+
+    .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/predictions" class="active">Predictions</a>
+        <a href="/fantasy-manager">Fantasy Manager</a>
+        <a href="/leaderboard">Leaderboard</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fpredictions" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim); display:none;">Log In</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <h1><i class="fas fa-futbol" style="color:var(--accent-2);"></i> Premier League Predictions</h1>
+    <p class="subtitle">Predict every result and score. Climb the leaderboard. Win cash prizes.</p>
+
+    <!-- This Week's Games -->
+    <section class="card week-card">
+      <div class="week-header">
+        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-calendar-week"></i> <span id="weekTitle">This Week's Games</span></div>
+        <div id="predictStatusArea"><span class="predict-status todo"><i class="fas fa-spinner fa-spin"></i> Checking…</span></div>
+      </div>
+      <div class="fixtures-strip" id="fixturesStrip">
+        <div class="loading">Loading fixtures…</div>
+      </div>
+    </section>
+
+    <div class="cards-grid">
+      <!-- Tournament card -->
+      <section class="card">
+        <div class="card-title"><i class="fas fa-trophy" style="color:var(--gold);"></i> <span id="tournamentName">Tournament</span></div>
+        <div id="tournamentBody"><div class="loading">Loading…</div></div>
+      </section>
+
+      <!-- Leaderboard snapshot -->
+      <section class="card">
+        <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Top 10 Leaderboard <a href="/leaderboard" class="view-all">View All →</a></div>
+        <div id="leaderboardBody"><div class="loading">Loading…</div></div>
+      </section>
+
+      <!-- Injuries/News -->
+      <section class="card">
+        <div class="card-title"><i class="fas fa-notes-medical" style="color:var(--red);"></i> Injuries & News <a href="/injuries" class="view-all">View All →</a></div>
+        <div id="injuriesBody"><div class="loading">Loading…</div></div>
+      </section>
+
+      <!-- PL Table -->
+      <section class="card">
+        <div class="card-title"><i class="fas fa-table" style="color:var(--green);"></i> Premier League Table <a href="/table" class="view-all">Full Table →</a></div>
+        <div id="tableBody"><div class="loading">Loading…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
+
+  <script src="live-poll.js"></script>
+  <script>
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+
+    let currentGw = null;
+    let tournamentId = null;
+
+    // ---------- This Week's Games ----------
+    async function loadThisWeek() {
+      const strip = document.getElementById('fixturesStrip');
+      const statusArea = document.getElementById('predictStatusArea');
+      try {
+        const gwRes = await fetch('/api/current-gameweek');
+        const gwData = await gwRes.json();
+        currentGw = gwData.current_gameweek;
+        document.getElementById('weekTitle').textContent = currentGw ? `Gameweek ${currentGw} Games` : "This Week's Games";
+
+        if (!currentGw) {
+          strip.innerHTML = '<div class="empty">Gameweek not set yet.</div>';
+          statusArea.innerHTML = '';
+          return;
+        }
+
+        const res = await fetch(`/api/predictions?gameweek=${currentGw}`, { headers: authHeaders() });
+        const data = await res.json();
+        const matches = data.matches || [];
+        const myPredictions = data.predictions || [];
+
+        if (matches.length === 0) {
+          strip.innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
+        } else {
+          strip.innerHTML = matches.map(m => {
+            const hasScore = m.home_score !== null && m.home_score !== undefined;
+            return `
+              <div class="fixture-chip">
+                <div class="teams">${escapeHtml(m.home_team)}<br>v ${escapeHtml(m.away_team)}</div>
+                <div class="score">${hasScore ? `${m.home_score} - ${m.away_score}` : new Date(m.kickoff_time).toLocaleDateString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                <span class="tag">${(m.status || 'upcoming')}</span>
+              </div>`;
+          }).join('');
+        }
+
+        const loggedIn = !!localStorage.getItem('gbf_token');
+        if (!loggedIn) {
+          statusArea.innerHTML = `<a href="/login?redirect=%2Fpredictions" class="predict-status todo"><i class="fas fa-right-to-bracket"></i> Log In to Predict</a>`;
+        } else if (matches.length > 0 && myPredictions.length >= matches.length) {
+          statusArea.innerHTML = `<span class="predict-status done"><i class="fas fa-circle-check"></i> You've Predicted This Week</span>`;
+        } else {
+          statusArea.innerHTML = `<a href="/predict?gameweek=${currentGw}" class="predict-status todo"><i class="fas fa-pen"></i> Predict Now</a>`;
+        }
+      } catch (e) {
+        console.error('Failed to load this week:', e);
+        strip.innerHTML = '<div class="empty">Couldn\'t load fixtures right now.</div>';
+      }
+    }
+
+    // ---------- Tournament card ----------
+    async function loadTournament() {
+      const body = document.getElementById('tournamentBody');
+      try {
+        const res = await fetch('/api/tournaments?status=live');
+        const data = await res.json();
+        const t = (data.tournaments || [])[0];
+        if (!t) {
+          body.innerHTML = '<div class="empty">No tournament set up yet.</div>';
+          return;
+        }
+        tournamentId = t.id;
+        document.getElementById('tournamentName').textContent = t.name;
+
+        const fee = ((t.entry_fee || 0) / 100).toFixed(2);
+        let entryHtml = `<a href="/tournaments" class="entry-badge out"><i class="fas fa-right-to-bracket"></i> Enter — £${fee}</a>`;
+
+        const token = localStorage.getItem('gbf_token');
+        if (token) {
+          try {
+            const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: authHeaders() });
+            const entryData = await entryRes.json();
+            if (entryData.entry) {
+              entryHtml = `<span class="entry-badge in"><i class="fas fa-circle-check"></i> You're Entered</span>`;
+            }
+          } catch (e) {}
+        }
+
+        body.innerHTML = `
+          <div class="t-stat-row">
+            <div class="t-stat"><div class="label">Entries</div><div class="value">${t.current_entries ?? 0}</div></div>
+            <div class="t-stat"><div class="label">Prize Pool</div><div class="value">£${(t.prize_pool || 0).toLocaleString()}</div></div>
+          </div>
+          ${entryHtml}
+        `;
+      } catch (e) {
+        console.error('Failed to load tournament:', e);
+        body.innerHTML = '<div class="empty">Couldn\'t load tournament right now.</div>';
+      }
+    }
+
+    // ---------- Leaderboard snapshot ----------
+    async function loadLeaderboardSnapshot() {
+      const body = document.getElementById('leaderboardBody');
+      try {
+        const res = await fetch('/api/leaderboard?tournament=all&limit=10');
+        const data = await res.json();
+        const rows = data.leaderboard || [];
+        if (rows.length === 0) {
+          body.innerHTML = '<div class="empty">No leaderboard data yet.</div>';
+          return;
+        }
+        body.innerHTML = rows.map(r => `
+          <div class="lb-row">
+            <span class="rank ${r.rank === 1 ? 'r1' : r.rank === 2 ? 'r2' : r.rank === 3 ? 'r3' : ''}">${r.rank}</span>
+            <span class="name">${escapeHtml(r.user?.display_name || r.user?.username || 'Player')}</span>
+            <span class="pts">${r.total_points ?? 0} pts</span>
+          </div>`).join('');
+      } catch (e) {
+        console.error('Failed to load leaderboard:', e);
+        body.innerHTML = '<div class="empty">Couldn\'t load leaderboard right now.</div>';
+      }
+    }
+
+    // ---------- Injuries snapshot ----------
+    async function loadInjuriesSnapshot() {
+      const body = document.getElementById('injuriesBody');
+      try {
+        const res = await fetch('/api/player-injuries');
+        const data = await res.json();
+        const rows = (data.injuries || []).slice(0, 6);
+        if (rows.length === 0) {
+          body.innerHTML = '<div class="empty">No injury news right now.</div>';
+          return;
+        }
+        body.innerHTML = rows.map(p => `
+          <div class="inj-row">
+            <span class="inj-dot ${p.status}"></span>
+            <span class="name">${escapeHtml(p.player)}<span class="team" style="display:block;">${escapeHtml(p.team)}</span></span>
+          </div>`).join('');
+      } catch (e) {
+        console.error('Failed to load injuries:', e);
+        body.innerHTML = '<div class="empty">Couldn\'t load injury news right now.</div>';
+      }
+    }
+
+    // ---------- PL Table snapshot ----------
+    async function loadTableSnapshot() {
+      const body = document.getElementById('tableBody');
+      try {
+        const res = await fetch('/api/sync-players?table=true');
+        const data = await res.json();
+        const rows = (data.table || []).slice(0, 8);
+        if (rows.length === 0) {
+          body.innerHTML = '<div class="empty">No results recorded yet.</div>';
+          return;
+        }
+        body.innerHTML = rows.map(t => `
+          <div class="table-row">
+            <span class="pos">${t.position}</span>
+            <span class="team">${escapeHtml(t.short_name || t.team)}</span>
+            <span class="stat">${t.played}</span>
+            <span class="pts">${t.points}</span>
+          </div>`).join('');
+      } catch (e) {
+        console.error('Failed to load table:', e);
+        body.innerHTML = '<div class="empty">Couldn\'t load the table right now.</div>';
+      }
+    }
+
+    function initAuthButton() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const label = document.getElementById('navAuthLabel');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+
+    function loadAll() {
+      loadThisWeek();
+      loadTournament();
+      loadLeaderboardSnapshot();
+      loadInjuriesSnapshot();
+      loadTableSnapshot();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuthButton();
+      loadAll();
+    });
+    window.addEventListener('gbf-data-refreshed', loadAll);
+  </script>
+</body>
+</html>
