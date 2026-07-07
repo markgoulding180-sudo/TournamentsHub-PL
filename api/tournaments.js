@@ -496,12 +496,14 @@ async function getFantasyLockStatus(masterDb) {
       return { locked: false, gameweek: currentEvent.id, deadline_epoch: currentEvent.deadline_time_epoch, reason: null };
     }
 
-    const { data: matches } = await masterDb
-      .from('matches')
-      .select('status')
-      .eq('gameweek', currentEvent.id);
-
-    const allFinished = !!matches && matches.length > 0 && matches.every(m => m.status === 'finished');
+    // Check FPL's own live fixture data directly for "has everything
+    // finished" — deliberately NOT our own matches table, since that only
+    // updates when something syncs it (background poll or admin button).
+    // This way the unlock is exactly as fresh as FPL's own data, with no
+    // dependency on anyone having triggered a sync recently.
+    const fixturesRes = await fetch(`https://fantasy.premierleague.com/api/fixtures/?event=${currentEvent.id}`);
+    const fixtures = await fixturesRes.json();
+    const allFinished = Array.isArray(fixtures) && fixtures.length > 0 && fixtures.every(f => f.finished === true);
 
     return {
       locked: !allFinished,
