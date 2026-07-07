@@ -47,6 +47,48 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Read-only mode: GET /api/sync-players?summary=123
+  // Proxies FPL's per-gameweek history for one player (goals/assists/cards
+  // etc *for that specific gameweek*, not season totals) — FPL blocks
+  // direct browser calls, so this fetches server-side and returns just the
+  // most recent gameweek's row.
+  if (req.method === 'GET' && params.get('summary')) {
+    try {
+      const playerId = params.get('summary');
+      const [bootstrapRes, summaryRes] = await Promise.all([
+        fetch(FPL_BOOTSTRAP_URL),
+        fetch(`https://fantasy.premierleague.com/api/element-summary/${playerId}/`)
+      ]);
+      const bootstrapData = await bootstrapRes.json();
+      const summaryData = await summaryRes.json();
+
+      const currentEvent = bootstrapData.events?.find(e => e.is_current) || bootstrapData.events?.find(e => e.is_next);
+      const currentGw = currentEvent?.id;
+
+      const history = summaryData.history || [];
+      // Prefer the row matching the current/next gameweek; fall back to the
+      // most recently played one if that gameweek hasn't kicked off yet.
+      const gwRow = history.find(h => h.round === currentGw) || history[history.length - 1] || null;
+
+      return res.status(200).json({
+        gameweek: gwRow ? gwRow.round : null,
+        stats: gwRow ? {
+          minutes: gwRow.minutes,
+          goals_scored: gwRow.goals_scored,
+          assists: gwRow.assists,
+          yellow_cards: gwRow.yellow_cards,
+          red_cards: gwRow.red_cards,
+          clean_sheets: gwRow.clean_sheets,
+          bonus: gwRow.bonus,
+          total_points: gwRow.total_points
+        } : null
+      });
+    } catch (error) {
+      console.error('Player summary error:', error);
+      return res.status(500).json({ error: 'Failed to fetch player summary', details: error.message });
+    }
+  }
+
   try {
     // Fetch from FPL API
     const response = await fetch(FPL_BOOTSTRAP_URL);
