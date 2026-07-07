@@ -42,10 +42,13 @@
     .avatar-btn:hover{border-color:var(--border);}
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
 
-    main{ position:relative; z-index:1; max-width:820px; margin:0 auto; padding:32px 24px 60px; }
+    main{ position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:32px 24px 60px; }
     .header{ margin-bottom:22px; }
     .header h1{ font-family:var(--font-display); font-size:26px; letter-spacing:.4px; margin-bottom:6px; }
     .header p{ color:var(--text-dim); font-size:14px; }
+
+    .layout{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
+    @media (max-width:900px){ .layout{ grid-template-columns:1fr; } }
 
     .board{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
     .board-head{ display:flex; align-items:center; gap:14px; padding:14px 22px; background:var(--bg-card); border-bottom:1px solid var(--border); font-family:var(--font-head); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); }
@@ -64,6 +67,16 @@
     .points-col{ width:90px; text-align:right; }
     .points-col .total{ font-family:var(--font-head); font-weight:700; font-size:16px; color:var(--gold); display:block; }
     .points-col .gw{ font-size:11.5px; color:var(--text-faint); }
+
+    .stat-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:16px; }
+    .stat-card h3{ font-family:var(--font-head); font-size:14px; font-weight:700; letter-spacing:.3px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .stat-row{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+    .stat-row:last-child{ border-bottom:none; }
+    .stat-row .stat-rank{ width:18px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:13px; }
+    .stat-row .stat-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .stat-row .stat-team{ color:var(--text-faint); font-size:11.5px; display:block; }
+    .stat-row .stat-value{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
+    .note{ font-size:12px; color:var(--text-faint); margin-top:10px; line-height:1.5; }
 
     .loading, .empty{ text-align:center; padding:50px 20px; color:var(--text-faint); }
     footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
@@ -99,14 +112,44 @@
       <p>Ranked by season total points. Captain's points are doubled.</p>
     </div>
 
-    <div class="board">
-      <div class="board-head">
-        <div class="col-rank">#</div>
-        <div class="col-name">Player</div>
-        <div class="col-points">Points</div>
+    <div class="layout">
+      <div class="board">
+        <div class="board-head">
+          <div class="col-rank">#</div>
+          <div class="col-name">Player</div>
+          <div class="col-points">Points</div>
+        </div>
+        <div id="boardBody">
+          <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>
+        </div>
       </div>
-      <div id="boardBody">
-        <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>
+
+      <div>
+        <div class="stat-card">
+          <h3><i class="fas fa-bolt" style="color:var(--gold);"></i> Top Performer This Gameweek</h3>
+          <div id="statTopGw"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+
+        <div class="stat-card">
+          <h3><i class="fas fa-futbol" style="color:var(--green);"></i> Most Goals (Season)</h3>
+          <div id="statGoals"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+
+        <div class="stat-card">
+          <h3><i class="fas fa-shoe-prints" style="color:var(--accent-2);"></i> Most Assists (Season)</h3>
+          <div id="statAssists"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+
+        <div class="stat-card">
+          <h3><i class="fas fa-square" style="color:#eab308;"></i> Most Yellow Cards</h3>
+          <div id="statYellow"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+        </div>
+
+        <div class="stat-card">
+          <h3><i class="fas fa-square" style="color:var(--red);"></i> Most Red Cards</h3>
+          <div id="statRed"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+          <p class="note">Season stats update as the season goes on. "Best week of the season" and player scoring streaks need a running history we haven't started collecting yet — ask if you want that built next.</p>
+        </div>
       </div>
     </div>
   </main>
@@ -177,11 +220,64 @@
       } catch (e) {}
     }
 
+    function fmtCost(n) { return (n / 10).toFixed(1); }
+
+    function renderStatList(containerId, players, teamsById, statKey, unit) {
+      const container = document.getElementById(containerId);
+      const top = players
+        .filter(p => (p[statKey] || 0) > 0)
+        .sort((a, b) => (b[statKey] || 0) - (a[statKey] || 0))
+        .slice(0, 5);
+
+      if (top.length === 0) {
+        container.innerHTML = '<p class="note" style="margin-top:0;">No data yet this season.</p>';
+        return;
+      }
+
+      container.innerHTML = top.map((p, i) => {
+        const team = teamsById[p.team];
+        return `
+          <div class="stat-row">
+            <span class="stat-rank">${i + 1}</span>
+            <span class="stat-name">${escapeHtml(p.web_name)}<span class="stat-team">${team ? escapeHtml(team.short_name || team.name) : ''}</span></span>
+            <span class="stat-value">${p[statKey]}${unit || ''}</span>
+          </div>`;
+      }).join('');
+    }
+
+    async function loadStatLeaders() {
+      try {
+        const res = await fetch('/api/sync-players?list=true');
+        const data = await res.json();
+        const players = data.players || [];
+        const teamsById = {};
+        (data.teams || []).forEach(t => { teamsById[t.id] = t; });
+
+        renderStatList('statGoals', players, teamsById, 'goals_scored');
+        renderStatList('statAssists', players, teamsById, 'assists');
+        renderStatList('statYellow', players, teamsById, 'yellow_cards');
+        renderStatList('statRed', players, teamsById, 'red_cards');
+
+        // "This gameweek" is the one thing we CAN show live without needing
+        // saved history — it's just each player's current event_points.
+        renderStatList('statTopGw', players, teamsById, 'event_points', ' pts');
+      } catch (e) {
+        console.error('Failed to load stat leaders:', e);
+        ['statTopGw', 'statGoals', 'statAssists', 'statYellow', 'statRed'].forEach(id => {
+          document.getElementById(id).innerHTML = '<p class="note" style="margin-top:0;">Couldn\'t load right now.</p>';
+        });
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       initAuthButton();
       loadBoard();
+      loadStatLeaders();
     });
-    window.addEventListener('gbf-data-refreshed', loadBoard);
+    window.addEventListener('gbf-data-refreshed', () => {
+      loadBoard();
+      loadStatLeaders();
+    });
   </script>
 </body>
 </html>
