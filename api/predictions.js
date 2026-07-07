@@ -6,18 +6,27 @@ const { createClient } = require('@supabase/supabase-js');
 
 const FPL_BOOTSTRAP_URL = 'https://fantasy.premierleague.com/api/bootstrap-static/';
 
-async function getCurrentGameweekInfo() {
+// Deadline for a specific gameweek = earliest kickoff among its matches,
+// read from our own synced data — not FPL's live is_next/deadline_time.
+// This checks whichever gameweek is actually being submitted for, so it's
+// correct regardless of what master_clock currently points at.
+async function getGameweekDeadlineEpoch(masterDb, gameweek) {
   try {
-    const response = await fetch(FPL_BOOTSTRAP_URL);
-    const data = await response.json();
-    const nextEvent = data.events.find(e => e.is_next);
-    return {
-      current: data.events.find(e => e.is_current)?.id,
-      next: nextEvent?.id,
-      deadline: nextEvent?.deadline_time,
-      deadline_epoch: nextEvent?.deadline_time_epoch
-    };
+    const { data: matches } = await masterDb
+      .from('matches')
+      .select('kickoff_time')
+      .eq('gameweek', gameweek);
+
+    if (!matches || matches.length === 0) return null;
+
+    const earliestMs = matches.reduce((min, m) => {
+      const t = new Date(m.kickoff_time).getTime();
+      return (min === null || t < min) ? t : min;
+    }, null);
+
+    return earliestMs !== null ? Math.floor(earliestMs / 1000) : null;
   } catch (error) {
+    console.error('getGameweekDeadlineEpoch error:', error);
     return null;
   }
 }
@@ -242,15 +251,15 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Gameweek and predictions array are required' });
       }
 
-      // Check deadline
-      const gwInfo = await getCurrentGameweekInfo();
-      if (gwInfo && gwInfo.deadline_epoch) {
+      // Check deadline — for the specific gameweek being submitted
+      const deadlineEpoch = await getGameweekDeadlineEpoch(masterDb, gameweek);
+      if (deadlineEpoch) {
         const now = Math.floor(Date.now() / 1000);
-        if (now >= gwInfo.deadline_epoch) {
+        if (now >= deadlineEpoch) {
           return res.status(403).json({ 
             error: 'Deadline passed', 
             message: 'The gameweek deadline has passed. Predictions are now locked.',
-            deadline: gwInfo.deadline
+            deadline_epoch: deadlineEpoch
           });
         }
       }

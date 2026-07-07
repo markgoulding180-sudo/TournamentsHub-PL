@@ -123,18 +123,19 @@ module.exports = async (req, res) => {
   if (req.method === 'GET' && params.get('summary')) {
     try {
       const playerId = params.get('summary');
-      const [bootstrapRes, summaryRes] = await Promise.all([
-        fetch(FPL_BOOTSTRAP_URL),
+      const [clockRes, summaryRes] = await Promise.all([
+        supabase.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle(),
         fetch(`https://fantasy.premierleague.com/api/element-summary/${playerId}/`)
       ]);
-      const bootstrapData = await bootstrapRes.json();
       const summaryData = await summaryRes.json();
 
-      const currentEvent = bootstrapData.events?.find(e => e.is_current) || bootstrapData.events?.find(e => e.is_next);
-      const currentGw = currentEvent?.id;
+      // Which gameweek to show "this gameweek" stats for comes from
+      // master_clock — the one global pointer every tournament follows —
+      // not FPL's live is_current/is_next flags.
+      const currentGw = clockRes.data?.current_gameweek;
 
       const history = summaryData.history || [];
-      // Prefer the row matching the current/next gameweek; fall back to the
+      // Prefer the row matching master_clock's gameweek; fall back to the
       // most recently played one if that gameweek hasn't kicked off yet.
       const gwRow = history.find(h => h.round === currentGw) || history[history.length - 1] || null;
 

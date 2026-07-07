@@ -28,17 +28,26 @@ module.exports = async (req, res) => {
       process.env.MASTER_SUPABASE_SERVICE_KEY
     );
 
-    // Get current gameweek from FPL API directly (no settings table needed)
-    const bootstrapResponse = await fetch(FPL_BOOTSTRAP_URL);
-    const bootstrapData = await bootstrapResponse.json();
-    
-    const currentGWObj = bootstrapData.events?.find(e => e.is_current);
-    const nextGWObj = bootstrapData.events?.find(e => e.is_next);
-    const currentGW = currentGWObj?.id || nextGWObj?.id;
+    // Current gameweek comes from master_clock — the one global pointer
+    // every tournament follows — not FPL's live is_current/is_next flags.
+    // Otherwise this would silently update whatever gameweek FPL thinks is
+    // "real world current" even if admin has deliberately set the clock
+    // elsewhere (testing, review, or catching up after a delay).
+    const { data: clock } = await masterDb
+      .from('master_clock')
+      .select('current_gameweek')
+      .eq('id', 'current')
+      .maybeSingle();
+
+    const currentGW = clock?.current_gameweek;
 
     if (!currentGW) {
-      return res.status(200).json({ message: 'Could not determine current gameweek' });
+      return res.status(200).json({ message: 'Master clock not set — admin must set the current gameweek first' });
     }
+
+    // Still need FPL's bootstrap for team-name mapping and fixture data
+    const bootstrapResponse = await fetch(FPL_BOOTSTRAP_URL);
+    const bootstrapData = await bootstrapResponse.json();
 
     console.log('Live scores - current gameweek:', currentGW);
 

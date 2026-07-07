@@ -29,16 +29,23 @@ module.exports = async (req, res) => {
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SECRET
     );
-    
-    // Fetch current gameweek from FPL API
+    // Master project: master_clock — the one global gameweek pointer every
+    // tournament follows, not FPL's live is_current flag.
+    const masterDb = createClient(
+      process.env.MASTER_SUPABASE_URL,
+      process.env.MASTER_SUPABASE_SERVICE_KEY
+    );
+
     let currentGameweek = null;
     try {
-      const fplResponse = await fetch(FPL_BOOTSTRAP_URL);
-      const fplData = await fplResponse.json();
-      const currentEvent = fplData.events.find(e => e.is_current);
-      currentGameweek = currentEvent ? currentEvent.id : null;
-    } catch (fplError) {
-      console.error('Failed to fetch current gameweek:', fplError);
+      const { data: clock } = await masterDb
+        .from('master_clock')
+        .select('current_gameweek')
+        .eq('id', 'current')
+        .maybeSingle();
+      currentGameweek = clock ? clock.current_gameweek : null;
+    } catch (clockError) {
+      console.error('Failed to fetch master clock:', clockError);
     }
 
     let query;
