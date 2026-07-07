@@ -207,15 +207,20 @@
       
       /* Top row: Date | Status | Points */
       .fixture-header {
-        display: flex !important;
-        justify-content: space-between !important;
+        display: grid !important;
+        grid-template-columns: 1fr auto 1fr !important;
         align-items: center !important;
         font-size: 0.8rem !important;
         margin-bottom: 0.75rem !important;
         padding-bottom: 0.5rem !important;
         border-bottom: 1px solid rgba(255,255,255,0.1) !important;
       }
-      
+
+      .fixture-header > span:first-child {
+        text-align: left !important;
+        justify-self: start !important;
+      }
+
       .fixture-header .match-status {
         font-weight: 700 !important;
         text-transform: uppercase !important;
@@ -224,6 +229,7 @@
         padding: 0.25rem 0.5rem !important;
         background: rgba(255,255,255,0.1) !important;
         border-radius: 4px !important;
+        justify-self: center !important;
       }
       
       .fixture-header .points-display {
@@ -231,6 +237,7 @@
         font-size: 0.9rem !important;
         min-width: 45px !important;
         text-align: right !important;
+        justify-self: end !important;
       }
       
       .fixture-header .points-display.points-20 {
@@ -441,8 +448,9 @@
       <nav class="hub-nav-links">
         <a href="/">Home</a>
         <a href="/predictions" class="active">Predictions</a>
-        <a href="/fantasy-manager">Fantasy Manager</a>
         <a href="/leaderboard">Leaderboard</a>
+        <a href="/table">PL Table</a>
+        <a href="/injuries">Injuries</a>
       </nav>
     </div>
     <div class="hub-nav-right">
@@ -518,7 +526,7 @@
 
   <script src="auth-gate.js"></script>
   <script src="live-poll.js"></script>
-  <script src="predictions.js"></script>
+  <script src="predictions.js?v=2"></script>
   <script>
     // Navbar login/avatar state — same pattern used on every Hub-styled page
     document.addEventListener('DOMContentLoaded', function() {
