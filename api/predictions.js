@@ -6,31 +6,6 @@ const { createClient } = require('@supabase/supabase-js');
 
 const FPL_BOOTSTRAP_URL = 'https://fantasy.premierleague.com/api/bootstrap-static/';
 
-// Deadline for a specific gameweek = earliest kickoff among its matches,
-// read from our own synced data — not FPL's live is_next/deadline_time.
-// This checks whichever gameweek is actually being submitted for, so it's
-// correct regardless of what master_clock currently points at.
-async function getGameweekDeadlineEpoch(masterDb, gameweek) {
-  try {
-    const { data: matches } = await masterDb
-      .from('matches')
-      .select('kickoff_time')
-      .eq('gameweek', gameweek);
-
-    if (!matches || matches.length === 0) return null;
-
-    const earliestMs = matches.reduce((min, m) => {
-      const t = new Date(m.kickoff_time).getTime();
-      return (min === null || t < min) ? t : min;
-    }, null);
-
-    return earliestMs !== null ? Math.floor(earliestMs / 1000) : null;
-  } catch (error) {
-    console.error('getGameweekDeadlineEpoch error:', error);
-    return null;
-  }
-}
-
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -251,24 +226,16 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Gameweek and predictions array are required' });
       }
 
-      // Check deadline — for the specific gameweek being submitted
-      const deadlineEpoch = await getGameweekDeadlineEpoch(masterDb, gameweek);
-      if (deadlineEpoch) {
-        const now = Math.floor(Date.now() / 1000);
-        if (now >= deadlineEpoch) {
-          return res.status(403).json({ 
-            error: 'Deadline passed', 
-            message: 'The gameweek deadline has passed. Predictions are now locked.',
-            deadline_epoch: deadlineEpoch
-          });
-        }
-      }
-
-      // Get match details for human-readable columns (master project)
+      // Get match details for human-readable columns (master project) —
+      // includes kickoff_time so each match's own deadline can be checked
+      // individually below, matching the frontend's existing per-match
+      // lock behaviour (a gameweek-wide single deadline would incorrectly
+      // block editing a not-yet-started match just because an earlier
+      // match in the same gameweek has already kicked off).
       const matchIds = predictions.map(p => p.match_id);
       const { data: matches } = await masterDb
         .from('matches')
-        .select('id, home_team, away_team, gameweek')
+        .select('id, home_team, away_team, gameweek, kickoff_time')
         .in('id', matchIds);
       
       const matchMap = {};
@@ -276,11 +243,31 @@ module.exports = async (req, res) => {
         matchMap[m.id] = m;
       });
 
+      // Reject only the specific predictions whose own match has already
+      // kicked off — not the whole batch just because one match in it has.
+      const now = Date.now();
+      const tooLate = predictions.filter(p => {
+        const match = matchMap[p.match_id];
+        if (!match || !match.kickoff_time) return false; // unknown kickoff — allow, matches temp-ID flow below
+        return new Date(match.kickoff_time).getTime() <= now;
+      });
+
+      if (tooLate.length > 0 && tooLate.length === predictions.length) {
+        // Every submitted match has already kicked off
+        return res.status(403).json({
+          error: 'Deadline passed',
+          message: 'All of these matches have already kicked off. Predictions are locked.'
+        });
+      }
+
+      const predictionsToSubmit = predictions.filter(p => !tooLate.includes(p));
+
+
       // Validate and format predictions
       const predictionsToInsert = [];
       
-      for (let i = 0; i < predictions.length; i++) {
-        const pred = predictions[i];
+      for (let i = 0; i < predictionsToSubmit.length; i++) {
+        const pred = predictionsToSubmit[i];
         console.log(`Processing prediction ${i}:`, pred);
         
         if (!pred.match_id) {
@@ -386,8 +373,11 @@ module.exports = async (req, res) => {
       console.log('Predictions saved successfully:', data);
 
       return res.status(200).json({
-        message: 'Predictions saved successfully',
-        predictions: data
+        message: tooLate.length > 0
+          ? `Predictions saved. ${tooLate.length} match(es) were skipped — already kicked off.`
+          : 'Predictions saved successfully',
+        predictions: data,
+        skipped: tooLate.map(p => p.match_id)
       });
 
     } catch (error) {
