@@ -198,6 +198,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           <span class="fm-player-meta">
             <span>£${fmt(p.now_cost)}m</span>
             <span>${p.total_points ?? 0} pts</span>
+            <span style="color:var(--gold);">${p.event_points ?? 0} GW</span>
           </span>
           <button class="fm-add-btn" data-add="${p.id}" ${inSquad || disabled ? 'disabled' : ''} title="${inSquad ? 'Already in squad' : (quotaFull ? posLabel + ' slots full' : (overBudget ? 'Over budget' : 'Add to squad'))}">
             ${inSquad ? '<i class="fas fa-check"></i>' : '+'}
@@ -219,6 +220,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             <div class="fm-squad-slot">
               <button class="fm-cap-btn ${isCaptain ? 'active' : ''}" data-captain="${p.id}" title="Set as captain">C</button>
               <span class="fm-player-name">${escapeHtml(p.web_name)}<span class="team">£${fmt(p.now_cost)}m</span></span>
+              <span style="color:var(--gold); font-size:.8rem; font-weight:700; flex:none;">${(p.event_points ?? 0) * (isCaptain ? 2 : 1)} GW</span>
               <button class="fm-remove-btn" data-remove="${p.id}" title="Remove"><i class="fas fa-xmark"></i></button>
             </div>`;
         } else {
