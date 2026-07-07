@@ -1,221 +1,1075 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GB Fantasy - Premier League Predictions</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="stadium-theme.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GB Tournaments — Compete. Predict. Win.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#040812;
+    --bg-panel:#070d1a;
+    --bg-card:#0a101f;
+    --bg-card-2:#0d1526;
+    --border:#131f35;
+    --border-hover:#3b82f6;
+    --accent:#3b82f6;
+    --accent-2:#60a5fa;
+    --accent-glow:rgba(59,130,246,0.45);
+    --accent-dim:#1d4ed8;
+    --text:#f1f5fc;
+    --text-dim:#8a97b0;
+    --text-faint:#4d5972;
+    --gold:#f2b93d;
+    --red:#ef4444;
+    --purple:#7c3aed;
+    --radius:14px;
+    --font-display:'Anton','Rajdhani',sans-serif;
+    --font-head:'Rajdhani',sans-serif;
+    --font-body:'Inter',sans-serif;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+  .icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+
+  .bg-glow{
+    position:fixed; top:-260px; left:50%; width:1300px; height:820px;
+    transform:translateX(-50%);
+    background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%);
+    pointer-events:none; z-index:0;
+  }
+
+  /* ================= NAVBAR ================= */
+  .navbar{
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:15px 32px;
+    background:rgba(4,8,18,0.92);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-left{display:flex;align-items:center;gap:40px;}
+  .logo{display:flex;align-items:center;gap:11px;}
+  .logo-mark{
+    width:38px;height:38px;border-radius:10px;
+    background:linear-gradient(150deg,var(--accent-2),var(--accent-dim));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .logo-mark .icon{width:20px;height:20px;stroke:#fff;stroke-width:1.9;}
+  .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+  .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+
+  .nav-links{display:flex; gap:30px;}
+  .nav-links a{
+    font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px;
+    text-transform:uppercase; color:var(--text-dim);
+    padding-bottom:19px; position:relative; transition:color .2s;
+  }
+  .nav-links a:hover{color:var(--text);}
+  .nav-links a.active{color:var(--text);}
+  .nav-links a.active::after{
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px;
+  }
+
+  .nav-right{display:flex;align-items:center;gap:14px;}
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-card); border:1px solid var(--border);
+    transition:border-color .2s, transform .2s; position:relative;
+  }
+  .icon-btn .icon{width:17px;height:17px; color:var(--text-dim);}
+  .icon-btn:hover{border-color:var(--accent); transform:translateY(-1px);}
+  .icon-btn:hover .icon{color:var(--accent-2);}
+  .notif-dot{
+    position:absolute; top:7px; right:8px; width:6px;height:6px;border-radius:50%;
+    background:var(--accent-2); box-shadow:0 0 6px var(--accent-glow);
+  }
+  .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px 4px 4px 4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+  .avatar-btn:hover{border-color:var(--border);}
+  .avatar{
+    width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(150deg,#2c3d5c,#161f33);
+    border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .avatar .icon{width:17px;height:17px;color:var(--text-dim);}
+  .avatar-btn .icon.chev{width:14px;height:14px;color:var(--text-faint); margin-right:2px;}
+  .menu-toggle{display:none;}
+
+  /* ================= LAYOUT ================= */
+  .layout{display:flex; position:relative; z-index:1;}
+
+  .sidebar{
+    width:222px; min-width:222px;
+    background:var(--bg-panel); border-right:1px solid var(--border);
+    height:calc(100vh - 69px); position:sticky; top:69px;
+    padding:22px 14px; transition:width .25s ease, min-width .25s ease, padding .25s ease;
+    overflow:hidden;
+  }
+  .sidebar.collapsed{width:72px; min-width:72px; padding:22px 10px;}
+
+  .sidebar-toggle{
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:9px 10px; margin-bottom:20px; border-radius:8px;
+    color:var(--text-faint); font-family:var(--font-head); font-size:11.5px; font-weight:700;
+    letter-spacing:1.2px; text-transform:uppercase;
+  }
+  .sidebar-toggle:hover{color:var(--text-dim); background:var(--bg-card);}
+  .sidebar-toggle .icon{width:15px;height:15px; transition:transform .25s ease;}
+  .sidebar.collapsed .icon.arrow{transform:rotate(180deg);}
+  .sidebar.collapsed .toggle-label{display:none;}
+
+  .sidebar-section-label{
+    font-family:var(--font-head); font-size:11px; color:var(--text-faint);
+    letter-spacing:1.6px; text-transform:uppercase; font-weight:700;
+    padding:0 10px; margin-bottom:10px;
+  }
+  .sidebar.collapsed .sidebar-section-label{display:none;}
+
+  .sport-item{
+    display:flex; align-items:center; gap:13px; padding:11px 10px;
+    border-radius:10px; margin-bottom:3px; color:var(--text-dim);
+    font-family:var(--font-head); font-size:14.5px; font-weight:600; letter-spacing:0.2px;
+    transition:background .2s, color .2s;
+  }
+  .sport-item .icon{width:19px;height:19px;flex-shrink:0;}
+  .sport-item:hover{background:var(--bg-card); color:var(--text);}
+  .sport-item.active{background:rgba(59,130,246,0.12); color:var(--accent-2);}
+  .sidebar.collapsed .sport-label{display:none;}
+  .sidebar.collapsed .sport-item{justify-content:center;}
+
+  .main-content{flex:1; min-width:0; padding:30px 32px 60px; max-width:1440px;}
+
+  /* ================= HERO ================= */
+  .hero{
+    position:relative; border-radius:20px;
+    background:
+      radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
+      linear-gradient(120deg, #060c1a 0%, #0a1428 60%, #0d1830 100%);
+    border:1px solid var(--border); overflow:hidden;
+    padding:58px 50px; margin-bottom:34px; min-height:360px;
+    display:flex; align-items:center;
+  }
+  .hero-graphic{
+    position:absolute; right:-40px; top:0; bottom:0; width:52%;
+    display:flex; align-items:center; justify-content:center; opacity:0.95;
+    pointer-events:none;
+  }
+  .hero-content{position:relative; z-index:2; max-width:540px;}
+  .hero-eyebrow{
+    display:inline-flex; align-items:center; gap:8px; color:var(--accent-2);
+    font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px;
+    text-transform:uppercase; margin-bottom:18px;
+  }
+  .hero-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+  .hero h1{
+    font-family:var(--font-display); font-size:76px; font-weight:400; line-height:0.92;
+    letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase;
+  }
+  .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:12px; letter-spacing:0.3px;}
+  .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:28px; max-width:420px; line-height:1.55;}
+  .btn-outline-lg{
+    display:inline-flex; align-items:center; gap:10px;
+    background:rgba(59,130,246,0.08); border:1.5px solid var(--accent);
+    color:var(--text); font-family:var(--font-head); font-weight:700; font-size:13.5px;
+    letter-spacing:1px; text-transform:uppercase; padding:13px 24px; border-radius:9px;
+    transition:background .2s, box-shadow .2s;
+  }
+  .btn-outline-lg .icon{width:14px;height:14px; fill:currentColor; stroke:none;}
+  .btn-outline-lg:hover{background:var(--accent); box-shadow:0 6px 24px var(--accent-glow);}
+
+  /* ================= SECTION HEADER ================= */
+  .section{margin-bottom:38px;}
+  .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;}
+  .section-title-group{display:flex; align-items:center; gap:13px;}
+  .section-icon{
+    width:40px;height:40px;border-radius:10px;
+    background:var(--bg-card); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .section-icon .icon{width:19px;height:19px; color:var(--accent-2);}
+  .section-title h2{font-family:var(--font-head); font-size:21px; font-weight:700; letter-spacing:0.3px;}
+  .section-title p{font-size:12.5px; color:var(--text-faint); margin-top:2px;}
+  .view-all{
+    display:flex; align-items:center; gap:5px;
+    font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:0.4px;
+    color:var(--text-dim); text-transform:uppercase; transition:color .2s, gap .2s;
+  }
+  .view-all .icon{width:14px;height:14px;}
+  .view-all:hover{color:var(--accent-2); gap:8px;}
+
+  /* ---- Live PL strip (pulled from GB Fantasy) ---- */
+  .pl-live{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:20px;
+  }
+  .pl-live-status{
+    display:flex; align-items:center; gap:9px; margin-bottom:16px;
+    font-family:var(--font-head); font-size:12.5px; font-weight:700; letter-spacing:.5px;
+    color:var(--text-dim); text-transform:uppercase;
+  }
+  .pl-live-dot{
+    width:7px; height:7px; border-radius:50%; background:#22c55e;
+    box-shadow:0 0 8px rgba(34,197,94,.6); animation:pulse 1.8s ease-in-out infinite; flex:none;
+  }
+  .pl-live-dot.off{background:var(--text-faint); box-shadow:none; animation:none;}
+  .pl-live-sep{color:var(--text-faint);}
+  .pl-live-state{
+    color:var(--text-faint); text-transform:none; font-family:var(--font-body); font-weight:400; font-size:12.5px;
+  }
+  .pl-live-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+  .pl-live-panel-title{
+    font-family:var(--font-head); font-size:11.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.6px; color:var(--text-faint); margin-bottom:10px;
+  }
+  .pl-live-matches, .pl-live-leaders{display:flex; flex-direction:column; gap:7px; list-style:none;}
+  .pl-live-match{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:9px 13px; font-size:13px;
+  }
+  .pl-live-match .teams{color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pl-live-match .right{display:flex; align-items:center; gap:9px; flex:none;}
+  .pl-live-match .score{font-family:var(--font-head); font-weight:700; color:var(--accent-2); letter-spacing:.5px;}
+  .pl-live-match .tag{font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.4px;}
+  .pl-live-match .tag.live{background:rgba(239,68,68,.15); color:var(--red);}
+  .pl-live-match .tag.finished{background:rgba(255,255,255,.06); color:var(--text-faint);}
+  .pl-live-match .tag.upcoming{background:rgba(59,130,246,.14); color:var(--accent-2);}
+  .pl-live-leaders li{
+    display:flex; align-items:center; gap:10px;
+    background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:8px 13px; font-size:13px;
+  }
+  .pl-live-leaders .rank{width:16px; font-family:var(--font-head); font-weight:700; color:var(--text-faint);}
+  .pl-live-leaders .name{flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pl-live-leaders .pts{font-family:var(--font-head); font-weight:700; color:var(--gold); letter-spacing:.3px;}
+  .pl-live-empty{color:var(--text-faint); font-size:12.5px; padding:6px 2px;}
+  @media (max-width:760px){ .pl-live-grid{grid-template-columns:1fr;} }
+
+  /* ================= TOURNAMENT CARDS ================= */
+  .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+  .card-row-3{grid-template-columns:repeat(3,1fr);}
+  .t-card{
+    position:relative; background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--radius); overflow:hidden;
+    transition:border-color .25s, transform .25s, box-shadow .25s;
+    display:flex; flex-direction:column;
+  }
+  .t-card:hover{border-color:var(--border-hover); transform:translateY(-5px); box-shadow:0 16px 36px -10px var(--accent-glow);}
+  .t-card-media{height:132px; position:relative; border-bottom:1px solid var(--border); overflow:hidden;}
+  .featured-badge{
+    position:absolute; top:12px; left:12px; z-index:3;
+    background:var(--accent); color:#fff; font-family:var(--font-head);
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    padding:5px 11px; border-radius:20px; box-shadow:0 0 16px var(--accent-glow);
+  }
+  .t-card-body{padding:16px 18px 18px; flex:1; display:flex; flex-direction:column;}
+  .t-card-body h3{font-family:var(--font-head); font-size:16.5px; font-weight:700; margin-bottom:4px; letter-spacing:0.2px;}
+  .t-card-body .desc{font-size:12.5px; color:var(--text-faint); margin-bottom:16px; line-height:1.4; min-height:32px;}
+  .t-card-stats{display:flex; justify-content:space-between; margin-bottom:16px;}
+  .stat-label{font-family:var(--font-head); font-size:10px; color:var(--text-faint); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; font-weight:600;}
+  .stat-value{font-family:var(--font-head); font-size:18px; font-weight:700; color:var(--text);}
+  .stat-value.prize{color:var(--accent-2);}
+  .btn-enter{
+    width:100%; padding:11px; border-radius:9px; border:1.5px solid var(--accent);
+    color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:12.5px;
+    letter-spacing:0.6px; text-transform:uppercase; background:rgba(59,130,246,0.06);
+    transition:background .2s, color .2s;
+  }
+  .btn-enter:hover{background:var(--accent); color:#fff;}
+
+  /* ---- card media graphics wrappers ---- */
+  .media-svg{width:100%; height:100%; display:block;}
+  .media-shield{background:radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.22), transparent 70%), linear-gradient(160deg,#0e1830,#070d1a);}
+  .media-fixture{background:linear-gradient(160deg,#101c34,#070d1a);}
+  .media-podium{background:linear-gradient(160deg,#0e1830,#070d1a);}
+  .media-champion{background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.28), transparent 65%), linear-gradient(160deg,#160f2c,#070d1a);}
+  .media-goal{background:linear-gradient(160deg,#0e1830,#070d1a);}
+  .media-assist{background:linear-gradient(160deg,#0e1830,#070d1a);}
+  .media-cleansheet{background:linear-gradient(160deg,#0e1830,#070d1a);}
+  .media-breakout{background:radial-gradient(ellipse at 50% 35%, rgba(242,185,61,0.18), transparent 65%), linear-gradient(160deg,#0e1830,#070d1a);}
+
+  /* ================= BOTTOM SPORT GRID ================= */
+  .sport-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px;}
+  .sport-tile{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; transition:border-color .25s, transform .25s;
+  }
+  .sport-tile:hover{border-color:var(--border-hover); transform:translateY(-5px);}
+  .sport-tile-head{display:flex; align-items:flex-start; gap:12px; margin-bottom:14px;}
+  .sport-tile-icon{
+    width:36px;height:36px;border-radius:9px; flex-shrink:0;
+    background:rgba(59,130,246,0.1); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sport-tile-icon .icon{width:17px;height:17px;color:var(--accent-2);}
+  .sport-tile h3{font-family:var(--font-head); font-size:15px; font-weight:700; margin-bottom:3px;}
+  .sport-tile p{font-size:11.5px; color:var(--text-faint); line-height:1.4;}
+  .sport-tile-media{height:112px; border-radius:10px; margin-bottom:14px; border:1px solid var(--border); overflow:hidden; position:relative;}
+
+  /* ================= LEADERBOARD STRIP ================= */
+  .leaderboard-strip{
+    display:flex; align-items:center; justify-content:space-between;
+    background:linear-gradient(120deg,#0a1120, #0f1c38);
+    border:1px solid var(--border); border-radius:var(--radius); padding:24px 32px;
+  }
+  .lb-left{display:flex; align-items:center; gap:16px;}
+  .lb-icon{
+    width:50px;height:50px;border-radius:12px;
+    background:rgba(242,185,61,0.12); border:1px solid rgba(242,185,61,0.3);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lb-icon .icon{width:23px;height:23px; color:var(--gold);}
+  .lb-left h3{font-family:var(--font-head); font-size:16.5px; font-weight:700;}
+  .lb-left p{font-size:12.5px; color:var(--text-faint); margin-top:2px;}
+  .lb-mid{text-align:center;}
+  .lb-mid .stat-label{margin-bottom:5px;}
+  .lb-mid .amount{font-family:var(--font-display); font-size:32px; font-weight:400; color:var(--gold);}
+  .btn-outline{
+    padding:13px 24px; border-radius:9px; border:1.5px solid var(--accent);
+    color:var(--text); font-family:var(--font-head); font-weight:700; font-size:13px;
+    letter-spacing:0.5px; text-transform:uppercase;
+    background:rgba(59,130,246,0.08); transition:background .2s;
+  }
+  .btn-outline:hover{background:var(--accent);}
+
+  /* ================= RESPONSIVE ================= */
+  @media (max-width:1100px){
+    .card-row, .card-row-3, .sport-grid{grid-template-columns:repeat(2,1fr);}
+    .hero h1{font-size:58px;}
+  }
+  @media (max-width:860px){
+    .nav-links{display:none;}
+    .menu-toggle{display:flex;}
+    .sidebar{
+      position:fixed; left:0; top:69px; z-index:90; height:calc(100vh - 69px);
+      transform:translateX(-100%); transition:transform .25s ease;
+      width:222px; min-width:222px; padding:22px 14px;
+    }
+    .sidebar.mobile-open{transform:translateX(0);}
+    .sidebar.collapsed{width:222px; min-width:222px; padding:22px 14px;}
+    .sidebar.collapsed .sport-label, .sidebar.collapsed .sidebar-section-label, .sidebar.collapsed .toggle-label{display:block;}
+    .main-content{padding:20px;}
+    .hero{padding:36px 24px; min-height:auto;}
+    .hero h1{font-size:44px;}
+    .hero-graphic{width:70%; opacity:0.5;}
+  }
+  @media (max-width:640px){
+    .card-row, .card-row-3, .sport-grid{grid-template-columns:1fr;}
+    .leaderboard-strip{flex-direction:column; gap:18px; text-align:center;}
+    .lb-left{flex-direction:column; text-align:center;}
+    .navbar{padding:13px 16px;}
+    .hero-graphic{display:none;}
+  }
+</style>
 </head>
 <body>
-  <!-- Sidebar Navigation (Desktop) -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <a href="index.html" class="sidebar-logo">
-        <i class="fas fa-trophy"></i>
-        <span>GB Fantasy</span>
-      </a>
+
+<!-- ============ SVG ICON SPRITE ============ -->
+<svg style="display:none">
+<defs>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4z"/><path d="M7 5H4a3 3 0 0 0 3 3"/><path d="M17 5h3a3 3 0 0 1-3 3"/><path d="M12 12v3"/><path d="M9 19h6"/><path d="M10 16h4l1 3H9l1-3z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.3"/><path d="M5 20c0-3.6 3-6.2 7-6.2s7 2.6 7 6.2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.4"/><rect x="13" y="4" width="7" height="7" rx="1.4"/><rect x="4" y="13" width="7" height="7" rx="1.4"/><rect x="13" y="13" width="7" height="7" rx="1.4"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V11"/><path d="M12 20V4"/><path d="M19 20v-7"/><path d="M3 20h18"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="8.5" cy="8" r="3"/><circle cx="16" cy="9.2" r="2.3"/><path d="M2.5 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6"/><path d="M14.7 14.6c2.1.5 3.6 2.1 3.8 4.3"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1.3"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1.4"/><path d="M4 13h16"/><path d="M12 9v11"/><path d="M12 9C9 9 8 6.4 9.6 5 11 3.6 12 6.2 12 9z"/><path d="M12 9c3 0 4-2.6 2.4-4C13 3.6 12 6.2 12 9z"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.2l3.4 2.5-1.3 4H9.9l-1.3-4L12 7.2z"/><path d="M12 3v4.2M12 20.8V17M4.3 8.6l4-1.3M19.7 8.6l-4-1.3M4.8 16l3.8 1M19.2 16l-3.8 1"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4l9 3.4L6 10.8"/><ellipse cx="6" cy="21" rx="4" ry="1"/></symbol>
+  <symbol id="i-horseshoe" viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7v3a2 2 0 0 0 2 2h1v-5a4 4 0 0 1 8 0v5h1a2 2 0 0 0 2-2v-3a7 7 0 0 0-7-7z"/><circle cx="8.5" cy="19" r="1.2"/><circle cx="15.5" cy="19" r="1.2"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9"/><path d="M15 7h5v5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.9 6.4.6-4.9 4.3 1.5 6.3L12 17l-5.6 3.1 1.5-6.3-4.9-4.3 6.4-.6L12 3z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-boot" viewBox="0 0 24 24"><path d="M5 4v9l-2 3v3h17c0-3-2-4-5-4.5S9 13 8 11.5 7 4 7 4H5z"/><path d="M5 8h4"/></symbol>
+  <symbol id="i-glove" viewBox="0 0 24 24"><path d="M6 10V6a1.5 1.5 0 0 1 3 0v4"/><path d="M9 9V5a1.5 1.5 0 0 1 3 0v4"/><path d="M12 9V5.5a1.5 1.5 0 0 1 3 0V10"/><path d="M15 10V7a1.5 1.5 0 0 1 3 0v6.5c0 3-2 5.5-5 5.5H9c-2.2 0-4-1.8-4-4v-3.5L6 10"/></symbol>
+</defs>
+</svg>
+
+<div class="bg-glow"></div>
+
+<!-- ================= NAVBAR ================= -->
+<header class="navbar">
+  <div class="nav-left">
+    <div class="logo">
+      <div class="logo-mark"><svg class="icon"><use href="#i-trophy"/></svg></div>
+      <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
     </div>
-    <nav class="sidebar-nav">
-      <a href="index.html" class="sidebar-link active" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
-      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
-      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
-      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
-      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
-      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
-      <div class="sidebar-divider"></div>
-      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
-      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+    <nav class="nav-links">
+      <a href="#" class="active">Home</a>
+      <a href="#">Tournaments</a>
+      <a href="#">Leaderboard</a>
+      <a href="#">My Leagues</a>
+      <a href="#">Wallet</a>
+      <a href="#">Rewards</a>
     </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-user" id="sidebar-user">
-        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
-        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
-      </a>
-    </div>
+  </div>
+  <div class="nav-right">
+    <button class="icon-btn" title="Notifications"><svg class="icon"><use href="#i-bell"/></svg><span class="notif-dot"></span></button>
+    <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+    <button class="avatar-btn">
+      <div class="avatar"><svg class="icon"><use href="#i-user"/></svg></div>
+      <svg class="icon chev"><use href="#i-chevron"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">
+      <svg class="icon arrow"><use href="#i-arrow" style="transform:rotate(180deg)"/></svg><span class="toggle-label">Collapse</span>
+    </button>
+    <div class="sidebar-section-label">Sport Categories</div>
+    <a class="sport-item active" href="#pl-predictions"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Football</span></a>
+    <a class="sport-item" href="#darts"><svg class="icon"><use href="#i-target"/></svg><span class="sport-label">Darts</span></a>
+    <a class="sport-item" href="#golf"><svg class="icon"><use href="#i-flag"/></svg><span class="sport-label">Golf</span></a>
+    <a class="sport-item" href="#racing"><svg class="icon"><use href="#i-horseshoe"/></svg><span class="sport-label">Horse Racing</span></a>
+    <a class="sport-item" href="#stocks"><svg class="icon"><use href="#i-trend"/></svg><span class="sport-label">Stock Market</span></a>
+    <a class="sport-item" href="#special"><svg class="icon"><use href="#i-star"/></svg><span class="sport-label">Special</span></a>
   </aside>
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="logo">
-        <i class="fas fa-trophy"></i>
-        GB Fantasy
-      </a>
-      <ul class="nav-links">
-        <li><a href="index.html" class="active"><i class="fas fa-home"></i> Home</a></li>
-        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
-        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
-        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
-        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
-        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
-        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
-        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
-      </ul>
-      <button class="mobile-menu-btn">
-        <i class="fas fa-bars"></i>
-      </button>
-    </div>
-  </nav>
+  <!-- ================= MAIN ================= -->
+  <main class="main-content">
 
-  <!-- Main Content -->
-  <main class="container">
-    <!-- Hero Section - Stadium Theme -->
-    <section class="hero-stadium">
-      <div class="hero-stadium-bg"></div>
-      <div class="hero-stadium-overlay"></div>
-      <div class="hero-stadium-content">
-        <h1 style="font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Premier League Predictions</h1>
-        <p style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 1.5rem; max-width: 600px;">Predict match results, climb the leaderboard, and win cash prizes. The ultimate Premier League prediction game.</p>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-          <div class="stat-card" style="min-width: 140px;">
-            <div class="stat-card-icon"><i class="fas fa-trophy"></i></div>
-            <div class="stat-card-value" id="hero-prize-pool" style="color: var(--accent-amber);">£--</div>
-            <div class="stat-card-label">Prize Pool</div>
-          </div>
-          <div class="stat-card" style="min-width: 140px;">
-            <div class="stat-card-icon"><i class="fas fa-users"></i></div>
-            <div class="stat-card-value" id="hero-active-players" style="color: var(--accent-blue);">--</div>
-            <div class="stat-card-label">Active Players</div>
-          </div>
-          <div class="stat-card" style="min-width: 140px;">
-            <div class="stat-card-icon"><i class="fas fa-calendar"></i></div>
-            <div class="stat-card-value" id="hero-current-gw" style="color: var(--accent-green);">GW --</div>
-            <div class="stat-card-label">Current GW</div>
-          </div>
-        </div>
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="hero-graphic">
+        <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+          <defs>
+            <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#93c5fd"/>
+              <stop offset="100%" stop-color="#3b82f6"/>
+            </linearGradient>
+          </defs>
+          <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
+          <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
+          <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
+          <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
+          <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
+          <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
+          <g opacity="0.9">
+            <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
+          </g>
+          <g opacity="0.5">
+            <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
+          </g>
+          <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
+          <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="hero-content">
+        <div class="hero-eyebrow"><span class="dot"></span>Live Tournaments Running Now</div>
+        <h1>Tournaments</h1>
+        <div class="hero-sub">Compete. Predict. Win.</div>
+        <p class="hero-desc">Choose your arena and prove you're the best. Football, darts, golf, stocks and more — enter, predict, and climb the leaderboard.</p>
+        <a href="#" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>How It Works</a>
       </div>
     </section>
 
-    <!-- Prediction Status Bar (Logged in users only) -->
-    <section id="prediction-status-bar" class="mb-3" style="display: none;">
-      <div class="prediction-status-container" style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <div id="prediction-status-icon" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
-            <i class="fas fa-question-circle"></i>
+    <!-- ================= FOOTBALL ================= -->
+    <section class="section" id="pl-predictions">
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-icon"><svg class="icon"><use href="#i-ball"/></svg></div>
+          <div class="section-title">
+            <h2>Football</h2>
+            <p>Premier League &amp; European prediction tournaments.</p>
           </div>
+        </div>
+        <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+
+      <!-- Live strip: pulled from the GB Fantasy PL app at request time -->
+      <div class="pl-live" id="plLive">
+        <div class="pl-live-status">
+          <span class="pl-live-dot" id="plLiveDot"></span>
+          <span id="plGwLabel">Gameweek --</span>
+          <span class="pl-live-sep">·</span>
+          <span class="pl-live-state" id="plLiveState">Connecting to GB Fantasy…</span>
+        </div>
+        <div class="pl-live-grid">
           <div>
-            <div id="prediction-status-title" style="font-weight: 600; font-size: 1.1rem;">Checking predictions...</div>
-            <div id="prediction-status-subtitle" class="text-muted" style="font-size: 0.875rem;">Please wait</div>
-          </div>
-        </div>
-        <a href="profile.html" class="btn btn-outline btn-sm" id="prediction-status-btn">
-          <i class="fas fa-user"></i> View Profile
-        </a>
-      </div>
-    </section>
-
-    <!-- Quick Actions -->
-    <section class="grid-3 mb-3">
-      <div class="feature-card">
-        <div class="feature-card-icon"><i class="fas fa-futbol"></i></div>
-        <h3>Make Predictions</h3>
-        <p id="quick-action-predictions-text">GW -- fixtures are now live. Submit your predictions before kickoff.</p>
-        <a href="predictions.html" class="btn btn-primary">
-          <i class="fas fa-arrow-right"></i> Predict Now
-        </a>
-      </div>
-      <div class="feature-card">
-        <div class="feature-card-icon"><i class="fas fa-chart-line"></i></div>
-        <h3>View Leaderboard</h3>
-        <p>Check your ranking and see who's leading the pack this season.</p>
-        <a href="leaderboard.html" class="btn btn-primary">
-          <i class="fas fa-list-ol"></i> See Rankings
-        </a>
-      </div>
-      <div class="feature-card">
-        <div class="feature-card-icon"><i class="fas fa-trophy"></i></div>
-        <h3>Join Tournament</h3>
-        <p>Enter cash tournaments and compete for real money prizes.</p>
-        <a href="tournaments.html" class="btn btn-primary">
-          <i class="fas fa-plus"></i> Join Now
-        </a>
-      </div>
-    </section>
-
-    <!-- Live Tournaments -->
-    <section class="mb-3">
-      <div class="flex flex-between items-center mb-2">
-        <h2><i class="fas fa-fire text-amber"></i> Live Tournaments</h2>
-        <a href="tournaments.html" class="btn btn-sm btn-outline">View All</a>
-      </div>
-      <div class="grid grid-2" id="live-tournaments-container">
-        <!-- Tournaments loaded dynamically -->
-        <div class="tournament-card loading">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">Loading tournaments...</div>
+            <div class="pl-live-panel-title">This Gameweek</div>
+            <div class="pl-live-matches" id="plMatches">
+              <div class="pl-live-empty">Loading fixtures…</div>
             </div>
           </div>
+          <div>
+            <div class="pl-live-panel-title">Top of the Table</div>
+            <ol class="pl-live-leaders" id="plLeaders">
+              <li class="pl-live-empty">Loading leaderboard…</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-row">
+
+        <!-- Premier League Score Predictions -->
+        <a class="t-card" href="/tournaments" style="text-decoration:none;">
+          <div class="t-card-media media-shield">
+            <span class="featured-badge">Featured</span>
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <g stroke="#1d3a63" stroke-width="1" opacity="0.5">
+                <line x1="0" y1="20" x2="300" y2="0"/><line x1="0" y1="60" x2="300" y2="45"/><line x1="0" y1="100" x2="300" y2="90"/>
+              </g>
+              <path d="M150 26 L182 38 L182 66 C182 88 168 100 150 108 C132 100 118 88 118 66 L118 38 Z" fill="#132340" stroke="#3b82f6" stroke-width="2"/>
+              <path d="M150 26 L182 38 L182 66 C182 88 168 100 150 108 C132 100 118 88 118 66 L118 38 Z" fill="none" stroke="url(#boltGrad2)" stroke-width="2"/>
+              <text x="150" y="72" text-anchor="middle" font-family="Anton" font-size="19" fill="#93c5fd">2-1</text>
+              <defs><linearGradient id="boltGrad2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Premier League Score Predictions</h3>
+            <p class="desc">Predict every result and exact score.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£10,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
+            </div>
+            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
+          </div>
+        </a>
+
+        <!-- Premier League Last Man Standing -->
+        <div class="t-card">
+          <div class="t-card-media media-fixture">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="40" r="15" fill="#0f1f3d" stroke="#3b82f6" stroke-width="2"/>
+              <circle cx="105" cy="80" r="13" fill="#132340" stroke="#28466f" stroke-width="2" opacity="0.55"/>
+              <circle cx="195" cy="80" r="13" fill="#132340" stroke="#28466f" stroke-width="2"/>
+              <circle cx="150" cy="108" r="11" fill="#132340" stroke="#28466f" stroke-width="2" opacity="0.35"/>
+              <path d="M150 55v13M150 68l-30 8M150 68l30 8M195 93v10" stroke="#28466f" stroke-width="2" fill="none"/>
+              <path d="M92 70l26 20M118 70l-26 20" stroke="#ef4444" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Premier League Last Man Standing</h3>
+            <p class="desc">Pick a winner each week. One wrong pick, you're out.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- Fantasy Football Manager -->
+        <a class="t-card" href="/fantasy-manager" style="text-decoration:none;">
+          <div class="t-card-media media-podium">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <rect x="95" y="24" width="110" height="84" rx="4" fill="#0e1c36" stroke="#28466f" stroke-width="2"/>
+              <line x1="150" y1="24" x2="150" y2="108" stroke="#28466f" stroke-width="1.5"/>
+              <circle cx="150" cy="66" r="16" fill="none" stroke="#28466f" stroke-width="1.5"/>
+              <circle cx="120" cy="42" r="5" fill="#3b82f6"/><circle cx="150" cy="36" r="5" fill="#3b82f6"/><circle cx="180" cy="42" r="5" fill="#3b82f6"/>
+              <circle cx="120" cy="90" r="5" fill="#60a5fa"/><circle cx="150" cy="96" r="5" fill="#60a5fa"/><circle cx="180" cy="90" r="5" fill="#60a5fa"/>
+              <circle cx="150" cy="66" r="5" fill="#f2b93d"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Fantasy Football Manager</h3>
+            <p class="desc">Build your squad, score points every gameweek.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£6,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+            </div>
+            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
+          </div>
+        </a>
+
+        <!-- Premier League Stock Market -->
+        <div class="t-card">
+          <div class="t-card-media media-goal">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <g stroke="#1d4ed8" stroke-width="5" opacity="0.65">
+                <line x1="90" y1="100" x2="90" y2="82"/><line x1="110" y1="100" x2="110" y2="66"/>
+                <line x1="130" y1="100" x2="130" y2="55"/><line x1="150" y1="100" x2="150" y2="70"/>
+                <line x1="170" y1="100" x2="170" y2="45"/><line x1="190" y1="100" x2="190" y2="34"/>
+                <line x1="210" y1="100" x2="210" y2="50"/>
+              </g>
+              <circle cx="190" cy="30" r="8" fill="#93c5fd"/>
+              <path d="M186 26l4 4 6-8" stroke="#0a101f" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Premier League Stock Market</h3>
+            <p class="desc">Trade players like stocks as form rises and falls.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£5,500</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£4</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- Champions League -->
+        <div class="t-card">
+          <div class="t-card-media media-champion">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="66" r="40" fill="none" stroke="#a78bfa" stroke-width="2" opacity="0.6"/>
+              <path d="M150 34l5.5 12.2 13.2 1.2-10 9 3 13-11.7-6.5-11.7 6.5 3-13-10-9 13.2-1.2z" fill="#f2b93d"/>
+              <circle cx="150" cy="66" r="4" fill="#c4b5fd"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Champions League</h3>
+            <p class="desc">Predict Europe's top competition, round by round.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£8,500</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Top Players Preview -->
-    <section>
-      <div class="flex flex-between items-center mb-2">
-        <h2><i class="fas fa-crown text-amber"></i> Top Players</h2>
-        <a href="leaderboard.html" class="btn btn-sm btn-outline">Full Leaderboard</a>
+    <!-- ================= DARTS ================= -->
+    <section class="section" id="darts">
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-icon"><svg class="icon"><use href="#i-target"/></svg></div>
+          <div class="section-title">
+            <h2>Darts</h2>
+            <p>180s, checkouts and winners. Predict the action.</p>
+          </div>
+        </div>
+        <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
-      <div class="card">
-        <table class="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th class="text-right">Points</th>
-              <th class="text-right">GW Points</th>
-            </tr>
-          </thead>
-          <tbody id="top-players-tbody">
-            <!-- Top players loaded dynamically -->
-            <tr><td colspan="4" class="text-center">Loading leaderboard...</td></tr>
-          </tbody>
-        </table>
+      <div class="card-row">
+
+        <!-- Premier League Darts -->
+        <div class="t-card">
+          <div class="t-card-media media-fixture">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="66" r="46" fill="#132340" stroke="#28466f" stroke-width="2"/>
+              <circle cx="150" cy="66" r="34" fill="none" stroke="#28466f" stroke-width="1"/>
+              <circle cx="150" cy="66" r="22" fill="none" stroke="#3b82f6" stroke-width="1"/>
+              <circle cx="150" cy="66" r="10" fill="#1d4ed8"/>
+              <circle cx="150" cy="66" r="4" fill="#f2b93d"/>
+              <g stroke="#e5e7eb" stroke-width="2"><line x1="146" y1="62" x2="130" y2="46"/><line x1="152" y1="63" x2="170" y2="44"/><line x1="150" y1="70" x2="150" y2="92"/></g>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Premier League Darts</h3>
+            <p class="desc">Predict every night of the league.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£3,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£2</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- Grand Slam of Darts -->
+        <div class="t-card">
+          <div class="t-card-media media-champion">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="66" r="46" fill="#1a1030" stroke="#7c3aed" stroke-width="2"/>
+              <circle cx="150" cy="66" r="34" fill="none" stroke="#3d2a63" stroke-width="1"/>
+              <circle cx="150" cy="66" r="10" fill="#c4b5fd"/>
+              <circle cx="150" cy="66" r="4" fill="#f2b93d"/>
+              <g stroke="#e5e7eb" stroke-width="2"><line x1="146" y1="62" x2="130" y2="46"/><line x1="154" y1="63" x2="172" y2="44"/></g>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>Grand Slam of Darts</h3>
+            <p class="desc">The group-stage major. Predict every group.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,500</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- World Cup of Darts -->
+        <div class="t-card">
+          <div class="t-card-media media-fixture">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="66" r="46" fill="#132340" stroke="#28466f" stroke-width="2"/>
+              <circle cx="120" cy="50" r="12" fill="#3a1414" stroke="#ef4444" stroke-width="2"/>
+              <circle cx="180" cy="50" r="12" fill="#0f1f3d" stroke="#3b82f6" stroke-width="2"/>
+              <circle cx="150" cy="66" r="10" fill="#1d4ed8"/>
+              <circle cx="150" cy="66" r="4" fill="#f2b93d"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>World Cup of Darts</h3>
+            <p class="desc">Nations go head to head. Predict every tie.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- UK Open -->
+        <div class="t-card">
+          <div class="t-card-media media-goal">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="66" r="46" fill="#132340" stroke="#28466f" stroke-width="2"/>
+              <circle cx="150" cy="66" r="34" fill="none" stroke="#28466f" stroke-width="1"/>
+              <path d="M150 20a46 46 0 0 1 40 23l-40 23z" fill="#f2b93d" opacity="0.85"/>
+              <circle cx="150" cy="66" r="10" fill="#1d4ed8"/>
+              <circle cx="150" cy="66" r="4" fill="#fff"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>UK Open</h3>
+            <p class="desc">The open format major. Anyone can enter, anyone can win.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£3,500</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£2</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- World Championship -->
+        <div class="t-card">
+          <div class="t-card-media media-breakout">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <circle cx="150" cy="66" r="46" fill="#1c1608" stroke="#f2b93d" stroke-width="2"/>
+              <circle cx="150" cy="66" r="34" fill="none" stroke="#5a4a1e" stroke-width="1"/>
+              <circle cx="150" cy="66" r="22" fill="none" stroke="#f2b93d" stroke-width="1" opacity="0.6"/>
+              <circle cx="150" cy="66" r="10" fill="#f2b93d"/>
+              <circle cx="150" cy="66" r="4" fill="#1c1608"/>
+              <path d="M150 14l3 8 8 1-6 5.5 1.7 8-6.7-3.8-6.7 3.8 1.7-8-6-5.5 8-1z" fill="#f2b93d"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>World Championship</h3>
+            <p class="desc">The biggest stage. Predict every round at Ally Pally.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£10,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
       </div>
     </section>
+
+    <!-- ================= GOLF ================= -->
+    <section class="section" id="golf">
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-icon"><svg class="icon"><use href="#i-flag"/></svg></div>
+          <div class="section-title">
+            <h2>Golf</h2>
+            <p>The Majors. Predict every leaderboard.</p>
+          </div>
+        </div>
+        <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="card-row card-row-3">
+
+        <!-- The Masters -->
+        <div class="t-card">
+          <div class="t-card-media" style="background:linear-gradient(160deg,#0e2418,#070d1a);">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <ellipse cx="150" cy="104" rx="110" ry="10" fill="#08170f" opacity="0.6"/>
+              <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
+              <path d="M205 24l24 8-24 9z" fill="#22c55e"/>
+              <circle cx="130" cy="78" r="13" fill="#e5e7eb"/>
+              <circle cx="126" cy="74" r="1.2" fill="#9ca3af"/><circle cx="132" cy="72" r="1.2" fill="#9ca3af"/><circle cx="136" cy="78" r="1.2" fill="#9ca3af"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>The Masters</h3>
+            <p class="desc">Predict the winner at Augusta.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£6,000</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- PGA Championship -->
+        <div class="t-card">
+          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#070d1a);">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <ellipse cx="150" cy="104" rx="110" ry="10" fill="#0a1120" opacity="0.6"/>
+              <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
+              <path d="M205 24l24 8-24 9z" fill="#f2b93d"/>
+              <circle cx="130" cy="78" r="13" fill="#e5e7eb"/>
+              <circle cx="126" cy="74" r="1.2" fill="#9ca3af"/><circle cx="132" cy="72" r="1.2" fill="#9ca3af"/><circle cx="136" cy="78" r="1.2" fill="#9ca3af"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>PGA Championship</h3>
+            <p class="desc">Predict the winner of golf's second major.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£5,500</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+
+        <!-- U.S. Open -->
+        <div class="t-card">
+          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#070d1a);">
+            <svg class="media-svg" viewBox="0 0 300 132">
+              <ellipse cx="150" cy="104" rx="110" ry="10" fill="#0a1120" opacity="0.6"/>
+              <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
+              <path d="M205 24l24 8-24 9z" fill="#ef4444"/>
+              <circle cx="130" cy="78" r="13" fill="#e5e7eb"/>
+              <circle cx="126" cy="74" r="1.2" fill="#9ca3af"/><circle cx="132" cy="72" r="1.2" fill="#9ca3af"/><circle cx="136" cy="78" r="1.2" fill="#9ca3af"/>
+            </svg>
+          </div>
+          <div class="t-card-body">
+            <h3>U.S. Open</h3>
+            <p class="desc">Predict the winner of America's national championship.</p>
+            <div class="t-card-stats">
+              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£5,500</div></div>
+              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+            </div>
+            <button class="btn-enter">Enter Now</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MORE CATEGORIES ================= -->
+    <section class="section">
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-icon"><svg class="icon"><use href="#i-star"/></svg></div>
+          <div class="section-title">
+            <h2>More Categories</h2>
+            <p>Coming soon — full tournament lists added per event.</p>
+          </div>
+        </div>
+      </div>
+      <div class="sport-grid">
+
+        <div class="sport-tile" id="racing">
+          <div class="sport-tile-head">
+            <div class="sport-tile-icon"><svg class="icon"><use href="#i-horseshoe"/></svg></div>
+            <div><h3>Horse Racing</h3><p>Major meetings and festivals. Predict the winners.</p></div>
+          </div>
+          <div class="sport-tile-media">
+            <svg class="media-svg" viewBox="0 0 300 112" style="background:linear-gradient(160deg,#0e1830,#070d1a)">
+              <ellipse cx="150" cy="98" rx="110" ry="9" fill="#08120a" opacity="0.5"/>
+              <path d="M60 90c20-6 40-6 60 0M140 84c20-6 40-6 60 0M220 78c14-4 28-4 40 0" stroke="#28466f" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M90 66c-6-14 4-26 16-24 4-10 18-10 20 2 10-2 16 8 10 16" fill="#132340" stroke="#93c5fd" stroke-width="2"/>
+              <path d="M124 44c4-8 14-10 18-4" stroke="#93c5fd" stroke-width="2" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="t-card-stats">
+            <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,000</div></div>
+            <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
+          </div>
+          <button class="btn-enter" style="margin-top:14px;">Browse Tournaments</button>
+        </div>
+
+        <div class="sport-tile" id="stocks">
+          <div class="sport-tile-head">
+            <div class="sport-tile-icon"><svg class="icon"><use href="#i-trend"/></svg></div>
+            <div><h3>Stock Market</h3><p>Predict real market moves. Outperform the rest.</p></div>
+          </div>
+          <div class="sport-tile-media">
+            <svg class="media-svg" viewBox="0 0 300 112" preserveAspectRatio="none" style="background:linear-gradient(160deg,#0e1830,#070d1a)">
+              <g stroke="#1d4ed8" stroke-width="6" opacity="0.7">
+                <line x1="40" y1="95" x2="40" y2="75"/><line x1="65" y1="95" x2="65" y2="60"/>
+                <line x1="90" y1="95" x2="90" y2="50"/><line x1="115" y1="95" x2="115" y2="65"/>
+                <line x1="140" y1="95" x2="140" y2="40"/><line x1="165" y1="95" x2="165" y2="30"/>
+              </g>
+              <path d="M195 55 C205 40 215 65 225 45 235 25 245 50 260 20" fill="none" stroke="#f2b93d" stroke-width="2.5"/>
+              <path d="M198 32 c8-14 20-10 26 4 5 11 4 26-4 38-9 13-24 15-33 5" fill="#0d1526" stroke="#93c5fd" stroke-width="2"/>
+              <path d="M198 32l-8-10M220 30l6-10" stroke="#93c5fd" stroke-width="2" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="t-card-stats">
+            <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£8,000</div></div>
+            <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
+          </div>
+          <button class="btn-enter" style="margin-top:14px;">Browse Tournaments</button>
+        </div>
+
+        <div class="sport-tile" id="special">
+          <div class="sport-tile-head">
+            <div class="sport-tile-icon"><svg class="icon"><use href="#i-star"/></svg></div>
+            <div><h3>Special Tournaments</h3><p>Unique formats. Big prizes. Limited time.</p></div>
+          </div>
+          <div class="sport-tile-media">
+            <svg class="media-svg" viewBox="0 0 300 112" style="background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.25), transparent 65%), linear-gradient(160deg,#0e1830,#070d1a)">
+              <path d="M128 30h44v16a22 22 0 0 1-44 0V30z" fill="#1a1030" stroke="#c4b5fd" stroke-width="2"/>
+              <path d="M128 33h-16a12 12 0 0 0 16 12" fill="none" stroke="#c4b5fd" stroke-width="2"/>
+              <path d="M172 33h16a12 12 0 0 1-16 12" fill="none" stroke="#c4b5fd" stroke-width="2"/>
+              <rect x="145" y="66" width="10" height="14" fill="#c4b5fd"/>
+              <path d="M132 90h36l5 12h-46z" fill="#c4b5fd"/>
+              <path d="M95 40l3 8 8 1-6 5.5 1.7 8.2-6.7-4-6.7 4 1.7-8.2-6-5.5 8-1z" fill="#f2b93d"/>
+              <path d="M212 46l2.4 6 6.4.8-4.8 4.4 1.3 6.5-5.3-3.2-5.3 3.2 1.3-6.5-4.8-4.4 6.4-.8z" fill="#f2b93d"/>
+            </svg>
+          </div>
+          <div class="t-card-stats">
+            <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£10,000+</div></div>
+            <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">Varies</div></div>
+          </div>
+          <button class="btn-enter" style="margin-top:14px;">Browse Tournaments</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= LEADERBOARD STRIP ================= -->
+    <section class="leaderboard-strip">
+      <div class="lb-left">
+        <div class="lb-icon"><svg class="icon"><use href="#i-trophy"/></svg></div>
+        <div>
+          <h3>Daily Leaderboard</h3>
+          <p>Compete every day and climb the ranks.</p>
+        </div>
+      </div>
+      <div class="lb-mid">
+        <div class="stat-label">Top Prize</div>
+        <div class="amount">£25,000</div>
+      </div>
+      <button class="btn-outline">View Leaderboard</button>
+    </section>
+
   </main>
+</div>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
-    </div>
-  </footer>
+<script>
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 
-  <script src="app.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Mobile menu toggle
-      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-      const navLinks = document.querySelector('.nav-links');
-      
-      if (mobileMenuBtn && navLinks) {
-        mobileMenuBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          navLinks.classList.toggle('active');
-          navLinks.style.display = navLinks.classList.contains('active') ? 'flex' : 'none';
-        });
-      }
-      
-      // Sidebar user info
-      const userJson = localStorage.getItem('gbf_user');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson);
-          document.getElementById('sidebar-username').textContent = user.display_name || user.username;
-          document.getElementById('sidebar-avatar').textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
-        } catch (e) {}
-      }
+  sidebarToggle.addEventListener('click', () => {
+    if (window.innerWidth <= 860) {
+      sidebar.classList.remove('mobile-open');
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  });
+
+  mobileMenuBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('mobile-open');
+  });
+
+  document.querySelectorAll('.sport-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.sport-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      if (window.innerWidth <= 860) sidebar.classList.remove('mobile-open');
     });
-  </script>
-  <script src="auth-gate.js"></script>
+  });
+
+  // ---- Live PL data, pulled straight from the GB Fantasy PL app ----
+  // No new API needed: these three endpoints already do public, no-auth GET reads
+  // with open CORS, so the hub can call them directly.
+  const PL_BASE = '/api'; // same origin now — no CORS needed
+
+  function plEsc(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderPLMatches(matches){
+    const el = document.getElementById('plMatches');
+    if (!matches || matches.length === 0){
+      el.innerHTML = '<div class="pl-live-empty">No fixtures found for this gameweek yet.</div>';
+      return;
+    }
+    el.innerHTML = matches.slice(0, 6).map(m => {
+      const status = (m.status || 'upcoming').toLowerCase();
+      const hasScore = m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined;
+      const scoreOrTime = hasScore
+        ? `${m.home_score} - ${m.away_score}`
+        : (m.kickoff_time ? new Date(m.kickoff_time).toLocaleDateString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }) : 'TBC');
+      const tagLabel = status === 'live' ? 'Live' : status === 'finished' ? 'FT' : 'Upcoming';
+      return `
+        <div class="pl-live-match">
+          <span class="teams">${plEsc(m.home_team)} v ${plEsc(m.away_team)}</span>
+          <span class="right">
+            <span class="score">${plEsc(scoreOrTime)}</span>
+            <span class="tag ${status}">${tagLabel}</span>
+          </span>
+        </div>`;
+    }).join('');
+  }
+
+  function renderPLLeaders(leaderboard){
+    const el = document.getElementById('plLeaders');
+    if (!leaderboard || leaderboard.length === 0){
+      el.innerHTML = '<li class="pl-live-empty">No leaderboard data yet.</li>';
+      return;
+    }
+    el.innerHTML = leaderboard.slice(0, 5).map(entry => `
+      <li>
+        <span class="rank">${plEsc(entry.rank)}</span>
+        <span class="name">${plEsc(entry.user?.display_name || entry.user?.username || 'Player')}</span>
+        <span class="pts">${plEsc(entry.total_points ?? 0)} pts</span>
+      </li>`).join('');
+  }
+
+  async function loadPLLive(){
+    const dotEl = document.getElementById('plLiveDot');
+    const stateEl = document.getElementById('plLiveState');
+    const gwLabelEl = document.getElementById('plGwLabel');
+
+    try{
+      const [gwRes, lbRes] = await Promise.all([
+        fetch(`${PL_BASE}/current-gameweek`),
+        fetch(`${PL_BASE}/leaderboard?limit=5`)
+      ]);
+      const gwData = await gwRes.json();
+      const lbData = await lbRes.json();
+
+      const gwNum = gwData.current_gameweek;
+      gwLabelEl.textContent = gwNum ? `Gameweek ${gwNum}` : 'Gameweek —';
+      renderPLLeaders(lbData.leaderboard);
+
+      if (gwNum){
+        const mRes = await fetch(`${PL_BASE}/predictions?gameweek=${gwNum}`);
+        const mData = await mRes.json();
+        renderPLMatches(mData.matches);
+      } else {
+        document.getElementById('plMatches').innerHTML = '<div class="pl-live-empty">Gameweek not set yet.</div>';
+      }
+
+      stateEl.textContent = 'Live from GB Fantasy';
+    } catch (err){
+      console.error('PL live fetch failed:', err);
+      dotEl.classList.add('off');
+      stateEl.textContent = 'GB Fantasy is unreachable right now';
+      document.getElementById('plMatches').innerHTML = '<div class="pl-live-empty">Couldn\'t load fixtures right now.</div>';
+      document.getElementById('plLeaders').innerHTML = '<li class="pl-live-empty">Couldn\'t load leaderboard right now.</li>';
+    }
+  }
+
+  loadPLLive();
+</script>
+
 </body>
 </html>

@@ -157,5 +157,18 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js?v=6"></script>
+  <script>
+    // Carry the ?redirect=... param through to the Register links too, so
+    // someone sent here by a specific page (e.g. Fantasy Manager) who
+    // registers instead of logging in still ends up back where they meant
+    // to go, once they log in after registering.
+    (function () {
+      const redirectTo = new URLSearchParams(window.location.search).get('redirect');
+      if (!redirectTo) return;
+      document.querySelectorAll('a[href="register.html"]').forEach(a => {
+        a.href = 'register.html?redirect=' + encodeURIComponent(redirectTo);
+      });
+    })();
+  </script>
 </body>
 </html>

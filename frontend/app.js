@@ -440,7 +440,12 @@ async function handleLoginSubmit(e) {
 
   if (result.success) {
     alert('Welcome back, ' + result.user.display_name + '!');
-    window.location.href = 'profile.html';
+    // Honor the page that sent the user here (set by auth-gate.js as
+    // ?redirect=/some-page.html), falling back to profile.html only if
+    // there wasn't one (e.g. someone navigated to login.html directly).
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get('redirect');
+    window.location.href = redirectTo ? decodeURIComponent(redirectTo) : 'profile.html';
   } else {
     alert(result.error);
   }
@@ -589,7 +594,11 @@ async function handleRegisterSubmit(e) {
 
   if (result.success) {
     alert('Account created successfully! Please log in.');
-    window.location.href = 'index.html';
+    // Preserve wherever the user was headed (e.g. Fantasy Manager, a
+    // tournament page) so login.html can send them there after signing in.
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get('redirect');
+    window.location.href = redirectTo ? ('login.html?redirect=' + encodeURIComponent(redirectTo)) : 'login.html';
   } else {
     alert(result.error);
   }
