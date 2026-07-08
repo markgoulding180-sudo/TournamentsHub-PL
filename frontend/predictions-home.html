@@ -60,8 +60,14 @@
     .predict-status.done{ background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); }
     .predict-status.todo{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; cursor:pointer; border:none; transition:filter .2s, transform .2s; }
     .predict-status.todo:hover{ filter:brightness(1.1); transform:translateY(-1px); }
-    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; -ms-overflow-style:none; }
+    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; }
     .fixtures-strip::-webkit-scrollbar{ display:none; }
+    .fixtures-strip-wrap{ position:relative; }
+    .strip-arrow{ position:absolute; top:50%; transform:translateY(-50%); z-index:5; width:32px; height:32px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; transition:border-color .2s, background .2s; }
+    .strip-arrow:hover{ border-color:var(--border-hover); background:var(--accent-dim); }
+    .strip-arrow.left{ left:-4px; }
+    .strip-arrow.right{ right:-4px; }
+    .strip-arrow i{ font-size:13px; }
     .fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
     .fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; }
     .fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
@@ -139,8 +145,12 @@
         <div class="card-title" style="margin-bottom:0;"><i class="fas fa-calendar-week"></i> <span id="weekTitle">This Week's Games</span></div>
         <div id="predictStatusArea"><span class="predict-status todo"><i class="fas fa-spinner fa-spin"></i> Checking…</span></div>
       </div>
-      <div class="fixtures-strip" id="fixturesStrip">
-        <div class="loading">Loading fixtures…</div>
+      <div class="fixtures-strip-wrap">
+        <button class="strip-arrow left" onclick="document.getElementById('fixturesStrip').scrollBy({left:-320})"><i class="fas fa-chevron-left"></i></button>
+        <div class="fixtures-strip" id="fixturesStrip">
+          <div class="loading">Loading fixtures…</div>
+        </div>
+        <button class="strip-arrow right" onclick="document.getElementById('fixturesStrip').scrollBy({left:320})"><i class="fas fa-chevron-right"></i></button>
       </div>
     </section>
 

@@ -238,8 +238,14 @@
     font-family:var(--font-head); font-size:11.5px; font-weight:700; text-transform:uppercase;
     letter-spacing:.6px; color:var(--text-faint); margin-bottom:10px;
   }
-  .pl-live-matches{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; list-style:none; scrollbar-width:none; -ms-overflow-style:none; }
+  .pl-live-matches{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; list-style:none; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; }
   .pl-live-matches::-webkit-scrollbar{ display:none; }
+  .pl-live-matches-wrap{ position:relative; }
+  .pl-strip-arrow{ position:absolute; top:50%; transform:translateY(-50%); z-index:5; width:32px; height:32px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; transition:border-color .2s, background .2s; }
+  .pl-strip-arrow:hover{ border-color:var(--border-hover); background:var(--accent-dim); }
+  .pl-strip-arrow.left{ left:-4px; }
+  .pl-strip-arrow.right{ right:-4px; }
+  .pl-strip-arrow i{ font-size:13px; }
   .pl-live-leaders{display:flex; flex-direction:column; gap:7px; list-style:none;}
   .pl-fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
   .pl-fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; color:var(--text); }
@@ -526,8 +532,12 @@
         <div class="pl-live-grid">
           <div>
             <div class="pl-live-panel-title">This Gameweek</div>
-            <div class="pl-live-matches" id="plMatches">
-              <div class="pl-live-empty">Loading fixtures…</div>
+            <div class="pl-live-matches-wrap">
+              <button class="pl-strip-arrow left" onclick="document.getElementById('plMatches').scrollBy({left:-320})"><i class="fas fa-chevron-left"></i></button>
+              <div class="pl-live-matches" id="plMatches">
+                <div class="pl-live-empty">Loading fixtures…</div>
+              </div>
+              <button class="pl-strip-arrow right" onclick="document.getElementById('plMatches').scrollBy({left:320})"><i class="fas fa-chevron-right"></i></button>
             </div>
           </div>
           <div>
