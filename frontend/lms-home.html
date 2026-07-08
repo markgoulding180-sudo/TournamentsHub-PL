@@ -127,6 +127,29 @@
     .team-tile.used{ opacity:.4; }
     .team-tile.used .name{ text-decoration:line-through; }
     .team-tile .gw-tag{ font-size:9px; color:var(--gold); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; }
+    .team-tile.current-pick{ border:2px solid var(--green); background:rgba(34,197,94,0.08); opacity:1; }
+    .team-tile.current-pick .name{ text-decoration:none; color:var(--green); }
+    .team-tile .pick-tag{ font-size:9px; color:var(--green); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; font-weight:700; }
+
+    /* Gameweek results card */
+    .results-card{ margin-bottom:24px; }
+    .results-grid{ display:flex; flex-direction:column; gap:8px; }
+    .result-row{ display:flex; align-items:center; gap:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:13.5px; }
+    .result-row.my-pick{ border-color:var(--accent); background:rgba(59,130,246,0.06); }
+    .result-row .r-team{ flex:1; display:flex; align-items:center; gap:8px; }
+    .result-row .r-team img{ width:22px; height:22px; object-fit:contain; }
+    .result-row .r-team.win{ color:var(--green); font-weight:700; }
+    .result-row .r-score{ font-family:var(--font-head); font-weight:700; color:var(--text-dim); min-width:50px; text-align:center; }
+    .result-row .r-score.done{ color:var(--text); }
+    .result-row .r-status{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); min-width:64px; text-align:right; }
+    .result-row .r-status.live{ color:var(--red); }
+    .result-row .r-status.finished{ color:var(--green); }
+
+    .pick-result-tag{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:2rem; margin-left:10px; }
+    .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
+    .pick-result-tag.lose{ background:rgba(239,68,68,0.15); color:#fca5a5; }
+    .pick-result-tag.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
+    .pick-result-tag.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
 
     .cards-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
@@ -241,6 +264,12 @@
         <div class="pick-cta" id="pickCta"><div class="loading">Loading…</div></div>
       </section>
 
+      <!-- All results for this gameweek -->
+      <section class="card results-card">
+        <div class="card-title"><i class="fas fa-list-ol" style="color:var(--accent-2);"></i> <span id="resultsTitle">Gameweek Results</span></div>
+        <div class="results-grid" id="resultsGrid"><div class="loading">Loading…</div></div>
+      </section>
+
       <div class="cards-grid">
         <!-- Teams used -->
         <section class="card">
@@ -307,6 +336,7 @@
     let tournamentId = null;
     let currentGw = null;
     let locked = false;
+    let gwMatches = [];
 
     async function loadTournament() {
       try {
@@ -360,7 +390,46 @@
         <div class="stat"><div class="label">Gameweek</div><div class="value">${currentGw ?? '--'}</div></div>
       `;
 
+      await loadGameweekResults();
       await loadLmsState();
+    }
+
+    async function loadGameweekResults() {
+      const grid = document.getElementById('resultsGrid');
+      document.getElementById('resultsTitle').textContent = currentGw ? `Gameweek ${currentGw} Results` : 'Gameweek Results';
+      if (!currentGw) {
+        grid.innerHTML = '<div class="empty">Gameweek not set yet.</div>';
+        gwMatches = [];
+        return;
+      }
+      try {
+        const res = await fetch(`/api/predictions?gameweek=${currentGw}`);
+        const data = await res.json();
+        gwMatches = data.matches || [];
+
+        if (gwMatches.length === 0) {
+          grid.innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
+          return;
+        }
+
+        grid.innerHTML = gwMatches.map(m => {
+          const hasScore = m.home_score !== null && m.home_score !== undefined;
+          const homeWin = m.result === 'H';
+          const awayWin = m.result === 'A';
+          const statusClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
+          return `
+            <div class="result-row">
+              <span class="r-team ${homeWin ? 'win' : ''}"><img src="${shirtSrc(m.home_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">${escapeHtml(m.home_team)}</span>
+              <span class="r-score ${hasScore ? 'done' : ''}">${hasScore ? `${m.home_score} - ${m.away_score}` : 'vs'}</span>
+              <span class="r-team ${awayWin ? 'win' : ''}" style="justify-content:flex-end; text-align:right; flex-direction:row-reverse;"><img src="${shirtSrc(m.away_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">${escapeHtml(m.away_team)}</span>
+              <span class="r-status ${statusClass}">${escapeHtml(m.status || 'upcoming')}</span>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        console.error('Failed to load gameweek results:', e);
+        grid.innerHTML = '<div class="empty">Couldn\'t load results right now.</div>';
+        gwMatches = [];
+      }
     }
 
     async function enterTournament(tournament) {
@@ -403,6 +472,21 @@
       }
     }
 
+    function pickResultTagHtml(team) {
+      const match = gwMatches.find(m => m.home_team === team || m.away_team === team);
+      if (!match) return '';
+      const hasScore = match.home_score !== null && match.home_score !== undefined;
+      if (!hasScore || match.status !== 'finished') {
+        return `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
+      }
+      const won = (match.home_team === team && match.result === 'H') || (match.away_team === team && match.result === 'A');
+      const drew = match.result === 'D';
+      const score = `${match.home_score}-${match.away_score}`;
+      if (won) return `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
+      if (drew) return `<span class="pick-result-tag draw"><i class="fas fa-minus"></i> Drew ${score}</span>`;
+      return `<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Lost ${score}</span>`;
+    }
+
     async function loadLmsState() {
       try {
         const res = await fetch(`/api/tournaments?lms_state=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
@@ -433,12 +517,12 @@
           cta.innerHTML = `<span style="color:var(--text-faint);">Eliminated — no further picks this tournament.</span>`;
         } else if (thisWeekPick && locked) {
           cta.innerHTML = `
-            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)}</div>
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)} ${pickResultTagHtml(thisWeekPick.team)}</div>
             <span style="color:var(--text-faint); font-size:13px;"><i class="fas fa-lock"></i> Locked in</span>
           `;
         } else if (thisWeekPick) {
           cta.innerHTML = `
-            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)}</div>
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)} ${pickResultTagHtml(thisWeekPick.team)}</div>
             <a href="/last-man-standing-pick?gameweek=${currentGw}" class="btn-primary"><i class="fas fa-pen"></i> Change Pick</a>
           `;
         } else if (!currentGw) {
@@ -452,16 +536,19 @@
           `;
         }
 
-        // Teams grid
+        // Teams grid — this gameweek's live pick gets a green highlight;
+        // teams used in a past gameweek get greyed/struck-through.
         const grid = document.getElementById('teamsGrid');
         grid.innerHTML = ALL_TEAMS.map(team => {
           const usedPick = picks.find(p => p.team === team);
-          const used = usedTeams.includes(team);
+          const isCurrentPick = thisWeekPick && thisWeekPick.team === team;
+          const used = usedTeams.includes(team) && !isCurrentPick;
+          const tileClass = isCurrentPick ? 'current-pick' : (used ? 'used' : '');
           return `
-            <div class="team-tile ${used ? 'used' : ''}">
+            <div class="team-tile ${tileClass}">
               <img src="${shirtSrc(team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
               <div class="name">${escapeHtml(team)}</div>
-              ${used ? `<span class="gw-tag">GW${usedPick.gameweek}</span>` : ''}
+              ${isCurrentPick ? `<span class="pick-tag"><i class="fas fa-star"></i> This Week</span>` : (used ? `<span class="gw-tag">GW${usedPick.gameweek}</span>` : '')}
             </div>`;
         }).join('');
 
