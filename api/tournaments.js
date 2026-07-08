@@ -867,13 +867,6 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
     }
 
     const prizePool = (claimed.entry_fee || 0) * (entryCount || 0);
-    console.log('LMS payout debug:', {
-      tournamentId,
-      gameweek,
-      claimedEntryFee: claimed.entry_fee,
-      entryCount,
-      prizePool
-    });
 
     const { data: entries, error: entriesError } = await supabaseAdmin
       .schema('lms').from('tournament_entries')
@@ -936,7 +929,6 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
     // gameweek (the `entries` set, before this round's eliminations).
     } else if (survivors.length === 0) {
       const share = entries.length > 0 ? Math.floor(prizePool / entries.length) : 0;
-      console.log('LMS split-pot debug:', { prizePool, entriesLength: entries.length, share });
       for (const entry of entries) {
         const { error: splitError } = await supabaseAdmin
           .schema('lms').from('tournament_entries')
