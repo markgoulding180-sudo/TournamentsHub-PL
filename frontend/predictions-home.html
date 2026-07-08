@@ -60,7 +60,8 @@
     .predict-status.done{ background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); }
     .predict-status.todo{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; cursor:pointer; border:none; transition:filter .2s, transform .2s; }
     .predict-status.todo:hover{ filter:brightness(1.1); transform:translateY(-1px); }
-    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
+    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; -ms-overflow-style:none; }
+    .fixtures-strip::-webkit-scrollbar{ display:none; }
     .fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
     .fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; }
     .fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }

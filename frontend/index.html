@@ -238,7 +238,15 @@
     font-family:var(--font-head); font-size:11.5px; font-weight:700; text-transform:uppercase;
     letter-spacing:.6px; color:var(--text-faint); margin-bottom:10px;
   }
-  .pl-live-matches, .pl-live-leaders{display:flex; flex-direction:column; gap:7px; list-style:none;}
+  .pl-live-matches{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; list-style:none; scrollbar-width:none; -ms-overflow-style:none; }
+  .pl-live-matches::-webkit-scrollbar{ display:none; }
+  .pl-live-leaders{display:flex; flex-direction:column; gap:7px; list-style:none;}
+  .pl-fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
+  .pl-fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; color:var(--text); }
+  .pl-fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
+  .pl-fixture-chip .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); margin-top:4px; display:block; }
+  .pl-fixture-chip .tag.live{color:var(--red);}
+  .pl-fixture-chip .tag.finished{color:var(--green);}
   .pl-live-match{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:9px 13px; font-size:13px;
@@ -1004,20 +1012,18 @@
       el.innerHTML = '<div class="pl-live-empty">No fixtures found for this gameweek yet.</div>';
       return;
     }
-    el.innerHTML = matches.slice(0, 6).map(m => {
+    el.innerHTML = matches.map(m => {
       const status = (m.status || 'upcoming').toLowerCase();
       const hasScore = m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined;
       const scoreOrTime = hasScore
         ? `${m.home_score} - ${m.away_score}`
         : (m.kickoff_time ? new Date(m.kickoff_time).toLocaleDateString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }) : 'TBC');
-      const tagLabel = status === 'live' ? 'Live' : status === 'finished' ? 'FT' : 'Upcoming';
+      const tagLabel = status === 'live' ? 'Live' : status === 'finished' ? 'Finished' : 'Upcoming';
       return `
-        <div class="pl-live-match">
-          <span class="teams">${plEsc(m.home_team)} v ${plEsc(m.away_team)}</span>
-          <span class="right">
-            <span class="score">${plEsc(scoreOrTime)}</span>
-            <span class="tag ${status}">${tagLabel}</span>
-          </span>
+        <div class="pl-fixture-chip">
+          <div class="teams">${plEsc(m.home_team)}<br>v ${plEsc(m.away_team)}</div>
+          <div class="score">${plEsc(scoreOrTime)}</div>
+          <span class="tag ${status}">${tagLabel}</span>
         </div>`;
     }).join('');
   }
