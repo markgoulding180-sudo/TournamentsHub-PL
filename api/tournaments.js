@@ -825,17 +825,33 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 // loads polling lms_lock_status doesn't reprocess the same gameweek.
 async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwMatches) {
   try {
-    const { data: tournament, error: tError } = await supabaseAdmin
+    // Atomically claim the right to process this gameweek. A plain
+    // "read last_processed_gameweek, decide, then write it later" has a
+    // race: two concurrent requests (e.g. two people loading the page at
+    // the same moment) can both read the old value and both pass the
+    // check before either has written anything, so both proceed to
+    // process eliminations and payouts. A single conditional UPDATE closes
+    // that gap — Postgres guarantees only one concurrent request can
+    // actually match the WHERE clause and update the row; the loser gets
+    // zero rows back and bails out immediately, before doing any work.
+    const { data: claimed, error: claimError } = await supabaseAdmin
       .schema('lms').from('tournaments')
-      .select('last_processed_gameweek, prize_pool, status')
+      .update({ last_processed_gameweek: gameweek })
       .eq('id', tournamentId)
+      .neq('status', 'finished')
+      .or(`last_processed_gameweek.is.null,last_processed_gameweek.lt.${gameweek}`)
+      .select('id, prize_pool')
       .maybeSingle();
 
-    if (tError || !tournament) return;
-    if (tournament.status === 'finished') return; // already ended
-    if (tournament.last_processed_gameweek !== null && tournament.last_processed_gameweek >= gameweek) {
-      return; // already processed this gameweek
+    if (claimError) {
+      console.error('processLmsEliminations claim error:', claimError);
+      return;
     }
+    if (!claimed) {
+      return; // another request already claimed this gameweek, or the tournament's already finished
+    }
+
+    const prizePool = claimed.prize_pool || 0;
 
     const { data: entries, error: entriesError } = await supabaseAdmin
       .schema('lms').from('tournament_entries')
@@ -844,11 +860,7 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       .eq('is_eliminated', false);
 
     if (entriesError || !entries || entries.length === 0) {
-      await supabaseAdmin
-        .schema('lms').from('tournaments')
-        .update({ last_processed_gameweek: gameweek })
-        .eq('id', tournamentId);
-      return;
+      return; // nothing to process — the claim above already recorded this gameweek as handled
     }
 
     const { data: picks, error: picksError } = await supabaseAdmin
@@ -882,16 +894,11 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       }
     }
 
-    await supabaseAdmin
-      .schema('lms').from('tournaments')
-      .update({ last_processed_gameweek: gameweek })
-      .eq('id', tournamentId);
-
     // Tournament end condition: exactly one survivor takes the whole pot.
     if (survivors.length === 1) {
       await supabaseAdmin
         .schema('lms').from('tournament_entries')
-        .update({ prize_awarded: tournament.prize_pool || 0 })
+        .update({ prize_awarded: prizePool })
         .eq('id', survivors[0].id);
 
       await supabaseAdmin
@@ -903,7 +910,7 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
     // split the pot evenly among whoever was still alive going into this
     // gameweek (the `entries` set, before this round's eliminations).
     } else if (survivors.length === 0) {
-      const share = entries.length > 0 ? Math.floor((tournament.prize_pool || 0) / entries.length) : 0;
+      const share = entries.length > 0 ? Math.floor(prizePool / entries.length) : 0;
       for (const entry of entries) {
         await supabaseAdmin
           .schema('lms').from('tournament_entries')
