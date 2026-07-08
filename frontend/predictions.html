@@ -143,6 +143,69 @@
       padding: 1.5rem;
     }
 
+    /* 1/X/2 prediction buttons - stacked number + team name.
+       Applied at all widths (not just mobile) so desktop doesn't fall
+       back to style.css's old fixed 48px single-line box. */
+    .prediction-row {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0.75rem !important;
+    }
+
+    .prediction-1x2 {
+      display: flex !important;
+      width: 100% !important;
+      gap: 0.5rem !important;
+    }
+
+    .prediction-option {
+      flex: 1 !important;
+      min-width: 0 !important;
+    }
+
+    .prediction-option input {
+      display: none !important;
+    }
+
+    .prediction-option label {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      padding: 0.6rem 0.4rem !important;
+      text-align: center !important;
+      background: var(--bg-hover) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: 0.375rem !important;
+      font-weight: 700 !important;
+      cursor: pointer !important;
+      min-height: 44px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 2px !important;
+    }
+
+    .prediction-option label .sub-label {
+      font-size: 10px !important;
+      font-weight: 500 !important;
+      color: var(--text-secondary) !important;
+      text-transform: none !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      max-width: 100% !important;
+    }
+
+    .prediction-option input:checked + label .sub-label {
+      color: var(--bg-primary) !important;
+      opacity: 0.85 !important;
+    }
+
+    .prediction-option input:checked + label {
+      background: var(--accent-green) !important;
+      border-color: var(--accent-green) !important;
+      color: var(--bg-primary) !important;
+    }
+
     /* Mobile-specific styles for predictions page */
     @media (max-width: 768px) {
       /* Header - heading and dropdown on same line */
