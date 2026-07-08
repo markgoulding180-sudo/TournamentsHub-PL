@@ -762,15 +762,23 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 
     const allFinished = gwMatches.every(m => m.status === 'finished');
 
+    // Still trigger elimination processing once everything's finished —
+    // but the pick itself stays locked either way. Unlike Fantasy Manager
+    // (where reopening after the gameweek finishes is correct, since
+    // that's for editing the *next* squad), a Last Man Standing pick is
+    // locked to one specific gameweek forever — there's no legitimate
+    // reason to let someone change a pick once the result is known.
     if (allFinished && tournamentId && supabaseAdmin) {
       await processLmsEliminations(supabaseAdmin, tournamentId, currentGW, gwMatches);
     }
 
     return {
-      locked: !allFinished,
+      locked: true,
       gameweek: currentGW,
       deadline_epoch: deadlineEpoch,
-      reason: allFinished ? null : 'Picks are locked until every match in this gameweek has finished.'
+      reason: allFinished
+        ? 'This gameweek has finished — picks are locked.'
+        : 'This gameweek has kicked off — picks are locked.'
     };
   } catch (error) {
     console.error('getLmsLockStatus error:', error);

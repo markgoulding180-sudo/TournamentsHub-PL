@@ -306,6 +306,7 @@
 
     let tournamentId = null;
     let currentGw = null;
+    let locked = false;
 
     async function loadTournament() {
       try {
@@ -389,6 +390,7 @@
         const res = await fetch(`/api/tournaments?lms_lock_status=true&tournament_id=${tournamentId}`);
         const lock = await res.json();
         const banner = document.getElementById('lockBanner');
+        locked = !!lock.locked;
         if (lock.locked) {
           banner.style.display = 'flex';
           document.getElementById('lockText').textContent = lock.reason || 'Picks are currently locked.';
@@ -429,6 +431,11 @@
 
         if (data.is_eliminated) {
           cta.innerHTML = `<span style="color:var(--text-faint);">Eliminated — no further picks this tournament.</span>`;
+        } else if (thisWeekPick && locked) {
+          cta.innerHTML = `
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)}</div>
+            <span style="color:var(--text-faint); font-size:13px;"><i class="fas fa-lock"></i> Locked in</span>
+          `;
         } else if (thisWeekPick) {
           cta.innerHTML = `
             <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)}</div>
@@ -436,6 +443,8 @@
           `;
         } else if (!currentGw) {
           cta.innerHTML = `<span style="color:var(--text-faint);">Gameweek not set yet.</span>`;
+        } else if (locked) {
+          cta.innerHTML = `<span style="color:var(--text-faint);"><i class="fas fa-lock"></i> Gameweek ${currentGw} is locked — you didn't pick in time.</span>`;
         } else {
           cta.innerHTML = `
             <span style="color:var(--text-dim); font-size:14px;">You haven't picked for Gameweek ${currentGw} yet.</span>
