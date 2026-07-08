@@ -31,7 +31,9 @@
     }
     .injury-list {
       display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
       gap: 1rem;
+      align-items: start;
     }
     .injury-card {
       background: var(--bg-secondary);
@@ -40,7 +42,8 @@
       padding: 1.5rem;
       display: flex;
       align-items: center;
-      gap: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
     .injury-player {
       display: flex;
@@ -59,6 +62,7 @@
       height: 60px;
       border-radius: 50%;
       object-fit: cover;
+      object-position: center top;
       border: 3px solid var(--border);
     }
     .player-avatar-fallback {
