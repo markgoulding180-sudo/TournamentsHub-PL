@@ -345,7 +345,7 @@
         body.innerHTML = rows.map(t => `
           <div class="table-row">
             <span class="pos">${t.position}</span>
-            <span class="team">${escapeHtml(t.short_name || t.team)}</span>
+            <span class="team">${escapeHtml(t.short_name || t.name)}</span>
             <span class="stat">${t.played}</span>
             <span class="pts">${t.points}</span>
           </div>`).join('');

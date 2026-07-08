@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadTable() {
   try {
     // Fetch from our API (no CORS issues)
-    const response = await fetch(`${API_BASE}/table`);
+    const response = await fetch(`${API_BASE}/sync-players?table=true`);
     if (!response.ok) throw new Error('Failed to load table');
     
     const data = await response.json();

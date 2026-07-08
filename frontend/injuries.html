@@ -198,62 +198,52 @@
         border-bottom: 1px solid var(--border-color);
       }
     }
+    /* ===== Hub-style navbar (replaces the old sidebar+navbar) ===== */
+    .hub-navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border-color); }
+    .hub-nav-left{display:flex;align-items:center;gap:40px;}
+    .hub-logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
+    .hub-logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,#60a5fa,#1d4ed8); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px rgba(59,130,246,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .hub-logo-text{font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .hub-logo-text .sub{color:#60a5fa; display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .hub-nav-links{display:flex; gap:30px;}
+    .hub-nav-links a{ font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-secondary); padding-bottom:19px; position:relative; transition:color .2s; text-decoration:none; }
+    .hub-nav-links a:hover{color:var(--text-primary);}
+    .hub-nav-links a.active{color:var(--text-primary);}
+    .hub-nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:#60a5fa; box-shadow:0 0 10px rgba(59,130,246,0.45); border-radius:2px; }
+    .hub-nav-right{display:flex;align-items:center;gap:14px;}
+    .hub-icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border-color); }
+    .hub-icon-btn i{font-size:15px;color:var(--text-secondary);}
+    .hub-avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s; text-decoration:none; color:inherit;}
+    .hub-avatar-btn:hover{border-color:var(--border-color);}
+    .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
+    @media (max-width:900px){ .hub-nav-links{display:none;} }
   </style>
+
 </head>
 <body>
   <!-- Sidebar Navigation (Desktop) -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <a href="index.html" class="sidebar-logo">
-        <i class="fas fa-trophy"></i>
-        <span>GB Fantasy</span>
+  <header class="hub-navbar">
+    <div class="hub-nav-left">
+      <a href="/" class="hub-logo">
+        <div class="hub-logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="hub-logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="hub-nav-links">
+        <a href="/">Home</a>
+        <a href="/predictions">Predictions</a>
+        <a href="/leaderboard">Leaderboard</a>
+        <a href="/table">PL Table</a>
+        <a href="/injuries" class="active">Injuries</a>
+      </nav>
+    </div>
+    <div class="hub-nav-right">
+      <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="hub-avatar-btn" id="navAuthBtn" href="/login" title="Log in">
+        <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>
+        <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary); display:none;">Log In</span>
       </a>
     </div>
-    <nav class="sidebar-nav">
-      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
-      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
-      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
-      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
-      <a href="injuries.html" class="sidebar-link active" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
-      <a href="links.html" class="sidebar-link" data-page="links"><i class="fas fa-link"></i><span>Links</span></a>
-      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
-      <div class="sidebar-divider"></div>
-      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
-      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-user" id="sidebar-user">
-        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
-        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
-      </a>
-    </div>
-  </aside>
-
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="logo">
-        <i class="fas fa-trophy"></i>
-        GB Fantasy
-      </a>
-      <ul class="nav-links">
-        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
-        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
-        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
-        <li><a href="injuries.html" class="active"><i class="fas fa-medkit"></i> Injuries</a></li>
-        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
-        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
-        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
-        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
-      </ul>
-      <button class="mobile-menu-btn">
-        <i class="fas fa-bars"></i>
-      </button>
-    </div>
-  </nav>
+  </header>
 
   <!-- Main Content -->
   <main class="container">
@@ -340,10 +330,18 @@
       if (userJson) {
         try {
           const user = JSON.parse(userJson);
-          const usernameEl = document.getElementById('sidebar-username');
-          const avatarEl = document.getElementById('sidebar-avatar');
-          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
-          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
+          const name = user.display_name || user.username || 'Account';
+          const btn = document.getElementById('navAuthBtn');
+          const label = document.getElementById('navAuthLabel');
+          const avatar = document.getElementById('navAvatar');
+          if (btn && label && avatar) {
+            label.textContent = name;
+            label.style.display = 'inline';
+            avatar.textContent = name.substring(0, 2).toUpperCase();
+            avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#60a5fa;';
+            btn.href = '/profile';
+            btn.title = 'View profile';
+          }
         } catch (e) {}
       }
     });

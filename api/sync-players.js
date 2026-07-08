@@ -53,9 +53,10 @@ module.exports = async (req, res) => {
   // exist, so this fills that gap without needing a new function.
   if (req.method === 'GET' && params.get('table') === 'true') {
     try {
-      const [teamsRes, matchesRes] = await Promise.all([
+      const [teamsRes, matchesRes, clockRes] = await Promise.all([
         supabase.from('teams').select('id, name, short_name'),
-        supabase.from('matches').select('home_team, away_team, home_score, away_score, status').eq('status', 'finished')
+        supabase.from('matches').select('home_team, away_team, home_score, away_score, status, kickoff_time').eq('status', 'finished').order('kickoff_time', { ascending: true }),
+        supabase.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle()
       ]);
 
       const teams = teamsRes.data || [];
@@ -64,11 +65,13 @@ module.exports = async (req, res) => {
       const stats = {};
       teams.forEach(t => {
         stats[t.name] = {
-          team: t.name, short_name: t.short_name,
+          name: t.name, short_name: t.short_name,
           played: 0, won: 0, drawn: 0, lost: 0,
-          goals_for: 0, goals_against: 0, goal_difference: 0, points: 0
+          gf: 0, ga: 0, gd: 0, points: 0, form: []
         };
       });
+
+      let totalGoals = 0;
 
       finishedMatches.forEach(m => {
         const home = stats[m.home_team];
@@ -76,21 +79,40 @@ module.exports = async (req, res) => {
         if (!home || !away || m.home_score === null || m.away_score === null) return;
 
         home.played++; away.played++;
-        home.goals_for += m.home_score; home.goals_against += m.away_score;
-        away.goals_for += m.away_score; away.goals_against += m.home_score;
+        home.gf += m.home_score; home.ga += m.away_score;
+        away.gf += m.away_score; away.ga += m.home_score;
+        totalGoals += m.home_score + m.away_score;
 
-        if (m.home_score > m.away_score) { home.won++; home.points += 3; away.lost++; }
-        else if (m.home_score < m.away_score) { away.won++; away.points += 3; home.lost++; }
-        else { home.drawn++; away.drawn++; home.points += 1; away.points += 1; }
+        if (m.home_score > m.away_score) {
+          home.won++; home.points += 3; home.form.push('W');
+          away.lost++; away.form.push('L');
+        } else if (m.home_score < m.away_score) {
+          away.won++; away.points += 3; away.form.push('W');
+          home.lost++; home.form.push('L');
+        } else {
+          home.drawn++; home.points += 1; home.form.push('D');
+          away.drawn++; away.points += 1; away.form.push('D');
+        }
       });
 
       const table = Object.values(stats).map(t => ({
-        ...t, goal_difference: t.goals_for - t.goals_against
-      })).sort((a, b) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_for - a.goals_for);
+        ...t, gd: t.gf - t.ga, form: t.form.slice(-5)
+      })).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
 
       table.forEach((t, i) => { t.position = i + 1; });
 
-      return res.status(200).json({ table });
+      const totalMatches = finishedMatches.length;
+
+      return res.status(200).json({
+        table,
+        stats: {
+          totalMatches,
+          totalGoals,
+          avgGoals: totalMatches > 0 ? (totalGoals / totalMatches).toFixed(2) : '0.00',
+          currentGameweek: clockRes.data?.current_gameweek ?? null
+        },
+        lastUpdated: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Table computation error:', error);
       return res.status(500).json({ error: 'Failed to compute table', details: error.message });
