@@ -204,6 +204,8 @@
       }
 
       try {
+        const explicitGameweek = !!gameweek;
+
         // Tournament
         const tRes = await fetch('/api/tournaments?status=live&tournament_type=lms');
         const tData = await tRes.json();
@@ -215,18 +217,6 @@
         }
         tournamentId = tournament.id;
 
-        // Gameweek (from URL, or fall back to current)
-        if (!gameweek) {
-          const gwRes = await fetch('/api/current-gameweek');
-          const gwData = await gwRes.json();
-          gameweek = gwData.current_gameweek;
-        }
-        if (!gameweek) {
-          document.getElementById('gwSubtitle').textContent = 'Gameweek not set yet — check back soon.';
-          return;
-        }
-        document.getElementById('gwSubtitle').textContent = `Gameweek ${gameweek} — pick a team to win. You can only use each team once all tournament.`;
-
         // Entry check
         const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
         const entryData = await entryRes.json();
@@ -235,10 +225,30 @@
           return;
         }
 
-        // Lock status (also drives elimination processing server-side)
+        // Lock status (also drives elimination processing server-side, and
+        // knows the tournament's own start gameweek — which can be later
+        // than the site-wide clock if this tournament hasn't started yet).
         const lockRes = await fetch(`/api/tournaments?lms_lock_status=true&tournament_id=${tournamentId}`);
         const lock = await lockRes.json();
         locked = !!lock.locked;
+
+        // Gameweek: whatever the URL asked for wins; otherwise use the
+        // corrected value from lock status, falling back to the raw clock.
+        if (!explicitGameweek) {
+          if (lock.gameweek) {
+            gameweek = lock.gameweek;
+          } else {
+            const gwRes = await fetch('/api/current-gameweek');
+            const gwData = await gwRes.json();
+            gameweek = gwData.current_gameweek;
+          }
+        }
+        if (!gameweek) {
+          document.getElementById('gwSubtitle').textContent = 'Gameweek not set yet — check back soon.';
+          return;
+        }
+        document.getElementById('gwSubtitle').textContent = `Gameweek ${gameweek} — pick a team to win. You can only use each team once all tournament.`;
+
         if (locked) {
           document.getElementById('lockBanner').style.display = 'flex';
           document.getElementById('lockText').textContent = lock.reason || 'Picks are currently locked.';

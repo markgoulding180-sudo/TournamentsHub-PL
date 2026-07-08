@@ -350,13 +350,15 @@
 
       document.getElementById('enterGate').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
+
+      await loadLockStatus();
+
       document.getElementById('statRow').innerHTML = `
         <div class="stat"><div class="label">Entries</div><div class="value">${tournament.current_entries||0}</div></div>
         <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((tournament.prize_pool||0)/100).toFixed(2)}</div></div>
         <div class="stat"><div class="label">Gameweek</div><div class="value">${currentGw ?? '--'}</div></div>
       `;
 
-      await loadLockStatus();
       await loadLmsState();
     }
 

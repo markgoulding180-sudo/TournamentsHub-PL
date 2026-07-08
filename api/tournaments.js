@@ -722,6 +722,23 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 
     const currentGW = clock.current_gameweek;
 
+    // This tournament might start later than wherever the site-wide clock
+    // currently sits (e.g. clock is on GW38 but this LMS tournament doesn't
+    // begin until GW39) — nothing should lock or eliminate before that.
+    let startGW = null;
+    if (tournamentId && supabaseAdmin) {
+      const { data: tournament } = await supabaseAdmin
+        .schema('lms').from('tournaments')
+        .select('gameweek')
+        .eq('id', tournamentId)
+        .maybeSingle();
+      startGW = tournament ? tournament.gameweek : null;
+    }
+
+    if (startGW && currentGW < startGW) {
+      return { locked: false, gameweek: startGW, deadline_epoch: null, reason: `Picks open in Gameweek ${startGW}.` };
+    }
+
     const { data: gwMatches } = await masterDb
       .from('matches')
       .select('home_team, away_team, home_score, away_score, status, kickoff_time')
