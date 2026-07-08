@@ -159,8 +159,11 @@
   .hero{
     position:relative; border-radius:20px;
     background:
-      radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
-      linear-gradient(120deg, #060c1a 0%, #0a1428 60%, #0d1830 100%);
+      radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.28) 0%, transparent 60%),
+      linear-gradient(120deg, rgba(6,12,26,0.94) 0%, rgba(10,20,40,0.90) 60%, rgba(13,24,48,0.88) 100%),
+      url('assets/haaland-hero.jpg');
+    background-size: cover, cover, cover;
+    background-position: center, center, right center;
     border:1px solid var(--border); overflow:hidden;
     padding:58px 50px; margin-bottom:34px; min-height:360px;
     display:flex; align-items:center;
