@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Last Man Standing - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    /* ================= NAVBAR (matches the Hub) ================= */
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:32px 24px 60px; }
+
+    /* ================= HERO (matches Hub .hero exactly) ================= */
+    .hero{
+      position:relative; border-radius:20px;
+      background:
+        radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
+        linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
+        url('assets/haaland-hero.jpg');
+      background-size: cover, cover, auto 105%;
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      background-position: center, center, right center;
+      border:1px solid var(--border); overflow:hidden;
+      padding:58px 50px; margin-bottom:34px; min-height:360px;
+      display:flex; align-items:center;
+    }
+    .hero-graphic{
+      position:absolute; right:-40px; top:0; bottom:0; width:52%;
+      display:flex; align-items:center; justify-content:center; opacity:0.95;
+      pointer-events:none;
+    }
+    .hero-content{position:relative; z-index:2; max-width:540px;}
+    .hero-eyebrow{
+      display:inline-flex; align-items:center; gap:8px; color:var(--accent-2);
+      font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px;
+      text-transform:uppercase; margin-bottom:18px;
+    }
+    .hero-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); animation:pulse 1.8s ease-in-out infinite;}
+    @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+    .hero h1{
+      font-family:var(--font-display); font-size:76px; font-weight:400; line-height:0.92;
+      letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase;
+    }
+    .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:12px; letter-spacing:0.3px;}
+    .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:0; max-width:440px; line-height:1.55;}
+
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+
+    /* Status badge (Entered / Eliminated / etc) */
+    .status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1.1rem; border-radius:2rem; font-size:.85rem; font-weight:600; background:rgba(59,130,246,0.08); border:1.5px solid var(--accent); color:var(--text); white-space:nowrap;}
+    .status-badge.entered{background:rgba(34,197,94,0.12); border-color:var(--green); color:var(--green);}
+    .status-badge.out{background:rgba(239,68,68,0.12); border-color:var(--red); color:#fca5a5;}
+
+    .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
+    .out-banner{ display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid var(--red); color:#fca5a5; border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; }
+
+    /* Enter gate */
+    .enter-gate{ text-align:center; padding:40px 24px; margin-bottom:24px; }
+    .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 26px; border-radius:10px; transition:filter .2s, transform .2s; }
+    .btn-primary:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+
+    .stat-row{ display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+    .stat{ flex:1; min-width:120px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px; letter-spacing:.3px; }
+    .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
+
+    /* How it works */
+    .how-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-bottom:24px; }
+    @media (max-width:800px){ .how-grid{ grid-template-columns:1fr; } }
+    .how-step{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 20px; }
+    .how-step .num{ width:32px;height:32px;border-radius:50%; background:rgba(59,130,246,0.12); border:1px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:12px; font-size:14px; }
+    .how-step h3{ font-family:var(--font-head); font-size:15px; margin-bottom:6px; }
+    .how-step p{ font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+
+    /* This gameweek's pick */
+    .pick-card{ margin-bottom:24px; }
+    .pick-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:4px; }
+    .pick-gw{ color:var(--text-dim); font-size:13.5px; margin-bottom:16px; }
+    .pick-cta{ display:flex; align-items:center; justify-content:space-between; gap:14px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px 18px; flex-wrap:wrap; }
+    .pick-cta .team{ font-family:var(--font-head); font-size:17px; font-weight:700; display:flex; align-items:center; gap:10px; }
+    .pick-cta .team img{ width:32px; height:32px; object-fit:contain; }
+
+    /* Teams used grid */
+    .teams-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:10px; }
+    .team-tile{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 8px; text-align:center; }
+    .team-tile img{ width:32px; height:32px; object-fit:contain; margin-bottom:6px; }
+    .team-tile .name{ font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .team-tile.used{ opacity:.4; }
+    .team-tile.used .name{ text-decoration:line-through; }
+    .team-tile .gw-tag{ font-size:9px; color:var(--gold); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; }
+
+    .cards-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; }
+    @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
+
+    .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/last-man-standing" class="active">Last Man Standing</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Flast-man-standing" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim); display:none;">Log In</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-graphic">
+        <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+          <defs>
+            <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#93c5fd"/>
+              <stop offset="100%" stop-color="#3b82f6"/>
+            </linearGradient>
+          </defs>
+          <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
+          <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
+          <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
+          <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
+          <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
+          <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
+          <g opacity="0.9">
+            <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
+          </g>
+          <g opacity="0.5">
+            <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
+          </g>
+          <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
+          <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="hero-content">
+        <div class="hero-eyebrow"><span class="dot"></span>Elimination Format</div>
+        <h1>Last Man Standing</h1>
+        <div class="hero-sub">Pick One. Survive. Repeat.</div>
+        <p class="hero-desc">Pick a Premier League team to win every gameweek. Get it wrong and you're out — and you can never use the same team twice. Last manager standing takes the pot.</p>
+      </div>
+    </section>
+
+    <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
+    <div class="out-banner" id="outBanner"><i class="fas fa-skull" style="font-size:20px;"></i> <span id="outText"></span></div>
+
+    <!-- How it works -->
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="num">1</div>
+        <h3>Pick a team</h3>
+        <p>Each gameweek, choose one Premier League team you think will win.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">2</div>
+        <h3>They have to win</h3>
+        <p>A draw or a loss and you're eliminated. No margin for error.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">3</div>
+        <h3>No repeats</h3>
+        <p>Once you've picked a team, it's gone — you can never use it again this tournament.</p>
+      </div>
+    </div>
+
+    <!-- Enter gate -->
+    <div class="card enter-gate" id="enterGate" style="display:none;">
+      <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+      <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;" id="enterTitle">Enter Last Man Standing</h2>
+      <p style="max-width:440px; margin:0 auto 22px; font-size:14px; color:var(--text-dim);" id="enterDesc">
+        Join now, then make your first pick before the next gameweek deadline.
+      </p>
+      <button class="btn-primary" id="enterBtn"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
+    </div>
+
+    <div id="mainContent" style="display:none;">
+      <div class="stat-row" id="statRow"></div>
+
+      <!-- This gameweek's pick -->
+      <section class="card pick-card">
+        <div class="pick-header">
+          <div class="card-title" style="margin-bottom:0;"><i class="fas fa-futbol"></i> <span id="pickTitle">This Gameweek's Pick</span></div>
+          <span class="status-badge" id="entryStatusBadge"><i class="fas fa-circle-check"></i> You're Entered</span>
+        </div>
+        <div class="pick-gw" id="pickGwLabel"></div>
+        <div class="pick-cta" id="pickCta"><div class="loading">Loading…</div></div>
+      </section>
+
+      <div class="cards-grid">
+        <!-- Teams used -->
+        <section class="card">
+          <div class="card-title"><i class="fas fa-shirt" style="color:var(--accent-2);"></i> Your Teams</div>
+          <div class="teams-grid" id="teamsGrid"><div class="loading">Loading…</div></div>
+        </section>
+
+        <!-- Survivors -->
+        <section class="card">
+          <div class="card-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Survivors</div>
+          <div id="survivorsBody"><div class="loading">Loading…</div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
+
+  <script src="toast.js"></script>
+  <script src="live-poll.js"></script>
+  <script>
+    // Full 20-team Premier League list + shirt-image mapping, matching the
+    // convention already used in predictions.js.
+    const ALL_TEAMS = [
+      'Arsenal', 'Aston Villa', 'Bournemouth', 'Brentford', 'Brighton',
+      'Burnley', 'Chelsea', 'Crystal Palace', 'Everton', 'Fulham',
+      'Leeds', 'Liverpool', 'Man City', 'Man Utd', 'Newcastle',
+      "Nott'm Forest", 'Spurs', 'Sunderland', 'West Ham', 'Wolves'
+    ];
+
+    function getTeamShirtName(teamName) {
+      const shirtMap = {
+        'Arsenal': 'arsenal', 'Aston Villa': 'aston villa', 'Bournemouth': 'bournmouth',
+        'Brentford': 'brentford', 'Brighton': 'brighton', 'Burnley': 'burnley',
+        'Chelsea': 'chelsea', 'Crystal Palace': 'crystal', 'Everton': 'everton',
+        'Fulham': 'fullham', 'Leeds': 'leeds', 'Liverpool': 'liverpool',
+        'Man City': 'man city', 'Man United': 'man u', 'Man Utd': 'man u',
+        'Manchester United': 'man u', 'Manchester Utd': 'man u',
+        'Newcastle': 'new castle', 'Newcastle United': 'new castle', 'Newcastle Utd': 'new castle',
+        "Nott'm Forest": 'nots forest', 'Nottingham Forest': 'nots forest', 'Notts Forest': 'nots forest',
+        'Spurs': 'spurs', 'Tottenham': 'spurs', 'Tottenham Hotspur': 'spurs',
+        'West Ham': 'west ham', 'West Ham United': 'west ham', 'West Ham Utd': 'west ham',
+        'Wolves': 'wovles temp', 'Wolverhampton': 'wovles temp', 'Wolverhampton Wanderers': 'wovles temp',
+        'Sunderland': 'sunderland'
+      };
+      return shirtMap[teamName] || teamName.toLowerCase();
+    }
+    function shirtSrc(team) {
+      return `shirts/${getTeamShirtName(team)}.webp`;
+    }
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    function isLoggedIn() {
+      return !!localStorage.getItem('gbf_token');
+    }
+
+    let tournamentId = null;
+    let currentGw = null;
+
+    async function loadTournament() {
+      try {
+        const res = await fetch('/api/tournaments?status=live&tournament_type=lms');
+        const data = await res.json();
+        const t = (data.tournaments || [])[0];
+        if (!t) {
+          document.getElementById('enterGate').style.display = 'block';
+          document.getElementById('enterDesc').textContent = 'No Last Man Standing tournament is live right now — check back soon.';
+          document.getElementById('enterBtn').style.display = 'none';
+          return;
+        }
+        tournamentId = t.id;
+
+        const gwRes = await fetch('/api/current-gameweek');
+        const gwData = await gwRes.json();
+        currentGw = gwData.current_gameweek;
+
+        await refreshEntryState(t);
+      } catch (e) {
+        console.error('Failed to load tournament:', e);
+      }
+    }
+
+    async function refreshEntryState(tournament) {
+      if (!isLoggedIn()) {
+        document.getElementById('enterGate').style.display = 'block';
+        document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · Prize pool £${((tournament.prize_pool||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
+        document.getElementById('enterBtn').outerHTML = `<a href="/login?redirect=%2Flast-man-standing" class="btn-primary"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`;
+        return;
+      }
+
+      const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
+      const entryData = await entryRes.json();
+
+      if (!entryData.entry) {
+        document.getElementById('enterGate').style.display = 'block';
+        document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · Prize pool £${((tournament.prize_pool||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
+        document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
+        return;
+      }
+
+      document.getElementById('enterGate').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+      document.getElementById('statRow').innerHTML = `
+        <div class="stat"><div class="label">Entries</div><div class="value">${tournament.current_entries||0}</div></div>
+        <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((tournament.prize_pool||0)/100).toFixed(2)}</div></div>
+        <div class="stat"><div class="label">Gameweek</div><div class="value">${currentGw ?? '--'}</div></div>
+      `;
+
+      await loadLockStatus();
+      await loadLmsState();
+    }
+
+    async function enterTournament(tournament) {
+      const btn = document.getElementById('enterBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'join', tournament_id: tournamentId, tournament_type: 'lms' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to enter');
+        await refreshEntryState(tournament);
+        showToast("You're entered! Make your first pick before the deadline.", 'success');
+      } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now';
+        showToast(e.message || "Couldn't enter right now.", 'error');
+      }
+    }
+
+    async function loadLockStatus() {
+      try {
+        const res = await fetch(`/api/tournaments?lms_lock_status=true&tournament_id=${tournamentId}`);
+        const lock = await res.json();
+        const banner = document.getElementById('lockBanner');
+        if (lock.locked) {
+          banner.style.display = 'flex';
+          document.getElementById('lockText').textContent = lock.reason || 'Picks are currently locked.';
+        } else {
+          banner.style.display = 'none';
+        }
+        if (lock.gameweek) currentGw = lock.gameweek;
+      } catch (e) {
+        console.error('Failed to load lock status:', e);
+      }
+    }
+
+    async function loadLmsState() {
+      try {
+        const res = await fetch(`/api/tournaments?lms_state=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
+        const data = await res.json();
+        const picks = data.picks || [];
+        const usedTeams = data.used_teams || [];
+
+        // Eliminated banner
+        const outBanner = document.getElementById('outBanner');
+        const badge = document.getElementById('entryStatusBadge');
+        if (data.is_eliminated) {
+          outBanner.style.display = 'flex';
+          document.getElementById('outText').textContent = `You were eliminated in Gameweek ${data.eliminated_gameweek}. You can still watch the tournament play out below.`;
+          badge.className = 'status-badge out';
+          badge.innerHTML = '<i class="fas fa-skull"></i> Eliminated';
+        } else {
+          outBanner.style.display = 'none';
+          badge.className = 'status-badge entered';
+          badge.innerHTML = '<i class="fas fa-circle-check"></i> You\'re Entered';
+        }
+
+        // This gameweek's pick
+        document.getElementById('pickGwLabel').textContent = currentGw ? `Gameweek ${currentGw}` : '';
+        const thisWeekPick = picks.find(p => p.gameweek === currentGw);
+        const cta = document.getElementById('pickCta');
+
+        if (data.is_eliminated) {
+          cta.innerHTML = `<span style="color:var(--text-faint);">Eliminated — no further picks this tournament.</span>`;
+        } else if (thisWeekPick) {
+          cta.innerHTML = `
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)}</div>
+            <a href="/last-man-standing-pick?gameweek=${currentGw}" class="btn-primary"><i class="fas fa-pen"></i> Change Pick</a>
+          `;
+        } else if (!currentGw) {
+          cta.innerHTML = `<span style="color:var(--text-faint);">Gameweek not set yet.</span>`;
+        } else {
+          cta.innerHTML = `
+            <span style="color:var(--text-dim); font-size:14px;">You haven't picked for Gameweek ${currentGw} yet.</span>
+            <a href="/last-man-standing-pick?gameweek=${currentGw}" class="btn-primary"><i class="fas fa-futbol"></i> Make Your Pick</a>
+          `;
+        }
+
+        // Teams grid
+        const grid = document.getElementById('teamsGrid');
+        grid.innerHTML = ALL_TEAMS.map(team => {
+          const usedPick = picks.find(p => p.team === team);
+          const used = usedTeams.includes(team);
+          return `
+            <div class="team-tile ${used ? 'used' : ''}">
+              <img src="${shirtSrc(team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
+              <div class="name">${escapeHtml(team)}</div>
+              ${used ? `<span class="gw-tag">GW${usedPick.gameweek}</span>` : ''}
+            </div>`;
+        }).join('');
+
+        // Survivors placeholder — full leaderboard isn't wired up yet
+        document.getElementById('survivorsBody').innerHTML = `
+          <div class="empty">Survivors leaderboard coming soon.<br>Check back once picks start locking in.</div>
+        `;
+      } catch (e) {
+        console.error('Failed to load LMS state:', e);
+      }
+    }
+
+    function initAuthButton() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const label = document.getElementById('navAuthLabel');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuthButton();
+      loadTournament();
+    });
+    window.addEventListener('gbf-data-refreshed', loadTournament);
+  </script>
+</body>
+</html>

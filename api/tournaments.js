@@ -4,6 +4,15 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+// Which Supabase schema a tournament's data lives in, based on its type.
+// 'predictions' is the default so existing callers that don't send this
+// keep working unchanged.
+function resolveSchema(tournament_type) {
+  if (tournament_type === 'fantasy') return 'fantasy';
+  if (tournament_type === 'lms') return 'lms';
+  return 'predictions';
+}
+
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -42,9 +51,9 @@ module.exports = async (req, res) => {
       const myEntries = params.get('my_entries'); // if set, return user's entered tournaments
 
       // Which schema to query: 'predictions' (Score Predictions, default —
-      // existing callers that don't send this keep working unchanged) or
-      // 'fantasy' (Fantasy Manager's own separate tables).
-      const schemaName = params.get('tournament_type') === 'fantasy' ? 'fantasy' : 'predictions';
+      // existing callers that don't send this keep working unchanged),
+      // 'fantasy' (Fantasy Manager), or 'lms' (Last Man Standing).
+      const schemaName = resolveSchema(params.get('tournament_type'));
       
       // Return user's tournament entries
       if (myEntries) {
@@ -99,6 +108,14 @@ module.exports = async (req, res) => {
         return res.status(200).json(lock);
       }
 
+      // Last Man Standing's lock status (public, no auth needed) — also
+      // triggers elimination processing once a gameweek's matches all finish.
+      const lmsLockStatus = params.get('lms_lock_status');
+      if (lmsLockStatus === 'true' && tournamentId) {
+        const lock = await getLmsLockStatus(masterDb, supabaseAdmin, tournamentId);
+        return res.status(200).json(lock);
+      }
+
       const myEntry = params.get('my_entry');
       if (myEntry && tournamentId) {
         const authHeader = req.headers.authorization;
@@ -123,6 +140,50 @@ module.exports = async (req, res) => {
         }
 
         return res.status(200).json({ entry: entry || null });
+      }
+
+      // Last Man Standing: return this user's full pick history + which
+      // teams are already used (so the frontend can grey them out).
+      const lmsState = params.get('lms_state');
+      if (lmsState === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) {
+          return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const { data: picks, error: picksError } = await supabaseAdmin
+          .schema('lms').from('picks')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', user.id)
+          .order('gameweek', { ascending: true });
+
+        if (picksError) {
+          return res.status(500).json({ error: 'Failed to fetch picks', details: picksError.message });
+        }
+
+        const { data: entry, error: entryError } = await supabaseAdmin
+          .schema('lms').from('tournament_entries')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (entryError) {
+          return res.status(500).json({ error: 'Failed to fetch entry', details: entryError.message });
+        }
+
+        return res.status(200).json({
+          picks: picks || [],
+          used_teams: (picks || []).map(p => p.team),
+          is_eliminated: entry ? entry.is_eliminated : false,
+          eliminated_gameweek: entry ? entry.eliminated_gameweek : null
+        });
       }
 
       // Return leaderboard for specific tournament
@@ -297,8 +358,8 @@ module.exports = async (req, res) => {
       
       console.log('Tournaments API - User authenticated:', user.id);
 
-      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type } = req.body;
-      const schemaName = tournament_type === 'fantasy' ? 'fantasy' : 'predictions';
+      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type, team } = req.body;
+      const schemaName = resolveSchema(tournament_type);
 
       // CREATE tournament (admin action)
       if (action === 'create') {
@@ -463,7 +524,112 @@ module.exports = async (req, res) => {
           return res.status(500).json({ error: err.message });
         }
       }
-      
+
+      // Last Man Standing: submit/change this gameweek's pick.
+      if (action === 'lms_pick') {
+        try {
+          if (!tournament_id || !gameweek || !team) {
+            return res.status(400).json({ error: 'tournament_id, gameweek and team are required' });
+          }
+
+          const { data: tournament, error: tournamentError } = await supabase
+            .schema('lms').from('tournaments')
+            .select('*')
+            .eq('id', tournament_id)
+            .single();
+
+          if (tournamentError || !tournament) {
+            return res.status(404).json({ error: 'Tournament not found' });
+          }
+          if (tournament.status !== 'live') {
+            return res.status(400).json({ error: 'This tournament is not open for picks' });
+          }
+
+          const lock = await getLmsLockStatus(masterDb, supabaseAdmin, tournament_id);
+          if (lock.locked) {
+            return res.status(403).json({ error: lock.reason || 'Picks are currently locked.', lock });
+          }
+
+          const { data: entry, error: entryError } = await supabaseAdmin
+            .schema('lms').from('tournament_entries')
+            .select('*')
+            .eq('tournament_id', tournament_id)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (entryError) {
+            return res.status(500).json({ error: 'Failed to check entry', details: entryError.message });
+          }
+          if (!entry) {
+            return res.status(403).json({ error: 'Enter the tournament before making a pick' });
+          }
+          if (entry.is_eliminated) {
+            return res.status(403).json({ error: 'You have been eliminated from this tournament' });
+          }
+
+          // A team can only ever be picked once per user in this tournament —
+          // check across ALL other gameweeks (not just this one).
+          const { data: reuse, error: reuseError } = await supabaseAdmin
+            .schema('lms').from('picks')
+            .select('gameweek')
+            .eq('tournament_id', tournament_id)
+            .eq('user_id', user.id)
+            .eq('team', team)
+            .neq('gameweek', gameweek)
+            .maybeSingle();
+
+          if (reuseError) {
+            return res.status(500).json({ error: 'Failed to validate pick', details: reuseError.message });
+          }
+          if (reuse) {
+            return res.status(400).json({ error: `You've already used ${team} in Gameweek ${reuse.gameweek}` });
+          }
+
+          // Upsert this gameweek's pick (lets the user change their mind
+          // right up until the pick page locks it).
+          const { data: existingPick, error: existingPickError } = await supabaseAdmin
+            .schema('lms').from('picks')
+            .select('id')
+            .eq('tournament_id', tournament_id)
+            .eq('user_id', user.id)
+            .eq('gameweek', gameweek)
+            .maybeSingle();
+
+          if (existingPickError) {
+            return res.status(500).json({ error: 'Failed to check existing pick', details: existingPickError.message });
+          }
+
+          let pick, pickError;
+          if (existingPick) {
+            ({ data: pick, error: pickError } = await supabaseAdmin
+              .schema('lms').from('picks')
+              .update({ team })
+              .eq('id', existingPick.id)
+              .select()
+              .single());
+          } else {
+            ({ data: pick, error: pickError } = await supabaseAdmin
+              .schema('lms').from('picks')
+              .insert({ tournament_id, user_id: user.id, gameweek, team })
+              .select()
+              .single());
+          }
+
+          if (pickError) {
+            if (pickError.code === '23505') {
+              return res.status(400).json({ error: `You've already used ${team} this tournament` });
+            }
+            return res.status(400).json({ error: pickError.message });
+          }
+
+          return res.status(200).json({ success: true, pick });
+
+        } catch (err) {
+          console.error('LMS pick handler crash:', err.message);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       return res.status(400).json({ error: 'Invalid action' });
 
     } catch (error) {
@@ -537,6 +703,131 @@ async function getFantasyLockStatus(masterDb) {
     console.error('getFantasyLockStatus error:', error);
     // Fail open rather than locking everyone out on an unexpected error
     return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
+  }
+}
+
+// Last Man Standing's lock status — identical shape to getFantasyLockStatus,
+// but once a gameweek's matches all finish it also works out who's out.
+async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
+  try {
+    const { data: clock } = await masterDb
+      .from('master_clock')
+      .select('current_gameweek')
+      .eq('id', 'current')
+      .maybeSingle();
+
+    if (!clock || !clock.current_gameweek) {
+      return { locked: false, gameweek: null, deadline_epoch: null, reason: 'Master clock not set yet.' };
+    }
+
+    const currentGW = clock.current_gameweek;
+
+    const { data: gwMatches } = await masterDb
+      .from('matches')
+      .select('home_team, away_team, home_score, away_score, status, kickoff_time')
+      .eq('gameweek', currentGW);
+
+    if (!gwMatches || gwMatches.length === 0) {
+      return { locked: false, gameweek: currentGW, deadline_epoch: null, reason: null };
+    }
+
+    const earliestKickoffMs = gwMatches.reduce((min, m) => {
+      const t = new Date(m.kickoff_time).getTime();
+      return (min === null || t < min) ? t : min;
+    }, null);
+
+    const deadlinePassed = earliestKickoffMs !== null && Date.now() >= earliestKickoffMs;
+    const deadlineEpoch = earliestKickoffMs !== null ? Math.floor(earliestKickoffMs / 1000) : null;
+
+    if (!deadlinePassed) {
+      return { locked: false, gameweek: currentGW, deadline_epoch: deadlineEpoch, reason: null };
+    }
+
+    const allFinished = gwMatches.every(m => m.status === 'finished');
+
+    if (allFinished && tournamentId && supabaseAdmin) {
+      await processLmsEliminations(supabaseAdmin, tournamentId, currentGW, gwMatches);
+    }
+
+    return {
+      locked: !allFinished,
+      gameweek: currentGW,
+      deadline_epoch: deadlineEpoch,
+      reason: allFinished ? null : 'Picks are locked until every match in this gameweek has finished.'
+    };
+  } catch (error) {
+    console.error('getLmsLockStatus error:', error);
+    return { locked: false, gameweek: null, deadline_epoch: null, reason: null };
+  }
+}
+
+// Once a gameweek is fully finished: anyone whose picked team didn't WIN
+// (draw or loss both count as out — standard Last Man Standing rules) is
+// eliminated, and anyone who didn't pick at all is eliminated too.
+// Idempotent via tournaments.last_processed_gameweek so a burst of page
+// loads polling lms_lock_status doesn't reprocess the same gameweek.
+async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwMatches) {
+  try {
+    const { data: tournament, error: tError } = await supabaseAdmin
+      .schema('lms').from('tournaments')
+      .select('last_processed_gameweek')
+      .eq('id', tournamentId)
+      .maybeSingle();
+
+    if (tError || !tournament) return;
+    if (tournament.last_processed_gameweek !== null && tournament.last_processed_gameweek >= gameweek) {
+      return; // already processed this gameweek
+    }
+
+    const { data: entries, error: entriesError } = await supabaseAdmin
+      .schema('lms').from('tournament_entries')
+      .select('id, user_id')
+      .eq('tournament_id', tournamentId)
+      .eq('is_eliminated', false);
+
+    if (entriesError || !entries || entries.length === 0) {
+      await supabaseAdmin
+        .schema('lms').from('tournaments')
+        .update({ last_processed_gameweek: gameweek })
+        .eq('id', tournamentId);
+      return;
+    }
+
+    const { data: picks, error: picksError } = await supabaseAdmin
+      .schema('lms').from('picks')
+      .select('user_id, team')
+      .eq('tournament_id', tournamentId)
+      .eq('gameweek', gameweek);
+
+    if (picksError) return;
+
+    const pickByUser = new Map((picks || []).map(p => [p.user_id, p.team]));
+
+    const winningTeams = new Set();
+    gwMatches.forEach(m => {
+      if (m.home_score === null || m.away_score === null) return;
+      if (m.home_score > m.away_score) winningTeams.add(m.home_team);
+      else if (m.away_score > m.home_score) winningTeams.add(m.away_team);
+    });
+
+    for (const entry of entries) {
+      const pickedTeam = pickByUser.get(entry.user_id);
+      const survived = pickedTeam && winningTeams.has(pickedTeam);
+      if (!survived) {
+        await supabaseAdmin
+          .schema('lms').from('tournament_entries')
+          .update({ is_eliminated: true, eliminated_gameweek: gameweek })
+          .eq('id', entry.id);
+      }
+    }
+
+    await supabaseAdmin
+      .schema('lms').from('tournaments')
+      .update({ last_processed_gameweek: gameweek })
+      .eq('id', tournamentId);
+
+  } catch (error) {
+    console.error('processLmsEliminations error:', error);
   }
 }
 

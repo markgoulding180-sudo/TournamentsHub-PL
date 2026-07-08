@@ -22,6 +22,8 @@
     { "source": "/fantasy-manager", "destination": "/fantasy-manager.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/player", "destination": "/player.html" },
-    { "source": "/fantasy-leaderboard", "destination": "/fantasy-leaderboard.html" }
+    { "source": "/fantasy-leaderboard", "destination": "/fantasy-leaderboard.html" },
+    { "source": "/last-man-standing", "destination": "/lms-home.html" },
+    { "source": "/last-man-standing-pick", "destination": "/lms-pick.html" }
   ]
 }
