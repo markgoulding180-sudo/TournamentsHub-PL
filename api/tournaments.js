@@ -245,6 +245,36 @@ module.exports = async (req, res) => {
           }).sort((a, b) => b.entry_points - a.entry_points);
         }
 
+        if (schemaName === 'lms' && scoredEntries.length > 0) {
+          const { data: allPicks } = await supabaseAdmin
+            .schema('lms').from('picks')
+            .select('user_id, gameweek, team')
+            .eq('tournament_id', tournamentId);
+
+          const picksByUser = {};
+          (allPicks || []).forEach(p => {
+            (picksByUser[p.user_id] = picksByUser[p.user_id] || []).push(p);
+          });
+
+          scoredEntries = scoredEntries.map(e => {
+            const userPicks = (picksByUser[e.user_id] || []).sort((a, b) => a.gameweek - b.gameweek);
+            return {
+              ...e,
+              weeks_survived: userPicks.length,
+              last_pick: userPicks.length > 0 ? userPicks[userPicks.length - 1] : null
+            };
+          }).sort((a, b) => {
+            // Alive entrants first (still-in players are all tied at the top
+            // until one winner remains — there's no ranking among survivors).
+            if (a.is_eliminated !== b.is_eliminated) return a.is_eliminated ? 1 : -1;
+            if (a.is_eliminated) {
+              // Among the eliminated: whoever lasted the most gameweeks ranks higher.
+              return (b.eliminated_gameweek || 0) - (a.eliminated_gameweek || 0);
+            }
+            return (b.weeks_survived || 0) - (a.weeks_survived || 0);
+          });
+        }
+
         // Add rank to each entry
         const rankedEntries = scoredEntries.map((entry, index) => ({
           ...entry,
@@ -253,7 +283,8 @@ module.exports = async (req, res) => {
         
         return res.status(200).json({
           tournament_id: tournamentId,
-          leaderboard: rankedEntries
+          leaderboard: rankedEntries,
+          ...(schemaName === 'lms' ? { alive_count: rankedEntries.filter(e => !e.is_eliminated).length } : {})
         });
       }
 

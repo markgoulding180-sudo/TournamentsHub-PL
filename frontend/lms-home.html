@@ -151,6 +151,17 @@
     .pick-result-tag.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
     .pick-result-tag.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
 
+    /* Survivors leaderboard */
+    .survivor-row{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; }
+    .survivor-row + .survivor-row{ border-top:1px solid var(--border); }
+    .survivor-row .s-avatar{ width:28px; height:28px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-size:11px; font-weight:700; color:var(--text-dim); flex:none; }
+    .survivor-row.alive .s-avatar{ border-color:var(--green); color:var(--green); }
+    .survivor-row .s-name{ flex:1; font-size:13.5px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .survivor-row .s-status{ font-size:11px; text-transform:uppercase; letter-spacing:.3px; font-weight:700; flex:none; }
+    .survivor-row.alive .s-status{ color:var(--green); }
+    .survivor-row.out .s-status{ color:var(--text-faint); }
+    .survivor-row.out .s-name{ color:var(--text-faint); }
+
     .cards-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
@@ -279,7 +290,7 @@
 
         <!-- Survivors -->
         <section class="card">
-          <div class="card-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Survivors</div>
+          <div class="card-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Survivors <span id="aliveCountTag" style="margin-left:auto; font-size:11px; font-weight:600; color:var(--green);"></span></div>
           <div id="survivorsBody"><div class="loading">Loading…</div></div>
         </section>
       </div>
@@ -552,12 +563,46 @@
             </div>`;
         }).join('');
 
-        // Survivors placeholder — full leaderboard isn't wired up yet
-        document.getElementById('survivorsBody').innerHTML = `
-          <div class="empty">Survivors leaderboard coming soon.<br>Check back once picks start locking in.</div>
-        `;
+        // Survivors
+        await loadSurvivors();
       } catch (e) {
         console.error('Failed to load LMS state:', e);
+      }
+    }
+
+    async function loadSurvivors() {
+      const body = document.getElementById('survivorsBody');
+      const tag = document.getElementById('aliveCountTag');
+      try {
+        const res = await fetch(`/api/tournaments?leaderboard=true&tournament_id=${tournamentId}&tournament_type=lms`);
+        const data = await res.json();
+        const rows = data.leaderboard || [];
+
+        if (rows.length === 0) {
+          body.innerHTML = '<div class="empty">No entrants yet.</div>';
+          tag.textContent = '';
+          return;
+        }
+
+        tag.textContent = `${data.alive_count ?? rows.filter(r => !r.is_eliminated).length} / ${rows.length} still in`;
+
+        body.innerHTML = rows.map(r => {
+          const name = r.users?.display_name || r.users?.username || 'Player';
+          const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+          const alive = !r.is_eliminated;
+          const status = alive
+            ? `${r.weeks_survived || 0} week${(r.weeks_survived || 0) === 1 ? '' : 's'} in`
+            : `Out — GW${r.eliminated_gameweek}`;
+          return `
+            <div class="survivor-row ${alive ? 'alive' : 'out'}">
+              <div class="s-avatar">${escapeHtml(initials)}</div>
+              <div class="s-name">${escapeHtml(name)}</div>
+              <div class="s-status">${alive ? '<i class="fas fa-shield-halved"></i> ' : ''}${status}</div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        console.error('Failed to load survivors:', e);
+        body.innerHTML = '<div class="empty">Couldn\'t load survivors right now.</div>';
       }
     }
 
