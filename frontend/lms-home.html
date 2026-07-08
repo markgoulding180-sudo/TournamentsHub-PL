@@ -348,12 +348,25 @@
     let currentGw = null;
     let locked = false;
     let gwMatches = [];
+    let tournamentFinished = false;
 
     async function loadTournament() {
       try {
-        const res = await fetch('/api/tournaments?status=live&tournament_type=lms');
-        const data = await res.json();
-        const t = (data.tournaments || [])[0];
+        let res = await fetch('/api/tournaments?status=live&tournament_type=lms');
+        let data = await res.json();
+        let t = (data.tournaments || [])[0];
+
+        if (!t) {
+          // No live tournament — check whether one just finished, so we can
+          // show the final result instead of a generic "nothing live" message.
+          const finRes = await fetch('/api/tournaments?status=finished&tournament_type=lms');
+          const finData = await finRes.json();
+          t = (finData.tournaments || [])[0];
+          tournamentFinished = !!t;
+        } else {
+          tournamentFinished = false;
+        }
+
         if (!t) {
           document.getElementById('enterGate').style.display = 'block';
           document.getElementById('enterDesc').textContent = 'No Last Man Standing tournament is live right now — check back soon.';
@@ -505,12 +518,20 @@
         const picks = data.picks || [];
         const usedTeams = data.used_teams || [];
 
-        // Eliminated banner
+        // Eliminated / winner banner
         const outBanner = document.getElementById('outBanner');
         const badge = document.getElementById('entryStatusBadge');
-        if (data.is_eliminated) {
+        const prizeAwarded = data.prize_awarded || 0;
+
+        if (tournamentFinished && prizeAwarded > 0) {
+          outBanner.style.display = 'none';
+          badge.className = 'status-badge entered';
+          badge.innerHTML = `<i class="fas fa-trophy" style="color:var(--gold);"></i> Winner — £${(prizeAwarded/100).toFixed(2)}`;
+        } else if (data.is_eliminated) {
           outBanner.style.display = 'flex';
-          document.getElementById('outText').textContent = `You were eliminated in Gameweek ${data.eliminated_gameweek}. You can still watch the tournament play out below.`;
+          document.getElementById('outText').textContent = tournamentFinished
+            ? `The tournament has ended. You were eliminated in Gameweek ${data.eliminated_gameweek}.`
+            : `You were eliminated in Gameweek ${data.eliminated_gameweek}. You can still watch the tournament play out below.`;
           badge.className = 'status-badge out';
           badge.innerHTML = '<i class="fas fa-skull"></i> Eliminated';
         } else {
@@ -524,7 +545,11 @@
         const thisWeekPick = picks.find(p => p.gameweek === currentGw);
         const cta = document.getElementById('pickCta');
 
-        if (data.is_eliminated) {
+        if (tournamentFinished) {
+          cta.innerHTML = prizeAwarded > 0
+            ? `<span style="color:var(--gold); font-weight:700;"><i class="fas fa-trophy"></i> Tournament over — you won £${(prizeAwarded/100).toFixed(2)}!</span>`
+            : `<span style="color:var(--text-faint);">Tournament over — see the final standings below.</span>`;
+        } else if (data.is_eliminated) {
           cta.innerHTML = `<span style="color:var(--text-faint);">Eliminated — no further picks this tournament.</span>`;
         } else if (thisWeekPick && locked) {
           cta.innerHTML = `
@@ -584,20 +609,28 @@
           return;
         }
 
-        tag.textContent = `${data.alive_count ?? rows.filter(r => !r.is_eliminated).length} / ${rows.length} still in`;
+        tag.textContent = tournamentFinished
+          ? 'Tournament over'
+          : `${data.alive_count ?? rows.filter(r => !r.is_eliminated).length} / ${rows.length} still in`;
 
         body.innerHTML = rows.map(r => {
           const name = r.users?.display_name || r.users?.username || 'Player';
           const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
           const alive = !r.is_eliminated;
-          const status = alive
-            ? `${r.weeks_survived || 0} week${(r.weeks_survived || 0) === 1 ? '' : 's'} in`
-            : `Out — GW${r.eliminated_gameweek}`;
+          const won = (r.prize_awarded || 0) > 0;
+          let status;
+          if (won) {
+            status = `<i class="fas fa-trophy" style="color:var(--gold);"></i> £${(r.prize_awarded/100).toFixed(2)}`;
+          } else if (alive) {
+            status = `${r.weeks_survived || 0} week${(r.weeks_survived || 0) === 1 ? '' : 's'} in`;
+          } else {
+            status = `Out — GW${r.eliminated_gameweek}`;
+          }
           return `
-            <div class="survivor-row ${alive ? 'alive' : 'out'}">
+            <div class="survivor-row ${won ? 'alive' : (alive ? 'alive' : 'out')}">
               <div class="s-avatar">${escapeHtml(initials)}</div>
               <div class="s-name">${escapeHtml(name)}</div>
-              <div class="s-status">${alive ? '<i class="fas fa-shield-halved"></i> ' : ''}${status}</div>
+              <div class="s-status" style="${won ? 'color:var(--gold);' : ''}">${(alive && !won) ? '<i class="fas fa-shield-halved"></i> ' : ''}${status}</div>
             </div>`;
         }).join('');
       } catch (e) {

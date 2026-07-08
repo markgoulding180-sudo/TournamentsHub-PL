@@ -182,7 +182,8 @@ module.exports = async (req, res) => {
           picks: picks || [],
           used_teams: (picks || []).map(p => p.team),
           is_eliminated: entry ? entry.is_eliminated : false,
-          eliminated_gameweek: entry ? entry.eliminated_gameweek : null
+          eliminated_gameweek: entry ? entry.eliminated_gameweek : null,
+          prize_awarded: entry ? (entry.prize_awarded || 0) : 0
         });
       }
 
@@ -826,11 +827,12 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
   try {
     const { data: tournament, error: tError } = await supabaseAdmin
       .schema('lms').from('tournaments')
-      .select('last_processed_gameweek')
+      .select('last_processed_gameweek, prize_pool, status')
       .eq('id', tournamentId)
       .maybeSingle();
 
     if (tError || !tournament) return;
+    if (tournament.status === 'finished') return; // already ended
     if (tournament.last_processed_gameweek !== null && tournament.last_processed_gameweek >= gameweek) {
       return; // already processed this gameweek
     }
@@ -866,10 +868,13 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       else if (m.away_score > m.home_score) winningTeams.add(m.away_team);
     });
 
+    const survivors = [];
     for (const entry of entries) {
       const pickedTeam = pickByUser.get(entry.user_id);
       const survived = pickedTeam && winningTeams.has(pickedTeam);
-      if (!survived) {
+      if (survived) {
+        survivors.push(entry);
+      } else {
         await supabaseAdmin
           .schema('lms').from('tournament_entries')
           .update({ is_eliminated: true, eliminated_gameweek: gameweek })
@@ -881,6 +886,37 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       .schema('lms').from('tournaments')
       .update({ last_processed_gameweek: gameweek })
       .eq('id', tournamentId);
+
+    // Tournament end condition: exactly one survivor takes the whole pot.
+    if (survivors.length === 1) {
+      await supabaseAdmin
+        .schema('lms').from('tournament_entries')
+        .update({ prize_awarded: tournament.prize_pool || 0 })
+        .eq('id', survivors[0].id);
+
+      await supabaseAdmin
+        .schema('lms').from('tournaments')
+        .update({ status: 'finished' })
+        .eq('id', tournamentId);
+
+    // Everyone went out in the same gameweek (every pick drew or lost) —
+    // split the pot evenly among whoever was still alive going into this
+    // gameweek (the `entries` set, before this round's eliminations).
+    } else if (survivors.length === 0) {
+      const share = entries.length > 0 ? Math.floor((tournament.prize_pool || 0) / entries.length) : 0;
+      for (const entry of entries) {
+        await supabaseAdmin
+          .schema('lms').from('tournament_entries')
+          .update({ prize_awarded: share })
+          .eq('id', entry.id);
+      }
+
+      await supabaseAdmin
+        .schema('lms').from('tournaments')
+        .update({ status: 'finished' })
+        .eq('id', tournamentId);
+    }
+    // Otherwise more than one survivor remains — tournament continues.
 
   } catch (error) {
     console.error('processLmsEliminations error:', error);
