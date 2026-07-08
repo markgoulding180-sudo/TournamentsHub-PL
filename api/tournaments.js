@@ -840,7 +840,7 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       .eq('id', tournamentId)
       .neq('status', 'finished')
       .or(`last_processed_gameweek.is.null,last_processed_gameweek.lt.${gameweek}`)
-      .select('id, prize_pool')
+      .select('id, entry_fee')
       .maybeSingle();
 
     if (claimError) {
@@ -851,7 +851,29 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       return; // another request already claimed this gameweek, or the tournament's already finished
     }
 
-    const prizePool = claimed.prize_pool || 0;
+    // Prize pool = entry fee x however many people are *actually* entered
+    // right now, counted directly rather than trusting the tournament's
+    // stored prize_pool column (nothing keeps that in sync — it's always
+    // 0) or the cached current_entries counter (only updated by the normal
+    // "Enter Now" flow, so it can drift if entries are ever added any
+    // other way). Counting the real rows avoids both failure modes.
+    const { count: entryCount, error: countError } = await supabaseAdmin
+      .schema('lms').from('tournament_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId);
+
+    if (countError) {
+      console.error('processLmsEliminations entry count error:', countError);
+    }
+
+    const prizePool = (claimed.entry_fee || 0) * (entryCount || 0);
+    console.log('LMS payout debug:', {
+      tournamentId,
+      gameweek,
+      claimedEntryFee: claimed.entry_fee,
+      entryCount,
+      prizePool
+    });
 
     const { data: entries, error: entriesError } = await supabaseAdmin
       .schema('lms').from('tournament_entries')
@@ -887,41 +909,47 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       if (survived) {
         survivors.push(entry);
       } else {
-        await supabaseAdmin
+        const { error: elimError } = await supabaseAdmin
           .schema('lms').from('tournament_entries')
           .update({ is_eliminated: true, eliminated_gameweek: gameweek })
           .eq('id', entry.id);
+        if (elimError) console.error(`Failed to eliminate entry ${entry.id}:`, elimError);
       }
     }
 
     // Tournament end condition: exactly one survivor takes the whole pot.
     if (survivors.length === 1) {
-      await supabaseAdmin
+      const { error: payoutError } = await supabaseAdmin
         .schema('lms').from('tournament_entries')
         .update({ prize_awarded: prizePool })
         .eq('id', survivors[0].id);
+      if (payoutError) console.error(`Failed to award winner ${survivors[0].id}:`, payoutError);
 
-      await supabaseAdmin
+      const { error: finishError } = await supabaseAdmin
         .schema('lms').from('tournaments')
         .update({ status: 'finished' })
         .eq('id', tournamentId);
+      if (finishError) console.error(`Failed to mark tournament ${tournamentId} finished:`, finishError);
 
     // Everyone went out in the same gameweek (every pick drew or lost) —
     // split the pot evenly among whoever was still alive going into this
     // gameweek (the `entries` set, before this round's eliminations).
     } else if (survivors.length === 0) {
       const share = entries.length > 0 ? Math.floor(prizePool / entries.length) : 0;
+      console.log('LMS split-pot debug:', { prizePool, entriesLength: entries.length, share });
       for (const entry of entries) {
-        await supabaseAdmin
+        const { error: splitError } = await supabaseAdmin
           .schema('lms').from('tournament_entries')
           .update({ prize_awarded: share })
           .eq('id', entry.id);
+        if (splitError) console.error(`Failed to award split-pot share to entry ${entry.id}:`, splitError);
       }
 
-      await supabaseAdmin
+      const { error: finishError } = await supabaseAdmin
         .schema('lms').from('tournaments')
         .update({ status: 'finished' })
         .eq('id', tournamentId);
+      if (finishError) console.error(`Failed to mark tournament ${tournamentId} finished:`, finishError);
     }
     // Otherwise more than one survivor remains — tournament continues.
 
