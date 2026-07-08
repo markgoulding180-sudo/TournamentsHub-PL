@@ -439,7 +439,7 @@ async function handleLoginSubmit(e) {
   const result = await loginUser(credentials);
 
   if (result.success) {
-    alert('Welcome back, ' + result.user.display_name + '!');
+    showToast('Welcome back, ' + result.user.display_name + '!', 'success');
     // Honor the page that sent the user here (set by auth-gate.js as
     // ?redirect=/some-page.html), falling back to profile.html only if
     // there wasn't one (e.g. someone navigated to login.html directly).
@@ -447,7 +447,7 @@ async function handleLoginSubmit(e) {
     const redirectTo = params.get('redirect');
     window.location.href = redirectTo ? decodeURIComponent(redirectTo) : 'profile.html';
   } else {
-    alert(result.error);
+    showToast(result.error, 'error');
   }
 }
 
@@ -574,12 +574,12 @@ async function handleRegisterSubmit(e) {
   const confirmPassword = document.getElementById('confirm-password').value;
   
   if (password !== confirmPassword) {
-    alert('Passwords do not match!');
+    showToast('Passwords do not match!', 'error');
     return;
   }
   
   if (password.length < 8) {
-    alert('Password must be at least 8 characters long!');
+    showToast('Password must be at least 8 characters long!', 'error');
     return;
   }
 
@@ -593,14 +593,14 @@ async function handleRegisterSubmit(e) {
   const result = await registerUser(userData);
 
   if (result.success) {
-    alert('Account created successfully! Please log in.');
+    showToast('Account created successfully! Please log in.', 'success');
     // Preserve wherever the user was headed (e.g. Fantasy Manager, a
     // tournament page) so login.html can send them there after signing in.
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get('redirect');
     window.location.href = redirectTo ? ('login.html?redirect=' + encodeURIComponent(redirectTo)) : 'login.html';
   } else {
-    alert(result.error);
+    showToast(result.error, 'error');
   }
 }
 
@@ -608,7 +608,7 @@ async function handlePredictionSubmit(e) {
   e.preventDefault();
   
   if (!authToken) {
-    alert('Please log in to submit predictions');
+    showToast('Please log in to submit predictions', 'error');
     return;
   }
 
@@ -625,7 +625,7 @@ async function handlePredictionSubmit(e) {
     const awayScore = awayScoreInput ? awayScoreInput.value : '';
     
     if (!result || homeScore === '' || awayScore === '') {
-      alert(`Please complete prediction for Match ${i}`);
+      showToast(`Please complete prediction for Match ${i}`, 'error');
       return;
     }
 
@@ -661,12 +661,12 @@ async function handlePredictionSubmit(e) {
     const data = await response.json();
 
     if (response.ok) {
-      alert('Predictions submitted successfully! Good luck!');
+      showToast('Predictions submitted successfully! Good luck!', 'success');
     } else {
-      alert(data.error || 'Failed to submit predictions');
+      showToast(data.error || 'Failed to submit predictions', 'error');
     }
   } catch (error) {
-    alert('Error submitting predictions. Please try again.');
+    showToast('Error submitting predictions. Please try again.', 'error');
   }
 }
 
@@ -906,7 +906,7 @@ function renderTournaments(tournaments) {
     btn.addEventListener('click', async (e) => {
       if (!authToken) {
         e.preventDefault();
-        alert('Please log in to enter tournaments');
+        showToast('Please log in to enter tournaments', 'error');
         return;
       }
       

@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
       const token = localStorage.getItem('gbf_token');
       if (!token) {
-        alert('Please log in to submit predictions');
+        showToast('Please log in to submit predictions', 'error');
         window.location.href = '/login';
         return;
       }
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       console.log('Collected predictions:', predictions);
       
       if (predictions.length === 0) {
-        alert('Please select a result (1, X, or 2) for at least one match');
+        showToast('Please select a result (1, X, or 2) for at least one match', 'error');
         return;
       }
       
@@ -242,14 +242,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         throw new Error(data.error || 'Failed to submit predictions');
       }
       
-      alert('Predictions saved successfully!');
+      showToast('Predictions saved successfully!', 'success');
       
       // Redirect to profile page
       window.location.href = '/profile.html';
       
     } catch (error) {
       console.error('Error submitting predictions:', error);
-      alert('Error submitting predictions: ' + error.message);
+      showToast('Error submitting predictions: ' + error.message, 'error');
     }
   }
   

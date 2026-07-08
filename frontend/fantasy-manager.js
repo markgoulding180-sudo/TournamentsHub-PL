@@ -368,13 +368,13 @@ document.addEventListener('DOMContentLoaded', async function () {
       const player = allPlayers.find(p => p.id === id);
       if (!player) return;
 
-      if (squad.length >= 15) { alert('Your squad already has 15 players.'); return; }
+      if (squad.length >= 15) { showToast('Your squad already has 15 players.', 'error'); return; }
       if (countByType(player.element_type) >= POSITION_QUOTA[player.element_type]) {
-        alert(`You already have the maximum number of ${POSITION_LABELS[player.element_type]}s.`);
+        showToast(`You already have the maximum number of ${POSITION_LABELS[player.element_type]}s.`, 'error');
         return;
       }
       if (squadCost() + player.now_cost > BUDGET_LIMIT) {
-        alert('Adding this player would take you over the £100.0m budget.');
+        showToast('Adding this player would take you over the £100.0m budget.', 'error');
         return;
       }
 
@@ -430,11 +430,11 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   els.saveBtn.addEventListener('click', async function () {
     const token = localStorage.getItem('gbf_token');
-    if (!token) { alert('Please log in to save your squad.'); return; }
-    if (!tournamentId) { alert('Fantasy Manager tournament is not available right now.'); return; }
-    if (!hasEntered) { alert('Enter the tournament first.'); return; }
-    if (lockInfo.locked) { alert(lockInfo.reason || 'Squad is currently locked.'); return; }
-    if (squad.length !== 15 || !captainId) { alert('Pick a full 15-player squad and a captain first.'); return; }
+    if (!token) { showToast('Please log in to save your squad.', 'error'); return; }
+    if (!tournamentId) { showToast('Fantasy Manager tournament is not available right now.', 'error'); return; }
+    if (!hasEntered) { showToast('Enter the tournament first.', 'error'); return; }
+    if (lockInfo.locked) { showToast(lockInfo.reason || 'Squad is currently locked.', 'error'); return; }
+    if (squad.length !== 15 || !captainId) { showToast('Pick a full 15-player squad and a captain first.', 'error'); return; }
 
     els.saveBtn.disabled = true;
     els.saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
@@ -453,16 +453,16 @@ document.addEventListener('DOMContentLoaded', async function () {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Failed to save squad');
+        showToast(data.error || 'Failed to save squad', 'error');
       } else {
-        alert('Squad saved! Good luck.');
+        showToast('Squad saved! Good luck.', 'success');
         els.statusBadge.className = 'fm-status-badge entered';
         els.statusBadge.innerHTML = '<i class="fas fa-circle-check"></i> Squad saved — edit any time before your next gameweek deadline';
         await loadLeaderboard();
       }
     } catch (e) {
       console.error('Save squad failed:', e);
-      alert('Error saving squad. Please try again.');
+      showToast('Error saving squad. Please try again.', 'error');
     } finally {
       els.saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Squad';
       renderStats();
@@ -472,8 +472,8 @@ document.addEventListener('DOMContentLoaded', async function () {
   if (els.enterBtn) {
     els.enterBtn.addEventListener('click', async function () {
       const token = localStorage.getItem('gbf_token');
-      if (!token) { alert('Please log in first.'); return; }
-      if (!tournamentId) { alert('Fantasy Manager tournament is not available right now.'); return; }
+      if (!token) { showToast('Please log in first.', 'error'); return; }
+      if (!tournamentId) { showToast('Fantasy Manager tournament is not available right now.', 'error'); return; }
 
       els.enterBtn.disabled = true;
       els.enterBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
@@ -491,14 +491,14 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
         const data = await res.json();
         if (!res.ok) {
-          alert(data.error || 'Failed to enter tournament');
+          showToast(data.error || 'Failed to enter tournament', 'error');
         } else {
           hasEntered = true;
           await loadMyEntry();
         }
       } catch (e) {
         console.error('Enter tournament failed:', e);
-        alert('Error entering tournament. Please try again.');
+        showToast('Error entering tournament. Please try again.', 'error');
       } finally {
         els.enterBtn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now';
         els.enterBtn.disabled = false;

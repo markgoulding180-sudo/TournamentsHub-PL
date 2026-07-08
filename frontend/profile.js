@@ -270,11 +270,11 @@ async function enterTournament(tournamentId) {
       throw new Error(error.error || 'Failed to enter');
     }
     
-    alert('Successfully entered tournament!');
+    showToast('Successfully entered tournament!', 'success');
     window.location.reload();
     
   } catch (error) {
-    alert('Error: ' + error.message);
+    showToast('Error: ' + error.message, 'error');
   }
 }
 
