@@ -93,19 +93,17 @@ async function loadInjuries(filter) {
     
     return `
       <div class="injury-card">
-        <div class="injury-player">
+        <div class="injury-left">
           <div class="player-image-container">
             <img src="${playerImage}" alt="${injury.player}" class="player-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
             <div class="player-avatar-fallback" style="display: none;">${initials}</div>
             <img src="shirts/${shirtFile}" alt="${injury.team}" class="team-shirt-badge" onerror="this.style.display='none'">
           </div>
-          <div class="player-info">
-            <h4>${injury.player}</h4>
-            <div class="player-team">${injury.team}</div>
-          </div>
-        </div>
-        <div class="injury-details">
+          <h4>${injury.player}</h4>
+          <div class="player-team">${injury.team}</div>
           <span class="injury-type ${statusClass}">${statusText}</span>
+        </div>
+        <div class="injury-right">
           <div class="injury-desc">${injury.description}</div>
           <div class="injury-timeline">
             <span>Recovery:</span>
@@ -114,10 +112,10 @@ async function loadInjuries(filter) {
             </div>
             <span>${injury.progress}%</span>
           </div>
-        </div>
-        <div class="injury-return-date">
-          <div class="return-label">Expected Return</div>
-          <div class="return-date">${injury.returnDate}</div>
+          <div class="injury-return-date">
+            <span class="return-label">Expected Return</span>
+            <span class="return-date">${injury.returnDate}</span>
+          </div>
         </div>
       </div>
     `;

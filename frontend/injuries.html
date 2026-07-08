@@ -37,25 +37,27 @@
     }
     .injury-card {
       background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
       border-radius: 0.75rem;
-      padding: 1.5rem;
+      padding: 1.25rem 1.5rem;
       display: flex;
-      align-items: center;
-      gap: 1rem;
-      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 1.25rem;
     }
-    .injury-player {
+    .injury-left {
       display: flex;
-      align-items: center;
-      gap: 1rem;
-      min-width: 200px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.35rem;
+      flex: none;
+      width: 130px;
     }
     .player-image-container {
       position: relative;
       width: 60px;
       height: 60px;
-      margin-right: 1rem;
+      margin-bottom: 0.25rem;
     }
     .player-image {
       width: 60px;
@@ -90,37 +92,45 @@
       padding: 2px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-    .player-info h4 {
-      margin-bottom: 0.25rem;
+    .injury-left h4 {
+      font-size: 1rem;
+      line-height: 1.3;
     }
     .player-team {
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       color: var(--text-secondary);
     }
-    .injury-details {
+    .injury-right {
       flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding-top: 2px;
     }
     .injury-type {
       display: inline-block;
+      width: fit-content;
       padding: 0.25rem 0.75rem;
       border-radius: 1rem;
       font-size: 0.75rem;
       font-weight: 600;
-      margin-bottom: 0.5rem;
     }
     .injury-out { background: var(--accent-red); color: #fff; }
     .injury-doubt { background: var(--accent-amber); color: #000; }
     .injury-return { background: var(--accent-green); color: #000; }
     .injury-desc {
-      font-size: 0.875rem;
+      font-size: 0.9rem;
       color: var(--text-secondary);
-      margin-bottom: 0.5rem;
+      width: 100%;
+      line-height: 1.5;
     }
     .injury-timeline {
       display: flex;
       align-items: center;
       gap: 0.5rem;
       font-size: 0.875rem;
+      width: 100%;
     }
     .timeline-bar {
       flex: 1;
@@ -128,7 +138,6 @@
       background: var(--bg-hover);
       border-radius: 3px;
       overflow: hidden;
-      max-width: 150px;
     }
     .timeline-progress {
       height: 100%;
@@ -136,16 +145,17 @@
       border-radius: 3px;
     }
     .injury-return-date {
-      text-align: right;
-      min-width: 100px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
     .return-label {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       color: var(--text-secondary);
     }
     .return-date {
       font-weight: 600;
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
     .stats-summary {
       display: grid;
@@ -178,11 +188,12 @@
         flex-direction: column;
         align-items: flex-start;
       }
-      .injury-player {
-        min-width: auto;
+      .injury-left {
+        width: 100%;
+        flex-direction: row;
+        align-items: center;
       }
       .injury-return-date {
-        text-align: left;
         width: 100%;
       }
       .stats-summary {
@@ -233,8 +244,8 @@
         <div class="hub-logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
       </a>
       <nav class="hub-nav-links">
-        <a href="/">Home</a>
-        <a href="/predictions">Predictions</a>
+        <a href="/">GB Hub</a>
+        <a href="/predictions">Predictions Hub</a>
         <a href="/leaderboard">Leaderboard</a>
         <a href="/table">PL Table</a>
         <a href="/injuries" class="active">Injuries</a>
