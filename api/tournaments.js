@@ -184,14 +184,15 @@ module.exports = async (req, res) => {
           portfolio = squad.map(s => {
             const m = marketByPid[s.player_id] || {};
             const ownership = m.ownership_count || 1;
+            const posLabel = { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[s.position] || s.position;
             return {
               player_id: s.player_id,
-              name: m.name || '',
-              position: m.position || '',
-              team: m.team || '',
+              name: m.name || s.name || '',
+              position: m.position || posLabel || '',
+              team: m.team || s.team || '',
               ownership_count: ownership,
-              your_value: Math.round((m.current_value || 0) / ownership),
-              market_value: m.current_value || 0,
+              your_value: m.current_value ? Math.round(m.current_value / ownership) : null,
+              market_value: m.current_value || null,
               last_gw_stats: m.last_gw_stats || null
             };
           });
@@ -660,9 +661,18 @@ module.exports = async (req, res) => {
               });
             }
 
+            const { data: teamRowsForSquad } = await masterDb.from('teams').select('id, name');
+            const teamNameByIdForSquad = {};
+            (teamRowsForSquad || []).forEach(t => { teamNameByIdForSquad[t.id] = t.name; });
+
             entryPayload.squad_players = squad_players.map(pid => {
               const p = squadRows.find(r => r.id === pid);
-              return { player_id: pid, position: p.element_type };
+              return {
+                player_id: pid,
+                position: p.element_type,
+                name: p.web_name,
+                team: teamNameByIdForSquad[p.team] || ''
+              };
             });
           }
 

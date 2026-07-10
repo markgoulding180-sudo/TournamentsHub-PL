@@ -277,27 +277,39 @@
 
       const entry = stateData.entry;
       const portfolio = stateData.portfolio || [];
+      const hasSquad = Array.isArray(entry.squad_players) && entry.squad_players.length === 6;
 
-      if (!entry.squad_locked) {
+      if (!hasSquad) {
         document.getElementById('draftPromptCard').style.display = 'block';
-        if (marketStatus && marketStatus.drafting) {
-          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet — do it before the draft window closes.';
-        } else if (marketStatus && marketStatus.marketLive) {
+        document.getElementById('draftPromptBtn').style.display = 'inline-flex';
+        if (marketStatus && marketStatus.marketLive) {
           document.getElementById('draftPromptText').textContent = 'The draft window has closed and you didn\'t submit a squad in time.';
           document.getElementById('draftPromptBtn').style.display = 'none';
         } else {
-          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet.';
+          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet — do it before the draft window closes.';
         }
+      } else if (!entry.squad_locked) {
+        document.getElementById('draftPromptCard').style.display = 'block';
+        document.getElementById('draftPromptText').textContent = 'Squad saved! You can still edit it until the draft window closes.';
+        document.getElementById('draftPromptBtn').innerHTML = '<i class="fas fa-pen"></i> Edit Squad';
+        document.getElementById('draftPromptBtn').style.display = 'inline-flex';
       } else {
         document.getElementById('draftPromptCard').style.display = 'none';
       }
 
-      const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
-      document.getElementById('statRow').innerHTML = `
-        <div class="stat"><div class="label">Your Value</div><div class="value">${money(entry.current_value)}</div></div>
-        <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
-        <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
-      `;
+      const marketIsLive = marketStatus && marketStatus.marketLive;
+      if (!marketIsLive) {
+        document.getElementById('statRow').innerHTML = `
+          <div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>
+        `;
+      } else {
+        const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
+        document.getElementById('statRow').innerHTML = `
+          <div class="stat"><div class="label">Your Value</div><div class="value">${money(entry.current_value)}</div></div>
+          <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
+          <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
+        `;
+      }
 
       if (portfolio.length === 0) {
         document.getElementById('portfolioBody').innerHTML = '<div class="empty">No squad drafted yet.</div>';
@@ -308,7 +320,7 @@
               <div class="p-name">${escapeHtml(p.name)}</div>
               <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
             </div>
-            <div class="p-value">${money(p.your_value)}</div>
+            <div class="p-value">${p.your_value === null ? '<span style="color:var(--text-faint); font-size:12px;">Not valued yet</span>' : money(p.your_value)}</div>
           </div>`).join('');
       }
 
