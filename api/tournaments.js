@@ -537,7 +537,16 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: 'Tournament not found' });
           }
 
-          if (tournament.status !== 'live') {
+          // Stock Market's drafting phase happens BEFORE the market goes
+          // live (status starts 'upcoming' and only flips to 'live' once
+          // the draft deadline passes) — every other schema only opens
+          // entries once status is 'live', but Stock Market needs to allow
+          // joining/drafting during 'upcoming' too.
+          const entriesOpen = schemaName === 'stockmarket'
+            ? (tournament.status === 'upcoming' || tournament.status === 'live')
+            : tournament.status === 'live';
+
+          if (!entriesOpen) {
             return res.status(400).json({ error: 'Tournament is not open for entries' });
           }
 
