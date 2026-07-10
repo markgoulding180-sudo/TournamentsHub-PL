@@ -299,9 +299,15 @@
 
       const marketIsLive = marketStatus && marketStatus.marketLive;
       if (!marketIsLive) {
-        document.getElementById('statRow').innerHTML = `
-          <div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>
-        `;
+        const hasPreview = portfolio.some(p => p.preview_value !== null);
+        const projectedTotal = portfolio.reduce((sum, p) => sum + (p.preview_value || 0), 0);
+        document.getElementById('statRow').innerHTML = hasPreview
+          ? `
+            <div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>
+            <div class="stat"><div class="label">Projected Value</div><div class="value">${money(projectedTotal)}</div></div>
+            <div class="stat"><div class="label">If Market Started Now</div><div class="value" style="font-size:12px; color:var(--text-faint);">Updates as more people join</div></div>
+          `
+          : `<div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>`;
       } else {
         const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
         document.getElementById('statRow').innerHTML = `
@@ -314,14 +320,24 @@
       if (portfolio.length === 0) {
         document.getElementById('portfolioBody').innerHTML = '<div class="empty">No squad drafted yet.</div>';
       } else {
-        document.getElementById('portfolioBody').innerHTML = portfolio.map(p => `
+        document.getElementById('portfolioBody').innerHTML = portfolio.map(p => {
+          let valueHtml;
+          if (p.your_value !== null) {
+            valueHtml = money(p.your_value);
+          } else if (p.preview_value !== null) {
+            valueHtml = `${money(p.preview_value)} <span style="color:var(--text-faint); font-size:10px; display:block;">est.</span>`;
+          } else {
+            valueHtml = '<span style="color:var(--text-faint); font-size:12px;">Not valued yet</span>';
+          }
+          return `
           <div class="portfolio-row">
             <div>
               <div class="p-name">${escapeHtml(p.name)}</div>
               <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
             </div>
-            <div class="p-value">${p.your_value === null ? '<span style="color:var(--text-faint); font-size:12px;">Not valued yet</span>' : money(p.your_value)}</div>
-          </div>`).join('');
+            <div class="p-value">${valueHtml}</div>
+          </div>`;
+        }).join('');
       }
 
       await loadMarket();

@@ -181,10 +181,45 @@ module.exports = async (req, res) => {
           const marketByPid = {};
           (marketRows || []).forEach(m => { marketByPid[m.player_id] = m; });
 
+          // If the real market hasn't initialized yet (still drafting),
+          // compute a live, non-permanent preview from everyone who's
+          // currently entered — same formula the real initialization
+          // uses, just recalculated fresh each time rather than written
+          // to the database. Updates naturally as more people join/draft.
+          let previewSlotValue = 0;
+          let previewOwnership = {};
+          if ((marketRows || []).length === 0) {
+            const { data: tournamentRow } = await supabaseAdmin
+              .schema('stockmarket').from('tournaments')
+              .select('entry_fee')
+              .eq('id', tournamentId)
+              .maybeSingle();
+
+            const { data: allEntries } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('squad_players')
+              .eq('tournament_id', tournamentId)
+              .not('squad_players', 'is', null);
+
+            const entryCount = (allEntries || []).length;
+            if (entryCount > 0 && tournamentRow) {
+              const previewPot = (tournamentRow.entry_fee || 0) * entryCount;
+              previewSlotValue = Math.floor(previewPot / (entryCount * 6));
+              (allEntries || []).forEach(e => {
+                (e.squad_players || []).forEach(sp => {
+                  previewOwnership[sp.player_id] = (previewOwnership[sp.player_id] || 0) + 1;
+                });
+              });
+            }
+          }
+
           portfolio = squad.map(s => {
             const m = marketByPid[s.player_id] || {};
             const ownership = m.ownership_count || 1;
             const posLabel = { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[s.position] || s.position;
+            const previewValue = previewSlotValue > 0
+              ? previewSlotValue * (previewOwnership[s.player_id] || 1)
+              : null;
             return {
               player_id: s.player_id,
               name: m.name || s.name || '',
@@ -192,6 +227,7 @@ module.exports = async (req, res) => {
               team: m.team || s.team || '',
               ownership_count: ownership,
               your_value: m.current_value ? Math.round(m.current_value / ownership) : null,
+              preview_value: previewValue,
               market_value: m.current_value || null,
               last_gw_stats: m.last_gw_stats || null
             };
