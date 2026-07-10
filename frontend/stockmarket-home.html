@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player Stock Market - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:32px 24px 60px; }
+
+    .hero{
+      position:relative; border-radius:20px;
+      background:
+        radial-gradient(ellipse 60% 100% at 100% 20%, rgba(34,197,94,0.18) 0%, transparent 60%),
+        linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
+        url('assets/enzo-fernandez-chelsea-premier-league-argentina-argentine-footballers-uniqrenders.com.png');
+      background-size: cover, cover, auto 105%;
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      background-position: center, center, right center;
+      border:1px solid var(--border); overflow:hidden;
+      padding:58px 50px; margin-bottom:34px; min-height:340px;
+      display:flex; align-items:center;
+    }
+    .hero-content{position:relative; z-index:2; max-width:560px;}
+    .hero-eyebrow{
+      display:inline-flex; align-items:center; gap:8px; color:var(--green);
+      font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px;
+      text-transform:uppercase; margin-bottom:18px;
+    }
+    .hero-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--green); box-shadow:0 0 8px rgba(34,197,94,0.5); animation:pulse 1.8s ease-in-out infinite;}
+    @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+    .hero h1{
+      font-family:var(--font-display); font-size:66px; font-weight:400; line-height:0.94;
+      letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase;
+    }
+    .hero-sub{font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--green); margin-bottom:12px; letter-spacing:0.3px;}
+    .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:0; max-width:460px; line-height:1.55;}
+
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+
+    .status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1.1rem; border-radius:2rem; font-size:.85rem; font-weight:600; background:rgba(34,197,94,0.08); border:1.5px solid var(--green); color:var(--green); white-space:nowrap;}
+    .status-badge.pending{background:rgba(242,185,61,0.1); border-color:var(--gold); color:var(--gold);}
+
+    .enter-gate{ text-align:center; padding:40px 24px; margin-bottom:24px; }
+    .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--green), #16a34a); color:#04120a; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 26px; border-radius:10px; transition:filter .2s, transform .2s; }
+    .btn-primary:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+
+    .stat-row{ display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+    .stat{ flex:1; min-width:120px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px; letter-spacing:.3px; }
+    .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
+    .stat .value.up{ color:var(--green); }
+    .stat .value.down{ color:var(--red); }
+
+    .how-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-bottom:24px; }
+    @media (max-width:800px){ .how-grid{ grid-template-columns:1fr; } }
+    .how-step{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 20px; }
+    .how-step .num{ width:32px;height:32px;border-radius:50%; background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); font-family:var(--font-head); font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:12px; font-size:14px; }
+    .how-step h3{ font-family:var(--font-head); font-size:15px; margin-bottom:6px; }
+    .how-step p{ font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+
+    .cards-grid{ display:grid; grid-template-columns:1fr 1.2fr; gap:18px; margin-bottom:24px; }
+    @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
+
+    .portfolio-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .portfolio-row:last-child{ border-bottom:none; }
+    .portfolio-row .p-name{ flex:1; font-weight:600; font-size:14px; }
+    .portfolio-row .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; }
+    .portfolio-row .p-value{ font-family:var(--font-head); font-weight:700; font-size:15px; text-align:right; min-width:70px; }
+
+    .market-row{ display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+    .market-row:last-child{ border-bottom:none; }
+    .market-row .m-rank{ width:20px; color:var(--text-faint); font-family:var(--font-head); font-size:12px; }
+    .market-row .m-name{ flex:1; font-weight:600; }
+    .market-row .m-team{ font-size:10px; color:var(--text-faint); }
+    .market-row .m-value{ font-family:var(--font-head); font-weight:700; text-align:right; min-width:64px; }
+    .market-row .m-owned{ font-size:10px; color:var(--text-faint); min-width:50px; text-align:right; }
+
+    .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/stock-market" class="active">Stock Market</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fstock-market" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim); display:none;">Log In</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-eyebrow"><span class="dot"></span>Zero-Sum Market</div>
+        <h1>Stock Market</h1>
+        <div class="hero-sub">Draft. Trade Nothing. Watch It Move.</div>
+        <p class="hero-desc">Draft a 6-player squad. Every player is a shared stock — their value rises and falls with real match events. It's pure zero-sum: what one player gains, another loses. No trading, no captain, just the market.</p>
+      </div>
+    </section>
+
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="num">1</div>
+        <h3>Draft your 6</h3>
+        <p>1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 2 free picks either way.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">2</div>
+        <h3>Values move with real events</h3>
+        <p>Goals, assists and saves push a player's value up. Yellow cards knock it down. A red card wipes it to zero.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">3</div>
+        <h3>Zero-sum, always</h3>
+        <p>The total pot never grows or shrinks — it only moves between players. Pick well, profit off the market.</p>
+      </div>
+    </div>
+
+    <div class="card enter-gate" id="enterGate" style="display:none;">
+      <i class="fas fa-chart-line" style="font-size:36px; color:var(--green); margin-bottom:14px;"></i>
+      <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;" id="enterTitle">Enter the Stock Market</h2>
+      <p style="max-width:460px; margin:0 auto 22px; font-size:14px; color:var(--text-dim);" id="enterDesc">
+        Join now, then draft your 6-player squad before the deadline.
+      </p>
+      <button class="btn-primary" id="enterBtn"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
+    </div>
+
+    <div id="mainContent" style="display:none;">
+      <div class="stat-row" id="statRow"></div>
+
+      <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
+        <p style="font-size:15px; color:var(--text-dim); margin-bottom:16px;" id="draftPromptText">You haven't drafted your squad yet.</p>
+        <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
+      </div>
+
+      <div class="cards-grid">
+        <section class="card">
+          <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Portfolio</div>
+          <div id="portfolioBody"><div class="loading">Loading…</div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-title"><i class="fas fa-chart-simple" style="color:var(--accent-2);"></i> Market Board</div>
+          <div id="marketBody"><div class="loading">Loading…</div></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
+
+  <script src="toast.js"></script>
+  <script src="live-poll.js"></script>
+  <script>
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    function isLoggedIn() { return !!localStorage.getItem('gbf_token'); }
+    function money(pence) { return `£${((pence||0)/100).toFixed(2)}`; }
+
+    let tournamentId = null;
+    let marketStatus = null;
+
+    async function loadTournament() {
+      try {
+        const res = await fetch('/api/tournaments?status=live&tournament_type=stockmarket');
+        const data = await res.json();
+        let t = (data.tournaments || [])[0];
+        if (!t) {
+          const upRes = await fetch('/api/tournaments?status=upcoming&tournament_type=stockmarket');
+          const upData = await upRes.json();
+          t = (upData.tournaments || [])[0];
+        }
+        if (!t) {
+          document.getElementById('enterGate').style.display = 'block';
+          document.getElementById('enterDesc').textContent = 'No Stock Market tournament is open right now — check back soon.';
+          document.getElementById('enterBtn').style.display = 'none';
+          return;
+        }
+        tournamentId = t.id;
+
+        // This call is what actually triggers the draft-deadline check
+        // (initializing the market once it passes) and per-gameweek price
+        // processing once matches finish — not just a status read.
+        try {
+          const lockRes = await fetch(`/api/tournaments?stockmarket_lock_status=true&tournament_id=${tournamentId}`);
+          marketStatus = await lockRes.json();
+        } catch (e) {
+          console.error('Failed to check market status:', e);
+        }
+
+        await refreshEntryState(t);
+      } catch (e) {
+        console.error('Failed to load tournament:', e);
+      }
+    }
+
+    async function refreshEntryState(tournament) {
+      if (!isLoggedIn()) {
+        document.getElementById('enterGate').style.display = 'block';
+        document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
+        document.getElementById('enterBtn').outerHTML = `<a href="/login?redirect=%2Fstock-market" class="btn-primary"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`;
+        return;
+      }
+
+      const stateRes = await fetch(`/api/tournaments?stockmarket_state=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+      const stateData = await stateRes.json();
+
+      if (!stateData.entry) {
+        document.getElementById('enterGate').style.display = 'block';
+        document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
+        document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
+        return;
+      }
+
+      document.getElementById('enterGate').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+
+      const entry = stateData.entry;
+      const portfolio = stateData.portfolio || [];
+
+      if (!entry.squad_locked) {
+        document.getElementById('draftPromptCard').style.display = 'block';
+        if (marketStatus && marketStatus.drafting) {
+          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet — do it before the draft window closes.';
+        } else if (marketStatus && marketStatus.marketLive) {
+          document.getElementById('draftPromptText').textContent = 'The draft window has closed and you didn\'t submit a squad in time.';
+          document.getElementById('draftPromptBtn').style.display = 'none';
+        } else {
+          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet.';
+        }
+      } else {
+        document.getElementById('draftPromptCard').style.display = 'none';
+      }
+
+      const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
+      document.getElementById('statRow').innerHTML = `
+        <div class="stat"><div class="label">Your Value</div><div class="value">${money(entry.current_value)}</div></div>
+        <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
+        <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
+      `;
+
+      if (portfolio.length === 0) {
+        document.getElementById('portfolioBody').innerHTML = '<div class="empty">No squad drafted yet.</div>';
+      } else {
+        document.getElementById('portfolioBody').innerHTML = portfolio.map(p => `
+          <div class="portfolio-row">
+            <div>
+              <div class="p-name">${escapeHtml(p.name)}</div>
+              <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
+            </div>
+            <div class="p-value">${money(p.your_value)}</div>
+          </div>`).join('');
+      }
+
+      await loadMarket();
+    }
+
+    async function loadMarket() {
+      const body = document.getElementById('marketBody');
+      try {
+        const res = await fetch(`/api/tournaments?stockmarket_prices=true&tournament_id=${tournamentId}`);
+        const data = await res.json();
+        const rows = (data.market || []).slice(0, 25);
+
+        if (rows.length === 0) {
+          body.innerHTML = '<div class="empty">Market opens once the draft window closes.</div>';
+          return;
+        }
+
+        body.innerHTML = rows.map((p, i) => `
+          <div class="market-row">
+            <div class="m-rank">${i + 1}</div>
+            <div style="flex:1;">
+              <div class="m-name">${escapeHtml(p.name)}</div>
+              <div class="m-team">${escapeHtml(p.position)} · ${escapeHtml(p.team)}</div>
+            </div>
+            <div class="m-owned">${p.ownership_count}&times; owned</div>
+            <div class="m-value">${money(p.current_value)}</div>
+          </div>`).join('');
+      } catch (e) {
+        console.error('Failed to load market:', e);
+        body.innerHTML = '<div class="empty">Couldn\'t load the market right now.</div>';
+      }
+    }
+
+    async function enterTournament(tournament) {
+      const btn = document.getElementById('enterBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'join', tournament_id: tournamentId, tournament_type: 'stockmarket' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to enter');
+        showToast("You're in! Draft your squad before the deadline.", 'success');
+        await refreshEntryState(tournament);
+      } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now';
+        showToast(e.message || "Couldn't enter right now.", 'error');
+      }
+    }
+
+    function initAuthButton() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const label = document.getElementById('navAuthLabel');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuthButton();
+      loadTournament();
+    });
+  </script>
+</body>
+</html>

@@ -10,6 +10,7 @@ const { createClient } = require('@supabase/supabase-js');
 function resolveSchema(tournament_type) {
   if (tournament_type === 'fantasy') return 'fantasy';
   if (tournament_type === 'lms') return 'lms';
+  if (tournament_type === 'stockmarket') return 'stockmarket';
   return 'predictions';
 }
 
@@ -114,6 +115,89 @@ module.exports = async (req, res) => {
       if (lmsLockStatus === 'true' && tournamentId) {
         const lock = await getLmsLockStatus(masterDb, supabaseAdmin, tournamentId);
         return res.status(200).json(lock);
+      }
+
+      // Stock Market's status (public, no auth needed) — also triggers
+      // market initialization (once, when the draft window closes) and
+      // per-gameweek price processing (once matches finish).
+      const stockmarketLockStatus = params.get('stockmarket_lock_status');
+      if (stockmarketLockStatus === 'true' && tournamentId) {
+        const status = await getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId);
+        return res.status(200).json(status);
+      }
+
+      // Public market board — every distinct player's current shared price.
+      const stockmarketPrices = params.get('stockmarket_prices');
+      if (stockmarketPrices === 'true' && tournamentId) {
+        const { data: marketRows, error: marketError } = await supabaseAdmin
+          .schema('stockmarket').from('player_market')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .order('current_value', { ascending: false });
+
+        if (marketError) {
+          return res.status(500).json({ error: 'Failed to fetch market', details: marketError.message });
+        }
+        return res.status(200).json({ market: marketRows || [] });
+      }
+
+      // This user's own Stock Market entry — squad, draft-lock state, and
+      // portfolio value (with each held player's individual current value).
+      const stockmarketState = params.get('stockmarket_state');
+      if (stockmarketState === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) {
+          return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const { data: entry, error: entryError } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (entryError) {
+          return res.status(500).json({ error: 'Failed to fetch entry', details: entryError.message });
+        }
+        if (!entry) {
+          return res.status(200).json({ entry: null });
+        }
+
+        const squad = entry.squad_players || [];
+        let portfolio = [];
+        if (squad.length > 0) {
+          const { data: marketRows } = await supabaseAdmin
+            .schema('stockmarket').from('player_market')
+            .select('*')
+            .eq('tournament_id', tournamentId)
+            .in('player_id', squad.map(s => s.player_id));
+
+          const marketByPid = {};
+          (marketRows || []).forEach(m => { marketByPid[m.player_id] = m; });
+
+          portfolio = squad.map(s => {
+            const m = marketByPid[s.player_id] || {};
+            const ownership = m.ownership_count || 1;
+            return {
+              player_id: s.player_id,
+              name: m.name || '',
+              position: m.position || '',
+              team: m.team || '',
+              ownership_count: ownership,
+              your_value: Math.round((m.current_value || 0) / ownership),
+              market_value: m.current_value || 0,
+              last_gw_stats: m.last_gw_stats || null
+            };
+          });
+        }
+
+        return res.status(200).json({ entry, portfolio });
       }
 
       const myEntry = params.get('my_entry');
@@ -516,13 +600,77 @@ module.exports = async (req, res) => {
             entryPayload.captain_id = captain_id;
           }
 
+          // Stock Market: squad_players optional on first join (just enters
+          // the tournament); if provided, validate the 6-player draft.
+          // Once the draft phase ends, getStockMarketLockStatus() flips
+          // squad_locked permanently — this branch is only reachable while
+          // still in the drafting phase.
+          if (schemaName === 'stockmarket' && squad_players !== undefined) {
+            const { data: existingEntry } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('squad_locked')
+              .eq('tournament_id', tournament_id)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (existingEntry && existingEntry.squad_locked) {
+              return res.status(403).json({ error: 'Your squad is locked — the draft window has closed.' });
+            }
+
+            if (!Array.isArray(squad_players) || squad_players.length !== 6) {
+              return res.status(400).json({ error: 'squad_players must be an array of exactly 6 player ids' });
+            }
+            const uniqueIds = new Set(squad_players);
+            if (uniqueIds.size !== 6) {
+              return res.status(400).json({ error: 'squad_players must not contain duplicates' });
+            }
+
+            const { data: squadRows, error: squadError } = await masterDb
+              .from('players')
+              .select('id, web_name, element_type, team')
+              .in('id', squad_players);
+
+            if (squadError) {
+              return res.status(500).json({ error: 'Failed to validate squad', details: squadError.message });
+            }
+            if (!squadRows || squadRows.length !== 6) {
+              return res.status(400).json({ error: 'One or more player ids were not recognised' });
+            }
+
+            // element_type: 1=GK, 2=DEF, 3=MID, 4=FWD (standard FPL mapping)
+            const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+            squadRows.forEach(p => { counts[p.element_type] = (counts[p.element_type] || 0) + 1; });
+
+            if (counts[1] !== 1) {
+              return res.status(400).json({ error: 'Squad must include exactly 1 goalkeeper', counts });
+            }
+            if (counts[2] < 1 || counts[3] < 1 || counts[4] < 1) {
+              return res.status(400).json({
+                error: 'Squad must include at least 1 defender, 1 midfielder and 1 forward',
+                counts
+              });
+            }
+
+            entryPayload.squad_players = squad_players.map(pid => {
+              const p = squadRows.find(r => r.id === pid);
+              return { player_id: pid, position: p.element_type };
+            });
+          }
+
           // Try insert first; if the user already has an entry (unique
           // constraint on tournament_id+user_id), update it instead so a
           // Fantasy Manager squad can be edited before the deadline.
+          // (Stock Market doesn't have an entry_points column — it tracks
+          // current_value/start_value instead — so only add entry_points
+          // for the schemas that actually have it.)
+          const insertPayload = schemaName === 'stockmarket'
+            ? { ...entryPayload }
+            : { ...entryPayload, entry_points: 0 };
+
           let entry, entryError;
           ({ data: entry, error: entryError } = await supabaseAdmin
             .schema(schemaName).from('tournament_entries')
-            .insert({ ...entryPayload, entry_points: 0 })
+            .insert(insertPayload)
             .select()
             .single());
 
@@ -981,5 +1129,411 @@ async function snapshotGameweekIfNeeded(masterDb, gameweek) {
     console.log(`Snapshotted GW${gameweek} for ${rows.length} players`);
   } catch (error) {
     console.error('snapshotGameweekIfNeeded error:', error);
+  }
+}
+
+// ============================================================
+// STOCK MARKET
+// ============================================================
+
+function elementTypeToPosition(elementType) {
+  return { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[elementType] || null;
+}
+
+// Draft phase: open until tournament.closes_at, then the market initializes
+// exactly once (locking every entry's squad forever — Stock Market squads
+// are drafted once for the whole tournament, no weekly changes) and the
+// tournament flips to 'live'. After that, per-gameweek price processing
+// takes over, gated on the same gameweek all-finished pattern as
+// LMS/Fantasy, with the same atomic-claim race-condition fix.
+async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
+  try {
+    const { data: tournament } = await supabaseAdmin
+      .schema('stockmarket').from('tournaments')
+      .select('id, status, closes_at, end_gameweek, gameweek, last_processed_gameweek')
+      .eq('id', tournamentId)
+      .maybeSingle();
+
+    if (!tournament) {
+      return { locked: false, drafting: false, reason: 'Tournament not found.' };
+    }
+
+    if (tournament.status === 'finished') {
+      return { locked: true, drafting: false, marketLive: false, finished: true, reason: 'This market has closed.' };
+    }
+
+    if (tournament.status !== 'live') {
+      const deadlinePassed = tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime();
+      if (!deadlinePassed) {
+        return { locked: false, drafting: true, marketLive: false, closes_at: tournament.closes_at, reason: null };
+      }
+      // Deadline just passed — initialize the market exactly once.
+      await initializeStockMarket(supabaseAdmin, masterDb, tournamentId);
+      return { locked: true, drafting: false, marketLive: true, reason: 'Draft closed — the market is now live.' };
+    }
+
+    // Market is live — check whether this gameweek's matches have all
+    // finished, and if so (and not already processed), run price processing.
+    const { data: clock } = await masterDb
+      .from('master_clock')
+      .select('current_gameweek')
+      .eq('id', 'current')
+      .maybeSingle();
+
+    if (!clock || !clock.current_gameweek) {
+      return { locked: false, drafting: false, marketLive: true, gameweek: null, reason: 'Master clock not set yet.' };
+    }
+
+    const currentGW = clock.current_gameweek;
+    if (tournament.gameweek && currentGW < tournament.gameweek) {
+      return { locked: false, drafting: false, marketLive: true, gameweek: tournament.gameweek, reason: `Market starts processing from Gameweek ${tournament.gameweek}.` };
+    }
+
+    const { data: gwMatches } = await masterDb
+      .from('matches')
+      .select('status, kickoff_time')
+      .eq('gameweek', currentGW);
+
+    const allFinished = gwMatches && gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
+
+    if (allFinished) {
+      await processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
+    }
+
+    return { locked: false, drafting: false, marketLive: true, gameweek: currentGW, processed: allFinished };
+  } catch (error) {
+    console.error('getStockMarketLockStatus error:', error);
+    return { locked: false, drafting: false, marketLive: false, reason: null };
+  }
+}
+
+// Runs exactly once when the draft window closes. Builds the shared player
+// market from every entrant's squad, sets everyone's starting value equal
+// (6 slots x slotValue, regardless of which players they picked), and
+// permanently locks every squad.
+async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
+  try {
+    const { data: tournament, error: tError } = await supabaseAdmin
+      .schema('stockmarket').from('tournaments')
+      .select('id, entry_fee, status')
+      .eq('id', tournamentId)
+      .maybeSingle();
+
+    if (tError || !tournament || tournament.status === 'live' || tournament.status === 'finished') {
+      return; // already initialized, or doesn't exist
+    }
+
+    const { data: entries, error: entriesError } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries')
+      .select('id, user_id, squad_players')
+      .eq('tournament_id', tournamentId)
+      .not('squad_players', 'is', null);
+
+    if (entriesError || !entries || entries.length === 0) {
+      // Nothing to initialize — just flip status so we don't retry forever.
+      await supabaseAdmin.schema('stockmarket').from('tournaments')
+        .update({ status: 'live' }).eq('id', tournamentId);
+      return;
+    }
+
+    const totalPot = (tournament.entry_fee || 0) * entries.length;
+    const totalSlots = entries.length * 6;
+    const slotValue = totalSlots > 0 ? Math.floor(totalPot / totalSlots) : 0;
+
+    // Count ownership across every entrant's squad
+    const ownership = {}; // player_id -> count
+    entries.forEach(e => {
+      (e.squad_players || []).forEach(p => {
+        ownership[p.player_id] = (ownership[p.player_id] || 0) + 1;
+      });
+    });
+
+    const playerIds = Object.keys(ownership).map(Number);
+    const { data: playerRows } = await masterDb
+      .from('players')
+      .select('id, web_name, element_type, team')
+      .in('id', playerIds);
+
+    const { data: teamRows } = await masterDb.from('teams').select('id, name');
+    const teamNameById = {};
+    (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+
+    const playerById = {};
+    (playerRows || []).forEach(p => { playerById[p.id] = p; });
+
+    const marketRows = playerIds.map(pid => {
+      const p = playerById[pid] || {};
+      const count = ownership[pid];
+      return {
+        tournament_id: tournamentId,
+        player_id: pid,
+        name: p.web_name || `Player ${pid}`,
+        position: elementTypeToPosition(p.element_type),
+        team: teamNameById[p.team] || '',
+        ownership_count: count,
+        current_value: count * slotValue,
+        last_week_value: count * slotValue
+      };
+    });
+
+    if (marketRows.length > 0) {
+      await supabaseAdmin.schema('stockmarket').from('player_market')
+        .upsert(marketRows, { onConflict: 'tournament_id,player_id' });
+    }
+
+    await supabaseAdmin.schema('stockmarket').from('config')
+      .upsert({ tournament_id: tournamentId, slot_value: slotValue }, { onConflict: 'tournament_id' });
+
+    const startingValue = 6 * slotValue;
+    for (const entry of entries) {
+      await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+        .update({
+          squad_locked: true,
+          start_value: startingValue,
+          current_value: startingValue,
+          last_week_value: startingValue
+        })
+        .eq('id', entry.id);
+    }
+
+    await supabaseAdmin.schema('stockmarket').from('tournaments')
+      .update({ status: 'live', current_entries: entries.length })
+      .eq('id', tournamentId);
+
+    console.log(`Stock Market ${tournamentId} initialized: ${entries.length} entrants, ${playerIds.length} distinct players, slot value ${slotValue}p`);
+  } catch (error) {
+    console.error('initializeStockMarket error:', error);
+  }
+}
+
+// Two-tier redistribution: match_share_pct of a delta is drawn from/given
+// to other selected players in the SAME real match (concentrated, visible
+// swings); the remainder spreads thin across the whole market (so a player
+// with no match-mates still gets a real move, just less diluted since it's
+// spread across everyone rather than trapped with no one to trade against).
+function redistributeTwoTier(prices, targetPid, delta, totalPot, matchSharePct, sameMatchPids) {
+  if (!delta) return;
+  const target = prices[targetPid];
+  if (!target) return;
+
+  target.current_value = Math.round((target.current_value || 0) + delta);
+
+  const matchPeers = sameMatchPids.filter(pid => pid !== targetPid && prices[pid]);
+  const allOtherPids = Object.keys(prices).filter(pid => pid !== targetPid);
+  if (allOtherPids.length === 0) return;
+
+  if (matchPeers.length > 0) {
+    const matchDelta = delta * matchSharePct;
+    const globalDelta = delta * (1 - matchSharePct);
+
+    const matchShare = matchDelta / matchPeers.length;
+    matchPeers.forEach(pid => { prices[pid].current_value = Math.round((prices[pid].current_value || 0) - matchShare); });
+
+    const globalOthers = allOtherPids.filter(pid => !matchPeers.includes(pid));
+    if (globalOthers.length > 0) {
+      const globalShare = globalDelta / globalOthers.length;
+      globalOthers.forEach(pid => { prices[pid].current_value = Math.round((prices[pid].current_value || 0) - globalShare); });
+    } else {
+      const extraShare = globalDelta / matchPeers.length;
+      matchPeers.forEach(pid => { prices[pid].current_value = Math.round((prices[pid].current_value || 0) - extraShare); });
+    }
+  } else {
+    // No one else selected from this player's match — the whole delta
+    // draws from the thin global pool, so this player keeps almost all of it.
+    const share = delta / allOtherPids.length;
+    allOtherPids.forEach(pid => { prices[pid].current_value = Math.round((prices[pid].current_value || 0) - share); });
+  }
+
+  // Floor at £0
+  Object.keys(prices).forEach(pid => {
+    if ((prices[pid].current_value || 0) < 0) prices[pid].current_value = 0;
+  });
+
+  // Rebalance to guard against rounding drift — total must stay exact
+  const totalAfter = Object.values(prices).reduce((s, p) => s + (p.current_value || 0), 0);
+  if (totalAfter > 0 && Math.abs(totalAfter - totalPot) > 1) {
+    const factor = totalPot / totalAfter;
+    Object.keys(prices).forEach(pid => {
+      prices[pid].current_value = Math.round((prices[pid].current_value || 0) * factor);
+    });
+  }
+}
+
+async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, gameweek) {
+  try {
+    // Atomic claim — same race-condition fix as LMS.
+    const { data: claimed, error: claimError } = await supabaseAdmin
+      .schema('stockmarket').from('tournaments')
+      .update({ last_processed_gameweek: gameweek })
+      .eq('id', tournamentId)
+      .neq('status', 'finished')
+      .or(`last_processed_gameweek.is.null,last_processed_gameweek.lt.${gameweek}`)
+      .select('id, end_gameweek, entry_fee')
+      .maybeSingle();
+
+    if (claimError) { console.error('processStockMarketGameweek claim error:', claimError); return; }
+    if (!claimed) return; // already processed, or someone else claimed it
+
+    const { data: marketRows, error: marketError } = await supabaseAdmin
+      .schema('stockmarket').from('player_market')
+      .select('*')
+      .eq('tournament_id', tournamentId);
+
+    if (marketError || !marketRows || marketRows.length === 0) return;
+
+    const { data: config } = await supabaseAdmin
+      .schema('stockmarket').from('config')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .maybeSingle();
+
+    if (!config) return;
+
+    const eventWeights = config.event_weights || {};
+    const matchSharePct = config.match_share_pct != null ? Number(config.match_share_pct) : 0.8;
+    const goalCap = config.goal_cap || 3;
+    const assistCap = config.assist_cap || 3;
+    const slotValue = config.slot_value || 0;
+    const totalPot = marketRows.reduce((s, p) => s + (p.current_value || 0), 0);
+
+    // Build prices map keyed by player_id (string, for object key safety)
+    const prices = {};
+    marketRows.forEach(p => { prices[String(p.player_id)] = { ...p }; });
+
+    // Map each player's team to the real match they're playing this gameweek
+    const { data: gwMatches } = await masterDb
+      .from('matches')
+      .select('home_team, away_team, status')
+      .eq('gameweek', gameweek);
+
+    const teamToMatchKey = {};
+    (gwMatches || []).forEach((m, idx) => {
+      const key = `match_${idx}`;
+      teamToMatchKey[m.home_team] = key;
+      teamToMatchKey[m.away_team] = key;
+    });
+
+    // Group selected players by which match they're in
+    const matchGroups = {}; // matchKey -> [player_id strings]
+    Object.keys(prices).forEach(pid => {
+      const team = prices[pid].team;
+      const matchKey = teamToMatchKey[team];
+      if (!matchKey) return;
+      (matchGroups[matchKey] = matchGroups[matchKey] || []).push(pid);
+    });
+
+    // Fetch this gameweek's real stats directly from FPL's live event feed
+    let liveElements = [];
+    try {
+      const liveRes = await fetch(`https://fantasy.premierleague.com/api/event/${gameweek}/live/`);
+      if (liveRes.ok) {
+        const liveData = await liveRes.json();
+        liveElements = liveData.elements || [];
+      }
+    } catch (fetchErr) {
+      console.error('Failed to fetch FPL live event data:', fetchErr);
+      return;
+    }
+
+    const redCardPids = [];
+
+    liveElements.forEach(el => {
+      const pid = String(el.id);
+      const priceData = prices[pid];
+      if (!priceData) return; // not selected by anyone — not part of this market
+
+      const weights = eventWeights[priceData.position];
+      if (!weights) return;
+
+      const stats = el.stats || {};
+      let rawScore = 0;
+
+      const cappedGoals = Math.min(stats.goals_scored || 0, goalCap);
+      const cappedAssists = Math.min(stats.assists || 0, assistCap);
+      if (cappedGoals > 0 && weights.goal) rawScore += cappedGoals * weights.goal;
+      if (cappedAssists > 0 && weights.assist) rawScore += cappedAssists * weights.assist;
+      if ((stats.yellow_cards || 0) > 0 && weights.yellow_card) rawScore += stats.yellow_cards * weights.yellow_card;
+      if ((stats.clean_sheets || 0) > 0 && weights.clean_sheet) rawScore += weights.clean_sheet;
+      if ((stats.goals_conceded || 0) > 0 && weights.goal_conceded) rawScore += stats.goals_conceded * weights.goal_conceded;
+      if ((stats.saves || 0) > 0 && weights.save) rawScore += stats.saves * weights.save;
+
+      if (rawScore !== 0) {
+        const delta = Math.round(rawScore * slotValue * (priceData.ownership_count || 1));
+        const team = priceData.team;
+        const matchKey = teamToMatchKey[team];
+        const sameMatchPids = matchKey ? (matchGroups[matchKey] || []) : [];
+        redistributeTwoTier(prices, pid, delta, totalPot, matchSharePct, sameMatchPids);
+      }
+
+      prices[pid].last_gw_stats = {
+        goals: stats.goals_scored || 0,
+        assists: stats.assists || 0,
+        yellow_cards: stats.yellow_cards || 0,
+        red_cards: stats.red_cards || 0,
+        clean_sheets: stats.clean_sheets || 0,
+        goals_conceded: stats.goals_conceded || 0,
+        saves: stats.saves || 0,
+        minutes: stats.minutes || 0
+      };
+
+      if ((stats.red_cards || 0) > 0) redCardPids.push(pid);
+    });
+
+    // Catastrophic red card — full current value wiped, redistributed away
+    redCardPids.forEach(pid => {
+      const p = prices[pid];
+      if (!p || (p.current_value || 0) <= 0) return;
+      const delta = -p.current_value;
+      const team = p.team;
+      const matchKey = teamToMatchKey[team];
+      const sameMatchPids = matchKey ? (matchGroups[matchKey] || []) : [];
+      redistributeTwoTier(prices, pid, delta, totalPot, matchSharePct, sameMatchPids);
+      if (prices[pid].last_gw_stats) prices[pid].last_gw_stats.catastrophic_red_card = true;
+    });
+
+    // Save updated market rows
+    for (const pid of Object.keys(prices)) {
+      const p = prices[pid];
+      await supabaseAdmin.schema('stockmarket').from('player_market')
+        .update({
+          last_week_value: marketRows.find(m => String(m.player_id) === pid)?.current_value || 0,
+          current_value: p.current_value,
+          last_gw_stats: p.last_gw_stats || null
+        })
+        .eq('tournament_id', tournamentId)
+        .eq('player_id', Number(pid));
+    }
+
+    // Recalculate every entrant's portfolio from the final prices
+    const { data: entries } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries')
+      .select('id, current_value, squad_players')
+      .eq('tournament_id', tournamentId);
+
+    for (const entry of (entries || [])) {
+      const squad = entry.squad_players || [];
+      const newValue = Math.round(squad.reduce((sum, sp) => {
+        const p = prices[String(sp.player_id)];
+        if (!p) return sum;
+        return sum + (p.current_value || 0) / (p.ownership_count || 1);
+      }, 0));
+
+      await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+        .update({ last_week_value: entry.current_value, current_value: newValue })
+        .eq('id', entry.id);
+    }
+
+    // Season over once we've processed the tournament's final gameweek —
+    // final portfolio values ARE the payout, nothing further to calculate
+    // since the whole system stays zero-sum throughout.
+    if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {
+      await supabaseAdmin.schema('stockmarket').from('tournaments')
+        .update({ status: 'finished' })
+        .eq('id', tournamentId);
+    }
+
+    console.log(`Stock Market ${tournamentId} GW${gameweek} processed — ${liveElements.filter(el => prices[String(el.id)]).length} selected players had live data, ${redCardPids.length} catastrophic red cards`);
+  } catch (error) {
+    console.error('processStockMarketGameweek error:', error);
   }
 }

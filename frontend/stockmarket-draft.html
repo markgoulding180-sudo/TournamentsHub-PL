@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Draft Your Squad - Stock Market - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent;}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:32px 24px 100px; }
+    h1{ font-family:var(--font-display); font-size:28px; letter-spacing:.4px; margin-bottom:4px; }
+    .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
+
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
+
+    /* Squad slots */
+    .squad-grid{ display:grid; grid-template-columns:repeat(6, 1fr); gap:10px; margin-bottom:20px; }
+    @media (max-width:760px){ .squad-grid{ grid-template-columns:repeat(3, 1fr); } }
+    .slot{ background:var(--bg-card); border:1.5px dashed var(--border); border-radius:10px; padding:14px 8px; text-align:center; min-height:90px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+    .slot.filled{ border-style:solid; border-color:var(--green); background:rgba(34,197,94,0.06); }
+    .slot .slot-label{ font-size:9px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); margin-bottom:6px; }
+    .slot .slot-name{ font-size:12.5px; font-weight:700; line-height:1.25; }
+    .slot .slot-remove{ position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:rgba(239,68,68,0.15); color:var(--red); font-size:11px; display:flex; align-items:center; justify-content:center; }
+
+    .checklist{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; font-size:12.5px; }
+    .check-item{ display:flex; align-items:center; gap:6px; color:var(--text-faint); }
+    .check-item.done{ color:var(--green); }
+    .check-item i{ font-size:12px; }
+
+    .filter-tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+    .filter-tab{ padding:6px 14px; border-radius:2rem; font-size:12.5px; font-weight:600; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+    .filter-tab.active{ background:rgba(59,130,246,0.12); border-color:var(--accent); color:var(--accent-2); }
+    .search-input{ width:100%; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; margin-bottom:14px; }
+    .search-input:focus{ outline:none; border-color:var(--accent); }
+
+    .player-list{ display:flex; flex-direction:column; gap:6px; max-height:440px; overflow-y:auto; }
+    .player-row{ display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; }
+    .player-row .pl-name{ flex:1; font-size:13.5px; font-weight:600; }
+    .player-row .pl-meta{ font-size:10.5px; color:var(--text-faint); }
+    .player-row .add-btn{ width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,0.12); color:var(--green); display:flex; align-items:center; justify-content:center; font-size:13px; }
+    .player-row .add-btn:disabled{ opacity:.3; cursor:not-allowed; }
+
+    .confirm-bar{
+      position:fixed; left:0; right:0; bottom:0; z-index:50;
+      background:rgba(7,13,26,0.97); backdrop-filter:blur(12px); border-top:1px solid var(--border);
+      padding:16px 24px; display:flex; align-items:center; justify-content:center; gap:16px;
+    }
+    .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--green), #16a34a); color:#04120a; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 26px; border-radius:10px; }
+    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+
+    .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/stock-market" class="active">Stock Market</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fstock-market-draft" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <h1><i class="fas fa-list-check" style="color:var(--green);"></i> Draft Your Squad</h1>
+    <p class="subtitle">1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 6 total.</p>
+
+    <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="squad-grid" id="squadGrid"></div>
+      <div class="checklist" id="checklist"></div>
+    </div>
+
+    <div class="card">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search players…">
+      <div class="filter-tabs" id="filterTabs">
+        <button class="filter-tab active" data-pos="all">All</button>
+        <button class="filter-tab" data-pos="1">GK</button>
+        <button class="filter-tab" data-pos="2">DEF</button>
+        <button class="filter-tab" data-pos="3">MID</button>
+        <button class="filter-tab" data-pos="4">FWD</button>
+      </div>
+      <div class="player-list" id="playerList"><div class="loading">Loading players…</div></div>
+    </div>
+  </main>
+
+  <div class="confirm-bar" id="confirmBar" style="display:none;">
+    <button class="btn-primary" id="saveBtn" disabled><i class="fas fa-check"></i> Save Squad</button>
+  </div>
+
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
+
+  <script src="toast.js"></script>
+  <script src="live-poll.js"></script>
+  <script>
+    const POSITION_LABELS = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
+    const SLOT_LABELS = ['GK', 'DEF/MID/FWD', 'DEF/MID/FWD', 'DEF/MID/FWD', 'DEF/MID/FWD', 'DEF/MID/FWD'];
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    function isLoggedIn() { return !!localStorage.getItem('gbf_token'); }
+
+    let tournamentId = null;
+    let allPlayers = [];
+    let teamsById = {};
+    let squad = []; // array of player objects
+    let locked = false;
+    let activeFilter = 'all';
+    let searchTerm = '';
+
+    async function init() {
+      if (!isLoggedIn()) {
+        window.location.href = '/login?redirect=%2Fstock-market-draft';
+        return;
+      }
+
+      try {
+        const tRes = await fetch('/api/tournaments?status=live&tournament_type=stockmarket');
+        const tData = await tRes.json();
+        let tournament = (tData.tournaments || [])[0];
+        if (!tournament) {
+          const upRes = await fetch('/api/tournaments?status=upcoming&tournament_type=stockmarket');
+          const upData = await upRes.json();
+          tournament = (upData.tournaments || [])[0];
+        }
+        if (!tournament) {
+          document.getElementById('playerList').innerHTML = '<div class="empty">No Stock Market tournament is open right now.</div>';
+          return;
+        }
+        tournamentId = tournament.id;
+
+        const lockRes = await fetch(`/api/tournaments?stockmarket_lock_status=true&tournament_id=${tournamentId}`);
+        const lockStatus = await lockRes.json();
+        locked = !!lockStatus.locked;
+        if (locked) {
+          document.getElementById('lockBanner').style.display = 'flex';
+          document.getElementById('lockText').textContent = lockStatus.reason || 'The draft window has closed.';
+        }
+
+        const stateRes = await fetch(`/api/tournaments?stockmarket_state=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+        const stateData = await stateRes.json();
+        if (!stateData.entry) {
+          document.getElementById('playerList').innerHTML = '<div class="empty">Enter the Stock Market from the hub page first.</div>';
+          return;
+        }
+        if (stateData.entry.squad_locked) {
+          locked = true;
+          document.getElementById('lockBanner').style.display = 'flex';
+          document.getElementById('lockText').textContent = 'Your squad is already locked in — no changes possible.';
+        }
+
+        await loadPlayers();
+
+        if (stateData.entry.squad_players && Array.isArray(stateData.entry.squad_players)) {
+          squad = stateData.entry.squad_players.map(sp => allPlayers.find(p => p.id === sp.player_id)).filter(Boolean);
+        }
+
+        renderSquad();
+        renderPlayerList();
+      } catch (e) {
+        console.error('Init failed:', e);
+        document.getElementById('playerList').innerHTML = '<div class="empty">Something went wrong loading this page.</div>';
+      }
+    }
+
+    async function loadPlayers() {
+      const res = await fetch('/api/sync-players?list=true');
+      const data = await res.json();
+      allPlayers = data.players || [];
+      (data.teams || []).forEach(t => { teamsById[t.id] = t; });
+    }
+
+    function teamName(teamId) {
+      return teamsById[teamId] ? (teamsById[teamId].short_name || teamsById[teamId].name) : '';
+    }
+
+    function renderSquad() {
+      const grid = document.getElementById('squadGrid');
+      const slots = [];
+      const gk = squad.find(p => p.element_type === 1);
+      const outfield = squad.filter(p => p.element_type !== 1);
+      slots.push(gk || null);
+      for (let i = 0; i < 5; i++) slots.push(outfield[i] || null);
+
+      grid.innerHTML = slots.map((p, i) => {
+        if (!p) {
+          return `<div class="slot"><div class="slot-label">${SLOT_LABELS[i]}</div><div class="slot-name" style="color:var(--text-faint);">Empty</div></div>`;
+        }
+        return `
+          <div class="slot filled">
+            ${!locked ? `<button class="slot-remove" data-remove="${p.id}"><i class="fas fa-xmark"></i></button>` : ''}
+            <div class="slot-label">${POSITION_LABELS[p.element_type]}</div>
+            <div class="slot-name">${escapeHtml(p.web_name)}</div>
+          </div>`;
+      }).join('');
+
+      grid.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = Number(btn.dataset.remove);
+          squad = squad.filter(p => p.id !== pid);
+          renderSquad();
+          renderPlayerList();
+        });
+      });
+
+      renderChecklist();
+    }
+
+    function renderChecklist() {
+      const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+      squad.forEach(p => { counts[p.element_type] = (counts[p.element_type] || 0) + 1; });
+
+      const items = [
+        { label: '1 Goalkeeper', done: counts[1] === 1 },
+        { label: 'At least 1 Defender', done: counts[2] >= 1 },
+        { label: 'At least 1 Midfielder', done: counts[3] >= 1 },
+        { label: 'At least 1 Forward', done: counts[4] >= 1 },
+        { label: '6 players total', done: squad.length === 6 }
+      ];
+
+      document.getElementById('checklist').innerHTML = items.map(it => `
+        <div class="check-item ${it.done ? 'done' : ''}"><i class="fas ${it.done ? 'fa-circle-check' : 'fa-circle'}"></i> ${it.label}</div>
+      `).join('');
+
+      const allDone = items.every(it => it.done);
+      const bar = document.getElementById('confirmBar');
+      const btn = document.getElementById('saveBtn');
+      if (locked) {
+        bar.style.display = 'none';
+      } else {
+        bar.style.display = 'flex';
+        btn.disabled = !allDone;
+      }
+    }
+
+    function renderPlayerList() {
+      const list = document.getElementById('playerList');
+      const squadIds = new Set(squad.map(p => p.id));
+      const hasGK = squad.some(p => p.element_type === 1);
+
+      let filtered = allPlayers;
+      if (activeFilter !== 'all') filtered = filtered.filter(p => p.element_type === Number(activeFilter));
+      if (searchTerm) filtered = filtered.filter(p => p.web_name.toLowerCase().includes(searchTerm));
+      filtered = filtered.slice(0, 100);
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty">No players match.</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(p => {
+        const already = squadIds.has(p.id);
+        const squadFull = squad.length >= 6;
+        const gkBlocked = p.element_type === 1 && hasGK && !already;
+        const disabled = locked || already || squadFull || gkBlocked;
+        return `
+          <div class="player-row">
+            <div style="flex:1;">
+              <div class="pl-name">${escapeHtml(p.web_name)}</div>
+              <div class="pl-meta">${POSITION_LABELS[p.element_type]} · ${escapeHtml(teamName(p.team))}</div>
+            </div>
+            <button class="add-btn" data-add="${p.id}" ${disabled ? 'disabled' : ''}>
+              <i class="fas ${already ? 'fa-check' : 'fa-plus'}"></i>
+            </button>
+          </div>`;
+      }).join('');
+
+      list.querySelectorAll('[data-add]:not(:disabled)').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pid = Number(btn.dataset.add);
+          const player = allPlayers.find(p => p.id === pid);
+          if (!player || squad.length >= 6) return;
+          squad.push(player);
+          renderSquad();
+          renderPlayerList();
+        });
+      });
+    }
+
+    document.getElementById('filterTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-tab');
+      if (!btn) return;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.pos;
+      renderPlayerList();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchTerm = e.target.value.trim().toLowerCase();
+      renderPlayerList();
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({
+            action: 'join',
+            tournament_id: tournamentId,
+            tournament_type: 'stockmarket',
+            squad_players: squad.map(p => p.id)
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save squad');
+        showToast('Squad saved!', 'success');
+        setTimeout(() => { window.location.href = '/stock-market'; }, 1200);
+      } catch (e) {
+        console.error(e);
+        showToast(e.message || "Couldn't save your squad right now.", 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
