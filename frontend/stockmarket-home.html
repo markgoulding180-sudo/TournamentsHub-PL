@@ -102,19 +102,42 @@
     .cards-grid{ display:grid; grid-template-columns:1fr 1.2fr; gap:18px; margin-bottom:24px; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
-    .portfolio-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
-    .portfolio-row:last-child{ border-bottom:none; }
-    .portfolio-row .p-name{ flex:1; font-weight:600; font-size:14px; }
-    .portfolio-row .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; }
-    .portfolio-row .p-value{ font-family:var(--font-head); font-weight:700; font-size:15px; text-align:right; min-width:70px; }
+    .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
+    @media (max-width:480px){ .portfolio-grid{ grid-template-columns:1fr; } }
+    .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px 12px; text-align:center; }
+    .portfolio-card .p-name{ font-weight:700; font-size:14px; margin-bottom:2px; }
+    .portfolio-card .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:10px; }
+    .portfolio-card .p-value{ font-family:var(--font-head); font-weight:700; font-size:20px; text-align:center; }
+    .portfolio-card .p-est{ color:var(--text-faint); font-size:10px; font-weight:500; }
 
-    .market-row{ display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+    .market-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; flex-wrap:wrap; }
     .market-row:last-child{ border-bottom:none; }
-    .market-row .m-rank{ width:20px; color:var(--text-faint); font-family:var(--font-head); font-size:12px; }
-    .market-row .m-name{ flex:1; font-weight:600; }
+    .market-row .m-rank{ width:20px; color:var(--text-faint); font-family:var(--font-head); font-size:12px; flex:none; }
+    .market-row .m-info{ flex:1; min-width:0; }
+    .market-row .m-name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .market-row .m-team{ font-size:10px; color:var(--text-faint); }
-    .market-row .m-value{ font-family:var(--font-head); font-weight:700; text-align:right; min-width:64px; }
-    .market-row .m-owned{ font-size:10px; color:var(--text-faint); min-width:50px; text-align:right; }
+    .market-row .m-value{ font-family:var(--font-head); font-weight:700; text-align:right; min-width:64px; flex:none; }
+    .market-row .m-owned{ font-size:10px; color:var(--text-faint); min-width:50px; text-align:right; flex:none; }
+
+    /* ================= MOBILE ================= */
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; flex-wrap:wrap; gap:10px; }
+      .nav-left{ gap:18px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .nav-links{ gap:16px; }
+      .nav-links a{ font-size:12px; padding-bottom:12px; }
+      main{ padding:20px 14px 80px; }
+      .hero{ padding:28px 22px; min-height:auto; }
+      .hero h1{ font-size:42px; }
+      .hero-sub{ font-size:16px; }
+      .hero-desc{ font-size:13.5px; }
+      .how-grid{ gap:12px; }
+      .stat-row{ gap:10px; }
+      .stat{ min-width:100px; padding:10px 12px; }
+      .stat .value{ font-size:16px; }
+      .card{ padding:16px; }
+    }
 
     .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
     footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
@@ -320,24 +343,23 @@
       if (portfolio.length === 0) {
         document.getElementById('portfolioBody').innerHTML = '<div class="empty">No squad drafted yet.</div>';
       } else {
-        document.getElementById('portfolioBody').innerHTML = portfolio.map(p => {
+        const cards = portfolio.map(p => {
           let valueHtml;
           if (p.your_value !== null) {
-            valueHtml = money(p.your_value);
+            valueHtml = `<div class="p-value">${money(p.your_value)}</div>`;
           } else if (p.preview_value !== null) {
-            valueHtml = `${money(p.preview_value)} <span style="color:var(--text-faint); font-size:10px; display:block;">est.</span>`;
+            valueHtml = `<div class="p-value">${money(p.preview_value)}</div><div class="p-est">est.</div>`;
           } else {
-            valueHtml = '<span style="color:var(--text-faint); font-size:12px;">Not valued yet</span>';
+            valueHtml = `<div class="p-est">Not valued yet</div>`;
           }
           return `
-          <div class="portfolio-row">
-            <div>
-              <div class="p-name">${escapeHtml(p.name)}</div>
-              <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
-            </div>
-            <div class="p-value">${valueHtml}</div>
+          <div class="portfolio-card">
+            <div class="p-name">${escapeHtml(p.name)}</div>
+            <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
+            ${valueHtml}
           </div>`;
         }).join('');
+        document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${cards}</div>`;
       }
 
       await loadMarket();
@@ -358,11 +380,11 @@
         body.innerHTML = rows.map((p, i) => `
           <div class="market-row">
             <div class="m-rank">${i + 1}</div>
-            <div style="flex:1;">
+            <div class="m-info">
               <div class="m-name">${escapeHtml(p.name)}</div>
               <div class="m-team">${escapeHtml(p.position)} · ${escapeHtml(p.team)}</div>
             </div>
-            <div class="m-owned">${p.ownership_count}&times; owned</div>
+            <div class="m-owned">${p.ownership_count}&times;</div>
             <div class="m-value">${money(p.current_value)}</div>
           </div>`).join('');
       } catch (e) {
