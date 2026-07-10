@@ -3,367 +3,178 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tournaments - GB Fantasy</title>
-  <link rel="stylesheet" href="style.css">
+  <title>All Tournaments - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent;}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:32px 24px 60px; }
+    h1{ font-family:var(--font-display); font-size:32px; letter-spacing:.4px; margin-bottom:6px; }
+    .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:28px; }
+
+    .sport-section{ margin-bottom:30px; }
+    .sport-title{ font-family:var(--font-head); font-size:16px; font-weight:700; display:flex; align-items:center; gap:9px; margin-bottom:14px; }
+
+    .t-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px; }
+    .t-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px; display:block; transition:border-color .2s, transform .2s; }
+    .t-card:hover{ border-color:var(--border-hover); transform:translateY(-2px); }
+    .t-card h3{ font-family:var(--font-head); font-size:16px; margin-bottom:6px; }
+    .t-card .desc{ font-size:12.5px; color:var(--text-dim); margin-bottom:14px; line-height:1.4; min-height:34px; }
+    .t-card .t-stats{ display:flex; justify-content:space-between; margin-bottom:14px; }
+    .t-card .stat-label{ font-size:10px; text-transform:uppercase; color:var(--text-faint); letter-spacing:.3px; }
+    .t-card .stat-value{ font-family:var(--font-head); font-weight:700; font-size:15px; }
+    .t-card .stat-value.gold{ color:var(--gold); }
+    .btn-enter{ display:block; text-align:center; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:.4px; padding:10px; border-radius:8px; }
+
+    .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); }
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .nav-links{ gap:16px; }
+      .nav-links a{ font-size:12px; padding-bottom:12px; }
+      main{ padding:20px 14px 60px; }
+      h1{ font-size:24px; }
+      .t-grid{ grid-template-columns:1fr; }
+    }
+  </style>
 </head>
 <body>
-  <!-- Sidebar Navigation (Desktop) -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <a href="index.html" class="sidebar-logo">
-        <i class="fas fa-trophy"></i>
-        <span>GB Fantasy</span>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/tournaments" class="active">All Tournaments</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Ftournaments" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
       </a>
     </div>
-    <nav class="sidebar-nav">
-      <a href="index.html" class="sidebar-link" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
-      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
-      <a href="tournaments.html" class="sidebar-link active" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
-      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
-      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
-      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
-      <div class="sidebar-divider"></div>
-      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
-      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
-    </nav>
-    <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-user" id="sidebar-user">
-        <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
-        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
-      </a>
-    </div>
-  </aside>
+  </header>
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="index.html" class="logo">
-        <i class="fas fa-trophy"></i>
-        GB Fantasy
-      </a>
-      <ul class="nav-links">
-        <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
-        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
-        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
-        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
-        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
-        <li><a href="tournaments.html" class="active"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
-        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
-      </ul>
-      <button class="mobile-menu-btn">
-        <i class="fas fa-bars"></i>
-      </button>
-    </div>
-  </nav>
-
-  <!-- Main Content -->
-  <main class="container">
-    <!-- Page Header -->
-    <div class="hero mb-3">
-      <h1><i class="fas fa-trophy text-amber"></i> Tournaments</h1>
-      <p>Enter cash tournaments and compete against other predictors for real money prizes. The higher you finish, the more you win.</p>
-    </div>
-
-    <!-- Live Tournaments -->
-    <section class="mb-3">
-      <h2 class="mb-2"><i class="fas fa-fire text-green"></i> Live Tournaments</h2>
-      <div id="tournaments-list">
-        <p class="text-muted">Loading tournaments...</p>
-      </div>
-    </section>
-
-    <!-- Featured Tournament (Hidden - now loaded dynamically) -->
-    <section class="mb-3" style="display: none;">
-      <h2 class="mb-2"><i class="fas fa-star text-amber"></i> Featured Tournament</h2>
-      <div class="tournament-card live" style="padding: 2rem;">
-        <p>Placeholder - now loaded dynamically below</p>
-      </div>
-      </div>
-    </section>
-
-    <!-- Active Tournaments (Dynamic) -->
-    <section class="mb-3">
-      <h2 class="mb-2"><i class="fas fa-fire text-green"></i> Active Tournament</h2>
-      <div id="tournaments-list">
-        <p class="text-muted">Loading tournaments...</p>
-      </div>
-    </section>
-
-    <!-- Active Tournaments (OLD - Hidden for now) -->
-    <section class="mb-3" style="display: none;">
-      <h2 class="mb-2"><i class="fas fa-fire text-green"></i> Active Tournaments</h2>
-      <div class="grid grid-2">
-        <div class="tournament-card live">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">Weekend Warrior</div>
-              <div class="text-muted" style="font-size: 0.875rem;"><i class="far fa-clock"></i> Closes in 1 day</div>
-            </div>
-            <span class="tournament-status live">Live</span>
-          </div>
-          <div class="tournament-details">
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£2,500</div>
-              <div class="tournament-detail-label">Prize Pool</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£10</div>
-              <div class="tournament-detail-label">Entry Fee</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">189</div>
-              <div class="tournament-detail-label">Entries</div>
-            </div>
-          </div>
-          <div style="background-color: var(--bg-hover); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
-            <div class="text-muted" style="font-size: 0.875rem;">Top Prize</div>
-            <div style="font-weight: 700; color: var(--accent-amber);">£1,000</div>
-          </div>
-          <a href="predictions.html" class="btn btn-primary" style="width: 100%;">
-            <i class="fas fa-ticket"></i> Enter - £10
-          </a>
-        </div>
-
-        <div class="tournament-card live">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">High Roller Club</div>
-              <div class="text-muted" style="font-size: 0.875rem;"><i class="far fa-clock"></i> Closes in 2 days</div>
-            </div>
-            <span class="tournament-status live">Live</span>
-          </div>
-          <div class="tournament-details">
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£3,000</div>
-              <div class="tournament-detail-label">Prize Pool</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£50</div>
-              <div class="tournament-detail-label">Entry Fee</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">62</div>
-              <div class="tournament-detail-label">Entries</div>
-            </div>
-          </div>
-          <div style="background-color: var(--bg-hover); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
-            <div class="text-muted" style="font-size: 0.875rem;">Top Prize</div>
-            <div style="font-weight: 700; color: var(--accent-amber);">£1,500</div>
-          </div>
-          <a href="predictions.html" class="btn btn-primary" style="width: 100%;">
-            <i class="fas fa-ticket"></i> Enter - £50
-          </a>
-        </div>
-
-        <div class="tournament-card live">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">Budget Battler</div>
-              <div class="text-muted" style="font-size: 0.875rem;"><i class="far fa-clock"></i> Closes in 2 days</div>
-            </div>
-            <span class="tournament-status live">Live</span>
-          </div>
-          <div class="tournament-details">
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£800</div>
-              <div class="tournament-detail-label">Prize Pool</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£5</div>
-              <div class="tournament-detail-label">Entry Fee</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">156</div>
-              <div class="tournament-detail-label">Entries</div>
-            </div>
-          </div>
-          <div style="background-color: var(--bg-hover); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
-            <div class="text-muted" style="font-size: 0.875rem;">Top Prize</div>
-            <div style="font-weight: 700; color: var(--accent-amber);">£300</div>
-          </div>
-          <a href="predictions.html" class="btn btn-primary" style="width: 100%;">
-            <i class="fas fa-ticket"></i> Enter - £5
-          </a>
-        </div>
-
-        <div class="tournament-card live">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">Free Roll Special</div>
-              <div class="text-muted" style="font-size: 0.875rem;"><i class="far fa-clock"></i> Closes in 2 days</div>
-            </div>
-            <span class="tournament-status live">Live</span>
-          </div>
-          <div class="tournament-details">
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£500</div>
-              <div class="tournament-detail-label">Prize Pool</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">FREE</div>
-              <div class="tournament-detail-label">Entry Fee</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">412</div>
-              <div class="tournament-detail-label">Entries</div>
-            </div>
-          </div>
-          <div style="background-color: var(--bg-hover); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
-            <div class="text-muted" style="font-size: 0.875rem;">Top Prize</div>
-            <div style="font-weight: 700; color: var(--accent-amber);">£150</div>
-          </div>
-          <a href="predictions.html" class="btn btn-primary" style="width: 100%;">
-            <i class="fas fa-ticket"></i> Enter FREE
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- Season Long Tournament (Hidden - placeholder) -->
-    <section class="mb-3" style="display: none;">
-      <h2 class="mb-2"><i class="fas fa-calendar-alt text-blue"></i> Season Long Tournament</h2>
-      <div class="tournament-card" style="border-left: 4px solid var(--accent-blue);">
-        <div class="grid grid-2" style="align-items: center;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-              <span class="tournament-status" style="background-color: rgba(59, 130, 246, 0.2); color: var(--accent-blue);">In Progress</span>
-              <span class="text-muted">Week 34 of 38</span>
-            </div>
-            <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Premier League Predictor 2025/26</h3>
-            <p class="text-muted mb-2">The ultimate season-long competition. Predict every gameweek and accumulate points throughout the season.</p>
-            <div style="display: flex; gap: 2rem; margin-top: 1rem;">
-              <div>
-                <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-green);">£10,000</div>
-                <div class="text-muted" style="font-size: 0.875rem;">Prize Pool</div>
-              </div>
-              <div>
-                <div style="font-size: 1.25rem; font-weight: 700;">£50</div>
-                <div class="text-muted" style="font-size: 0.875rem;">Entry Fee</div>
-              </div>
-              <div>
-                <div style="font-size: 1.25rem; font-weight: 700;">892</div>
-                <div class="text-muted" style="font-size: 0.875rem;">Entries</div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div style="background-color: var(--bg-hover); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1rem;">
-              <div class="text-muted mb-2">Prize Distribution</div>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center;">
-                <div>
-                  <div style="font-size: 0.875rem; color: var(--accent-amber);">🥇 1st</div>
-                  <div style="font-weight: 700;">£4,000</div>
-                </div>
-                <div>
-                  <div style="font-size: 0.875rem; color: #94a3b8;">🥈 2nd</div>
-                  <div style="font-weight: 700;">£2,000</div>
-                </div>
-                <div>
-                  <div style="font-size: 0.875rem; color: #b45309;">🥉 3rd</div>
-                  <div style="font-weight: 700;">£1,000</div>
-                </div>
-              </div>
-              <div class="text-center text-muted mt-2" style="font-size: 0.875rem;">+ prizes for top 20 finishers</div>
-            </div>
-            <button class="btn btn-secondary" style="width: 100%;" disabled>
-              <i class="fas fa-lock"></i> Tournament Closed
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Upcoming Tournaments (Hidden - placeholder) -->
-    <section style="display: none;">
-      <h2 class="mb-2"><i class="fas fa-hourglass-start text-muted"></i> Upcoming Tournaments</h2>
-      <div class="grid grid-2">
-        <div class="tournament-card">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">GW 35 Mega Pot</div>
-              <div class="text-muted" style="font-size: 0.875rem;"><i class="far fa-calendar"></i> Opens Mon 28 Apr</div>
-            </div>
-            <span class="tournament-status upcoming">Upcoming</span>
-          </div>
-          <div class="tournament-details">
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£5,000</div>
-              <div class="tournament-detail-label">Prize Pool</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£20</div>
-              <div class="tournament-detail-label">Entry Fee</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">-</div>
-              <div class="tournament-detail-label">Entries</div>
-            </div>
-          </div>
-          <button class="btn btn-secondary" style="width: 100%;" disabled>
-            <i class="fas fa-clock"></i> Opens Soon
-          </button>
-        </div>
-
-        <div class="tournament-card">
-          <div class="tournament-header">
-            <div>
-              <div class="tournament-name">May Madness</div>
-              <div class="text-muted" style="font-size: 0.875rem;"><i class="far fa-calendar"></i> Opens Fri 2 May</div>
-            </div>
-            <span class="tournament-status upcoming">Upcoming</span>
-          </div>
-          <div class="tournament-details">
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£7,500</div>
-              <div class="tournament-detail-label">Prize Pool</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">£25</div>
-              <div class="tournament-detail-label">Entry Fee</div>
-            </div>
-            <div class="tournament-detail">
-              <div class="tournament-detail-value">-</div>
-              <div class="tournament-detail-label">Entries</div>
-            </div>
-          </div>
-          <button class="btn btn-secondary" style="width: 100%;" disabled>
-            <i class="fas fa-clock"></i> Opens Soon
-          </button>
-        </div>
-      </div>
-    </section>
+  <main>
+    <h1><i class="fas fa-trophy" style="color:var(--gold);"></i> All Tournaments</h1>
+    <p class="subtitle">Every live tournament across GB Tournaments, in one place.</p>
+    <div id="tournamentSections"><div class="empty">Loading tournaments…</div></div>
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
-    </div>
-  </footer>
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
-  <script src="auth-gate.js"></script>
   <script src="live-poll.js"></script>
-  <script src="toast.js"></script>
-  <script src="tournaments.js"></script>
   <script>
-    // Sidebar user info only - mobile menu handled by auth-gate.js
-    document.addEventListener('DOMContentLoaded', function() {
-      const userJson = localStorage.getItem('gbf_user');
-      if (userJson) {
+    const GAMES = [
+      { type: 'predictions', label: 'Premier League Predictions', icon: 'fa-futbol', href: '/predictions', desc: 'Predict every result and score.' },
+      { type: 'fantasy', label: 'Fantasy Manager', icon: 'fa-people-group', href: '/fantasy-manager', desc: 'Build a squad, score points every gameweek.' },
+      { type: 'lms', label: 'Last Man Standing', icon: 'fa-skull-crossbones', href: '/last-man-standing', desc: 'Pick one winning team a week. Get it wrong, you\'re out.' },
+      { type: 'stockmarket', label: 'Player Stock Market', icon: 'fa-chart-line', href: '/stock-market', desc: 'Draft 6 players, watch their value move.' }
+    ];
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function money(pence) { return `£${((pence||0)/100).toFixed(2)}`; }
+
+    async function loadAll() {
+      const container = document.getElementById('tournamentSections');
+      const sections = await Promise.all(GAMES.map(async (game) => {
         try {
-          const user = JSON.parse(userJson);
-          const usernameEl = document.getElementById('sidebar-username');
-          const avatarEl = document.getElementById('sidebar-avatar');
-          if (usernameEl) usernameEl.textContent = user.display_name || user.username;
-          if (avatarEl) avatarEl.textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
-        } catch (e) {}
+          const res = await fetch(`/api/tournaments?status=live&tournament_type=${game.type}`);
+          const data = await res.json();
+          const tournaments = data.tournaments || [];
+          return { game, tournaments };
+        } catch (e) {
+          console.error(`Failed to load ${game.type}:`, e);
+          return { game, tournaments: [] };
+        }
+      }));
+
+      const anyLive = sections.some(s => s.tournaments.length > 0);
+      if (!anyLive) {
+        container.innerHTML = '<div class="empty">No tournaments are live right now — check back soon.</div>';
+        return;
       }
+
+      container.innerHTML = sections.filter(s => s.tournaments.length > 0).map(({ game, tournaments }) => `
+        <section class="sport-section">
+          <div class="sport-title"><i class="fas ${game.icon}" style="color:var(--accent-2);"></i> ${escapeHtml(game.label)}</div>
+          <div class="t-grid">
+            ${tournaments.map(t => `
+              <a class="t-card" href="${game.href}">
+                <h3>${escapeHtml(t.name)}</h3>
+                <p class="desc">${escapeHtml(t.description || game.desc)}</p>
+                <div class="t-stats">
+                  <div><div class="stat-label">Entry Fee</div><div class="stat-value">${t.entry_fee ? money(t.entry_fee) : 'Free'}</div></div>
+                  <div style="text-align:right"><div class="stat-label">Entries</div><div class="stat-value gold">${t.current_entries || 0}</div></div>
+                </div>
+                <span class="btn-enter">View</span>
+              </a>`).join('')}
+          </div>
+        </section>`).join('');
+    }
+
+    function initAuthButton() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuthButton();
+      loadAll();
     });
   </script>
 </body>
