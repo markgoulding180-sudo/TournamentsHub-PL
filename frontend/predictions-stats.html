@@ -6,15 +6,25 @@
   <title>My Predictions Stats - GB Tournaments</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
+    :root{
+      --border: var(--border-color);
+      --font-display:'Anton','Rajdhani',sans-serif;
+      --font-head:'Rajdhani',sans-serif;
+    }
+    body{ font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    h1, .profile-info h1{ font-family:var(--font-display); letter-spacing:.4px; text-transform:uppercase; }
+    .dashboard-card h3, .profile-tab, .card-title, h2{ font-family:var(--font-head); font-weight:700; letter-spacing:.3px; }
+
     /* ── STADIUM BANNER HEADER ── */
     .profile-header {
       position: relative;
       width: 100%;
-      border-radius: 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
       overflow: hidden;
       margin-bottom: 2rem;
       min-height: 420px;
@@ -247,7 +257,7 @@
     .dashboard-card {
       background: var(--bg-secondary);
       border: 1px solid var(--border);
-      border-radius: 0.75rem;
+      border-radius: 14px;
       padding: 1.5rem;
     }
     .dashboard-card h3 {
