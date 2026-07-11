@@ -150,6 +150,30 @@
   .sport-item .icon{width:19px;height:19px;flex-shrink:0;}
   .sport-item:hover{background:var(--bg-card); color:var(--text);}
   .sport-item.active{background:rgba(59,130,246,0.12); color:var(--accent-2);}
+  .sidebar-menu-mobile{display:none;}
+  .sidebar-divider.sidebar-menu-mobile{ height:1px; background:var(--border); margin:10px 0 12px; padding:0; }
+  @media (max-width:860px){
+    .sidebar-section-label.sidebar-menu-mobile{display:block;}
+    a.sport-item.sidebar-menu-mobile{display:flex;}
+    .sidebar-divider.sidebar-menu-mobile{display:block;}
+  }
+
+  .mobile-cat-strip{
+    display:none; position:sticky; top:69px; z-index:95;
+    gap:8px; padding:10px 14px; overflow-x:auto;
+    background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
+    scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .mobile-cat-strip::-webkit-scrollbar{display:none;}
+  .mobile-cat-item{
+    flex:none; display:flex; align-items:center; gap:6px; padding:8px 13px;
+    border-radius:20px; background:var(--bg-card); border:1px solid var(--border);
+    color:var(--text-dim); font-family:var(--font-head); font-size:12.5px; font-weight:600;
+    white-space:nowrap;
+  }
+  .mobile-cat-item .icon{width:14px;height:14px;flex-shrink:0;}
+  .mobile-cat-item.active{background:rgba(59,130,246,0.14); border-color:var(--accent); color:var(--accent-2);}
+  @media (max-width:860px){ .mobile-cat-strip{display:flex;} }
   .sidebar.collapsed .sport-label{display:none;}
   .sidebar.collapsed .sport-item{justify-content:center;}
 
@@ -188,6 +212,12 @@
   }
   .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:12px; letter-spacing:0.3px;}
   .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:28px; max-width:420px; line-height:1.55;}
+  @media (max-width:640px){
+    .hero::before{
+      content:''; position:absolute; inset:0; z-index:1;
+      background:linear-gradient(180deg, rgba(4,8,18,0.55) 0%, rgba(4,8,18,0.8) 60%, rgba(4,8,18,0.92) 100%);
+    }
+  }
   .btn-outline-lg{
     display:inline-flex; align-items:center; gap:10px;
     background:rgba(59,130,246,0.08); border:1.5px solid var(--accent);
@@ -238,20 +268,22 @@
     color:var(--text-faint); text-transform:none; font-family:var(--font-body); font-weight:400; font-size:12.5px;
   }
   .pl-live-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+  .pl-live-grid-solo{grid-template-columns:1fr;}
   .pl-live-panel-title{
     font-family:var(--font-head); font-size:11.5px; font-weight:700; text-transform:uppercase;
     letter-spacing:.6px; color:var(--text-faint); margin-bottom:10px;
   }
-  .pl-live-matches{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; list-style:none; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; }
+  .pl-live-matches{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; list-style:none; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; scroll-snap-type:x proximity; }
   .pl-live-matches::-webkit-scrollbar{ display:none; }
-  .pl-live-matches-wrap{ position:relative; }
+  .pl-live-matches-wrap{ position:relative; min-width:0; }
+  .pl-live-col{ min-width:0; }
   .pl-strip-arrow{ position:absolute; top:50%; transform:translateY(-50%); z-index:5; width:32px; height:32px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; transition:border-color .2s, background .2s; }
   .pl-strip-arrow:hover{ border-color:var(--border-hover); background:var(--accent-dim); }
   .pl-strip-arrow.left{ left:-4px; }
   .pl-strip-arrow.right{ right:-4px; }
   .pl-strip-arrow i{ font-size:13px; }
   .pl-live-leaders{display:flex; flex-direction:column; gap:7px; list-style:none;}
-  .pl-fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
+  .pl-fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; scroll-snap-align:start; }
   .pl-fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; color:var(--text); }
   .pl-fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
   .pl-fixture-chip .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); margin-top:4px; display:block; }
@@ -277,6 +309,7 @@
   .pl-live-leaders .pts{font-family:var(--font-head); font-weight:700; color:var(--gold); letter-spacing:.3px;}
   .pl-live-empty{color:var(--text-faint); font-size:12.5px; padding:6px 2px;}
   @media (max-width:760px){ .pl-live-grid{grid-template-columns:1fr;} }
+  @media (max-width:640px){ .pl-fixture-chip{ min-width:calc(50% - 5px); } }
 
   /* ================= TOURNAMENT CARDS ================= */
   .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
@@ -437,8 +470,8 @@
     </div>
     <nav class="nav-links">
       <a href="/" class="active">GB Hub</a>
-      <a href="#">Tournaments</a>
-      <a href="#">Leaderboard</a>
+      <a href="/tournaments">Tournaments</a>
+      <a href="/leaderboard">Leaderboard</a>
       <a href="#">My Leagues</a>
       <a href="#">Wallet</a>
       <a href="#">Rewards</a>
@@ -455,6 +488,17 @@
   </div>
 </header>
 
+<!-- Mobile-only quick category strip (sidebar is hidden below 860px) -->
+<nav class="mobile-cat-strip" id="mobileCatStrip">
+  <a href="#pl-predictions" class="mobile-cat-item active"><svg class="icon"><use href="#i-ball"/></svg><span>Football</span></a>
+  <a href="#champions-league" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>Champions League</span></a>
+  <a href="#darts" class="mobile-cat-item"><svg class="icon"><use href="#i-target"/></svg><span>Darts</span></a>
+  <a href="#golf" class="mobile-cat-item"><svg class="icon"><use href="#i-flag"/></svg><span>Golf</span></a>
+  <a href="#racing" class="mobile-cat-item"><svg class="icon"><use href="#i-horseshoe"/></svg><span>Racing</span></a>
+  <a href="#stocks" class="mobile-cat-item"><svg class="icon"><use href="#i-trend"/></svg><span>Stocks</span></a>
+  <a href="#special" class="mobile-cat-item"><svg class="icon"><use href="#i-star"/></svg><span>Special</span></a>
+</nav>
+
 <div class="layout">
 
   <!-- ================= SIDEBAR ================= -->
@@ -462,6 +506,14 @@
     <button class="sidebar-toggle" id="sidebarToggle">
       <svg class="icon arrow"><use href="#i-arrow" style="transform:rotate(180deg)"/></svg><span class="toggle-label">Collapse</span>
     </button>
+    <div class="sidebar-section-label sidebar-menu-mobile">Menu</div>
+    <a class="sport-item sidebar-menu-mobile" href="/"><svg class="icon"><use href="#i-home"/></svg><span class="sport-label">GB Hub</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/tournaments"><svg class="icon"><use href="#i-trophy"/></svg><span class="sport-label">Tournaments</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/leaderboard"><svg class="icon"><use href="#i-trend"/></svg><span class="sport-label">Leaderboard</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-users"/></svg><span class="sport-label">My Leagues</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-wallet"/></svg><span class="sport-label">Wallet</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-gift"/></svg><span class="sport-label">Rewards</span></a>
+    <div class="sidebar-divider sidebar-menu-mobile"></div>
     <div class="sidebar-section-label">Sport Categories</div>
     <a class="sport-item active" href="#pl-predictions"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Football (Premier League)</span></a>
     <a class="sport-item" href="#champions-league"><svg class="icon"><use href="#i-trophy"/></svg><span class="sport-label">Champions League</span></a>
@@ -542,8 +594,8 @@
           <span class="pl-live-sep">·</span>
           <span class="pl-live-state" id="plLiveState">Connecting to GB Fantasy…</span>
         </div>
-        <div class="pl-live-grid">
-          <div>
+        <div class="pl-live-grid pl-live-grid-solo">
+          <div class="pl-live-col">
             <div class="pl-live-panel-title">This Gameweek</div>
             <div class="pl-live-matches-wrap">
               <button class="pl-strip-arrow left" onclick="document.getElementById('plMatches').scrollBy({left:-320})"><i class="fas fa-chevron-left"></i></button>
@@ -552,12 +604,6 @@
               </div>
               <button class="pl-strip-arrow right" onclick="document.getElementById('plMatches').scrollBy({left:320})"><i class="fas fa-chevron-right"></i></button>
             </div>
-          </div>
-          <div>
-            <div class="pl-live-panel-title">Top of the Table</div>
-            <ol class="pl-live-leaders" id="plLeaders">
-              <li class="pl-live-empty">Loading leaderboard…</li>
-            </ol>
           </div>
         </div>
       </div>
@@ -989,6 +1035,14 @@
       </div>
     </section>
 
+    <!-- ================= TOP OF THE TABLE ================= -->
+    <section class="card" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:22px;">
+      <div class="pl-live-panel-title" style="margin-bottom:14px;">Top of the Table</div>
+      <ol class="pl-live-leaders" id="plLeaders">
+        <li class="pl-live-empty">Loading leaderboard…</li>
+      </ol>
+    </section>
+
     <!-- ================= LEADERBOARD STRIP ================= -->
     <section class="leaderboard-strip">
       <div class="lb-left">
@@ -1027,10 +1081,12 @@
     sidebar.classList.toggle('mobile-open');
   });
 
-  document.querySelectorAll('.sport-item').forEach(item => {
+  document.querySelectorAll('.sport-item, .mobile-cat-item').forEach(item => {
     item.addEventListener('click', () => {
-      document.querySelectorAll('.sport-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
+      const href = item.getAttribute('href');
+      document.querySelectorAll('.sport-item, .mobile-cat-item').forEach(i => {
+        i.classList.toggle('active', i.getAttribute('href') === href);
+      });
       if (window.innerWidth <= 860) sidebar.classList.remove('mobile-open');
     });
   });
