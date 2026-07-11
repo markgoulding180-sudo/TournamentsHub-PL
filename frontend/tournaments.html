@@ -51,6 +51,7 @@
     .t-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 300px)); gap:16px; }
     .t-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px; display:block; transition:border-color .2s, transform .2s; }
     .t-card:hover{ border-color:var(--border-hover); transform:translateY(-2px); }
+    .t-card .t-game-tag{ display:inline-flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--accent-2); font-weight:700; margin-bottom:10px; }
     .t-card h3{ font-family:var(--font-head); font-size:16px; margin-bottom:6px; }
     .t-card .desc{ font-size:12.5px; color:var(--text-dim); margin-bottom:14px; line-height:1.4; min-height:34px; }
     .t-card .t-stats{ display:flex; justify-content:space-between; margin-bottom:14px; }
@@ -132,28 +133,29 @@
         }
       }));
 
-      const anyLive = sections.some(s => s.tournaments.length > 0);
-      if (!anyLive) {
+      // Flatten every game's tournaments into one list so cards sit
+      // side by side across the whole grid, rather than being isolated
+      // one-per-row inside separate per-sport sections.
+      const allCards = sections.flatMap(({ game, tournaments }) =>
+        tournaments.map(t => ({ game, t }))
+      );
+
+      if (allCards.length === 0) {
         container.innerHTML = '<div class="empty">No tournaments are live right now — check back soon.</div>';
         return;
       }
 
-      container.innerHTML = sections.filter(s => s.tournaments.length > 0).map(({ game, tournaments }) => `
-        <section class="sport-section">
-          <div class="sport-title"><i class="fas ${game.icon}" style="color:var(--accent-2);"></i> ${escapeHtml(game.label)}</div>
-          <div class="t-grid">
-            ${tournaments.map(t => `
-              <a class="t-card" href="${game.href}">
-                <h3>${escapeHtml(t.name)}</h3>
-                <p class="desc">${escapeHtml(t.description || game.desc)}</p>
-                <div class="t-stats">
-                  <div><div class="stat-label">Entry Fee</div><div class="stat-value">${t.entry_fee ? money(t.entry_fee) : 'Free'}</div></div>
-                  <div style="text-align:right"><div class="stat-label">Entries</div><div class="stat-value gold">${t.current_entries || 0}</div></div>
-                </div>
-                <span class="btn-enter">View</span>
-              </a>`).join('')}
+      container.innerHTML = `<div class="t-grid">${allCards.map(({ game, t }) => `
+        <a class="t-card" href="${game.href}">
+          <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}</div>
+          <h3>${escapeHtml(t.name)}</h3>
+          <p class="desc">${escapeHtml(t.description || game.desc)}</p>
+          <div class="t-stats">
+            <div><div class="stat-label">Entry Fee</div><div class="stat-value">${t.entry_fee ? money(t.entry_fee) : 'Free'}</div></div>
+            <div style="text-align:right"><div class="stat-label">Entries</div><div class="stat-value gold">${t.current_entries || 0}</div></div>
           </div>
-        </section>`).join('');
+          <span class="btn-enter">View</span>
+        </a>`).join('')}</div>`;
     }
 
     function initAuthButton() {
