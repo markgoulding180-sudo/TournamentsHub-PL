@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Tournaments - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent;}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:32px 24px 60px; }
+    h1{ font-family:var(--font-display); font-size:32px; letter-spacing:.4px; margin-bottom:6px; }
+    .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:28px; }
+
+    .t-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+    .t-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px; display:block; transition:border-color .2s, transform .2s; }
+    .t-card:hover{ border-color:var(--border-hover); transform:translateY(-2px); }
+    .t-card .t-game-tag{ display:inline-flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--accent-2); font-weight:700; margin-bottom:10px; }
+    .t-card h3{ font-family:var(--font-head); font-size:16px; margin-bottom:10px; }
+    .t-card .t-status{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:2rem; margin-bottom:14px; }
+    .t-card .t-status.alive{ background:rgba(34,197,94,0.12); color:var(--green); }
+    .t-card .t-status.out{ background:rgba(239,68,68,0.12); color:#fca5a5; }
+    .t-card .t-status.neutral{ background:rgba(59,130,246,0.1); color:var(--accent-2); }
+    .btn-enter{ display:block; text-align:center; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:.4px; padding:10px; border-radius:8px; }
+
+    .empty{ text-align:center; padding:40px 20px; color:var(--text-faint); font-size:14px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); }
+    .empty a{ color:var(--accent-2); font-weight:600; }
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .nav-links{ gap:16px; }
+      .nav-links a{ font-size:12px; padding-bottom:12px; }
+      main{ padding:20px 14px 60px; }
+      h1{ font-size:24px; }
+      .t-grid{ grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/tournaments">All Tournaments</a>
+        <a href="/my-tournaments" class="active">My Tournaments</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fmy-tournaments" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <h1><i class="fas fa-user-check" style="color:var(--gold);"></i> My Tournaments</h1>
+    <p class="subtitle">Every tournament you're currently entered in.</p>
+    <div id="results"><div class="empty">Loading…</div></div>
+  </main>
+
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
+
+  <script src="live-poll.js"></script>
+  <script>
+    const GAMES = [
+      { type: 'predictions', label: 'Predictions', icon: 'fa-futbol', href: '/predictions' },
+      { type: 'fantasy', label: 'Fantasy Manager', icon: 'fa-people-group', href: '/fantasy-manager' },
+      { type: 'lms', label: 'Last Man Standing', icon: 'fa-skull-crossbones', href: '/last-man-standing' },
+      { type: 'stockmarket', label: 'Stock Market', icon: 'fa-chart-line', href: '/stock-market' }
+    ];
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    function isLoggedIn() { return !!localStorage.getItem('gbf_token'); }
+
+    function statusFor(game, entry) {
+      if (game.type === 'lms') {
+        if (entry.is_eliminated) return { label: `Out — GW${entry.eliminated_gameweek}`, cls: 'out' };
+        return { label: 'Still In', cls: 'alive' };
+      }
+      if (game.type === 'stockmarket') {
+        if (!entry.squad_players) return { label: 'Squad not drafted', cls: 'neutral' };
+        if (!entry.squad_locked) return { label: 'Drafting', cls: 'neutral' };
+        return { label: 'Live', cls: 'alive' };
+      }
+      return { label: 'Entered', cls: 'neutral' };
+    }
+
+    async function loadAll() {
+      const container = document.getElementById('results');
+
+      if (!isLoggedIn()) {
+        container.innerHTML = `<div class="empty">Log in to see your tournaments.<br><br><a href="/login?redirect=%2Fmy-tournaments">Log In</a></div>`;
+        return;
+      }
+
+      try {
+        const results = await Promise.all(GAMES.map(async (game) => {
+          const tRes = await fetch(`/api/tournaments?status=live&tournament_type=${game.type}`);
+          const tData = await tRes.json();
+          const tournament = (tData.tournaments || [])[0];
+          if (!tournament) return null;
+
+          const eRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournament.id}&tournament_type=${game.type}`, { headers: authHeaders() });
+          const eData = await eRes.json();
+          if (!eData.entry) return null;
+
+          return { game, tournament, entry: eData.entry };
+        }));
+
+        const entered = results.filter(Boolean);
+
+        if (entered.length === 0) {
+          container.innerHTML = `<div class="empty">You're not entered in anything yet.<br><br><a href="/tournaments">Browse all tournaments</a></div>`;
+          return;
+        }
+
+        container.innerHTML = `<div class="t-grid">${entered.map(({ game, tournament, entry }) => {
+          const status = statusFor(game, entry);
+          return `
+            <a class="t-card" href="${game.href}">
+              <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}</div>
+              <h3>${escapeHtml(tournament.name)}</h3>
+              <span class="t-status ${status.cls}">${escapeHtml(status.label)}</span>
+              <span class="btn-enter">View</span>
+            </a>`;
+        }).join('')}</div>`;
+      } catch (e) {
+        console.error('Failed to load my tournaments:', e);
+        container.innerHTML = '<div class="empty">Couldn\'t load your tournaments right now.</div>';
+      }
+    }
+
+    function initAuthButton() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuthButton();
+      loadAll();
+    });
+  </script>
+</body>
+</html>
