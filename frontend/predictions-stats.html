@@ -18,6 +18,8 @@
     body{ font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     h1, .profile-info h1{ font-family:var(--font-display); letter-spacing:.4px; text-transform:uppercase; }
     .dashboard-card h3, .profile-tab, .card-title, h2{ font-family:var(--font-head); font-weight:700; letter-spacing:.3px; }
+    .btn-primary{ background:linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark)) !important; color:#fff !important; border:none !important; }
+    .btn-primary:hover{ filter:brightness(1.1); }
 
     /* ── STADIUM BANNER HEADER ── */
     .profile-header {
@@ -27,8 +29,16 @@
       border: 1px solid var(--border);
       overflow: hidden;
       margin-bottom: 2rem;
-      min-height: 420px;
+      min-height: 260px;
+      background:
+        radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
+        linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
+        url('assets/haaland-hero.jpg');
+      background-size: cover, cover, auto 105%;
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      background-position: center, center, right center;
     }
+    .profile-header-bg, .profile-header-overlay { display: none; }
     .profile-header-bg {
       position: absolute;
       inset: 0;
@@ -46,10 +56,11 @@
     .profile-header-content {
       position: relative;
       z-index: 2;
-      padding: 1.5rem 2rem 4.5rem 2rem;
+      padding: 2rem 2rem;
       display: flex;
       align-items: center;
       gap: 1.5rem;
+      min-height: 260px;
     }
     .profile-avatar {
       width: 90px;
@@ -243,7 +254,7 @@
     .profile-stat-value {
       font-size: 1.75rem;
       font-weight: 700;
-      color: var(--accent-green);
+      color: var(--accent-blue);
     }
     .profile-stat-label {
       font-size: 0.875rem;
@@ -297,9 +308,9 @@
       transition: all 0.2s;
     }
     .chart-toggle button.active {
-      background: var(--accent-green);
+      background: var(--accent-blue);
       color: white;
-      border-color: var(--accent-green);
+      border-color: var(--accent-blue);
     }
     .prediction-table {
       width: 100%;
@@ -355,7 +366,7 @@
     .insight-value {
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--accent-green);
+      color: var(--accent-blue);
     }
     .insight-detail {
       font-size: 0.875rem;
@@ -413,8 +424,8 @@
     }
     .trend-score-tag {
       display: inline-block;
-      background: var(--accent-green);
-      color: var(--bg-primary);
+      background: var(--accent-blue);
+      color: white;
       padding: 0.15rem 0.5rem;
       border-radius: 0.25rem;
       font-weight: 600;
@@ -456,9 +467,9 @@
       border-radius: 0.5rem 0.5rem 0 0;
     }
     .profile-tab.active {
-      color: var(--accent-green);
-      border-bottom-color: var(--accent-green);
-      background: rgba(34, 197, 94, 0.1);
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+      background: rgba(59, 130, 246, 0.1);
       border-radius: 0.5rem 0.5rem 0 0;
     }
     .profile-tab-content {
@@ -762,7 +773,7 @@
     <!-- Debug Output Panel -->
     <div id="debug-panel" style="display: none; margin-bottom: 1rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; font-family: monospace; font-size: 0.8rem; max-height: 400px; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-        <strong style="color: #22c55e;">Debug Output</strong>
+        <strong style="color: var(--accent-blue);">Debug Output</strong>
         <button onclick="document.getElementById('debug-panel').style.display='none'" style="background: none; border: none; color: #94a3b8; cursor: pointer;"><i class="fas fa-times"></i></button>
       </div>
       <pre id="debug-output" style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #e2e8f0;"></pre>

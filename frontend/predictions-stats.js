@@ -420,7 +420,7 @@ async function loadUserPredictions() {
           <i class="fas fa-exclamation-circle" style="color: var(--accent-amber); font-size: 2.5rem; margin-bottom: 1rem;"></i>
           <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">You haven't predicted for GW${gameweek} yet!</p>
           <p class="text-muted" style="margin-bottom: 1.5rem;">Submit your predictions before the deadline to compete.</p>
-          <a href="predictions.html" class="btn btn-primary btn-lg" style="margin-top: 0.5rem;">
+          <a href="/predict" class="btn btn-primary btn-lg" style="margin-top: 0.5rem;">
             <i class="fas fa-futbol"></i> Predict Now
           </a>
         </div>
@@ -1360,7 +1360,7 @@ async function loadUserTrends() {
           <i class="fas fa-users" style="opacity: 0.5;"></i>
           <p>No predictions for GW${gameweek} yet</p>
           <p class="text-muted" style="font-size: 0.75rem;">${data.total_users || 0} users have predicted this gameweek</p>
-          <a href="predictions.html?gameweek=${gameweek}" class="btn btn-primary btn-sm" style="margin-top: 0.75rem;">
+          <a href="/predict?gameweek=${gameweek}" class="btn btn-primary btn-sm" style="margin-top: 0.75rem;">
             <i class="fas fa-futbol"></i> Make Predictions
           </a>
         </div>
