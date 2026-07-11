@@ -438,6 +438,11 @@
     .navbar .icon-btn[title="Notifications"]{ order:5; margin-left:auto; }
     .avatar-btn{ order:4; }
 
+    /* Sticky navbar (now 2 rows) + category strip together are much
+       taller here than the 90px scroll-margin tuned for desktop, so
+       anchor links were landing sections behind the sticky bars. */
+    .section, .sport-tile{ scroll-margin-top:176px; }
+
     /* Navbar is now two rows here, so anything anchored to its height
        needs a taller offset than the 69px used above 640px. */
     .sidebar{ top:116px; height:calc(100vh - 116px); }
