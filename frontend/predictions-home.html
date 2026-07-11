@@ -21,7 +21,8 @@
     }
     *{margin:0;padding:0;box-sizing:border-box;}
     html{scroll-behavior:smooth;}
-    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+    html{ overflow-x:hidden; }
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
     a{color:inherit;text-decoration:none;}
     button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
     .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
@@ -40,6 +41,50 @@
     .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
     .nav-right{display:flex;align-items:center;gap:14px;}
     .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .navbar-row-break{ display:none; }
+
+    /* Mobile nav drawer */
+    .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+    .mobile-nav-overlay.open{ display:block; }
+    .mobile-nav-drawer{
+      display:none; position:fixed; top:0; right:0; bottom:0; z-index:199; width:78%; max-width:300px;
+      background:var(--bg-panel); border-left:1px solid var(--border); padding:80px 24px 24px;
+      flex-direction:column; gap:4px; transform:translateX(100%); transition:transform .25s ease;
+    }
+    .mobile-nav-drawer.open{ display:flex; transform:translateX(0); }
+    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-family:var(--font-head); font-weight:600; font-size:14px; color:var(--text-dim); }
+    .mobile-nav-drawer a:hover{ background:var(--bg-card); color:var(--text); }
+
+    /* Notification panel */
+    .notif-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+    .notif-overlay.open{ display:block; }
+    .notif-panel{
+      display:none; position:fixed; top:76px; right:32px; z-index:199;
+      width:360px; max-width:calc(100vw - 32px); max-height:70vh;
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:14px;
+      box-shadow:0 20px 50px rgba(0,0,0,0.5); overflow:hidden; flex-direction:column;
+    }
+    .notif-panel.open{ display:flex; }
+    .notif-panel-header{
+      display:flex; align-items:center; justify-content:space-between; padding:14px 16px;
+      border-bottom:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:14px;
+    }
+    .notif-panel-header button{ width:26px;height:26px;border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--bg-card); font-size:12px; }
+    .notif-panel-body{ overflow-y:auto; padding:10px; }
+    .notif-empty{ text-align:center; padding:26px 16px; color:var(--text-faint); font-size:13px; }
+    .notif-item{ display:block; padding:12px 12px; border-radius:10px; margin-bottom:6px; background:var(--bg-card); border:1px solid var(--border); }
+    .notif-item:hover{ border-color:var(--border-hover); }
+    .notif-item .notif-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+    .notif-item .notif-msg{ font-size:13px; color:var(--text-dim); line-height:1.4; }
+    .notif-item.admin .notif-title{ color:var(--gold); }
+    .notif-item.action .notif-title{ color:var(--accent-2); }
+    .notif-item.severity-warning{ border-color:var(--gold); }
+    .notif-item.severity-urgent{ border-color:var(--red); }
+
+    @media (max-width:640px){
+      .menu-toggle{ display:flex !important; }
+      .notif-panel{ top:auto; bottom:0; left:0; right:0; width:100%; max-width:100%; border-radius:16px 16px 0 0; max-height:80vh; }
+    }
     .icon-btn i{font-size:15px;color:var(--text-dim);}
     .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
     .avatar-btn:hover{border-color:var(--border);}
@@ -82,6 +127,12 @@
     }
     .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:12px; letter-spacing:0.3px;}
     .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:0; max-width:420px; line-height:1.55;}
+    @media (max-width:640px){
+      .hero::before{
+        content:''; position:absolute; inset:0; z-index:1;
+        background:linear-gradient(180deg, rgba(4,8,18,0.55) 0%, rgba(4,8,18,0.8) 60%, rgba(4,8,18,0.92) 100%);
+      }
+    }
 
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
     .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
@@ -94,9 +145,9 @@
     .predict-status.done{ background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); }
     .predict-status.todo{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; cursor:pointer; border:none; transition:filter .2s, transform .2s; }
     .predict-status.todo:hover{ filter:brightness(1.1); transform:translateY(-1px); }
-    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; }
+    .fixtures-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; scroll-snap-type:x proximity; }
     .fixtures-strip::-webkit-scrollbar{ display:none; }
-    .fixtures-strip-wrap{ position:relative; }
+    .fixtures-strip-wrap{ position:relative; min-width:0; }
     .strip-arrow{ position:absolute; top:50%; transform:translateY(-50%); z-index:5; width:32px; height:32px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; transition:border-color .2s, background .2s; }
     .strip-arrow:hover{ border-color:var(--border-hover); background:var(--accent-dim); }
     .strip-arrow.left{ left:-4px; }
@@ -110,11 +161,29 @@
     .cards-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:18px; }
     @media (max-width:800px){ .cards-grid{ grid-template-columns:1fr; } }
     @media (max-width:640px){
-      .navbar{ padding:12px 16px; }
+      .navbar{ padding:12px 16px; flex-wrap:wrap; row-gap:12px; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-      .nav-links{ gap:16px; }
-      .nav-links a{ font-size:12px; padding-bottom:12px; }
+      main{ padding:20px 14px 60px; }
+
+      /* Two-row mobile header: logo+hamburger on row 1, bell+username on row 2 */
+      .nav-left{ display:contents; }
+      .nav-right{ display:contents; }
+      .nav-links{ display:none; }
+      .logo{ order:1; }
+      #mobileMenuBtn{ order:2; margin-left:auto; }
+      .navbar-row-break{ display:block; order:3; flex-basis:100%; height:0; }
+      .avatar-btn{ order:4; }
+      .navbar .icon-btn[title="Notifications"]{ order:5; margin-left:auto; }
+
+      .hero{ padding:28px 22px; min-height:auto; }
+      .hero h1{ font-size:42px; }
+      .hero-sub{ font-size:16px; }
+      .hero-desc{ font-size:13.5px; }
+      .hero-graphic{ display:none; }
+
+      .week-header{ flex-direction:column; align-items:flex-start; }
+      .fixture-chip{ min-width:calc(50% - 5px); }
     }
 
     .t-stat-row{ display:flex; gap:14px; margin-bottom:14px; }
@@ -167,13 +236,36 @@
       </nav>
     </div>
     <div class="nav-right">
-      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <button class="icon-btn" title="Notifications" id="notifBtn"><svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
+      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu" style="display:none;"><i class="fas fa-bars"></i></button>
       <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fpredictions" title="Log in">
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
-        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim); display:none;">Log In</span>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
     </div>
+    <div class="navbar-row-break"></div>
   </header>
+
+  <!-- Mobile nav drawer -->
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <div class="mobile-nav-drawer" id="mobileNavDrawer">
+    <a href="/">GB Hub</a>
+    <a href="/leaderboard">Leaderboard</a>
+    <a href="/table">PL Table</a>
+    <a href="/injuries">Injuries</a>
+  </div>
+
+  <!-- Notification panel — toggled by the bell button -->
+  <div class="notif-overlay" id="notifOverlay"></div>
+  <div class="notif-panel" id="notifPanel">
+    <div class="notif-panel-header">
+      <span>Notifications</span>
+      <button id="notifCloseBtn" title="Close"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="notif-panel-body" id="notifBody">
+      <div class="notif-empty">Loading…</div>
+    </div>
+  </div>
 
   <main>
     <section class="hero">
@@ -212,6 +304,9 @@
         <p class="hero-desc">Predict every result and score. Climb the leaderboard. Win cash prizes.</p>
         <a href="/predictions-stats" style="display:inline-flex; align-items:center; gap:9px; margin-top:22px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 24px; border-radius:10px;">
           <i class="fas fa-chart-line"></i> My Predictions Stats
+        </a>
+        <a href="/predict" style="display:inline-flex; align-items:center; gap:9px; margin-top:12px; background:var(--bg-card); border:1.5px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:11px 24px; border-radius:10px;">
+          <i class="fas fa-futbol"></i> Predict Now
         </a>
       </div>
     </section>
@@ -459,9 +554,77 @@
       loadTableSnapshot();
     }
 
+    // ================= MOBILE NAV DRAWER =================
+    function toggleMobileNav(open) {
+      document.getElementById('mobileNavDrawer').classList.toggle('open', open);
+      document.getElementById('mobileNavOverlay').classList.toggle('open', open);
+    }
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
+    document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    // ================= NOTIFICATIONS =================
+    function escapeHtmlNotif(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function loadNotifications() {
+      const body = document.getElementById('notifBody');
+      const dot = document.getElementById('notifDot');
+      const token = localStorage.getItem('gbf_token');
+
+      if (!token) {
+        body.innerHTML = `<div class="notif-empty">Log in to see your notifications.</div>`;
+        dot.style.display = 'none';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/tournaments?notifications=true', { headers: authHeaders() });
+        const data = await res.json();
+        const adminMessages = data.admin_messages || [];
+        const actionItems = data.action_items || [];
+        const total = adminMessages.length + actionItems.length;
+
+        dot.style.display = total > 0 ? 'block' : 'none';
+
+        if (total === 0) {
+          body.innerHTML = `<div class="notif-empty">You're all caught up! 🎉</div>`;
+          return;
+        }
+
+        const adminHtml = adminMessages.map(m => `
+          <div class="notif-item admin severity-${escapeHtmlNotif(m.severity || 'info')}">
+            <div class="notif-title"><i class="fas fa-bullhorn"></i> Announcement</div>
+            <div class="notif-msg">${escapeHtmlNotif(m.message)}</div>
+          </div>`).join('');
+
+        const actionHtml = actionItems.map(item => `
+          <a class="notif-item action" href="${item.href}">
+            <div class="notif-title"><i class="fas fa-triangle-exclamation"></i> Action Needed</div>
+            <div class="notif-msg">${escapeHtmlNotif(item.message)}</div>
+          </a>`).join('');
+
+        body.innerHTML = adminHtml + actionHtml;
+      } catch (e) {
+        console.error('Failed to load notifications:', e);
+        body.innerHTML = `<div class="notif-empty">Couldn't load notifications right now.</div>`;
+      }
+    }
+
+    function toggleNotifPanel(open) {
+      document.getElementById('notifPanel').classList.toggle('open', open);
+      document.getElementById('notifOverlay').classList.toggle('open', open);
+      if (open) loadNotifications();
+    }
+
+    document.getElementById('notifBtn').addEventListener('click', () => toggleNotifPanel(true));
+    document.getElementById('notifCloseBtn').addEventListener('click', () => toggleNotifPanel(false));
+    document.getElementById('notifOverlay').addEventListener('click', () => toggleNotifPanel(false));
+
     document.addEventListener('DOMContentLoaded', () => {
       initAuthButton();
       loadAll();
+      loadNotifications();
     });
     window.addEventListener('gbf-data-refreshed', loadAll);
   </script>
