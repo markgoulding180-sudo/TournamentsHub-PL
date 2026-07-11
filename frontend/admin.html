@@ -147,6 +147,25 @@
       </button>
     </div>
 
+    <!-- Message Center — broadcast an alert to every user's notification bell -->
+    <div class="admin-card" style="border: 2px solid var(--accent-purple, #a855f7);">
+      <h3><i class="fas fa-bullhorn"></i> Message Center</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Broadcast an alert to every user — shows in their notification bell until you deactivate it.
+      </p>
+      <textarea id="broadcastMessageInput" rows="3" placeholder="e.g. Gameweek 39 predictions close Saturday 12:30pm"
+        style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary); font-family:inherit; margin-bottom:0.6rem; resize:vertical;"></textarea>
+      <select id="broadcastSeveritySelect" style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary); margin-bottom:0.6rem;">
+        <option value="info">Info</option>
+        <option value="warning">Warning</option>
+        <option value="urgent">Urgent</option>
+      </select>
+      <button class="btn btn-primary" onclick="sendBroadcastMessage()" style="width:100%; margin-bottom:1rem;">
+        <i class="fas fa-paper-plane"></i> Broadcast to All Users
+      </button>
+      <div id="broadcastMessagesList" style="font-size:0.85rem;">Loading active messages…</div>
+    </div>
+
     <!-- Current Status -->
     <div class="admin-card">
       <h3><i class="fas fa-info-circle"></i> Current Status</h3>

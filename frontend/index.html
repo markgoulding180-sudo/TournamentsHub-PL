@@ -86,6 +86,37 @@
   }
 
   .nav-right{display:flex;align-items:center;gap:14px;}
+
+  /* ================= NOTIFICATIONS ================= */
+  .notif-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+  .notif-overlay.open{ display:block; }
+  .notif-panel{
+    display:none; position:fixed; top:76px; right:32px; z-index:199;
+    width:360px; max-width:calc(100vw - 32px); max-height:70vh;
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:14px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5); overflow:hidden; flex-direction:column;
+  }
+  .notif-panel.open{ display:flex; }
+  .notif-panel-header{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 16px;
+    border-bottom:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:14px;
+  }
+  .notif-panel-header button{ width:26px;height:26px;border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--bg-card); }
+  .notif-panel-header button .icon{ width:13px;height:13px; }
+  .notif-panel-body{ overflow-y:auto; padding:10px; }
+  .notif-empty{ text-align:center; padding:26px 16px; color:var(--text-faint); font-size:13px; }
+  .notif-item{ display:block; padding:12px 12px; border-radius:10px; margin-bottom:6px; background:var(--bg-card); border:1px solid var(--border); }
+  .notif-item:hover{ border-color:var(--border-hover); }
+  .notif-item .notif-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .notif-item .notif-msg{ font-size:13px; color:var(--text-dim); line-height:1.4; }
+  .notif-item.admin .notif-title{ color:var(--gold); }
+  .notif-item.action .notif-title{ color:var(--accent-2); }
+  .notif-item.severity-warning{ border-color:var(--gold); }
+  .notif-item.severity-urgent{ border-color:var(--red); }
+
+  @media (max-width:640px){
+    .notif-panel{ top:auto; bottom:0; left:0; right:0; width:100%; max-width:100%; border-radius:16px 16px 0 0; max-height:80vh; }
+  }
   .my-tournaments-btn{
     display:flex; align-items:center; gap:7px; padding:8px 14px;
     border-radius:20px; background:rgba(59,130,246,0.1); border:1px solid var(--accent);
@@ -467,6 +498,7 @@
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4z"/><path d="M7 5H4a3 3 0 0 0 3 3"/><path d="M17 5h3a3 3 0 0 1-3 3"/><path d="M12 12v3"/><path d="M9 19h6"/><path d="M10 16h4l1 3H9l1-3z"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.3"/><path d="M5 20c0-3.6 3-6.2 7-6.2s7 2.6 7 6.2"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></symbol>
@@ -507,7 +539,7 @@
     </nav>
   </div>
   <div class="nav-right">
-    <button class="icon-btn" title="Notifications"><svg class="icon"><use href="#i-bell"/></svg><span class="notif-dot"></span></button>
+    <button class="icon-btn" title="Notifications" id="notifBtn"><svg class="icon"><use href="#i-bell"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
     <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
     <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2F" title="Log in">
       <div class="avatar" id="navAvatar"><svg class="icon"><use href="#i-user"/></svg></div>
@@ -520,6 +552,18 @@
   </div>
   <div class="navbar-row-break"></div>
 </header>
+
+<!-- Notification panel — toggled by the bell button -->
+<div class="notif-overlay" id="notifOverlay"></div>
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-header">
+    <span>Notifications</span>
+    <button id="notifCloseBtn" title="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+  </div>
+  <div class="notif-panel-body" id="notifBody">
+    <div class="notif-empty">Loading…</div>
+  </div>
+</div>
 
 <!-- Mobile-only quick category strip (sidebar is hidden below 860px) -->
 <nav class="mobile-cat-strip" id="mobileCatStrip">
@@ -1285,6 +1329,71 @@
       }
     }
   })();
+
+  // ================= NOTIFICATIONS =================
+  function escapeHtmlNotif(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function notifAuthHeaders() {
+    const token = localStorage.getItem('gbf_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  }
+
+  async function loadNotifications() {
+    const body = document.getElementById('notifBody');
+    const dot = document.getElementById('notifDot');
+    const token = localStorage.getItem('gbf_token');
+
+    if (!token) {
+      body.innerHTML = `<div class="notif-empty">Log in to see your notifications.</div>`;
+      dot.style.display = 'none';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/tournaments?notifications=true', { headers: notifAuthHeaders() });
+      const data = await res.json();
+      const adminMessages = data.admin_messages || [];
+      const actionItems = data.action_items || [];
+      const total = adminMessages.length + actionItems.length;
+
+      dot.style.display = total > 0 ? 'block' : 'none';
+
+      if (total === 0) {
+        body.innerHTML = `<div class="notif-empty">You're all caught up! 🎉</div>`;
+        return;
+      }
+
+      const adminHtml = adminMessages.map(m => `
+        <div class="notif-item admin severity-${escapeHtmlNotif(m.severity || 'info')}">
+          <div class="notif-title"><i class="fas fa-bullhorn"></i> Announcement</div>
+          <div class="notif-msg">${escapeHtmlNotif(m.message)}</div>
+        </div>`).join('');
+
+      const actionHtml = actionItems.map(item => `
+        <a class="notif-item action" href="${item.href}">
+          <div class="notif-title"><i class="fas fa-triangle-exclamation"></i> Action Needed</div>
+          <div class="notif-msg">${escapeHtmlNotif(item.message)}</div>
+        </a>`).join('');
+
+      body.innerHTML = adminHtml + actionHtml;
+    } catch (e) {
+      console.error('Failed to load notifications:', e);
+      body.innerHTML = `<div class="notif-empty">Couldn't load notifications right now.</div>`;
+    }
+  }
+
+  function toggleNotifPanel(open) {
+    document.getElementById('notifPanel').classList.toggle('open', open);
+    document.getElementById('notifOverlay').classList.toggle('open', open);
+    if (open) loadNotifications();
+  }
+
+  document.getElementById('notifBtn').addEventListener('click', () => toggleNotifPanel(true));
+  document.getElementById('notifCloseBtn').addEventListener('click', () => toggleNotifPanel(false));
+  document.getElementById('notifOverlay').addEventListener('click', () => toggleNotifPanel(false));
+
+  document.addEventListener('DOMContentLoaded', loadNotifications);
 
   // Live data refresh is handled by the shared live-poll.js script — just
   // re-render this page's own live strip whenever it runs.

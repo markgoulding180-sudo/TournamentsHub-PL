@@ -138,6 +138,7 @@ function verifyPin() {
 
 async function refreshStatus() {
   try {
+    loadBroadcastMessages();
     const response = await fetch('/api/admin-stats');
     const data = await response.json();
     
@@ -154,6 +155,7 @@ async function refreshStatus() {
       document.getElementById('next-gw').textContent = '⚠️ Initialize Master Clock';
       document.getElementById('next-gw').style.color = 'var(--accent-amber)';
       document.getElementById('deadline').textContent = 'N/A';
+      updateGameweekPanel(null);
       return;
     }
     
@@ -167,9 +169,155 @@ async function refreshStatus() {
     const nextGWLabel = document.querySelector('#status-panel .admin-status-item:nth-child(2) span');
     if (lastCompletedLabel) lastCompletedLabel.textContent = 'Last Finalised:';
     if (nextGWLabel) nextGWLabel.textContent = 'Current GW (Master Clock):';
+
+    updateGameweekPanel(gwData);
     
   } catch (error) {
     console.error('Error refreshing status:', error);
+  }
+}
+
+function updateGameweekPanel(gwData) {
+  const currentDisplay = document.getElementById('gw-current-display');
+  const matchCount = document.getElementById('gw-match-count');
+  const hint = document.getElementById('gw-advance-hint');
+  const advanceBtn = document.getElementById('gw-advance-btn');
+  if (!currentDisplay) return;
+
+  if (!gwData) {
+    currentDisplay.textContent = '--';
+    matchCount.textContent = '--';
+    hint.innerHTML = '<span class="text-muted">Set a gameweek below to get started.</span>';
+    advanceBtn.disabled = true;
+    return;
+  }
+
+  currentDisplay.textContent = `GW${gwData.current_gameweek}`;
+  matchCount.textContent = `${gwData.matches_finished ?? 0} / ${gwData.matches_total ?? 0}`;
+
+  if (!gwData.matches_total) {
+    hint.innerHTML = '<span class="text-muted"><i class="fas fa-circle-info"></i> No fixtures synced for this gameweek yet.</span>';
+    advanceBtn.disabled = false;
+  } else if (gwData.all_matches_finished) {
+    matchCount.style.color = 'var(--accent-green)';
+    hint.innerHTML = '<span style="color:var(--accent-green);"><i class="fas fa-circle-check"></i> All matches finished — safe to advance.</span>';
+    advanceBtn.disabled = false;
+  } else {
+    matchCount.style.color = 'var(--accent-amber)';
+    hint.innerHTML = '<span style="color:var(--accent-amber);"><i class="fas fa-triangle-exclamation"></i> Some matches still in progress — you can still advance manually if you want to, but double check first.</span>';
+    advanceBtn.disabled = false;
+  }
+}
+
+async function advanceGameweek() {
+  const currentText = document.getElementById('gw-current-display').textContent;
+  if (!confirm(`Finalise ${currentText} (archives Predictions' results, calculates rankings/prizes) and advance to the next gameweek?`)) return;
+
+  log(`Finalising and advancing gameweek...`);
+  try {
+    const token = localStorage.getItem('gbf_token');
+    // This is the ONE action that does the complete job: archives
+    // Predictions' prediction_history, computes gameweek_summary, ranks
+    // tournament_entries with prizes, AND advances master_clock — all in
+    // one step, so there's only ever one button to click, not two that
+    // silently do different amounts of work.
+    const response = await fetch('/api/gameweek-transition?manual=true', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      log(`Failed to advance: ${data.error}`, 'error');
+      return;
+    }
+    log(`${data.message || 'Advanced'} — actions: ${(data.actions || []).join(', ')}`, 'success');
+    refreshStatus();
+  } catch (error) {
+    log(`Error advancing gameweek: ${error.message}`, 'error');
+  }
+}
+
+// ================= MESSAGE CENTER =================
+function escapeHtmlBroadcast(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadBroadcastMessages() {
+  const list = document.getElementById('broadcastMessagesList');
+  if (!list) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?notifications=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    const messages = data.admin_messages || [];
+
+    if (messages.length === 0) {
+      list.innerHTML = '<div class="text-muted">No active broadcast messages.</div>';
+      return;
+    }
+
+    list.innerHTML = messages.map(m => `
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:0.6rem 0; border-bottom:1px solid var(--border-color);">
+        <div>
+          <span style="text-transform:uppercase; font-size:0.7rem; font-weight:700; color:${m.severity === 'urgent' ? '#ef4444' : m.severity === 'warning' ? '#f2b93d' : 'var(--accent-blue)'};">${escapeHtmlBroadcast(m.severity || 'info')}</span>
+          <div>${escapeHtmlBroadcast(m.message)}</div>
+        </div>
+        <button class="btn btn-sm" onclick="deactivateBroadcastMessage('${m.id}')" title="Deactivate" style="flex:none;"><i class="fas fa-xmark"></i></button>
+      </div>`).join('');
+  } catch (error) {
+    list.innerHTML = '<div class="text-muted">Failed to load messages.</div>';
+    console.error('loadBroadcastMessages error:', error);
+  }
+}
+
+async function sendBroadcastMessage() {
+  const input = document.getElementById('broadcastMessageInput');
+  const severity = document.getElementById('broadcastSeveritySelect').value;
+  const message = input.value.trim();
+  if (!message) {
+    log('Broadcast message cannot be empty', 'error');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_broadcast', message, severity })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      log(`Failed to broadcast: ${data.error}`, 'error');
+      return;
+    }
+    log('Broadcast sent to all users', 'success');
+    input.value = '';
+    loadBroadcastMessages();
+  } catch (error) {
+    log(`Error broadcasting message: ${error.message}`, 'error');
+  }
+}
+
+async function deactivateBroadcastMessage(messageId) {
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_broadcast_deactivate', message_id: messageId })
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      log(`Failed to deactivate: ${data.error}`, 'error');
+      return;
+    }
+    log('Message deactivated', 'success');
+    loadBroadcastMessages();
+  } catch (error) {
+    log(`Error deactivating message: ${error.message}`, 'error');
   }
 }
 
@@ -253,6 +401,52 @@ async function launchTournament() {
   }
 }
 
+async function syncEverything() {
+  log('=== Sync Everything: starting ===');
+  const token = localStorage.getItem('gbf_token');
+
+  // 1. Players (teams + players, full FPL bulk sync)
+  try {
+    log('Syncing players and teams…');
+    const res = await fetch('/api/sync-players');
+    const data = await res.json();
+    log(`Players: ${data.results?.teams_synced || 0} teams, ${data.results?.players_synced || 0} players synced`, 'success');
+    if (data.results?.errors?.length > 0) {
+      log(`Players sync had ${data.results.errors.length} errors`, 'error');
+    }
+  } catch (error) {
+    log(`Players sync failed: ${error.message}`, 'error');
+  }
+
+  // 2. Fixtures (all gameweeks)
+  try {
+    log('Syncing fixtures…');
+    const res = await fetch('/api/sync-fixtures', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const total = (data.created || 0) + (data.updated || 0);
+    log(`Fixtures: ${total} matches synced (${data.created || 0} new, ${data.updated || 0} updated)`, 'success');
+  } catch (error) {
+    log(`Fixtures sync failed: ${error.message}`, 'error');
+  }
+
+  // 3. Live scores (updates match status/results, triggers points calc)
+  try {
+    log('Updating live scores…');
+    const res = await fetch('/api/live-scores', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    log(`Live scores: ${data.message || 'updated'}`, 'success');
+  } catch (error) {
+    log(`Live scores update failed: ${error.message}`, 'error');
+  }
+
+  log('=== Sync Everything: complete ===', 'success');
+  refreshStatus();
+}
+
 async function syncFixtures() {
   const gwSelect = document.getElementById('sync-gw-select');
   const gameweek = gwSelect ? gwSelect.value : '';
@@ -282,6 +476,54 @@ async function syncFixtures() {
     
   } catch (error) {
     log(`Sync error: ${error.message}`, 'error');
+  }
+}
+
+async function refreshLiveMatches() {
+  const container = document.getElementById('live-matches');
+  container.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/live-scores', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      container.innerHTML = `<span style="color:var(--accent-red);">Error: ${data.error || 'Failed to load'}</span>`;
+      return;
+    }
+
+    const results = data.results;
+    if (!results) {
+      container.innerHTML = `<span class="text-muted">${data.message || 'No data returned'}</span>`;
+      return;
+    }
+
+    const liveMatches = results.live || [];
+    let html = `<p class="text-muted mb-2">GW${data.gameweek} — ${results.finished || 0} finished, ${liveMatches.length} live, ${results.updated || 0} updated</p>`;
+
+    if (liveMatches.length > 0) {
+      html += liveMatches.map(m => `
+        <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--border-color);">
+          <span>${m.home_team} vs ${m.away_team}</span>
+          <span><strong>${m.home} - ${m.away}</strong> (${m.minute}')</span>
+        </div>
+      `).join('');
+    } else {
+      html += '<p class="text-muted">No matches currently live.</p>';
+    }
+
+    if (results.errors && results.errors.length > 0) {
+      html += `<p style="color:var(--accent-amber); font-size:0.8rem; margin-top:0.5rem;">${results.errors.length} warning(s) — check activity log for sync issues.</p>`;
+    }
+
+    container.innerHTML = html;
+    log(`Live matches refreshed: ${results.finished || 0} finished, ${liveMatches.length} live`, 'success');
+  } catch (error) {
+    container.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+    log(`Live matches refresh error: ${error.message}`, 'error');
   }
 }
 

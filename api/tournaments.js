@@ -263,6 +263,128 @@ module.exports = async (req, res) => {
         return res.status(200).json({ entry: entry || null });
       }
 
+      // Notification bell: active admin broadcast messages, plus real
+      // pending-action items computed from the user's actual state in
+      // each tournament they're entered in (clears itself automatically
+      // once the action is done — nothing to dismiss manually).
+      const notifications = params.get('notifications');
+      if (notifications === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) {
+          return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const { data: adminMessages } = await supabaseAdmin
+          .from('admin_messages')
+          .select('*')
+          .eq('active', true)
+          .order('created_at', { ascending: false });
+
+        const actionItems = [];
+
+        try {
+          // ---- Predictions: unpredicted matches in the current gameweek ----
+          const { data: predTournament } = await supabaseAdmin
+            .schema('predictions').from('tournaments')
+            .select('id').eq('status', 'live').limit(1).maybeSingle();
+
+          if (predTournament) {
+            const { data: predEntry } = await supabaseAdmin
+              .schema('predictions').from('tournament_entries')
+              .select('id').eq('tournament_id', predTournament.id).eq('user_id', user.id).maybeSingle();
+
+            if (predEntry) {
+              const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+              const gw = clock?.current_gameweek;
+              if (gw) {
+                const { data: gwMatches } = await masterDb.from('matches').select('id, kickoff_time').eq('gameweek', gw);
+                const upcoming = (gwMatches || []).filter(m => new Date(m.kickoff_time).getTime() > Date.now());
+                if (upcoming.length > 0) {
+                  const { data: myPreds } = await supabaseAdmin
+                    .schema('predictions').from('predictions')
+                    .select('match_id').eq('user_id', user.id).eq('gameweek', gw);
+                  const predictedIds = new Set((myPreds || []).map(p => p.match_id));
+                  const missing = upcoming.filter(m => !predictedIds.has(m.id));
+                  if (missing.length > 0) {
+                    actionItems.push({
+                      type: 'predictions', href: '/predict',
+                      message: `You have ${missing.length} unpredicted match${missing.length === 1 ? '' : 'es'} in Gameweek ${gw}.`
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) { console.error('notifications: predictions check failed', e); }
+
+        try {
+          // ---- Fantasy Manager: entered but no squad saved yet ----
+          const { data: fmTournament } = await supabaseAdmin
+            .schema('fantasy').from('tournaments')
+            .select('id').eq('status', 'live').limit(1).maybeSingle();
+
+          if (fmTournament) {
+            const { data: fmEntry } = await supabaseAdmin
+              .schema('fantasy').from('tournament_entries')
+              .select('squad_players').eq('tournament_id', fmTournament.id).eq('user_id', user.id).maybeSingle();
+
+            if (fmEntry && (!fmEntry.squad_players || fmEntry.squad_players.length === 0)) {
+              actionItems.push({ type: 'fantasy', href: '/fantasy-manager', message: 'Your Fantasy Manager squad is empty — build it before the deadline.' });
+            }
+          }
+        } catch (e) { console.error('notifications: fantasy check failed', e); }
+
+        try {
+          // ---- Last Man Standing: entered, alive, no pick for the current gameweek ----
+          const { data: lmsTournament } = await supabaseAdmin
+            .schema('lms').from('tournaments')
+            .select('id, gameweek').eq('status', 'live').limit(1).maybeSingle();
+
+          if (lmsTournament) {
+            const { data: lmsEntry } = await supabaseAdmin
+              .schema('lms').from('tournament_entries')
+              .select('id, is_eliminated').eq('tournament_id', lmsTournament.id).eq('user_id', user.id).maybeSingle();
+
+            if (lmsEntry && !lmsEntry.is_eliminated) {
+              const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+              const gw = clock?.current_gameweek && clock.current_gameweek >= lmsTournament.gameweek ? clock.current_gameweek : lmsTournament.gameweek;
+              const { data: myPick } = await supabaseAdmin
+                .schema('lms').from('picks')
+                .select('id').eq('tournament_id', lmsTournament.id).eq('user_id', user.id).eq('gameweek', gw).maybeSingle();
+
+              if (!myPick) {
+                actionItems.push({ type: 'lms', href: `/last-man-standing-pick?gameweek=${gw}`, message: `You haven't made your Last Man Standing pick for Gameweek ${gw} yet.` });
+              }
+            }
+          }
+        } catch (e) { console.error('notifications: lms check failed', e); }
+
+        try {
+          // ---- Stock Market: entered, still drafting, no squad saved yet ----
+          const { data: smTournament } = await supabaseAdmin
+            .schema('stockmarket').from('tournaments')
+            .select('id, status, closes_at').in('status', ['upcoming', 'live']).limit(1).maybeSingle();
+
+          if (smTournament) {
+            const draftOpen = smTournament.status !== 'live' || (smTournament.closes_at && Date.now() < new Date(smTournament.closes_at).getTime());
+            const { data: smEntry } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('squad_players, squad_locked').eq('tournament_id', smTournament.id).eq('user_id', user.id).maybeSingle();
+
+            if (smEntry && !smEntry.squad_locked && (!smEntry.squad_players || smEntry.squad_players.length === 0) && draftOpen) {
+              actionItems.push({ type: 'stockmarket', href: '/stock-market-draft', message: "You haven't drafted your Stock Market squad yet." });
+            }
+          }
+        } catch (e) { console.error('notifications: stockmarket check failed', e); }
+
+        return res.status(200).json({ admin_messages: adminMessages || [], action_items: actionItems });
+      }
+
       // Last Man Standing: return this user's full pick history + which
       // teams are already used (so the frontend can grey them out).
       const lmsState = params.get('lms_state');
@@ -551,6 +673,59 @@ module.exports = async (req, res) => {
           message: 'Tournament created successfully',
           tournament: data
         });
+      }
+
+      // ADMIN: broadcast a message to every user (shows in the notification bell)
+      if (action === 'admin_broadcast') {
+        const { data: caller, error: callerError } = await supabaseAdmin
+          .from('users').select('is_admin').eq('id', user.id).maybeSingle();
+
+        if (callerError || !caller || !caller.is_admin) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const { message, severity } = req.body;
+        if (!message || !message.trim()) {
+          return res.status(400).json({ error: 'message is required' });
+        }
+
+        const { data: created, error: createError } = await supabaseAdmin
+          .from('admin_messages')
+          .insert({ message: message.trim(), severity: severity || 'info', created_by: user.id })
+          .select()
+          .single();
+
+        if (createError) {
+          return res.status(500).json({ error: 'Failed to create message', details: createError.message });
+        }
+
+        return res.status(201).json({ success: true, message: created });
+      }
+
+      // ADMIN: deactivate a previously broadcast message
+      if (action === 'admin_broadcast_deactivate') {
+        const { data: caller, error: callerError } = await supabaseAdmin
+          .from('users').select('is_admin').eq('id', user.id).maybeSingle();
+
+        if (callerError || !caller || !caller.is_admin) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const { message_id } = req.body;
+        if (!message_id) {
+          return res.status(400).json({ error: 'message_id is required' });
+        }
+
+        const { error: updateError } = await supabaseAdmin
+          .from('admin_messages')
+          .update({ active: false })
+          .eq('id', message_id);
+
+        if (updateError) {
+          return res.status(500).json({ error: 'Failed to deactivate message', details: updateError.message });
+        }
+
+        return res.status(200).json({ success: true });
       }
 
       // JOIN tournament (user action) — also used to save/update a Fantasy
