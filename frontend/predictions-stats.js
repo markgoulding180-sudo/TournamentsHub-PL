@@ -13,7 +13,7 @@ async function loadProfile() {
   const userJson = localStorage.getItem('gbf_user');
   
   if (!token || !userJson) {
-    window.location.href = '/login.html';
+    window.location.href = '/login?redirect=%2Fpredictions-stats';
     return;
   }
   
