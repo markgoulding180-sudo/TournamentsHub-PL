@@ -3,929 +3,300 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Profile - GB Fantasy</title>
-  <link rel="stylesheet" href="style.css">
+  <title>My Profile - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
-    /* ── STADIUM BANNER HEADER ── */
-    .profile-header {
-      position: relative;
-      width: 100%;
-      border-radius: 1rem;
-      overflow: hidden;
-      margin-bottom: 2rem;
-      min-height: 420px;
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
-    .profile-header-bg {
-      position: absolute;
-      inset: 0;
-      background-image: url('images/football-banner.jpg');
-      background-size: cover;
-      background-position: center 55%;
-      filter: brightness(0.78);
-    }
-    .profile-header-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, rgba(10,15,46,0.92) 0%, rgba(10,15,46,0.7) 40%, rgba(10,15,46,0.15) 100%);
-      z-index: 1;
-    }
-    .profile-header-content {
-      position: relative;
-      z-index: 2;
-      padding: 1.5rem 2rem 4.5rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    .profile-avatar {
-      width: 90px;
-      height: 90px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #3b82f6, #06b6d4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2rem;
-      font-weight: 700;
-      color: white;
-      border: 3px solid rgba(255,255,255,0.4);
-      flex-shrink: 0;
-    }
-    .profile-info h1 {
-      margin: 0 0 0.25rem 0;
-      font-size: 1.75rem;
-      color: #fff;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-    }
-    .profile-info .username {
-      color: rgba(255,255,255,0.75);
-      font-size: 0.95rem;
-      margin-bottom: 0.25rem;
-    }
-    .profile-info .member-since {
-      color: rgba(255,255,255,0.65);
-      font-size: 0.85rem;
-    }
-    /* Tournament bar at bottom of banner - only when inside profile-header */
-    .profile-header .profile-tournament-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 3;
-    }
-    /* Tournament bar standalone (outside header) */
-    .profile-tournament-bar {
-      background: rgba(5, 15, 50, 0.85);
-      backdrop-filter: blur(8px);
-      padding: 0.5rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: relative;
-      margin-bottom: 1rem;
-      border-radius: 0.5rem;
-      min-height: 50px;
-    }
-    .profile-tournament-bar .t-left {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-    .profile-tournament-bar .t-name {
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.95rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 200px;
-    }
-    .profile-tournament-bar .t-meta {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.75rem;
-    }
-    .profile-tournament-bar .t-right {
-      text-align: right;
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #60a5fa;
-    }
-    .profile-tournament-bar .t-gw-label {
-      font-size: 0.65rem;
-      font-weight: 400;
-      color: rgba(255,255,255,0.6);
-    }
-    .profile-tournament-bar .t-right {
-      color: #60a5fa;
-      font-weight: 700;
-      font-size: 0.95rem;
-      text-align: right;
-    }
-    .live-badge {
-      background: #ef4444;
-      color: #fff;
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      letter-spacing: 0.05em;
-      animation: pulse-red 1.5s infinite;
-    }
-    @keyframes pulse-red {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-    .entered-badge {
-      color: #22c55e;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
 
-    /* ── LIVE MATCHES BANNER ── */
-    .live-matches-banner {
-      background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
-      border: 1px solid rgba(239,68,68,0.4);
-      border-radius: 0.5rem;
-      padding: 0.75rem 1rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-    .live-matches-banner .live-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #ef4444;
-      animation: pulse-red 1s infinite;
-      flex-shrink: 0;
-    }
-    .live-matches-banner .live-text {
-      color: #ef4444;
-      font-weight: 600;
-      font-size: 0.9rem;
-      flex: 1;
-    }
-    .live-matches-banner .refresh-btn {
-      background: none;
-      border: none;
-      color: rgba(255,255,255,0.5);
-      cursor: pointer;
-      font-size: 0.8rem;
-      padding: 0.25rem 0.5rem;
-    }
-    .live-matches-banner .refresh-btn:hover {
-      color: #fff;
-    }
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
 
-    /* ── MATCH STATUS STYLES ── */
-    .match-status-live {
-      color: #ef4444;
-      font-size: 0.8rem;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .match-status-live::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #ef4444;
-      animation: pulse-red 1s infinite;
-    }
-    .match-live-score {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #ef4444;
-    }
-    .match-finished-score {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: #94a3b8;
-    }
+    main{ position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:32px 24px 60px; }
 
-    /* ── REST OF STYLES (unchanged) ── */
-    .profile-stats {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 1rem;
-      margin-top: 1rem;
+    /* Profile header */
+    .profile-header{
+      display:flex; align-items:center; gap:20px; padding:26px;
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:22px;
+      flex-wrap:wrap;
     }
-    @media (max-width: 768px) {
-      .profile-stats { grid-template-columns: repeat(3, 1fr); }
+    .profile-avatar{
+      width:72px; height:72px; border-radius:50%; flex:none;
+      background:linear-gradient(150deg,var(--accent-2),var(--accent-dim));
+      display:flex; align-items:center; justify-content:center;
+      font-family:var(--font-head); font-size:26px; font-weight:700; color:#fff;
     }
-    .profile-stat {
-      text-align: center;
-      padding: 1rem;
-      background: var(--bg-hover);
-      border-radius: 0.5rem;
-    }
-    .profile-stat-value {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--accent-green);
-    }
-    .profile-stat-label {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-    }
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 1.5rem;
-    }
-    .dashboard-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      padding: 1.5rem;
-    }
-    .dashboard-card h3 {
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .empty-state {
-      text-align: center;
-      padding: 2rem;
-      color: var(--text-secondary);
-    }
-    .empty-state i {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      opacity: 0.5;
-    }
-    .chart-container {
-      position: relative;
-      height: 300px;
-      margin-bottom: 1.5rem;
-    }
-    .chart-toggle {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    .chart-toggle button {
-      padding: 0.5rem 1rem;
-      border: 1px solid var(--border);
-      background: var(--bg-hover);
-      color: var(--text-secondary);
-      border-radius: 0.5rem;
-      cursor: pointer;
-      font-size: 0.875rem;
-      transition: all 0.2s;
-    }
-    .chart-toggle button.active {
-      background: var(--accent-green);
-      color: white;
-      border-color: var(--accent-green);
-    }
-    .prediction-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.875rem;
-    }
-    .prediction-table th,
-    .prediction-table td {
-      padding: 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-    .prediction-table th {
-      font-weight: 600;
-      color: var(--text-secondary);
-      background: var(--bg-hover);
-    }
-    .prediction-table tr:hover { background: var(--bg-hover); }
-    .achievements-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 1rem;
-    }
-    .achievement-badge {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1rem;
-      background: var(--bg-hover);
-      border-radius: 0.75rem;
-      text-align: center;
-    }
-    .achievement-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-    .achievement-name { font-size: 0.75rem; font-weight: 600; color: var(--text-primary); }
-    .insights-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-    }
-    .insight-card {
-      background: var(--bg-hover);
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-      text-align: center;
-    }
-    .insight-label {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
-    }
-    .insight-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--accent-green);
-    }
-    .insight-detail {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-      margin-top: 0.25rem;
-    }
-    
-    /* User Trends Styles */
-    .trends-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1rem;
-    }
-    .trend-card {
-      background: var(--bg-hover);
-      border-radius: 0.75rem;
-      padding: 1rem;
-      border: 1px solid var(--border-color);
-    }
-    .trend-match {
-      font-weight: 600;
-      font-size: 0.9rem;
-      margin-bottom: 0.75rem;
-      color: var(--text-primary);
-    }
-    .trend-bar-container {
-      display: flex;
-      height: 24px;
-      border-radius: 0.375rem;
-      overflow: hidden;
-      margin-bottom: 0.5rem;
-    }
-    .trend-bar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--bg-primary);
-    }
-    .trend-bar-home { background: var(--accent-blue); }
-    .trend-bar-draw { background: var(--accent-amber); }
-    .trend-bar-away { background: var(--accent-red); }
-    .trend-stats {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-    }
-    .trend-most-popular {
-      margin-top: 0.5rem;
-      padding-top: 0.5rem;
-      border-top: 1px solid var(--border-color);
-      font-size: 0.8rem;
-    }
-    .trend-score-tag {
-      display: inline-block;
-      background: var(--accent-green);
-      color: var(--bg-primary);
-      padding: 0.15rem 0.5rem;
-      border-radius: 0.25rem;
-      font-weight: 600;
-      font-size: 0.75rem;
-      margin-left: 0.25rem;
-    }
-    
-    /* ── TABBED LAYOUT STYLES ── */
-    .profile-tabs {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .profile-tabs::-webkit-scrollbar {
-      display: none;
-    }
-    .profile-tab {
-      padding: 0.75rem 1.25rem;
-      background: transparent;
-      border: none;
-      border-bottom: 3px solid transparent;
-      color: var(--text-secondary);
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .profile-tab:hover {
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.05);
-      border-radius: 0.5rem 0.5rem 0 0;
-    }
-    .profile-tab.active {
-      color: var(--accent-green);
-      border-bottom-color: var(--accent-green);
-      background: rgba(34, 197, 94, 0.1);
-      border-radius: 0.5rem 0.5rem 0 0;
-    }
-    .profile-tab-content {
-      display: none;
-    }
-    .profile-tab-content.active {
-      display: block;
-      animation: fadeIn 0.3s ease;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Prevent horizontal scrolling */
-    html, body {
-      max-width: 100%;
-      overflow-x: hidden;
-    }
-    
-    @media (max-width: 768px) {
-      /* Profile header mobile layout */
-      .profile-header {
-        min-height: 140px;
-        max-height: 160px;
-      }
-      .profile-header-content {
-        flex-direction: row;
-        align-items: center;
-        text-align: left;
-        padding: 0.75rem 1rem;
-        gap: 0.75rem;
-        min-height: 100px;
-      }
-      .profile-avatar {
-        width: 60px;
-        height: 60px;
-        font-size: 1.25rem;
-        border-width: 2px;
-      }
-      .profile-info {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        height: 60px;
-      }
-      .profile-info h1 {
-        font-size: 1rem;
-        margin: 0;
-        line-height: 1.2;
-      }
-      .profile-info .username {
-        font-size: 0.75rem;
-        margin: 0.1rem 0;
-      }
-      .profile-info .member-since {
-        font-size: 0.65rem;
-      }
-      
-      /* Tournament bar compact */
-      .profile-tournament-bar {
-        padding: 0.4rem 0.75rem;
-        min-height: 42px;
-        position: relative !important;
-        margin-top: 0.5rem;
-      }
-      .profile-tournament-bar .t-left {
-        gap: 0.1rem;
-      }
-      .profile-tournament-bar .t-name {
-        font-size: 0.8rem;
-        max-width: 150px;
-      }
-      .profile-tournament-bar .t-meta {
-        gap: 0.4rem;
-        font-size: 0.7rem;
-      }
-      .profile-tournament-bar .t-right {
-        font-size: 0.8rem;
-      }
-      
-      /* Dashboard and cards */
-      .container {
-        padding: 0.5rem;
-      }
-      .dashboard-grid { 
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-      }
-      .dashboard-card {
-        padding: 0.75rem;
-      }
-      .dashboard-card h3 {
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-      }
-      
-      /* Stats alignment */
-      .profile-stats {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.5rem;
-      }
-      .profile-stat {
-        padding: 0.5rem;
-      }
-      .profile-stat-value {
-        font-size: 1.25rem;
-      }
-      .profile-stat-label {
-        font-size: 0.65rem;
-      }
-      
-      /* Predictions section */
-      .prediction-table { font-size: 0.75rem; }
-      .prediction-table th, .prediction-table td { padding: 0.6rem 0.4rem; }
-      
-      /* Prediction history table better spacing */
-      #prediction-history-container table {
-        font-size: 0.75rem;
-      }
-      #prediction-history-container th,
-      #prediction-history-container td {
-        padding: 0.6rem 0.3rem;
-      }
-      #prediction-history-container td:first-child {
-        max-width: 120px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      
-      /* Chart */
-      .chart-container { height: 200px; }
-      
-      /* Achievements - more compact */
-      .achievements-grid { 
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.4rem;
-      }
-      .achievement-badge {
-        padding: 0.5rem 0.25rem;
-      }
-      .achievement-icon { 
-        font-size: 1.25rem; 
-        margin-bottom: 0.25rem; 
-      }
-      .achievement-name { 
-        font-size: 0.65rem; 
-      }
-      
-      /* Insights - more compact */
-      .insights-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-      }
-      .insight-card {
-        padding: 0.5rem;
-      }
-      .insight-label {
-        font-size: 0.65rem;
-      }
-      .insight-value {
-        font-size: 1rem;
-      }
-      .insight-detail {
-        font-size: 0.7rem;
-      }
-      
-      /* All text aligned left */
-      .dashboard-card > * {
-        text-align: left;
-      }
-      
-      /* Tabs - ensure no overflow */
-      .profile-tabs {
-        padding: 0 0.25rem;
-        gap: 0.25rem;
-      }
-      .profile-tab {
-        padding: 0.6rem 0.75rem;
-        font-size: 0.8rem;
-        gap: 0.35rem;
-      }
-      .profile-tab i {
-        font-size: 0.85rem;
-      }
-      
-      /* Ensure insights don't overflow */
-      .insights-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.4rem;
-      }
-      .insight-card[style*="grid-column: span 2"] {
-        grid-column: span 2 !important;
-      }
-      
-      /* Trends grid - single column on mobile */
-      .trends-grid {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-      }
-      
-      /* Ensure no horizontal scroll on any container */
-      .dashboard-card,
-      .profile-tab-content,
-      #prediction-history-container,
-      #current-predictions {
-        max-width: 100%;
-        overflow-x: hidden;
-      }
-    }
-    /* ===== Hub-style navbar (replaces the old sidebar+navbar) ===== */
-    .hub-navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border-color); }
-    .hub-nav-left{display:flex;align-items:center;gap:40px;}
-    .hub-logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
-    .hub-logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,#60a5fa,#1d4ed8); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px rgba(59,130,246,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
-    .hub-logo-text{font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
-    .hub-logo-text .sub{color:#60a5fa; display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
-    .hub-nav-links{display:flex; gap:30px;}
-    .hub-nav-links a{ font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-secondary); padding-bottom:19px; position:relative; transition:color .2s; text-decoration:none; }
-    .hub-nav-links a:hover{color:var(--text-primary);}
-    .hub-nav-links a.active{color:var(--text-primary);}
-    .hub-nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:#60a5fa; box-shadow:0 0 10px rgba(59,130,246,0.45); border-radius:2px; }
-    .hub-nav-right{display:flex;align-items:center;gap:14px;}
-    .hub-icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border-color); }
-    .hub-icon-btn i{font-size:15px;color:var(--text-secondary);}
-    .hub-avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s; text-decoration:none; color:inherit;}
-    .hub-avatar-btn:hover{border-color:var(--border-color);}
-    .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
-    @media (max-width:900px){
-      .hub-navbar{ padding:12px 16px; }
-      .hub-logo-text{ font-size:14px; }
-      .hub-nav-links{ gap:16px; }
-      .hub-nav-links a{ font-size:12px; padding-bottom:12px; }
+    .profile-header h1{ font-family:var(--font-display); font-size:26px; letter-spacing:.3px; margin-bottom:4px; }
+    .profile-header .username{ color:var(--text-dim); font-size:14px; margin-bottom:4px; }
+    .profile-header .member-since{ color:var(--text-faint); font-size:12.5px; }
+
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+
+    .stat-row{ display:flex; gap:14px; margin-bottom:22px; flex-wrap:wrap; }
+    .stat{ flex:1; min-width:150px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
+    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:4px; letter-spacing:.3px; }
+    .stat .value{ font-family:var(--font-head); font-size:26px; font-weight:700; }
+
+    .t-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; margin-bottom:22px; }
+    .t-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    .t-card .t-game-tag{ display:inline-flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--accent-2); font-weight:700; margin-bottom:8px; }
+    .t-card h3{ font-family:var(--font-head); font-size:15px; margin-bottom:10px; }
+    .t-card .t-rank{ display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid var(--border); }
+    .t-card .t-rank .rank-value{ font-family:var(--font-head); font-weight:700; font-size:18px; }
+    .t-card .t-rank .rank-value.gold{ color:var(--gold); }
+    .t-card .t-detail{ font-size:12.5px; color:var(--text-dim); }
+
+    .empty{ text-align:center; padding:30px 20px; color:var(--text-faint); font-size:13px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:22px; }
+    .empty a{ color:var(--accent-2); font-weight:600; }
+
+    .chart-wrap{ position:relative; height:260px; }
+
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .nav-links{ display:none; }
+      main{ padding:20px 14px 60px; }
+      .profile-header{ padding:18px; }
+      .profile-header h1{ font-size:21px; }
+      .t-grid{ grid-template-columns:1fr; }
     }
   </style>
-
 </head>
 <body>
-  <!-- Sidebar Navigation (Desktop) -->
-  <header class="hub-navbar">
-    <div class="hub-nav-left">
-      <a href="/" class="hub-logo">
-        <div class="hub-logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
-        <div class="hub-logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
       </a>
-      <nav class="hub-nav-links">
+      <nav class="nav-links">
         <a href="/">GB Hub</a>
-        <a href="/predictions">Predictions Hub</a>
-        <a href="/leaderboard">Leaderboard</a>
-        <a href="/table">PL Table</a>
-        <a href="/injuries">Injuries</a>
+        <a href="/my-tournaments">My Tournaments</a>
       </nav>
     </div>
-    <div class="hub-nav-right">
-      <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
-      <a class="hub-avatar-btn" id="navAuthBtn" href="/login" title="Log in">
-        <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>
-        <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary); display:none;">Log In</span>
-      </a>
+    <div class="nav-right">
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="container">
-
-    <!-- STADIUM BANNER PROFILE HEADER -->
+  <main>
     <div class="profile-header">
-      <div class="profile-header-bg"></div>
-      <div class="profile-header-overlay"></div>
-      <div class="profile-header-content">
-        <div class="profile-avatar" id="profile-avatar">--</div>
-        <div class="profile-info">
-          <h1 id="profile-name">Loading...</h1>
-          <div class="username" id="profile-username">@username</div>
-          <div class="member-since"><i class="fas fa-calendar" style="margin-right:4px;"></i>Member since <span id="join-date">--</span></div>
-        </div>
+      <div class="profile-avatar" id="profileAvatar">--</div>
+      <div>
+        <h1 id="profileName">Loading…</h1>
+        <div class="username" id="profileUsername">@username</div>
+        <div class="member-since"><i class="fas fa-calendar" style="margin-right:4px;"></i>Member since <span id="profileJoinDate">--</span></div>
       </div>
     </div>
 
-    <!-- Tournament bar - MOVED UNDER HERO -->
-    <div class="profile-tournament-bar" id="profile-tournament-bar" style="position: relative; margin-bottom: 1rem; border-radius: 0.5rem;">
-      <div class="t-left">
-        <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">Loading tournament...</span>
-      </div>
+    <div class="stat-row" id="overviewStats">
+      <div class="stat"><div class="label">Tournaments Entered</div><div class="value" id="statEntered">--</div></div>
+      <div class="stat"><div class="label">Overall Win Rate</div><div class="value" id="statWinRate">--</div></div>
+      <div class="stat"><div class="label">Currently Leading</div><div class="value" id="statLeading">--</div></div>
     </div>
 
-    <!-- Match Status Indicator - COMPACT -->
-    <div class="card mb-2" style="background: var(--bg-card); padding: 0.75rem 1rem;">
-      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <div style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap;"><i class="fas fa-info-circle" style="color: var(--accent-blue);"></i> Status:</div>
-        <div id="match-status-indicator" style="display: flex; gap: 0.5rem; flex-wrap: nowrap;">
-          <span class="status-badge" id="status-live" style="background: rgba(239,68,68,0.2); color: #ef4444; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap;"><i class="fas fa-circle" style="font-size: 0.4rem; animation: pulse-red 1s infinite;"></i> LIVE</span>
-          <span class="status-badge" id="status-finalising" style="background: rgba(245,158,11,0.2); color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; display: none; white-space: nowrap;"><i class="fas fa-clock"></i> FINALISING</span>
-          <span class="status-badge" id="status-points" style="background: rgba(34,197,94,0.2); color: #22c55e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; display: none; white-space: nowrap;"><i class="fas fa-check"></i> POINTS</span>
-        </div>
-        <div id="matches-status-count" style="font-size: 0.75rem; color: var(--text-secondary); flex: 1; text-align: right;"></div>
-      </div>
+    <div id="tournamentsSection">
+      <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-trophy" style="color:var(--gold);"></i> My Tournaments</div>
+      <div id="tournamentsBody"><div class="empty">Loading…</div></div>
     </div>
 
-    <!-- Debug Output Panel -->
-    <div id="debug-panel" style="display: none; margin-bottom: 1rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; font-family: monospace; font-size: 0.8rem; max-height: 400px; overflow-y: auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-        <strong style="color: #22c55e;">Debug Output</strong>
-        <button onclick="document.getElementById('debug-panel').style.display='none'" style="background: none; border: none; color: #94a3b8; cursor: pointer;"><i class="fas fa-times"></i></button>
-      </div>
-      <pre id="debug-output" style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #e2e8f0;"></pre>
+    <div class="card" id="chartCard" style="display:none; margin-top:22px;">
+      <div class="card-title"><i class="fas fa-chart-column" style="color:var(--accent-2);"></i> Performance Across Tournaments</div>
+      <p style="font-size:12.5px; color:var(--text-faint); margin-bottom:16px;">Each bar shows how you're placed relative to everyone else in that tournament — higher is better, regardless of the game type.</p>
+      <div class="chart-wrap"><canvas id="performanceChart"></canvas></div>
     </div>
-
-    <!-- Tournament Sections (stats grid) - COMPACT -->
-    <div id="tournament-sections">
-      <p class="text-muted">Loading your tournaments...</p>
-    </div>
-
-    <!-- Tab Navigation -->
-    <div class="profile-tabs">
-      <button class="profile-tab active" onclick="switchProfileTab('overview')" data-tab="overview">
-        <i class="fas fa-chart-pie"></i> Overview
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('performance')" data-tab="performance">
-        <i class="fas fa-chart-line"></i> Performance
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('achievements')" data-tab="achievements">
-        <i class="fas fa-medal"></i> Achievements
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('trends')" data-tab="trends">
-        <i class="fas fa-users"></i> Trends
-      </button>
-    </div>
-
-    <!-- Tab 1: Overview -->
-    <div id="tab-overview" class="profile-tab-content active">
-      <!-- This Week's Predictions -->
-      <div class="dashboard-card mb-3">
-        <h3><i class="fas fa-futbol text-green"></i> This Week's Predictions</h3>
-        <!-- Live matches banner — shown only when matches are live -->
-        <div class="live-matches-banner" id="live-banner" style="display:none;">
-          <div class="live-dot"></div>
-          <div class="live-text" id="live-banner-text" style="white-space:nowrap;"></div>
-          <div id="live-score-display" style="flex:1; display:flex; align-items:center; justify-content:center; gap:0.25rem; font-size:0.9rem; transition:opacity 0.2s; padding:0 0.5rem;"></div>
-          <button class="refresh-btn" onclick="refreshLiveScores()"><i class="fas fa-sync-alt"></i> Refresh</button>
-        </div>
-        <div id="current-predictions">
-          <div class="empty-state">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading predictions...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- This Week Quick Stats -->
-      <div class="dashboard-card">
-        <h3><i class="fas fa-chart-pie text-blue"></i> This Week Stats</h3>
-        <div id="this-week-insights" class="insights-grid">
-          <div class="empty-state" style="padding: 1rem;">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading stats...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 2: Performance -->
-    <div id="tab-performance" class="profile-tab-content">
-      <!-- Performance Graph -->
-      <div class="dashboard-card mb-3">
-        <h3><i class="fas fa-chart-line text-blue"></i> Performance History</h3>
-        <div class="chart-toggle">
-          <button id="toggle-points" class="active" onclick="switchChart('points')">Points</button>
-          <button id="toggle-rank" onclick="switchChart('rank')">Rank</button>
-        </div>
-        <div id="performance-chart-container" class="chart-container">
-          <canvas id="performanceChart"></canvas>
-        </div>
-        <div id="performance-empty" class="empty-state" style="display:none;">
-          <i class="fas fa-chart-bar"></i>
-          <p>More data coming as gameweeks complete</p>
-        </div>
-      </div>
-
-      <!-- Prediction History -->
-      <div class="dashboard-card mb-3">
-        <h3><i class="fas fa-history text-amber"></i> Prediction History</h3>
-        <div id="prediction-history-container">
-          <div class="empty-state">
-            <i class="fas fa-futbol"></i>
-            <p>No predictions yet</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Season Stats (All GWs) -->
-      <div class="dashboard-card">
-        <h3><i class="fas fa-lightbulb text-blue"></i> Season Stats</h3>
-        <div id="season-insights" class="insights-grid">
-          <div class="empty-state" style="padding: 1rem;">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading season stats...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 3: Achievements -->
-    <div id="tab-achievements" class="profile-tab-content">
-      <!-- Achievements -->
-      <div class="dashboard-card mb-3">
-        <h3><i class="fas fa-medal text-amber"></i> Achievements</h3>
-        <div id="achievements" class="achievements-grid"></div>
-      </div>
-
-      <!-- Recent Activity -->
-      <div class="dashboard-card">
-        <h3><i class="fas fa-bolt text-green"></i> Recent Activity</h3>
-        <div id="recent-activity">
-          <div class="empty-state" style="padding:1rem;">
-            <p class="text-muted">No recent activity</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 4: Trends -->
-    <div id="tab-trends" class="profile-tab-content">
-      <!-- User Trends -->
-      <div class="dashboard-card">
-        <h3><i class="fas fa-users text-green"></i> User Trends</h3>
-        <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1rem;">See what other users are predicting this gameweek</p>
-        <div id="user-trends-container">
-          <div class="empty-state">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading trends...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Manual Refresh Button - AT BOTTOM -->
-    <div style="margin: 1.5rem 0; display: flex; justify-content: center;">
-      <button id="manual-refresh-btn" class="btn btn-primary" onclick="manualRefreshScores()" style="padding: 0.75rem 1.5rem;">
-        <i class="fas fa-sync"></i> Update from FPL API
-      </button>
-    </div>
-    <div id="refresh-status" style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;"></div>
-
   </main>
 
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2026 GB Fantasy. Your Profile.</p>
-    </div>
-  </footer>
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
-  <script src="auth-gate.js"></script>
-  <script src="toast.js"></script>
-  <script src="profile.js"></script>
+  <script src="live-poll.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const userJson = localStorage.getItem('gbf_user');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson);
-          const name = user.display_name || user.username || 'Account';
-          const btn = document.getElementById('navAuthBtn');
-          const label = document.getElementById('navAuthLabel');
-          const avatar = document.getElementById('navAvatar');
-          if (btn && label && avatar) {
-            label.textContent = name;
-            label.style.display = 'inline';
-            avatar.textContent = name.substring(0, 2).toUpperCase();
-            avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#60a5fa;';
-            btn.href = '/profile';
-            btn.title = 'View profile';
-          }
-        } catch (e) {}
+    const GAMES = [
+      { type: 'predictions', label: 'Predictions', icon: 'fa-futbol', href: '/predictions' },
+      { type: 'fantasy', label: 'Fantasy Manager', icon: 'fa-people-group', href: '/fantasy-manager' },
+      { type: 'lms', label: 'Last Man Standing', icon: 'fa-skull-crossbones', href: '/last-man-standing' },
+      { type: 'stockmarket', label: 'Stock Market', icon: 'fa-chart-line', href: '/stock-market' }
+    ];
+
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    function money(pence) { return `£${((pence || 0) / 100).toFixed(2)}`; }
+
+    function detailFor(game, entry) {
+      if (game.type === 'lms') {
+        return entry.is_eliminated ? `Out — Gameweek ${entry.eliminated_gameweek}` : `${entry.weeks_survived || 0} week${(entry.weeks_survived || 0) === 1 ? '' : 's'} survived`;
       }
-    });
+      if (game.type === 'stockmarket') {
+        if (!entry.squad_locked) return 'Still drafting';
+        const gain = (entry.current_value || 0) - (entry.start_value || 0);
+        return `Value: ${money(entry.current_value)} (${gain >= 0 ? '+' : ''}${money(gain)})`;
+      }
+      if (game.type === 'fantasy') {
+        return `${entry.entry_points || 0} points this season`;
+      }
+      return `${entry.entry_points || 0} points`;
+    }
+
+    async function loadProfile() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+
+      if (!token || !userJson) {
+        document.getElementById('profileName').textContent = 'Not logged in';
+        document.getElementById('tournamentsBody').innerHTML = `<div class="empty">Log in to see your profile.<br><br><a href="/login?redirect=%2Fprofile">Log In</a></div>`;
+        document.getElementById('overviewStats').style.display = 'none';
+        return;
+      }
+
+      let user;
+      try { user = JSON.parse(userJson); } catch (e) { user = {}; }
+
+      const name = user.display_name || user.username || 'Account';
+      document.getElementById('profileName').textContent = name;
+      document.getElementById('profileUsername').textContent = `@${user.username || 'user'}`;
+      document.getElementById('profileAvatar').textContent = name.substring(0, 2).toUpperCase();
+      if (user.created_at) {
+        document.getElementById('profileJoinDate').textContent = new Date(user.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      }
+
+      try {
+        const results = await Promise.all(GAMES.map(async (game) => {
+          const tRes = await fetch(`/api/tournaments?status=live&tournament_type=${game.type}`);
+          const tData = await tRes.json();
+          const tournament = (tData.tournaments || [])[0];
+          if (!tournament) return null;
+
+          const eRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournament.id}&tournament_type=${game.type}`, { headers: authHeaders() });
+          const eData = await eRes.json();
+          if (!eData.entry) return null;
+
+          // Get rank + total from the shared leaderboard endpoint
+          let rank = null, total = null;
+          try {
+            const lbRes = await fetch(`/api/tournaments?leaderboard=true&tournament_id=${tournament.id}&tournament_type=${game.type}`);
+            const lbData = await lbRes.json();
+            const rows = lbData.leaderboard || [];
+            total = rows.length;
+            const mine = rows.find(r => r.user_id === user.id);
+            if (mine) rank = mine.rank;
+          } catch (e) { console.error('Leaderboard fetch failed for', game.type, e); }
+
+          return { game, tournament, entry: eData.entry, rank, total };
+        }));
+
+        const entered = results.filter(Boolean);
+        renderOverview(entered);
+        renderTournaments(entered);
+        renderChart(entered);
+      } catch (e) {
+        console.error('Failed to load profile:', e);
+        document.getElementById('tournamentsBody').innerHTML = '<div class="empty">Couldn\'t load your tournaments right now.</div>';
+      }
+    }
+
+    function renderOverview(entered) {
+      document.getElementById('statEntered').textContent = entered.length;
+
+      const ranked = entered.filter(e => e.rank && e.total);
+      const topHalf = ranked.filter(e => e.rank <= Math.ceil(e.total / 2));
+      const winRate = ranked.length > 0 ? Math.round((topHalf.length / ranked.length) * 100) : null;
+      document.getElementById('statWinRate').textContent = winRate === null ? '--' : `${winRate}%`;
+
+      const leading = ranked.filter(e => e.rank === 1).length;
+      document.getElementById('statLeading').textContent = leading;
+    }
+
+    function renderTournaments(entered) {
+      const body = document.getElementById('tournamentsBody');
+      if (entered.length === 0) {
+        body.innerHTML = `<div class="empty">You're not entered in anything yet.<br><br><a href="/tournaments">Browse all tournaments</a></div>`;
+        return;
+      }
+
+      body.innerHTML = `<div class="t-grid">${entered.map(({ game, tournament, entry, rank, total }) => `
+        <a class="t-card" href="${game.href}" style="display:block;">
+          <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}</div>
+          <h3>${escapeHtml(tournament.name)}</h3>
+          <div class="t-detail">${escapeHtml(detailFor(game, entry))}</div>
+          <div class="t-rank">
+            <span style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Rank</span>
+            <span class="rank-value ${rank === 1 ? 'gold' : ''}">${rank ? `#${rank}` : '--'}${total ? ` / ${total}` : ''}</span>
+          </div>
+        </a>`).join('')}</div>`;
+    }
+
+    function renderChart(entered) {
+      const ranked = entered.filter(e => e.rank && e.total && e.total > 1);
+      if (ranked.length === 0) return;
+
+      document.getElementById('chartCard').style.display = 'block';
+      const ctx = document.getElementById('performanceChart').getContext('2d');
+      const labels = ranked.map(e => e.game.label);
+      const percentiles = ranked.map(e => Math.round((1 - (e.rank - 1) / (e.total - 1)) * 100));
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Percentile',
+            data: percentiles,
+            backgroundColor: 'rgba(59,130,246,0.5)',
+            borderColor: '#3b82f6',
+            borderWidth: 1.5,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true, max: 100, ticks: { color: '#8a97b0', callback: v => v + '%' }, grid: { color: '#131f35' } },
+            x: { ticks: { color: '#f1f5fc' }, grid: { display: false } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadProfile);
   </script>
 </body>
 </html>

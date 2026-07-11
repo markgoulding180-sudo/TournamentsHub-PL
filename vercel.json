@@ -27,6 +27,7 @@
     { "source": "/last-man-standing-pick", "destination": "/lms-pick.html" },
     { "source": "/stock-market", "destination": "/stockmarket-home.html" },
     { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },
-    { "source": "/my-tournaments", "destination": "/my-tournaments.html" }
+    { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
+    { "source": "/predictions-stats", "destination": "/predictions-stats.html" }
   ]
 }
