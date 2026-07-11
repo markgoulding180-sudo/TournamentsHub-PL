@@ -214,6 +214,7 @@
       }
     }
     /* ===== Hub-style navbar (replaces the old sidebar+navbar) ===== */
+    body{ overflow-x:hidden; }
     .hub-navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border-color); }
     .hub-nav-left{display:flex;align-items:center;gap:40px;}
     .hub-logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
@@ -231,7 +232,12 @@
     .hub-avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s; text-decoration:none; color:inherit;}
     .hub-avatar-btn:hover{border-color:var(--border-color);}
     .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
-    @media (max-width:900px){ .hub-nav-links{display:none;} }
+    @media (max-width:900px){
+      .hub-navbar{ padding:12px 16px; }
+      .hub-logo-text{ font-size:14px; }
+      .hub-nav-links{ gap:16px; }
+      .hub-nav-links a{ font-size:12px; padding-bottom:12px; }
+    }
   </style>
 
 </head>

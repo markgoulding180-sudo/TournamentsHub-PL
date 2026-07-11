@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
+    body{ overflow-x:hidden; }
     /* Mobile-specific styles for leaderboard */
     @media (max-width: 428px) {
       body {
@@ -212,7 +213,12 @@
     .hub-avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s; text-decoration:none; color:inherit;}
     .hub-avatar-btn:hover{border-color:var(--border-color);}
     .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
-    @media (max-width:900px){ .hub-nav-links{display:none;} }
+    @media (max-width:900px){
+      .hub-navbar{ padding:12px 16px; }
+      .hub-logo-text{ font-size:14px; }
+      .hub-nav-links{ gap:16px; }
+      .hub-nav-links a{ font-size:12px; padding-bottom:12px; }
+    }
   </style>
 
 </head>
