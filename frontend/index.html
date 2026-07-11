@@ -159,19 +159,12 @@
   }
 
   .mobile-cat-strip{
-    display:none; position:sticky; top:113px; z-index:94;
-    gap:8px; padding:10px 14px; overflow-x:auto;
-    background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
-    scrollbar-width:none; -ms-overflow-style:none;
-  }
-  .mobile-cat-strip::-webkit-scrollbar{display:none;}
-  .mobile-page-strip{
     display:none; position:sticky; top:69px; z-index:95;
     gap:8px; padding:10px 14px; overflow-x:auto;
     background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
     scrollbar-width:none; -ms-overflow-style:none;
   }
-  .mobile-page-strip::-webkit-scrollbar{display:none;}
+  .mobile-cat-strip::-webkit-scrollbar{display:none;}
   .mobile-cat-item{
     flex:none; display:flex; align-items:center; gap:6px; padding:8px 13px;
     border-radius:20px; background:var(--bg-card); border:1px solid var(--border);
@@ -180,7 +173,7 @@
   }
   .mobile-cat-item .icon{width:14px;height:14px;flex-shrink:0;}
   .mobile-cat-item.active{background:rgba(59,130,246,0.14); border-color:var(--accent); color:var(--accent-2);}
-  @media (max-width:860px){ .mobile-cat-strip{display:flex;} .mobile-page-strip{display:flex;} }
+  @media (max-width:860px){ .mobile-cat-strip{display:flex;} }
   .sidebar.collapsed .sport-label{display:none;}
   .sidebar.collapsed .sport-item{justify-content:center;}
 
@@ -496,16 +489,6 @@
     </a>
   </div>
 </header>
-
-<!-- Mobile-only quick page-link strip (same links as the hamburger's Menu section) -->
-<nav class="mobile-page-strip" id="mobilePageStrip">
-  <a href="/" class="mobile-cat-item active"><svg class="icon"><use href="#i-home"/></svg><span>GB Hub</span></a>
-  <a href="/tournaments" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>Tournaments</span></a>
-  <a href="/leaderboard" class="mobile-cat-item"><svg class="icon"><use href="#i-trend"/></svg><span>Leaderboard</span></a>
-  <a href="#" class="mobile-cat-item"><svg class="icon"><use href="#i-users"/></svg><span>My Leagues</span></a>
-  <a href="#" class="mobile-cat-item"><svg class="icon"><use href="#i-wallet"/></svg><span>Wallet</span></a>
-  <a href="#" class="mobile-cat-item"><svg class="icon"><use href="#i-gift"/></svg><span>Rewards</span></a>
-</nav>
 
 <!-- Mobile-only quick category strip (sidebar is hidden below 860px) -->
 <nav class="mobile-cat-strip" id="mobileCatStrip">
