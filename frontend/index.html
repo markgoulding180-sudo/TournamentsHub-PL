@@ -499,6 +499,7 @@
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.3"/><path d="M5 20c0-3.6 3-6.2 7-6.2s7 2.6 7 6.2"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></symbol>
@@ -549,6 +550,9 @@
     <a class="my-tournaments-btn" href="/my-tournaments" title="My Tournaments">
       <svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span>
     </a>
+    <a class="my-tournaments-btn admin-nav-link" href="/admin" title="Admin" id="adminNavLink" style="display:none;">
+      <svg class="icon"><use href="#i-cog"/></svg><span>Admin</span>
+    </a>
   </div>
   <div class="navbar-row-break"></div>
 </header>
@@ -587,6 +591,7 @@
     <a class="sport-item sidebar-menu-mobile" href="/"><svg class="icon"><use href="#i-home"/></svg><span class="sport-label">GB Hub</span></a>
     <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-wallet"/></svg><span class="sport-label">Wallet</span></a>
     <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-gift"/></svg><span class="sport-label">Rewards</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/admin" id="adminSidebarLink" style="display:none;"><svg class="icon"><use href="#i-cog"/></svg><span class="sport-label">Admin</span></a>
     <div class="sidebar-divider sidebar-menu-mobile"></div>
     <div class="sidebar-section-label">Sport Categories</div>
     <a class="sport-item active" href="#pl-predictions"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Football (Premier League)</span></a>
@@ -1324,6 +1329,13 @@
         avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
         btn.href = '/profile';
         btn.title = 'View profile';
+
+        if (user.is_admin) {
+          const adminLink = document.getElementById('adminNavLink');
+          if (adminLink) adminLink.style.display = 'flex';
+          const adminSidebarLink = document.getElementById('adminSidebarLink');
+          if (adminSidebarLink) adminSidebarLink.style.display = 'flex';
+        }
       } catch (e) {
         // corrupted user JSON — fall through to logged-out state below
       }
