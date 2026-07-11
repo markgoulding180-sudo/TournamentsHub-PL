@@ -423,10 +423,25 @@
     .card-row, .card-row-3, .sport-grid{grid-template-columns:1fr;}
     .leaderboard-strip{flex-direction:column; gap:18px; text-align:center;}
     .lb-left{flex-direction:column; text-align:center;}
-    .navbar{padding:13px 16px;}
+    .navbar{padding:13px 16px; flex-wrap:wrap; row-gap:12px;}
     .hero-graphic{display:none;}
     #plLive{display:none;}
     .view-all{display:none;}
+
+    /* Two-row mobile header: logo+hamburger on row 1, bell+username on row 2 */
+    .nav-left{ display:contents; }
+    .nav-right{ display:contents; }
+    .nav-links{ display:none; }
+    .logo{ order:1; }
+    #mobileMenuBtn{ order:2; margin-left:auto; }
+    .navbar-row-break{ order:3; flex-basis:100%; height:0; }
+    .navbar .icon-btn[title="Notifications"]{ order:4; }
+    .avatar-btn{ order:5; }
+
+    /* Navbar is now two rows here, so anything anchored to its height
+       needs a taller offset than the 69px used above 640px. */
+    .sidebar{ top:116px; height:calc(100vh - 116px); }
+    .mobile-cat-strip{ top:116px; }
   }
 </style>
 </head>
@@ -488,6 +503,7 @@
       <svg class="icon chev"><use href="#i-chevron"/></svg>
     </a>
   </div>
+  <div class="navbar-row-break"></div>
 </header>
 
 <!-- Mobile-only quick category strip (sidebar is hidden below 860px) -->
