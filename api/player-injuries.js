@@ -36,6 +36,7 @@ module.exports = async (req, res) => {
         chance_of_playing_next_round,
         chance_of_playing_this_round,
         status,
+        element_type,
         teams:team (name)
       `)
       .not('news', 'is', null)
@@ -78,6 +79,7 @@ module.exports = async (req, res) => {
         player: p.web_name,
         fullName: `${p.first_name} ${p.second_name}`,
         team: p.teams?.name || 'Unknown',
+        position: { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[p.element_type] || 'Unknown',
         photo: photoUrl,
         type: p.news?.split(' - ')[0] || 'Injury',
         status: injuryStatus,

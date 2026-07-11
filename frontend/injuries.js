@@ -8,6 +8,7 @@ const mockInjuries = [
     id: 1,
     player: 'Erling Haaland',
     team: 'Man City',
+    position: 'Forward',
     photo: 'https://resources.premierleague.com/premierleague/photos/players/110x140/p223094.png',
     type: 'Ankle Injury',
     status: 'doubt',
@@ -19,6 +20,7 @@ const mockInjuries = [
     id: 2,
     player: 'Bukayo Saka',
     team: 'Arsenal',
+    position: 'Forward',
     photo: 'https://resources.premierleague.com/premierleague/photos/players/110x140/p223340.png',
     type: 'Hamstring',
     status: 'out',
@@ -28,10 +30,35 @@ const mockInjuries = [
   }
 ];
 
+// Cache the full unfiltered list so club/position filters don't need a re-fetch
+let allInjuriesCache = [];
+let clubListPopulated = false;
+
 document.addEventListener('DOMContentLoaded', function() {
   loadInjuries('all');
   setupFilters();
+  document.getElementById('clubFilter').addEventListener('change', () => applyFilters());
+  document.getElementById('positionFilter').addEventListener('change', () => applyFilters());
 });
+
+function populateClubFilter(injuries) {
+  if (clubListPopulated) return;
+  const select = document.getElementById('clubFilter');
+  const clubs = [...new Set(injuries.map(i => i.team).filter(Boolean))].sort();
+  clubs.forEach(club => {
+    const opt = document.createElement('option');
+    opt.value = club;
+    opt.textContent = club;
+    select.appendChild(opt);
+  });
+  clubListPopulated = true;
+}
+
+function applyFilters() {
+  const activeStatusEl = document.querySelector('.injury-filter.active');
+  const statusFilter = activeStatusEl ? activeStatusEl.dataset.filter : 'all';
+  renderInjuries(statusFilter);
+}
 
 async function loadInjuries(filter) {
   const list = document.getElementById('injury-list');
@@ -41,35 +68,55 @@ async function loadInjuries(filter) {
       <p>Loading injury data...</p>
     </div>
   `;
-  
-  let injuries = [];
-  
+
   try {
-    // Try to fetch from API
     const response = await fetch(`${API_BASE}/player-injuries`);
     if (response.ok) {
       const data = await response.json();
-      injuries = data.injuries || [];
+      allInjuriesCache = data.injuries || [];
     } else {
       throw new Error('API failed');
     }
   } catch (error) {
     console.log('Using mock data:', error);
-    injuries = mockInjuries;
+    allInjuriesCache = mockInjuries;
   }
-  
-  // Apply filter
-  if (filter !== 'all') {
-    injuries = injuries.filter(i => i.status === filter);
+
+  populateClubFilter(allInjuriesCache);
+  renderInjuries(filter);
+}
+
+function renderInjuries(statusFilter) {
+  const list = document.getElementById('injury-list');
+  const clubFilter = document.getElementById('clubFilter').value;
+  const positionFilter = document.getElementById('positionFilter').value;
+
+  let injuries = allInjuriesCache;
+
+  if (statusFilter !== 'all') {
+    injuries = injuries.filter(i => i.status === statusFilter);
   }
-  
-  // Update counts
-  const allInjuries = filter === 'all' ? injuries : mockInjuries;
-  document.getElementById('count-out').textContent = allInjuries.filter(i => i.status === 'out').length;
-  document.getElementById('count-doubt').textContent = allInjuries.filter(i => i.status === 'doubt').length;
-  document.getElementById('count-return').textContent = allInjuries.filter(i => i.status === 'return').length;
-  document.getElementById('count-total').textContent = allInjuries.length;
-  
+  if (clubFilter !== 'all') {
+    injuries = injuries.filter(i => i.team === clubFilter);
+  }
+  if (positionFilter !== 'all') {
+    injuries = injuries.filter(i => i.position === positionFilter);
+  }
+
+  // Players with a real photo first, so the page leads with recognisable faces
+  injuries = [...injuries].sort((a, b) => {
+    const aHasPhoto = a.photo ? 0 : 1;
+    const bHasPhoto = b.photo ? 0 : 1;
+    return aHasPhoto - bHasPhoto;
+  });
+
+  // Update counts — always reflect the full dataset for this status tab,
+  // regardless of club/position filters, so the summary bar stays stable
+  document.getElementById('count-out').textContent = allInjuriesCache.filter(i => i.status === 'out').length;
+  document.getElementById('count-doubt').textContent = allInjuriesCache.filter(i => i.status === 'doubt').length;
+  document.getElementById('count-return').textContent = allInjuriesCache.filter(i => i.status === 'return').length;
+  document.getElementById('count-total').textContent = allInjuriesCache.length;
+
   if (injuries.length === 0) {
     list.innerHTML = `
       <div class="card" style="padding: 3rem; text-align: center;">
@@ -100,7 +147,7 @@ async function loadInjuries(filter) {
             <img src="shirts/${shirtFile}" alt="${injury.team}" class="team-shirt-badge" onerror="this.style.display='none'">
           </div>
           <h4>${injury.player}</h4>
-          <div class="player-team">${injury.team}</div>
+          <div class="player-team">${injury.team}${injury.position ? ` · ${injury.position}` : ''}</div>
           <span class="injury-type ${statusClass}">${statusText}</span>
         </div>
         <div class="injury-right">
@@ -154,7 +201,7 @@ function setupFilters() {
     filter.addEventListener('click', () => {
       filters.forEach(f => f.classList.remove('active'));
       filter.classList.add('active');
-      loadInjuries(filter.dataset.filter);
+      renderInjuries(filter.dataset.filter);
     });
   });
 }

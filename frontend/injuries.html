@@ -15,6 +15,24 @@
       margin-bottom: 1.5rem;
       flex-wrap: wrap;
     }
+    .injury-dropdown-filters {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .injury-select {
+      padding: 0.5rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .injury-select:focus{ outline: none; border-color: var(--accent-blue); }
     .injury-filter {
       padding: 0.5rem 1rem;
       background: var(--bg-secondary);
@@ -292,10 +310,23 @@
 
     <!-- Filters -->
     <div class="injury-filters">
-      <div class="injury-filter active" data-filter="all">All Teams</div>
+      <div class="injury-filter active" data-filter="all">All Status</div>
       <div class="injury-filter" data-filter="out">Out</div>
       <div class="injury-filter" data-filter="doubt">Doubtful</div>
       <div class="injury-filter" data-filter="return">Returning</div>
+    </div>
+
+    <div class="injury-dropdown-filters">
+      <select id="clubFilter" class="injury-select">
+        <option value="all">All Clubs</option>
+      </select>
+      <select id="positionFilter" class="injury-select">
+        <option value="all">All Positions</option>
+        <option value="Goalkeeper">Goalkeeper</option>
+        <option value="Defender">Defender</option>
+        <option value="Midfielder">Midfielder</option>
+        <option value="Forward">Forward</option>
+      </select>
     </div>
 
     <!-- Injury List -->
