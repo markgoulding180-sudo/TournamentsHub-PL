@@ -91,6 +91,7 @@
 
     .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
     .out-banner{ display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid var(--red); color:#fca5a5; border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; }
+    .finished-banner{ display:none; align-items:center; gap:12px; background:rgba(242,185,61,0.1); border:1px solid var(--gold); color:var(--gold); border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; font-weight:600; }
 
     /* Enter gate */
     .enter-gate{ text-align:center; padding:40px 24px; margin-bottom:24px; }
@@ -180,7 +181,6 @@
       </a>
       <nav class="nav-links">
         <a href="/">GB Hub</a>
-        <a href="/last-man-standing" class="active">Last Man Standing</a>
       </nav>
     </div>
     <div class="nav-right">
@@ -232,6 +232,7 @@
 
     <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
     <div class="out-banner" id="outBanner"><i class="fas fa-skull" style="font-size:20px;"></i> <span id="outText"></span></div>
+    <div class="finished-banner" id="finishedBanner"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
 
     <!-- How it works -->
     <div class="how-grid">
@@ -612,6 +613,27 @@
         tag.textContent = tournamentFinished
           ? 'Tournament over'
           : `${data.alive_count ?? rows.filter(r => !r.is_eliminated).length} / ${rows.length} still in`;
+
+        // Prominent top-of-page banner announcing the result, once the
+        // tournament has actually ended.
+        const finishedBanner = document.getElementById('finishedBanner');
+        const winners = rows.filter(r => (r.prize_awarded || 0) > 0);
+        if (tournamentFinished && winners.length > 0) {
+          finishedBanner.style.display = 'flex';
+          const names = winners.map(w => w.users?.display_name || w.users?.username || 'Player');
+          if (winners.length === 1) {
+            document.getElementById('finishedText').textContent =
+              `Tournament finished! ${names[0]} wins £${(winners[0].prize_awarded/100).toFixed(2)}.`;
+          } else {
+            document.getElementById('finishedText').textContent =
+              `Tournament finished! Everyone went out together — the pot splits between ${names.join(', ')} (£${(winners[0].prize_awarded/100).toFixed(2)} each).`;
+          }
+        } else if (tournamentFinished) {
+          finishedBanner.style.display = 'flex';
+          document.getElementById('finishedText').textContent = 'Tournament finished — see the final standings below.';
+        } else {
+          finishedBanner.style.display = 'none';
+        }
 
         body.innerHTML = rows.map(r => {
           const name = r.users?.display_name || r.users?.username || 'Player';
