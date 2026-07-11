@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root{ --border: var(--border-color); }
     .injury-filters {
       display: flex;
       gap: 1rem;
@@ -232,7 +233,7 @@
       }
     }
     /* ===== Hub-style navbar (replaces the old sidebar+navbar) ===== */
-    body{ overflow-x:hidden; }
+    html{ overflow-x:hidden; }
     .hub-navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border-color); }
     .hub-nav-left{display:flex;align-items:center;gap:40px;}
     .hub-logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
@@ -250,11 +251,24 @@
     .hub-avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s; text-decoration:none; color:inherit;}
     .hub-avatar-btn:hover{border-color:var(--border-color);}
     .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
+    .hub-menu-toggle{ display:none; }
+
+    .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+    .mobile-nav-overlay.open{ display:block; }
+    .mobile-nav-drawer{
+      display:none; position:fixed; top:0; right:0; bottom:0; z-index:199; width:78%; max-width:300px;
+      background:var(--bg-card); border-left:1px solid var(--border-color); padding:80px 24px 24px;
+      flex-direction:column; gap:4px; transform:translateX(100%); transition:transform .25s ease;
+    }
+    .mobile-nav-drawer.open{ display:flex; transform:translateX(0); }
+    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-weight:600; font-size:14px; color:var(--text-secondary); text-decoration:none; }
+    .mobile-nav-drawer a:hover, .mobile-nav-drawer a.active{ background:var(--bg-hover); color:var(--text-primary); }
+
     @media (max-width:900px){
       .hub-navbar{ padding:12px 16px; }
       .hub-logo-text{ font-size:14px; }
-      .hub-nav-links{ gap:16px; }
-      .hub-nav-links a{ font-size:12px; padding-bottom:12px; }
+      .hub-nav-links{ display:none; }
+      .hub-menu-toggle{ display:flex; }
     }
   </style>
 
@@ -276,12 +290,22 @@
     </div>
     <div class="hub-nav-right">
       <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
-      <a class="hub-avatar-btn" id="navAuthBtn" href="/login" title="Log in">
+      <button class="hub-icon-btn hub-menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
+      <a class="hub-avatar-btn" id="navAuthBtn" href="/login?redirect=%2Finjuries" title="Log in">
         <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>
-        <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary); display:none;">Log In</span>
+        <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Log In</span>
       </a>
     </div>
   </header>
+
+  <!-- Mobile nav drawer -->
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <div class="mobile-nav-drawer" id="mobileNavDrawer">
+    <a href="/">GB Hub</a>
+    <a href="/predictions">Predictions Hub</a>
+    <a href="/leaderboard">Leaderboard</a>
+    <a href="/table">PL Table</a>
+  </div>
 
   <!-- Main Content -->
   <main class="container">
@@ -355,6 +379,21 @@
 
   <script src="injuries.js"></script>
   <script>
+    // Mobile nav drawer toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      const menuBtn = document.getElementById('mobileMenuBtn');
+      const drawer = document.getElementById('mobileNavDrawer');
+      const overlay = document.getElementById('mobileNavOverlay');
+      if (menuBtn && drawer && overlay) {
+        const toggle = (open) => {
+          drawer.classList.toggle('open', open);
+          overlay.classList.toggle('open', open);
+        };
+        menuBtn.addEventListener('click', () => toggle(true));
+        overlay.addEventListener('click', () => toggle(false));
+      }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
       // Mobile menu toggle
       const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
