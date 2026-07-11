@@ -552,9 +552,6 @@
     <a class="my-tournaments-btn" href="/my-tournaments" title="My Tournaments">
       <svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span>
     </a>
-    <a class="my-tournaments-btn admin-nav-link" href="/admin" title="Admin" id="adminNavLink" style="display:none;">
-      <svg class="icon"><use href="#i-cog"/></svg><span>Admin</span>
-    </a>
     <button class="icon-btn" title="Log Out" id="logoutBtn" style="display:none;"><svg class="icon"><use href="#i-logout"/></svg></button>
   </div>
   <div class="navbar-row-break"></div>
@@ -1358,8 +1355,6 @@
         }
 
         if (user.is_admin) {
-          const adminLink = document.getElementById('adminNavLink');
-          if (adminLink) adminLink.style.display = 'flex';
           const adminSidebarLink = document.getElementById('adminSidebarLink');
           if (adminSidebarLink) adminSidebarLink.style.display = 'flex';
         }
