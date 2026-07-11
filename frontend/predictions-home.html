@@ -154,6 +154,16 @@
     .strip-arrow.right{ right:-4px; }
     .strip-arrow i{ font-size:13px; }
     .fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; }
+
+    .pred-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13.5px; flex-wrap:wrap; }
+    .pred-row:last-child{ border-bottom:none; }
+    .pred-row .pred-teams{ flex:1; min-width:140px; font-weight:600; }
+    .pred-row .pred-pick{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
+    .pred-row .pred-result{ font-size:11px; text-transform:uppercase; letter-spacing:.3px; padding:3px 9px; border-radius:2rem; font-weight:700; }
+    .pred-row .pred-result.correct{ background:rgba(34,197,94,0.12); color:var(--green); }
+    .pred-row .pred-result.wrong{ background:rgba(239,68,68,0.12); color:#fca5a5; }
+    .pred-row .pred-result.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
+    .pred-row .pred-missing{ color:var(--text-faint); font-style:italic; }
     .fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; }
     .fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
     .fixture-chip .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); margin-top:4px; display:block; }
@@ -326,6 +336,12 @@
       </div>
     </section>
 
+    <!-- Your Predictions This Week -->
+    <section class="card week-card" id="yourPredictionsCard">
+      <div class="card-title"><i class="fas fa-user-check" style="color:var(--accent-2);"></i> Your Predictions This Week</div>
+      <div id="yourPredictionsBody"><div class="loading">Loading…</div></div>
+    </section>
+
     <div class="cards-grid">
       <!-- Tournament card -->
       <section class="card">
@@ -391,6 +407,7 @@
 
         if (matches.length === 0) {
           strip.innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
+          document.getElementById('yourPredictionsBody').innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
         } else {
           strip.innerHTML = matches.map(m => {
             const hasScore = m.home_score !== null && m.home_score !== undefined;
@@ -406,15 +423,58 @@
         const loggedIn = !!localStorage.getItem('gbf_token');
         if (!loggedIn) {
           statusArea.innerHTML = `<a href="/login?redirect=%2Fpredictions" class="predict-status todo"><i class="fas fa-right-to-bracket"></i> Log In to Predict</a>`;
+          document.getElementById('yourPredictionsBody').innerHTML = `<div class="empty">Log in to see your predictions.</div>`;
         } else if (matches.length > 0 && myPredictions.length >= matches.length) {
           statusArea.innerHTML = `<span class="predict-status done"><i class="fas fa-circle-check"></i> You've Predicted This Week</span>`;
         } else {
           statusArea.innerHTML = `<a href="/predict?gameweek=${currentGw}" class="predict-status todo"><i class="fas fa-pen"></i> Predict Now</a>`;
         }
+
+        if (loggedIn && matches.length > 0) {
+          renderYourPredictions(matches, myPredictions);
+        }
       } catch (e) {
         console.error('Failed to load this week:', e);
         strip.innerHTML = '<div class="empty">Couldn\'t load fixtures right now.</div>';
       }
+    }
+
+    // ---------- Your Predictions This Week ----------
+    function renderYourPredictions(matches, myPredictions) {
+      const body = document.getElementById('yourPredictionsBody');
+      const predByMatch = {};
+      myPredictions.forEach(p => { predByMatch[p.match_id] = p; });
+
+      body.innerHTML = matches.map(m => {
+        const pred = predByMatch[m.id];
+        const hasResult = m.home_score !== null && m.home_score !== undefined && m.status === 'finished';
+
+        if (!pred) {
+          return `
+            <div class="pred-row">
+              <div class="pred-teams">${escapeHtml(m.home_team)} v ${escapeHtml(m.away_team)}</div>
+              <span class="pred-missing"><i class="fas fa-circle-question"></i> Not predicted yet</span>
+            </div>`;
+        }
+
+        let resultTag = `<span class="pred-result pending">${escapeHtml(m.status || 'upcoming')}</span>`;
+        if (hasResult) {
+          const correct = pred.predicted_result &&
+            ((pred.predicted_result === 'H' && m.home_score > m.away_score) ||
+             (pred.predicted_result === 'A' && m.away_score > m.home_score) ||
+             (pred.predicted_result === 'D' && m.home_score === m.away_score));
+          resultTag = correct
+            ? `<span class="pred-result correct"><i class="fas fa-check"></i> Correct — ${m.home_score}-${m.away_score}</span>`
+            : `<span class="pred-result wrong"><i class="fas fa-xmark"></i> ${m.home_score}-${m.away_score}</span>`;
+        }
+
+        return `
+          <div class="pred-row">
+            <div class="pred-teams">${escapeHtml(m.home_team)} v ${escapeHtml(m.away_team)}</div>
+            <div class="pred-pick">${pred.home_score}-${pred.away_score}</div>
+            ${resultTag}
+          </div>`;
+      }).join('');
     }
 
     // ---------- Tournament card ----------
