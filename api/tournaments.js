@@ -1772,63 +1772,92 @@ function elementTypeToPosition(elementType) {
 // takes over, gated on the same gameweek all-finished pattern as
 // LMS/Fantasy, with the same atomic-claim race-condition fix.
 async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
+  const debug = [];
   try {
-    const { data: tournament } = await supabaseAdmin
+    const { data: tournament, error: tErr } = await supabaseAdmin
       .schema('stockmarket').from('tournaments')
       .select('id, status, closes_at, end_gameweek, gameweek, last_processed_gameweek')
       .eq('id', tournamentId)
       .maybeSingle();
 
+    debug.push(`tournament fetch: ${tErr ? 'ERROR ' + tErr.message : JSON.stringify(tournament)}`);
+
     if (!tournament) {
-      return { locked: false, drafting: false, reason: 'Tournament not found.' };
+      debug.push('BLOCKED: tournament not found');
+      console.log('[SM DEBUG]', debug.join(' | '));
+      return { locked: false, drafting: false, reason: 'Tournament not found.', debug };
     }
 
     if (tournament.status === 'finished') {
-      return { locked: true, drafting: false, marketLive: false, finished: true, reason: 'This market has closed.' };
+      debug.push('BLOCKED: tournament status is finished');
+      console.log('[SM DEBUG]', debug.join(' | '));
+      return { locked: true, drafting: false, marketLive: false, finished: true, reason: 'This market has closed.', debug };
     }
 
     if (tournament.status !== 'live') {
       const deadlinePassed = tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime();
+      debug.push(`status=${tournament.status}, closes_at=${tournament.closes_at}, now=${new Date().toISOString()}, deadlinePassed=${deadlinePassed}`);
       if (!deadlinePassed) {
-        return { locked: false, drafting: true, marketLive: false, closes_at: tournament.closes_at, reason: null };
+        debug.push('BLOCKED: still drafting, deadline not passed');
+        console.log('[SM DEBUG]', debug.join(' | '));
+        return { locked: false, drafting: true, marketLive: false, closes_at: tournament.closes_at, reason: null, debug };
       }
-      // Deadline just passed — initialize the market exactly once.
+      debug.push('Deadline passed — initializing market now');
+      console.log('[SM DEBUG]', debug.join(' | '));
       await initializeStockMarket(supabaseAdmin, masterDb, tournamentId);
-      return { locked: true, drafting: false, marketLive: true, reason: 'Draft closed — the market is now live.' };
+      return { locked: true, drafting: false, marketLive: true, reason: 'Draft closed — the market is now live.', debug };
     }
 
     // Market is live — check whether this gameweek's matches have all
     // finished, and if so (and not already processed), run price processing.
-    const { data: clock } = await masterDb
+    const { data: clock, error: clockErr } = await masterDb
       .from('master_clock')
       .select('current_gameweek')
       .eq('id', 'current')
       .maybeSingle();
 
+    debug.push(`clock fetch: ${clockErr ? 'ERROR ' + clockErr.message : JSON.stringify(clock)}`);
+
     if (!clock || !clock.current_gameweek) {
-      return { locked: false, drafting: false, marketLive: true, gameweek: null, reason: 'Master clock not set yet.' };
+      debug.push('BLOCKED: master clock not set');
+      console.log('[SM DEBUG]', debug.join(' | '));
+      return { locked: false, drafting: false, marketLive: true, gameweek: null, reason: 'Master clock not set yet.', debug };
     }
 
-    const currentGW = clock.current_gameweek;
-    if (tournament.gameweek && currentGW < tournament.gameweek) {
-      return { locked: false, drafting: false, marketLive: true, gameweek: tournament.gameweek, reason: `Market starts processing from Gameweek ${tournament.gameweek}.` };
+    const currentGW = Number(clock.current_gameweek);
+    debug.push(`currentGW=${currentGW} (type ${typeof clock.current_gameweek} raw, coerced to Number), tournament.gameweek=${tournament.gameweek} (type ${typeof tournament.gameweek})`);
+
+    if (tournament.gameweek && currentGW < Number(tournament.gameweek)) {
+      debug.push(`BLOCKED: currentGW ${currentGW} < tournament start ${tournament.gameweek}`);
+      console.log('[SM DEBUG]', debug.join(' | '));
+      return { locked: false, drafting: false, marketLive: true, gameweek: tournament.gameweek, reason: `Market starts processing from Gameweek ${tournament.gameweek}.`, debug };
     }
 
-    const { data: gwMatches } = await masterDb
+    const { data: gwMatches, error: matchErr } = await masterDb
       .from('matches')
       .select('status, kickoff_time')
       .eq('gameweek', currentGW);
 
+    debug.push(`matches fetch for gameweek=${currentGW}: ${matchErr ? 'ERROR ' + matchErr.message : `${(gwMatches || []).length} rows, statuses: ${(gwMatches || []).map(m => m.status).join(',')}`}`);
+
     const allFinished = gwMatches && gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
+    debug.push(`allFinished=${allFinished}`);
 
     if (allFinished) {
-      await processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
+      debug.push(`last_processed_gameweek BEFORE claim attempt = ${tournament.last_processed_gameweek}`);
+      console.log('[SM DEBUG]', debug.join(' | '));
+      const processResult = await processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
+      debug.push(`processStockMarketGameweek returned: ${JSON.stringify(processResult)}`);
+      console.log('[SM DEBUG post-process]', debug.join(' | '));
+    } else {
+      console.log('[SM DEBUG]', debug.join(' | '));
     }
 
-    return { locked: false, drafting: false, marketLive: true, gameweek: currentGW, processed: allFinished };
+    return { locked: false, drafting: false, marketLive: true, gameweek: currentGW, processed: allFinished, debug };
   } catch (error) {
-    console.error('getStockMarketLockStatus error:', error);
-    return { locked: false, drafting: false, marketLive: false, reason: null };
+    debug.push(`EXCEPTION: ${error.message}`);
+    console.error('[SM DEBUG EXCEPTION]', debug.join(' | '), error);
+    return { locked: false, drafting: false, marketLive: false, reason: null, debug, error: error.message };
   }
 }
 
@@ -2114,15 +2143,16 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       .select('id, end_gameweek, entry_fee, gameweek')
       .maybeSingle();
 
-    if (claimError) { console.error('processStockMarketGameweek claim error:', claimError); return; }
-    if (!claimed) return; // already processed, or someone else claimed it
+    if (claimError) { console.error('processStockMarketGameweek claim error:', claimError); return { ok: false, step: 'claim', error: claimError.message }; }
+    if (!claimed) return { ok: false, step: 'claim', reason: 'Claim returned no row — already processed this gameweek, tournament finished, or update matched nothing.' };
 
     const { data: marketRows, error: marketError } = await supabaseAdmin
       .schema('stockmarket').from('player_market')
       .select('*')
       .eq('tournament_id', tournamentId);
 
-    if (marketError || !marketRows || marketRows.length === 0) return;
+    if (marketError) return { ok: false, step: 'marketRows', error: marketError.message };
+    if (!marketRows || marketRows.length === 0) return { ok: false, step: 'marketRows', reason: 'No player_market rows found for this tournament.' };
 
     const { data: config } = await supabaseAdmin
       .schema('stockmarket').from('config')
@@ -2130,7 +2160,7 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       .eq('tournament_id', tournamentId)
       .maybeSingle();
 
-    if (!config) return;
+    if (!config) return { ok: false, step: 'config', reason: 'No stockmarket.config row exists for this tournament_id.' };
 
     const eventWeights = config.event_weights || {};
     const matchSharePct = config.match_share_pct != null ? Number(config.match_share_pct) : 0.8;
@@ -2227,7 +2257,7 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       }
     } catch (fetchErr) {
       console.error('Failed to fetch gameweek stats:', fetchErr);
-      return;
+      return { ok: false, step: 'statsFetch', error: fetchErr.message };
     }
 
     const redCardPids = [];
@@ -2503,8 +2533,11 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
         .eq('id', tournamentId);
     }
 
-    console.log(`Stock Market ${tournamentId} GW${gameweek} processed — ${liveElements.filter(el => prices[String(el.id)]).length} selected players had live data, ${redCardPids.length} catastrophic red cards`);
+    const selectedWithLiveData = liveElements.filter(el => prices[String(el.id)]).length;
+    console.log(`Stock Market ${tournamentId} GW${gameweek} processed — ${selectedWithLiveData} selected players had live data, ${redCardPids.length} catastrophic red cards`);
+    return { ok: true, step: 'complete', selectedWithLiveData, redCards: redCardPids.length, totalLiveElements: liveElements.length };
   } catch (error) {
     console.error('processStockMarketGameweek error:', error);
+    return { ok: false, step: 'exception', error: error.message };
   }
 }
