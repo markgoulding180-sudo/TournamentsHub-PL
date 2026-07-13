@@ -262,8 +262,8 @@ module.exports = async (req, res) => {
             const previewValue = previewSlotValue > 0
               ? previewSlotValue * (previewOwnership[s.player_id] || 1)
               : null;
-            const sharedShare = m.current_value ? Math.round(m.current_value / ownership) : null;
-            const lastWeekShare = m.last_week_value ? Math.round(m.last_week_value / ownership) : null;
+            const sharedShare = m.current_value != null ? Math.round(m.current_value / ownership) : null;
+            const lastWeekShare = m.last_week_value != null ? Math.round(m.last_week_value / ownership) : null;
             const yourValue = sharedShare !== null ? sharedShare + (s.bonus_value || 0) : null;
             const yourLastWeekValue = lastWeekShare !== null ? lastWeekShare + (s.bonus_value || 0) : null;
             return {
@@ -277,7 +277,7 @@ module.exports = async (req, res) => {
               value_change: (yourValue !== null && yourLastWeekValue !== null) ? yourValue - yourLastWeekValue : null,
               bonus_value: s.bonus_value || 0,
               preview_value: previewValue,
-              market_value: m.current_value || null,
+              market_value: m.current_value != null ? m.current_value : null,
               last_gw_stats: m.last_gw_stats || null,
               is_sub: s.is_sub || false
             };
@@ -1174,9 +1174,10 @@ module.exports = async (req, res) => {
             others.forEach(o => { o.bonus_value = (o.bonus_value || 0) + share; });
           }
 
+          const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
           await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
-            .update({ squad_players: squad, last_transfer_gameweek: currentGW })
+            .update({ squad_players: squad, last_transfer_gameweek: currentGW, current_value: newTotal })
             .eq('id', entry.id);
 
           return res.status(200).json({ success: true, sold_for: yourValue, reseed, remainder });
@@ -1291,8 +1292,9 @@ module.exports = async (req, res) => {
             }
           }
 
+          const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
           await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-            .update({ squad_players: squad }).eq('id', entry.id);
+            .update({ squad_players: squad, current_value: newTotal }).eq('id', entry.id);
 
           return res.status(200).json({ success: true, pack_fee: packFee });
         } catch (err) {
@@ -2040,6 +2042,26 @@ const STARTER_PACK_MATRIX = {
 
 const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
+
+async function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
+  const playerIds = squad.filter(s => !s.empty).map(s => s.player_id);
+  let marketByPid = {};
+  if (playerIds.length > 0) {
+    const { data: rows } = await supabaseAdmin
+      .schema('stockmarket').from('player_market')
+      .select('player_id, current_value, ownership_count')
+      .eq('tournament_id', tournamentId)
+      .in('player_id', playerIds);
+    (rows || []).forEach(r => { marketByPid[r.player_id] = r; });
+  }
+
+  return Math.round(squad.reduce((sum, s) => {
+    if (s.empty) return sum + (s.reserved_value || 0);
+    const m = marketByPid[s.player_id];
+    const sharePart = m && m.current_value != null ? m.current_value / (m.ownership_count || 1) : 0;
+    return sum + sharePart + (s.bonus_value || 0);
+  }, 0));
+}
 
 function packPriceFor(config, rarity) {
   const defaults = { Bronze: 200, Silver: 400, Gold: 600 };
