@@ -91,6 +91,11 @@
       0%{ transform:rotateY(90deg) scale(0.9); opacity:0; }
       100%{ transform:rotateY(0deg) scale(1); opacity:1; }
     }
+    @keyframes cardShake{
+      0%, 100%{ transform:translateX(0); }
+      25%{ transform:translateX(-8px); }
+      75%{ transform:translateX(8px); }
+    }
     .player-card.selected{ border-color:var(--green); box-shadow:0 0 30px rgba(34,197,94,0.45); }
     .player-card .card-rarity-tag{
       position:absolute; top:12px; left:12px; z-index:3; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px;
@@ -120,6 +125,7 @@
     .carousel-position{ font-size:12px; color:var(--text-faint); font-family:var(--font-head); }
     .carousel-hint{ font-size:11px; color:var(--text-faint); margin-top:10px; text-align:center; }
     .tap-select-btn{ margin-top:14px; display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1.5px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:13px; padding:9px 20px; border-radius:10px; }
+    .tap-select-btn:disabled{ border-color:var(--border); color:var(--text-faint); opacity:0.6; cursor:not-allowed; }
     .tap-select-btn.is-selected{ background:rgba(34,197,94,0.12); border-color:var(--green); color:var(--green); }
 
     .comp-checklist{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
@@ -320,8 +326,19 @@
 
       document.getElementById('carouselPosition').textContent = `${currentIndex + 1} / ${candidates.length}`;
       const btn = document.getElementById('tapSelectBtn');
-      btn.classList.toggle('is-selected', isSelected);
-      btn.innerHTML = isSelected ? '<i class="fas fa-check"></i> Added' : '<i class="fas fa-plus"></i> Add to Squad';
+      if (isSelected) {
+        btn.classList.add('is-selected');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Added — tap to remove';
+      } else if (selected.size >= 6) {
+        btn.classList.remove('is-selected');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-ban"></i> Squad full — remove one first';
+      } else {
+        btn.classList.remove('is-selected');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add to Squad';
+      }
     }
 
     function navigateCard(direction) {
@@ -334,10 +351,22 @@
       if (!c) return;
       if (selected.has(c.id)) {
         selected.delete(c.id);
-      } else {
-        if (selected.size >= 6) { showToast('You already have 6 players selected — remove one first.', 'error'); return; }
-        selected.set(c.id, c);
+        renderCard(false);
+        renderChecklist();
+        return;
       }
+      if (selected.size >= 6) {
+        // Squad's full — don't show a scary error for just browsing/clicking
+        // around, just give a quick visual "no" shake on the card itself.
+        const cardEl = document.querySelector('#carouselStage .player-card');
+        if (cardEl) {
+          cardEl.style.animation = 'none';
+          void cardEl.offsetWidth; // restart animation
+          cardEl.style.animation = 'cardShake .3s ease';
+        }
+        return;
+      }
+      selected.set(c.id, c);
       renderCard(false);
       renderChecklist();
     }
@@ -363,7 +392,22 @@
 
       document.getElementById('selectedCount').textContent = selected.size;
       const allRulesMet = comp.gk === 1 && comp.def >= 1 && comp.mid >= 1 && comp.fwd >= 1 && selected.size === 6;
-      document.getElementById('saveSquadBtn').disabled = !allRulesMet;
+      const saveBtn = document.getElementById('saveSquadBtn');
+      saveBtn.disabled = !allRulesMet;
+
+      if (allRulesMet) {
+        saveBtn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
+      } else {
+        const missing = [];
+        if (comp.gk === 0) missing.push('a Goalkeeper');
+        else if (comp.gk > 1) missing.push('only 1 Goalkeeper allowed — you have ' + comp.gk);
+        if (comp.def === 0) missing.push('a Defender');
+        if (comp.mid === 0) missing.push('a Midfielder');
+        if (comp.fwd === 0) missing.push('a Forward');
+        if (selected.size < 6) missing.push(`${6 - selected.size} more player${6 - selected.size === 1 ? '' : 's'}`);
+        else if (selected.size > 6) missing.push('too many players — remove ' + (selected.size - 6));
+        saveBtn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Need: ${missing.join(', ')}`;
+      }
     }
 
     // Swipe support
