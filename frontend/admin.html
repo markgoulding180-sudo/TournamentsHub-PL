@@ -168,6 +168,25 @@
       <div id="broadcastMessagesList" style="font-size:0.85rem;">Loading active messages…</div>
     </div>
 
+    <!-- Historical Gameweek Sync — real data for repeatable testing -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-clock-rotate-left"></i> Historical Gameweek Sync</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Pulls a REAL gameweek's actual player stats from the FPL feed into the local master database — not invented data. Once synced, rewind the master clock to GW1 and hit Advance Week to replay a genuine past season for testing every tournament type, Stock Market included, exactly like a real live season.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+        <input type="number" id="syncGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
+          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn btn-primary" onclick="syncHistoricalGameweek()"><i class="fas fa-download"></i> Sync This Gameweek</button>
+      </div>
+      <button class="btn" onclick="syncAllHistoricalGameweeks()" style="width:100%; margin-bottom:0.5rem;">
+        <i class="fas fa-layer-group"></i> Sync All Gameweeks (1 to current)
+      </button>
+      <button class="btn" onclick="clearGameweekStatsCache()" style="width:100%; background:var(--accent-red); color:#fff;">
+        <i class="fas fa-trash"></i> Clear Cached Stats (force re-sync)
+      </button>
+    </div>
+
     <!-- Current Status -->
     <div class="admin-card">
       <h3><i class="fas fa-info-circle"></i> Current Status</h3>

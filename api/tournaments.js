@@ -762,6 +762,80 @@ module.exports = async (req, res) => {
         return res.status(200).json({ success: true });
       }
 
+
+      // ADMIN: sync REAL historical per-gameweek player stats from FPL's
+      // live feed into the local master table. This is genuine past data
+      // — not invented — so rewinding the master clock to GW1 and
+      // advancing week by week plays through an actual real season for
+      // testing every tournament type consistently, Stock Market included.
+      if (action === 'sync_historical_gameweek_stats') {
+        const { data: caller, error: callerError } = await supabaseAdmin
+          .from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (callerError || !caller || !caller.is_admin) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const syncGw = req.body.gameweek;
+        if (!syncGw) return res.status(400).json({ error: 'gameweek is required' });
+
+        try {
+          const liveRes = await fetch(`https://fantasy.premierleague.com/api/event/${syncGw}/live/`);
+          if (!liveRes.ok) {
+            return res.status(502).json({ error: `FPL API returned ${liveRes.status} for GW${syncGw}` });
+          }
+          const liveData = await liveRes.json();
+          const elements = liveData.elements || [];
+
+          if (elements.length === 0) {
+            return res.status(404).json({ error: `No data returned for GW${syncGw} — it may not have been played yet` });
+          }
+
+          const statRows = elements.map(el => ({
+            gameweek: syncGw, player_id: el.id,
+            goals_scored: el.stats?.goals_scored || 0,
+            assists: el.stats?.assists || 0,
+            yellow_cards: el.stats?.yellow_cards || 0,
+            red_cards: el.stats?.red_cards || 0,
+            clean_sheets: el.stats?.clean_sheets || 0,
+            goals_conceded: el.stats?.goals_conceded || 0,
+            saves: el.stats?.saves || 0,
+            minutes: el.stats?.minutes || 0
+          }));
+
+          const CHUNK = 200;
+          for (let i = 0; i < statRows.length; i += CHUNK) {
+            await masterDb.from('player_gameweek_stats').upsert(statRows.slice(i, i + CHUNK), { onConflict: 'gameweek,player_id' });
+          }
+
+          return res.status(200).json({ success: true, gameweek: syncGw, players_synced: statRows.length });
+        } catch (err) {
+          console.error('sync_historical_gameweek_stats error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // ADMIN: force a re-sync next time this gameweek is processed, by
+      // clearing its cached row(s). Useful if FPL corrects a result after
+      // the fact. Omit gameweek to clear the whole cache.
+      if (action === 'clear_gameweek_stats_cache') {
+        const { data: caller, error: callerError } = await supabaseAdmin
+          .from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (callerError || !caller || !caller.is_admin) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        try {
+          let query = masterDb.from('player_gameweek_stats').delete();
+          query = req.body.gameweek ? query.eq('gameweek', req.body.gameweek) : query.gte('gameweek', 0);
+          await query;
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('clear_gameweek_stats_cache error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+
       // JOIN tournament (user action) — also used to save/update a Fantasy
       // Manager squad, since a squad is just extra payload on the entry.
       if (action === 'join') {
@@ -2050,16 +2124,59 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       (matchGroups[matchKey] = matchGroups[matchKey] || []).push(pid);
     });
 
-    // Fetch this gameweek's real stats directly from FPL's live event feed
+    // The master database is the single source of truth for every
+    // gameweek's stats. First read of any gameweek pulls from FPL's live
+    // feed (real data, works for any gameweek that's actually been
+    // played — including past ones, useful for testing by rewinding the
+    // master clock) and caches it locally. Every read after that comes
+    // from the local table only — real season data and admin-synced
+    // historical data live in exactly the same place.
     let liveElements = [];
     try {
-      const liveRes = await fetch(`https://fantasy.premierleague.com/api/event/${gameweek}/live/`);
-      if (liveRes.ok) {
-        const liveData = await liveRes.json();
-        liveElements = liveData.elements || [];
+      const { data: cachedStats } = await masterDb
+        .from('player_gameweek_stats')
+        .select('*')
+        .eq('gameweek', gameweek);
+
+      if (cachedStats && cachedStats.length > 0) {
+        liveElements = cachedStats.map(s => ({
+          id: s.player_id,
+          stats: {
+            goals_scored: s.goals_scored, assists: s.assists,
+            yellow_cards: s.yellow_cards, red_cards: s.red_cards,
+            clean_sheets: s.clean_sheets, goals_conceded: s.goals_conceded,
+            saves: s.saves, minutes: s.minutes
+          }
+        }));
+        console.log(`Stock Market GW${gameweek}: read ${liveElements.length} stat rows from the local master cache`);
+      } else {
+        const liveRes = await fetch(`https://fantasy.premierleague.com/api/event/${gameweek}/live/`);
+        if (liveRes.ok) {
+          const liveData = await liveRes.json();
+          liveElements = liveData.elements || [];
+
+          if (liveElements.length > 0) {
+            const cacheRows = liveElements.map(el => ({
+              gameweek, player_id: el.id,
+              goals_scored: el.stats?.goals_scored || 0,
+              assists: el.stats?.assists || 0,
+              yellow_cards: el.stats?.yellow_cards || 0,
+              red_cards: el.stats?.red_cards || 0,
+              clean_sheets: el.stats?.clean_sheets || 0,
+              goals_conceded: el.stats?.goals_conceded || 0,
+              saves: el.stats?.saves || 0,
+              minutes: el.stats?.minutes || 0
+            }));
+            const CHUNK = 200;
+            for (let i = 0; i < cacheRows.length; i += CHUNK) {
+              await masterDb.from('player_gameweek_stats').upsert(cacheRows.slice(i, i + CHUNK), { onConflict: 'gameweek,player_id' });
+            }
+            console.log(`Stock Market GW${gameweek}: cached ${cacheRows.length} real FPL stat rows into the local master table`);
+          }
+        }
       }
     } catch (fetchErr) {
-      console.error('Failed to fetch FPL live event data:', fetchErr);
+      console.error('Failed to fetch gameweek stats:', fetchErr);
       return;
     }
 

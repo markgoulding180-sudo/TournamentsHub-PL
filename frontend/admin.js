@@ -321,6 +321,88 @@ async function deactivateBroadcastMessage(messageId) {
   }
 }
 
+// ================= HISTORICAL GAMEWEEK SYNC =================
+async function syncHistoricalGameweek() {
+  const gw = parseInt(document.getElementById('syncGwInput').value, 10);
+  if (!gw || gw < 1) { log('Enter a valid gameweek number', 'error'); return; }
+
+  log(`Syncing real GW${gw} stats from FPL…`, 'info');
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'sync_historical_gameweek_stats', gameweek: gw })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      log(`Failed to sync GW${gw}: ${data.error}`, 'error');
+      return;
+    }
+    log(`GW${gw} synced: ${data.players_synced} real player stat rows cached locally.`, 'success');
+  } catch (error) {
+    log(`Error syncing GW${gw}: ${error.message}`, 'error');
+  }
+}
+
+async function syncAllHistoricalGameweeks() {
+  log('Finding current gameweek…', 'info');
+  let currentGw = 38;
+  try {
+    const gwResponse = await fetch('/api/current-gameweek');
+    const gwData = await gwResponse.json();
+    currentGw = gwData.current_gameweek || gwData.gameweek || 38;
+  } catch (e) {
+    log('Could not detect current gameweek, defaulting to 38', 'info');
+  }
+
+  if (!confirm(`Sync GW1 through GW${currentGw}? This makes ${currentGw} separate real API calls, one per gameweek.`)) return;
+
+  for (let gw = 1; gw <= currentGw; gw++) {
+    log(`Syncing GW${gw}…`, 'info');
+    try {
+      const token = localStorage.getItem('gbf_token');
+      const response = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'sync_historical_gameweek_stats', gameweek: gw })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        log(`GW${gw} failed: ${data.error}`, 'error');
+        continue;
+      }
+      log(`GW${gw}: ${data.players_synced} rows cached.`, 'success');
+    } catch (error) {
+      log(`GW${gw} error: ${error.message}`, 'error');
+    }
+  }
+  log('Historical sync complete.', 'success');
+}
+
+async function clearGameweekStatsCache() {
+  const gw = document.getElementById('syncGwInput').value;
+  const scope = gw ? `GW${gw} only` : 'ALL gameweeks';
+  if (!confirm(`Clear cached stats for ${scope}? Next time it's processed, it'll be re-fetched from the real FPL feed.`)) return;
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'clear_gameweek_stats_cache', gameweek: gw ? parseInt(gw, 10) : null })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      log(`Failed to clear cache: ${data.error}`, 'error');
+      return;
+    }
+    log(`Cache cleared for ${scope}.`, 'success');
+  } catch (error) {
+    log(`Error clearing cache: ${error.message}`, 'error');
+  }
+}
+
 async function launchTournament() {
   if (!confirm('Launch new tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create £20 entry tournament\n3. Open for user registrations')) {
     return;
