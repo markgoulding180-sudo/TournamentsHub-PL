@@ -624,6 +624,7 @@
         });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Failed to buy replacement', 'error'); return; }
+        console.log('[BUY DEBUG]', data.debug);
         showToast(`Bought ${playerName} for ${money(data.pack_fee)}.`, 'success');
         await loadTournament();
       } catch (e) {

@@ -1293,10 +1293,17 @@ module.exports = async (req, res) => {
           }
 
           const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
+          const debug = {
+            reservedValue, packFee, shortfall, newRayaBonusValue: squad[emptyIdx].bonus_value,
+            othersAfterShortfall: squad.filter((s, i) => i !== emptyIdx && !s.empty).map(s => ({ id: s.player_id, bonus_value: s.bonus_value })),
+            entryCurrentValueBefore: entry.current_value, newTotal
+          };
+          console.log('[BUY DEBUG]', JSON.stringify(debug));
+
           await supabaseAdmin.schema('stockmarket').from('tournament_entries')
             .update({ squad_players: squad, current_value: newTotal }).eq('id', entry.id);
 
-          return res.status(200).json({ success: true, pack_fee: packFee });
+          return res.status(200).json({ success: true, pack_fee: packFee, debug });
         } catch (err) {
           console.error('stockmarket_buy_replacement error:', err);
           return res.status(500).json({ error: err.message });
