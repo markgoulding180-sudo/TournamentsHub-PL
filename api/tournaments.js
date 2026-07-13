@@ -2102,6 +2102,15 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
     const prices = {};
     marketRows.forEach(p => { prices[String(p.player_id)] = { ...p }; });
 
+    // Snapshot pre-redistribution shares, so benched players (frozen this
+    // week) can have their bonus_value adjusted to exactly cancel out
+    // whatever the shared stock moves by — private to them, doesn't touch
+    // what other owners of the same player see.
+    const oldShareByPid = {};
+    marketRows.forEach(p => {
+      oldShareByPid[String(p.player_id)] = p.ownership_count > 0 ? Math.round((p.current_value || 0) / p.ownership_count) : 0;
+    });
+
     // Map each player's team to the real match they're playing this gameweek
     const { data: gwMatches } = await masterDb
       .from('matches')
@@ -2270,7 +2279,24 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
 
       for (let i = 0; i < squad.length; i++) {
         const slot = squad[i];
-        if (!slot || slot.empty || slot.is_sub) continue;
+        if (!slot || slot.empty) continue;
+
+        if (slot.is_sub) {
+          // Benched: freeze this player's contribution to YOUR value this
+          // week. The shared stock still moves normally for anyone else
+          // who holds them actively — this only cancels it out privately.
+          const p = prices[String(slot.player_id)];
+          if (p) {
+            const newShare = p.ownership_count > 0 ? Math.round((p.current_value || 0) / p.ownership_count) : 0;
+            const oldShare = oldShareByPid[String(slot.player_id)] || 0;
+            const delta = newShare - oldShare;
+            if (delta !== 0) {
+              slot.bonus_value = (slot.bonus_value || 0) - delta;
+              changed = true;
+            }
+          }
+          continue;
+        }
 
         slot.active_weeks_held = (slot.active_weeks_held || 0) + 1;
         changed = true;
