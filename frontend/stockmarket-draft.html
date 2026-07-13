@@ -67,6 +67,11 @@
     .slot-item .slot-empty-text{ font-size:12.5px; color:var(--text-faint); font-style:italic; }
     .slot-item .slot-remove{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--bg-panel); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:11px; }
     .slot-item .slot-remove:hover{ border-color:var(--red); color:#fca5a5; }
+
+    .pack-fill-btn{ background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:10.5px; font-weight:700; color:var(--text-dim); }
+    .pack-fill-btn:hover{ border-color:var(--border-hover); color:var(--text); }
+    .transfer-pool-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--bg-panel); border-radius:6px; margin-top:4px; font-size:11px; }
+    .transfer-pool-item button{ background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; flex:none; }
     .empty-state{ text-align:center; padding:50px 20px; }
     .empty-state i{ font-size:40px; color:var(--accent-2); margin-bottom:16px; }
     .empty-state p{ color:var(--text-dim); font-size:14px; margin-bottom:24px; max-width:440px; margin-left:auto; margin-right:auto; }
@@ -216,7 +221,7 @@
     </div>
 
     <div class="pick-layout" id="pickCard" style="display:none;">
-      <div class="card">
+      <div class="card" id="packSideCard">
         <div class="comp-checklist" id="compChecklist"></div>
         <div class="carousel-wrap" id="carouselWrap">
           <div class="carousel-stage" id="carouselStage"></div>
@@ -230,7 +235,7 @@
         </div>
       </div>
 
-      <div class="card slots-panel">
+      <div class="card slots-panel" id="slotsPanelCard">
         <div class="card-title-sm">Your Squad</div>
         <div id="slotsList"></div>
       </div>
@@ -267,6 +272,41 @@
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
     const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
+    const ELEMENT_TYPE_TO_POS = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
+
+    async function checkExistingSquad() {
+      if (!localStorage.getItem('gbf_token')) return;
+      await ensureTournamentId();
+      if (!tournamentId) return;
+
+      try {
+        const res = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=stockmarket`, { headers: authHeaders() });
+        const data = await res.json();
+        const entry = data.entry;
+        if (!entry || !entry.squad_players || entry.squad_players.length === 0 || entry.squad_locked) return;
+
+        // Load their existing picks into the same 6-slot structure,
+        // so editing swaps individual positions instead of starting over.
+        const filled = entry.squad_players.filter(s => !s.empty);
+        filled.forEach(s => {
+          const pos = ELEMENT_TYPE_TO_POS[s.position] || s.position; // numeric (original draft) or already short-code
+          const candidate = { id: s.player_id, name: s.name, team: s.team, position: pos, rarity: 'Bronze', photo: null, total_points: null };
+          const target = pos === 'gk' ? squadSlots.find(sl => sl.type === 'gk')
+            : (squadSlots.find(sl => sl.type === pos && !sl.player) || squadSlots.find(sl => sl.type === 'flex' && !sl.player));
+          if (target) target.player = candidate;
+        });
+
+        document.getElementById('preOpenCard').style.display = 'none';
+        document.getElementById('pickCard').style.display = 'grid';
+        document.getElementById('packSideCard').style.display = 'none';
+        document.getElementById('slotsPanelCard').style.gridColumn = '1 / -1';
+        document.getElementById('confirmBar').style.display = 'flex';
+        renderSlots(true);
+        renderChecklist();
+      } catch (e) {
+        console.error('checkExistingSquad failed:', e);
+      }
+    }
 
     async function ensureTournamentId() {
       if (tournamentId) return;
@@ -443,10 +483,92 @@
       renderSlots();
     }
 
-    function renderSlots() {
+    function startReplace(slotIdx) {
+      const slot = squadSlots[slotIdx];
+      if (!slot || !slot.player) return;
+      slot.player = null;
+      renderChecklist();
+      renderSlots(true);
+    }
+
+    async function openReplacementPack(slotIdx, position, packType) {
+      const slot = squadSlots[slotIdx];
+      // Flex slots need the user to pick which position to search first.
+      if (!position) {
+        const poolEl = document.getElementById(`replace-pool-${slotIdx}`);
+        poolEl.innerHTML = `
+          <div style="font-size:11px; color:var(--text-faint); margin-top:6px;">Which position?</div>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            <button class="pack-fill-btn" onclick="openReplacementPack(${slotIdx}, 'def', '${packType}')">DEF</button>
+            <button class="pack-fill-btn" onclick="openReplacementPack(${slotIdx}, 'mid', '${packType}')">MID</button>
+            <button class="pack-fill-btn" onclick="openReplacementPack(${slotIdx}, 'fwd', '${packType}')">FWD</button>
+          </div>`;
+        return;
+      }
+
+      const poolEl = document.getElementById(`replace-pool-${slotIdx}`);
+      poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_open_pack', tournament_id: tournamentId, pack_type: packType, position })
+        });
+        const data = await res.json();
+        if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to load')}</div>`; return; }
+
+        const owned = new Set(squadSlots.filter(s => s.player).map(s => s.player.id));
+        const candidates = (data.candidates || []).filter(c => !owned.has(c.id));
+        if (candidates.length === 0) {
+          poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players right now.</div>';
+          return;
+        }
+
+        poolEl.innerHTML = candidates.map(c => `
+          <div class="transfer-pool-item">
+            <span>${escapeHtml(c.name)} <span style="color:var(--text-faint);">(${c.total_points || 0} pts)</span></span>
+            <button onclick='pickReplacementCandidate(${slotIdx}, ${JSON.stringify(c).replace(/'/g, "&apos;")})'>Pick</button>
+          </div>`).join('');
+      } catch (e) {
+        console.error('openReplacementPack failed:', e);
+        poolEl.innerHTML = '<div style="font-size:11px; color:var(--red); margin-top:6px;">Couldn\'t load candidates right now.</div>';
+      }
+    }
+
+    function pickReplacementCandidate(slotIdx, candidate) {
+      const owned = squadSlots.some(s => s.player && s.player.id === candidate.id);
+      if (owned) { showToast('You already have this player in your squad.', 'error'); return; }
+      squadSlots[slotIdx].player = candidate;
+      renderChecklist();
+      renderSlots(true);
+    }
+
+    let editableMode = false;
+
+    function renderSlots(editable) {
+      if (editable !== undefined) editableMode = editable;
       const list = document.getElementById('slotsList');
-      list.innerHTML = squadSlots.map(slot => {
+      list.innerHTML = squadSlots.map((slot, idx) => {
         if (!slot.player) {
+          if (editableMode) {
+            return `
+            <div class="slot-item" id="slot-editor-${idx}">
+              <div class="slot-photo"><i class="fas ${slot.type === 'gk' ? 'fa-hand' : slot.type === 'flex' ? 'fa-star' : 'fa-user'}"></i></div>
+              <div class="slot-info" style="width:100%;">
+                <div class="slot-pos-label">${slot.label}</div>
+                <div class="slot-empty-text">Empty — pick a player below</div>
+                <div class="replace-picker" style="margin-top:8px;">
+                  <div style="display:flex; gap:4px;">
+                    <button class="pack-fill-btn" onclick="openReplacementPack(${idx}, '${slot.type === 'flex' ? '' : slot.type}', 'Bronze')">Bronze</button>
+                    <button class="pack-fill-btn" onclick="openReplacementPack(${idx}, '${slot.type === 'flex' ? '' : slot.type}', 'Silver')">Silver</button>
+                    <button class="pack-fill-btn" onclick="openReplacementPack(${idx}, '${slot.type === 'flex' ? '' : slot.type}', 'Gold')">Gold</button>
+                  </div>
+                  <div id="replace-pool-${idx}"></div>
+                </div>
+              </div>
+            </div>`;
+          }
           return `
           <div class="slot-item">
             <div class="slot-photo"><i class="fas ${slot.type === 'gk' ? 'fa-hand' : slot.type === 'flex' ? 'fa-star' : 'fa-user'}"></i></div>
@@ -457,15 +579,20 @@
           </div>`;
         }
         const p = slot.player;
+        const replaceBtn = editableMode
+          ? `<button class="slot-remove" title="Replace" onclick="startReplace(${idx})"><i class="fas fa-rotate"></i></button>`
+          : '';
         return `
-        <div class="slot-item filled">
+        <div class="slot-item filled" id="slot-editor-${idx}">
           <div class="slot-photo">
             ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>';">` : `<i class="fas fa-user"></i>`}
           </div>
           <div class="slot-info">
             <div class="slot-pos-label">${slot.label} · ${escapeHtml(p.rarity)}</div>
             <div class="slot-name">${escapeHtml(p.name)}</div>
+            <div id="replace-pool-${idx}"></div>
           </div>
+          ${replaceBtn}
           <button class="slot-remove" onclick="removePlayer(${p.id})"><i class="fas fa-xmark"></i></button>
         </div>`;
       }).join('');
@@ -574,6 +701,7 @@
 
     document.getElementById('saveSquadBtn').addEventListener('click', saveSquad);
     document.addEventListener('DOMContentLoaded', initAuthButton);
+    document.addEventListener('DOMContentLoaded', checkExistingSquad);
   </script>
 </body>
 </html>
