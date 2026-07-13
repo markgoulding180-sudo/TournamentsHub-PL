@@ -1227,23 +1227,23 @@ module.exports = async (req, res) => {
           }
 
           // Upsert the new player into the shared market (create the stock
-          // if nobody's ever owned it before this tournament)
+          // if nobody's ever owned it before this tournament). Never add
+          // fresh value here — the buyer's contribution is already fully
+          // tracked via their private bonus_value; doing both was minting
+          // money out of nothing every single purchase.
           const { data: existingMarket } = await supabaseAdmin
             .schema('stockmarket').from('player_market')
             .select('*').eq('tournament_id', tournament_id).eq('player_id', player_id).maybeSingle();
 
           if (existingMarket) {
             await supabaseAdmin.schema('stockmarket').from('player_market')
-              .update({
-                ownership_count: (existingMarket.ownership_count || 0) + 1,
-                current_value: (existingMarket.current_value || 0) + slotValue
-              })
+              .update({ ownership_count: (existingMarket.ownership_count || 0) + 1 })
               .eq('id', existingMarket.id);
           } else {
             await supabaseAdmin.schema('stockmarket').from('player_market').insert({
               tournament_id, player_id, name: playerRow.web_name,
               position: { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[playerRow.element_type] || '',
-              team: teamName, ownership_count: 1, current_value: slotValue, last_week_value: slotValue
+              team: teamName, ownership_count: 1, current_value: 0, last_week_value: 0
             });
           }
 
@@ -2382,13 +2382,13 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
                 .select('*').eq('tournament_id', tournamentId).eq('player_id', chosen.id).maybeSingle();
               if (existingMarket) {
                 await supabaseAdmin.schema('stockmarket').from('player_market')
-                  .update({ ownership_count: (existingMarket.ownership_count || 0) + 1, current_value: (existingMarket.current_value || 0) + clockSlotValue })
+                  .update({ ownership_count: (existingMarket.ownership_count || 0) + 1 })
                   .eq('id', existingMarket.id);
               } else {
                 await supabaseAdmin.schema('stockmarket').from('player_market').insert({
                   tournament_id: tournamentId, player_id: chosen.id, name: chosen.name,
                   position: { gk: 'Goalkeeper', def: 'Defender', mid: 'Midfielder', fwd: 'Forward' }[positionKey] || '',
-                  team: chosen.team, ownership_count: 1, current_value: clockSlotValue, last_week_value: clockSlotValue
+                  team: chosen.team, ownership_count: 1, current_value: 0, last_week_value: 0
                 });
               }
 
