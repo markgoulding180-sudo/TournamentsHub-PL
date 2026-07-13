@@ -1128,7 +1128,7 @@ module.exports = async (req, res) => {
 
           const reseed = Math.min(yourValue, slotValue);
           const remainder = yourValue - reseed;
-          const others = squad.filter((s, i) => i !== sellIdx && !s.empty);
+          const others = squad.filter((s, i) => i !== sellIdx && !s.empty && !s.is_sub);
 
           // Reduce ownership on the sold player's shared stock — only
           // this changes what other owners see, and only via ownership
@@ -1219,7 +1219,7 @@ module.exports = async (req, res) => {
           // otherwise the fee was already absorbed above.
           const shortfall = Math.max(0, packFee - reservedValue);
           if (shortfall > 0) {
-            const others = squad.filter((s, i) => i !== emptyIdx && !s.empty);
+            const others = squad.filter((s, i) => i !== emptyIdx && !s.empty && !s.is_sub);
             if (others.length > 0) {
               const share = Math.ceil(shortfall / others.length);
               others.forEach(o => { o.bonus_value = Math.max(0, (o.bonus_value || 0) - share); });
@@ -2345,7 +2345,7 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
             p.current_value = newMarketValue;
 
             const remainder = yourValue - reseed;
-            const others = squad.filter((s, j) => j !== sellIdx && !s.empty);
+            const others = squad.filter((s, j) => j !== sellIdx && !s.empty && !s.is_sub);
             if (others.length > 0 && remainder > 0) {
               const share = Math.floor(remainder / others.length);
               others.forEach(o => { o.bonus_value = (o.bonus_value || 0) + share; });
@@ -2365,7 +2365,7 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
               const chosen = eligible[Math.floor(Math.random() * eligible.length)];
               const bronzeFee = packPriceFor(clockConfig, 'Bronze');
               const shortfall = Math.max(0, bronzeFee - reseed);
-              const finalOthers = squad.filter((s, j) => j !== sellIdx && !s.empty);
+              const finalOthers = squad.filter((s, j) => j !== sellIdx && !s.empty && !s.is_sub);
               if (shortfall > 0 && finalOthers.length > 0) {
                 const share = Math.ceil(shortfall / finalOthers.length);
                 finalOthers.forEach(o => { o.bonus_value = Math.max(0, (o.bonus_value || 0) - share); });
