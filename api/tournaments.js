@@ -1204,7 +1204,11 @@ module.exports = async (req, res) => {
 
           const squad = entry.squad_players || [];
           const emptyIdx = squad.findIndex(s => s.empty && s.position === position);
-          if (emptyIdx === -1) return res.status(400).json({ error: `No empty ${position} slot to fill` });
+          if (emptyIdx === -1) {
+            const squadDebug = squad.map(s => s.empty ? { empty: true, position: s.position } : { player_id: s.player_id, position: s.position });
+            console.log('[NO EMPTY SLOT DEBUG]', JSON.stringify({ requestedPosition: position, squad: squadDebug }));
+            return res.status(400).json({ error: `No empty ${position} slot to fill`, debug: { requestedPosition: position, squad: squadDebug } });
+          }
 
           const alreadyOwned = squad.some(s => s.player_id === player_id);
           if (alreadyOwned) return res.status(400).json({ error: 'You already own this player' });

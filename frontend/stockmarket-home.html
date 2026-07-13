@@ -614,8 +614,11 @@
       }
     }
 
+    let buyInFlight = false;
     async function buyReplacement(playerId, position, packFee, playerName, packType) {
+      if (buyInFlight) return;
       if (!confirm(`Buy ${playerName} for ${money(packFee)}? That's charged from your squad and split across everyone else's.`)) return;
+      buyInFlight = true;
       try {
         const res = await fetch('/api/tournaments', {
           method: 'POST',
@@ -623,13 +626,15 @@
           body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position, pack_type: packType })
         });
         const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Failed to buy replacement', 'error'); return; }
+        if (!res.ok) { console.log('[BUY FAILED DEBUG]', data.debug); showToast(data.error || 'Failed to buy replacement', 'error'); return; }
         console.log('[BUY DEBUG]', data.debug);
         showToast(`Bought ${playerName} for ${money(data.pack_fee)}.`, 'success');
         await loadTournament();
       } catch (e) {
         console.error('buyReplacement failed:', e);
         showToast("Couldn't complete that purchase right now.", "error");
+      } finally {
+        buyInFlight = false;
       }
     }
 
