@@ -232,7 +232,7 @@ module.exports = async (req, res) => {
               };
             }
             const m = marketByPid[s.player_id] || {};
-            const ownership = m.ownership_count || 1;
+            const ownership = m.ownership_count || previewOwnership[s.player_id] || 1;
             const posLabel = { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[s.position] || s.position;
             const previewValue = previewSlotValue > 0
               ? previewSlotValue * (previewOwnership[s.player_id] || 1)

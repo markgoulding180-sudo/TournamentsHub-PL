@@ -401,6 +401,10 @@
             }
           } else if (p.preview_value !== null) {
             valueHtml = `<div class="p-value">${money(p.preview_value)}</div><div class="p-est">est.</div>`;
+            if (p.ownership_count > 1) {
+              const others = p.ownership_count - 1;
+              valueHtml += `<div class="p-est" style="color:var(--accent-2); margin-top:4px;">Also picked by ${others} other squad${others === 1 ? '' : 's'} — worth more because it's shared</div>`;
+            }
           } else {
             valueHtml = `<div class="p-est">Not valued yet</div>`;
           }
