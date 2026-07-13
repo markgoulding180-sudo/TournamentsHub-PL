@@ -47,6 +47,26 @@
     .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
 
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:20px; }
+
+    /* ============ TWO-COLUMN PICK LAYOUT ============ */
+    .pick-layout{ display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
+    @media (max-width:860px){ .pick-layout{ grid-template-columns:1fr; } }
+
+    .card-title-sm{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; margin-bottom:14px; color:var(--text-dim); text-transform:uppercase; }
+    .slots-panel{ position:sticky; top:90px; }
+    @media (max-width:860px){ .slots-panel{ position:static; } }
+
+    .slot-item{ display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:var(--bg-card); border:1.5px dashed var(--border); margin-bottom:8px; }
+    .slot-item.filled{ border-style:solid; border-color:var(--accent); background:rgba(59,130,246,0.06); }
+    .slot-item .slot-photo{ width:42px; height:42px; border-radius:8px; background:var(--bg-panel); display:flex; align-items:center; justify-content:center; flex:none; overflow:hidden; }
+    .slot-item .slot-photo img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+    .slot-item .slot-photo i{ color:var(--text-faint); font-size:16px; }
+    .slot-item .slot-info{ flex:1; min-width:0; }
+    .slot-item .slot-pos-label{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); font-weight:700; }
+    .slot-item .slot-name{ font-family:var(--font-head); font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .slot-item .slot-empty-text{ font-size:12.5px; color:var(--text-faint); font-style:italic; }
+    .slot-item .slot-remove{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--bg-panel); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:11px; }
+    .slot-item .slot-remove:hover{ border-color:var(--red); color:#fca5a5; }
     .empty-state{ text-align:center; padding:50px 20px; }
     .empty-state i{ font-size:40px; color:var(--accent-2); margin-bottom:16px; }
     .empty-state p{ color:var(--text-dim); font-size:14px; margin-bottom:24px; max-width:440px; margin-left:auto; margin-right:auto; }
@@ -195,17 +215,24 @@
       </div>
     </div>
 
-    <div class="card" id="pickCard" style="display:none;">
-      <div class="comp-checklist" id="compChecklist"></div>
-      <div class="carousel-wrap" id="carouselWrap">
-        <div class="carousel-stage" id="carouselStage"></div>
-        <button class="tap-select-btn" id="tapSelectBtn" onclick="toggleCurrentSelect()"><i class="fas fa-plus"></i> Add to Squad</button>
-        <div class="carousel-nav">
-          <button class="carousel-arrow" onclick="navigateCard(-1)"><i class="fas fa-chevron-left"></i></button>
-          <span class="carousel-position" id="carouselPosition">1 / 25</span>
-          <button class="carousel-arrow" onclick="navigateCard(1)"><i class="fas fa-chevron-right"></i></button>
+    <div class="pick-layout" id="pickCard" style="display:none;">
+      <div class="card">
+        <div class="comp-checklist" id="compChecklist"></div>
+        <div class="carousel-wrap" id="carouselWrap">
+          <div class="carousel-stage" id="carouselStage"></div>
+          <button class="tap-select-btn" id="tapSelectBtn" onclick="toggleCurrentSelect()"><i class="fas fa-plus"></i> Add to Squad</button>
+          <div class="carousel-nav">
+            <button class="carousel-arrow" onclick="navigateCard(-1)"><i class="fas fa-chevron-left"></i></button>
+            <span class="carousel-position" id="carouselPosition">1 / 25</span>
+            <button class="carousel-arrow" onclick="navigateCard(1)"><i class="fas fa-chevron-right"></i></button>
+          </div>
+          <div class="carousel-hint">Swipe or use the arrows to browse — tap the card to add or remove it</div>
         </div>
-        <div class="carousel-hint">Swipe or use the arrows to browse — tap the card to add or remove it</div>
+      </div>
+
+      <div class="card slots-panel">
+        <div class="card-title-sm">Your Squad</div>
+        <div id="slotsList"></div>
       </div>
     </div>
   </main>
@@ -221,7 +248,16 @@
     const params = new URLSearchParams(window.location.search);
     let tournamentId = params.get('tournament_id');
     let candidates = [];
-    let selected = new Map(); // player_id -> candidate object
+    // 6 explicit slots: 1 GK, 1 DEF, 1 MID, 1 FWD (each required), 2 FLEX (any non-GK).
+    // Selecting a player auto-assigns to the most sensible open slot.
+    let squadSlots = [
+      { type: 'gk', label: 'Goalkeeper', player: null },
+      { type: 'def', label: 'Defender', player: null },
+      { type: 'mid', label: 'Midfielder', player: null },
+      { type: 'fwd', label: 'Forward', player: null },
+      { type: 'flex', label: 'Flex', player: null },
+      { type: 'flex', label: 'Flex', player: null }
+    ];
 
     function authHeaders() {
       const token = localStorage.getItem('gbf_token');
@@ -281,12 +317,13 @@
           return;
         }
         document.getElementById('preOpenCard').style.display = 'none';
-        document.getElementById('pickCard').style.display = 'block';
+        document.getElementById('pickCard').style.display = 'grid';
         document.getElementById('carouselWrap').style.display = 'flex';
         document.getElementById('confirmBar').style.display = 'flex';
         currentIndex = 0;
         renderCard(true);
         renderChecklist();
+        renderSlots();
       } catch (e) {
         console.error('openPack failed:', e);
         showToast("Couldn't open a pack right now.", "error");
@@ -298,11 +335,24 @@
     let currentIndex = 0;
     const rarityIcon = { Bronze: 'fa-medal', Silver: 'fa-medal', Gold: 'fa-crown' };
 
+    function totalSelected() { return squadSlots.filter(s => s.player).length; }
+    function findSlotByPlayerId(playerId) { return squadSlots.find(s => s.player && s.player.id === playerId); }
+
+    // A required slot (gk/def/mid/fwd) matching this candidate's position,
+    // if it's still empty — filled before flex slots so the requirements
+    // get satisfied first.
+    function findOpenRequiredSlot(position) {
+      return squadSlots.find(s => s.type === position && !s.player);
+    }
+    function findOpenFlexSlot() {
+      return squadSlots.find(s => s.type === 'flex' && !s.player);
+    }
+
     function renderCard(withFlip) {
       const stage = document.getElementById('carouselStage');
       const c = candidates[currentIndex];
       if (!c) return;
-      const isSelected = selected.has(c.id);
+      const isSelected = !!findSlotByPlayerId(c.id);
 
       stage.innerHTML = `
         <div class="player-card rarity-${c.rarity} ${isSelected ? 'selected' : ''} ${withFlip ? 'flip-in' : ''}">
@@ -326,14 +376,16 @@
 
       document.getElementById('carouselPosition').textContent = `${currentIndex + 1} / ${candidates.length}`;
       const btn = document.getElementById('tapSelectBtn');
+      const hasRoom = c.position === 'gk' ? !!findOpenRequiredSlot('gk') : !!(findOpenRequiredSlot(c.position) || findOpenFlexSlot());
+
       if (isSelected) {
         btn.classList.add('is-selected');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Added — tap to remove';
-      } else if (selected.size >= 6) {
+      } else if (!hasRoom) {
         btn.classList.remove('is-selected');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-ban"></i> Squad full — remove one first';
+        btn.innerHTML = '<i class="fas fa-ban"></i> No room for this position';
       } else {
         btn.classList.remove('is-selected');
         btn.disabled = false;
@@ -346,52 +398,101 @@
       renderCard(false);
     }
 
+    function shakeCurrentCard() {
+      const cardEl = document.querySelector('#carouselStage .player-card');
+      if (cardEl) {
+        cardEl.style.animation = 'none';
+        void cardEl.offsetWidth; // restart animation
+        cardEl.style.animation = 'cardShake .3s ease';
+      }
+    }
+
     function toggleCurrentSelect() {
       const c = candidates[currentIndex];
       if (!c) return;
-      if (selected.has(c.id)) {
-        selected.delete(c.id);
+
+      const existingSlot = findSlotByPlayerId(c.id);
+      if (existingSlot) {
+        existingSlot.player = null;
         renderCard(false);
         renderChecklist();
+        renderSlots();
         return;
       }
-      if (selected.size >= 6) {
-        // Squad's full — don't show a scary error for just browsing/clicking
-        // around, just give a quick visual "no" shake on the card itself.
-        const cardEl = document.querySelector('#carouselStage .player-card');
-        if (cardEl) {
-          cardEl.style.animation = 'none';
-          void cardEl.offsetWidth; // restart animation
-          cardEl.style.animation = 'cardShake .3s ease';
-        }
-        return;
-      }
-      selected.set(c.id, c);
+
+      // Assign to the required slot for this position first, falling back
+      // to a flex slot — a GK can only ever go in the GK slot.
+      const target = c.position === 'gk'
+        ? findOpenRequiredSlot('gk')
+        : (findOpenRequiredSlot(c.position) || findOpenFlexSlot());
+
+      if (!target) { shakeCurrentCard(); return; }
+
+      target.player = c;
       renderCard(false);
       renderChecklist();
+      renderSlots();
+    }
+
+    function removePlayer(playerId) {
+      const slot = findSlotByPlayerId(playerId);
+      if (!slot) return;
+      slot.player = null;
+      renderCard(false);
+      renderChecklist();
+      renderSlots();
+    }
+
+    function renderSlots() {
+      const list = document.getElementById('slotsList');
+      list.innerHTML = squadSlots.map(slot => {
+        if (!slot.player) {
+          return `
+          <div class="slot-item">
+            <div class="slot-photo"><i class="fas ${slot.type === 'gk' ? 'fa-hand' : slot.type === 'flex' ? 'fa-star' : 'fa-user'}"></i></div>
+            <div class="slot-info">
+              <div class="slot-pos-label">${slot.label}</div>
+              <div class="slot-empty-text">Empty slot</div>
+            </div>
+          </div>`;
+        }
+        const p = slot.player;
+        return `
+        <div class="slot-item filled">
+          <div class="slot-photo">
+            ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>';">` : `<i class="fas fa-user"></i>`}
+          </div>
+          <div class="slot-info">
+            <div class="slot-pos-label">${slot.label} · ${escapeHtml(p.rarity)}</div>
+            <div class="slot-name">${escapeHtml(p.name)}</div>
+          </div>
+          <button class="slot-remove" onclick="removePlayer(${p.id})"><i class="fas fa-xmark"></i></button>
+        </div>`;
+      }).join('');
     }
 
     function currentComposition() {
       const comp = { gk: 0, def: 0, mid: 0, fwd: 0 };
-      selected.forEach(c => { comp[c.position] = (comp[c.position] || 0) + 1; });
+      squadSlots.forEach(s => { if (s.player) comp[s.player.position] = (comp[s.player.position] || 0) + 1; });
       return comp;
     }
 
     function renderChecklist() {
       const comp = currentComposition();
+      const total = totalSelected();
       const rules = [
         { label: 'Goalkeeper', met: comp.gk === 1 },
         { label: 'Defender', met: comp.def >= 1 },
         { label: 'Midfielder', met: comp.mid >= 1 },
         { label: 'Forward', met: comp.fwd >= 1 },
-        { label: '6 total', met: selected.size === 6 }
+        { label: '6 total', met: total === 6 }
       ];
       document.getElementById('compChecklist').innerHTML = rules.map(r => `
         <div class="comp-item ${r.met ? 'met' : ''}"><i class="fas ${r.met ? 'fa-check-circle' : 'fa-circle'}"></i> ${r.label}</div>
       `).join('');
 
-      document.getElementById('selectedCount').textContent = selected.size;
-      const allRulesMet = comp.gk === 1 && comp.def >= 1 && comp.mid >= 1 && comp.fwd >= 1 && selected.size === 6;
+      document.getElementById('selectedCount').textContent = total;
+      const allRulesMet = comp.gk === 1 && comp.def >= 1 && comp.mid >= 1 && comp.fwd >= 1 && total === 6;
       const saveBtn = document.getElementById('saveSquadBtn');
       saveBtn.disabled = !allRulesMet;
 
@@ -400,12 +501,10 @@
       } else {
         const missing = [];
         if (comp.gk === 0) missing.push('a Goalkeeper');
-        else if (comp.gk > 1) missing.push('only 1 Goalkeeper allowed — you have ' + comp.gk);
         if (comp.def === 0) missing.push('a Defender');
         if (comp.mid === 0) missing.push('a Midfielder');
         if (comp.fwd === 0) missing.push('a Forward');
-        if (selected.size < 6) missing.push(`${6 - selected.size} more player${6 - selected.size === 1 ? '' : 's'}`);
-        else if (selected.size > 6) missing.push('too many players — remove ' + (selected.size - 6));
+        if (total < 6) missing.push(`${6 - total} more player${6 - total === 1 ? '' : 's'}`);
         saveBtn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Need: ${missing.join(', ')}`;
       }
     }
@@ -436,7 +535,7 @@
             action: 'join',
             tournament_id: tournamentId,
             tournament_type: 'stockmarket',
-            squad_players: Array.from(selected.keys())
+            squad_players: squadSlots.filter(s => s.player).map(s => s.player.id)
           })
         });
         const data = await res.json();
