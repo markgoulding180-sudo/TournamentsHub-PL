@@ -2086,7 +2086,7 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       .eq('id', tournamentId)
       .neq('status', 'finished')
       .or(`last_processed_gameweek.is.null,last_processed_gameweek.lt.${gameweek}`)
-      .select('id, end_gameweek, entry_fee')
+      .select('id, end_gameweek, entry_fee, gameweek')
       .maybeSingle();
 
     if (claimError) { console.error('processStockMarketGameweek claim error:', claimError); return; }
@@ -2310,11 +2310,14 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       // to be filled, the system picks a random active (non-benched)
       // player, sells them, and immediately buys a random Bronze-tier
       // replacement in the same position — so nobody ever starts a
-      // gameweek's matches with a gap in their squad.
+      // gameweek's matches with a gap in their squad. Doesn't apply on
+      // the tournament's very first processed gameweek — the market's
+      // only just gone live, nobody's had a real chance to transfer yet.
+      const isFirstProcessedWeek = gameweek === claimed.gameweek;
       const alreadySoldThisGw = entry.last_transfer_gameweek === gameweek;
       const hasEmptySlot = squad.some(s => s.empty);
 
-      if (!alreadySoldThisGw && !hasEmptySlot) {
+      if (!isFirstProcessedWeek && !alreadySoldThisGw && !hasEmptySlot) {
         const activeIdxs = squad
           .map((s, i) => ({ s, i }))
           .filter(({ s }) => s && !s.empty && !s.is_sub)
