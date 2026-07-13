@@ -283,26 +283,18 @@
         const res = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=stockmarket`, { headers: authHeaders() });
         const data = await res.json();
         const entry = data.entry;
-        if (!entry || !entry.squad_players || entry.squad_players.length === 0 || entry.squad_locked) return;
+        if (!entry || !entry.squad_players || entry.squad_players.length === 0) return;
 
-        // Load their existing picks into the same 6-slot structure,
-        // so editing swaps individual positions instead of starting over.
-        const filled = entry.squad_players.filter(s => !s.empty);
-        filled.forEach(s => {
-          const pos = ELEMENT_TYPE_TO_POS[s.position] || s.position; // numeric (original draft) or already short-code
-          const candidate = { id: s.player_id, name: s.name, team: s.team, position: pos, rarity: 'Bronze', photo: null, total_points: null };
-          const target = pos === 'gk' ? squadSlots.find(sl => sl.type === 'gk')
-            : (squadSlots.find(sl => sl.type === pos && !sl.player) || squadSlots.find(sl => sl.type === 'flex' && !sl.player));
-          if (target) target.player = candidate;
-        });
-
-        document.getElementById('preOpenCard').style.display = 'none';
-        document.getElementById('pickCard').style.display = 'grid';
-        document.getElementById('packSideCard').style.display = 'none';
-        document.getElementById('slotsPanelCard').style.gridColumn = '1 / -1';
-        document.getElementById('confirmBar').style.display = 'flex';
-        renderSlots(true);
-        renderChecklist();
+        // Once you've drafted, that's it — no re-rolling, no swapping
+        // slots. Whatever came out of your one pack opening is final
+        // until the market goes live and the real sell/buy economy
+        // takes over.
+        document.getElementById('preOpenCard').innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-lock" style="color:var(--green);"></i>
+            <p>Your squad's already locked in — you get what you get from your one starter pack. It'll go live once the draft window closes.</p>
+            <a href="/stock-market" class="btn-primary"><i class="fas fa-arrow-left"></i> Back to Stock Market</a>
+          </div>`;
       } catch (e) {
         console.error('checkExistingSquad failed:', e);
       }

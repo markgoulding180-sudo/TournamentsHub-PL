@@ -376,9 +376,8 @@
         }
       } else if (!entry.squad_locked) {
         document.getElementById('draftPromptCard').style.display = 'block';
-        document.getElementById('draftPromptText').textContent = 'Squad saved! You can still edit it until the draft window closes.';
-        document.getElementById('draftPromptBtn').innerHTML = '<i class="fas fa-pen"></i> Edit Squad';
-        document.getElementById('draftPromptBtn').style.display = 'inline-flex';
+        document.getElementById('draftPromptText').textContent = "Squad locked in — you get what you get. It'll go live once the draft window closes.";
+        document.getElementById('draftPromptBtn').style.display = 'none';
       } else {
         document.getElementById('draftPromptCard').style.display = 'none';
       }
