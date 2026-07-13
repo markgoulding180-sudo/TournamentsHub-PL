@@ -403,6 +403,48 @@ async function clearGameweekStatsCache() {
   }
 }
 
+// ================= ZERO-SUM AUDIT =================
+async function loadAuditHistory() {
+  const tournamentId = document.getElementById('auditTournamentId').value.trim();
+  const results = document.getElementById('auditResults');
+  if (!tournamentId) { results.innerHTML = 'Enter a tournament ID.'; return; }
+
+  results.innerHTML = 'Loading…';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch(`/api/tournaments?stockmarket_audit=true&tournament_id=${tournamentId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) { results.innerHTML = `Failed: ${data.error}`; return; }
+
+    const rows = data.audit || [];
+    if (rows.length === 0) { results.innerHTML = 'No gameweeks processed yet for this tournament.'; return; }
+
+    const money = p => `£${((p || 0) / 100).toFixed(2)}`;
+    results.innerHTML = `
+      <table style="width:100%; border-collapse:collapse;">
+        <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+          <th style="padding:6px 4px;">GW</th>
+          <th style="padding:6px 4px;">Expected</th>
+          <th style="padding:6px 4px;">Actual</th>
+          <th style="padding:6px 4px;">Drift</th>
+        </tr>
+        ${rows.map(r => `
+          <tr style="border-bottom:1px solid var(--border-color);">
+            <td style="padding:6px 4px;">${r.gameweek}</td>
+            <td style="padding:6px 4px;">${money(r.expected_pot)}</td>
+            <td style="padding:6px 4px;">${money(r.actual_total)}</td>
+            <td style="padding:6px 4px; color:${Math.abs(r.drift) > 20 ? 'var(--accent-red)' : Math.abs(r.drift) > 5 ? 'var(--accent-amber)' : 'var(--accent-green)'};">
+              ${r.drift > 0 ? '+' : ''}${money(r.drift)}
+            </td>
+          </tr>`).join('')}
+      </table>`;
+  } catch (error) {
+    results.innerHTML = `Error: ${error.message}`;
+  }
+}
+
 async function launchTournament() {
   if (!confirm('Launch new tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create £20 entry tournament\n3. Open for user registrations')) {
     return;

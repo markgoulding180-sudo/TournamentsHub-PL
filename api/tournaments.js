@@ -127,6 +127,31 @@ module.exports = async (req, res) => {
       }
 
       // Public market board — every distinct player's current shared price.
+      // Zero-sum audit history — admin only. Shows every processed
+      // gameweek's actual total portfolio value against what the pot
+      // should be, so drift is visible immediately rather than needing
+      // a manual CSV check each time.
+      const stockmarketAudit = params.get('stockmarket_audit');
+      if (stockmarketAudit === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: auditRows, error: auditError } = await supabaseAdmin
+          .schema('stockmarket').from('audit_log')
+          .select('*')
+          .eq('tournament_id', tournamentId)
+          .order('gameweek', { ascending: true });
+
+        if (auditError) return res.status(500).json({ error: 'Failed to fetch audit log', details: auditError.message });
+        return res.status(200).json({ audit: auditRows || [] });
+      }
+
       const stockmarketPrices = params.get('stockmarket_prices');
       if (stockmarketPrices === 'true' && tournamentId) {
         const { data: marketRows, error: marketError } = await supabaseAdmin
@@ -2437,6 +2462,8 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       .select('id, current_value, squad_players')
       .eq('tournament_id', tournamentId);
 
+    let actualTotal = 0;
+
     for (const entry of (entries || [])) {
       const squad = entry.squad_players || [];
       const newValue = Math.round(squad.reduce((sum, sp) => {
@@ -2446,9 +2473,25 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
         return sum + sharePart + (sp.bonus_value || 0);
       }, 0));
 
+      actualTotal += newValue;
+
       await supabaseAdmin.schema('stockmarket').from('tournament_entries')
         .update({ last_week_value: entry.current_value, current_value: newValue })
         .eq('id', entry.id);
+    }
+
+    // Zero-sum audit: log every gameweek's actual total against what the
+    // pot should be. This is the whole system's core promise — the total
+    // must never grow or shrink, only move between players. Any drift
+    // here means value is leaking somewhere in the redistribution math.
+    try {
+      const expectedPot = (claimed.entry_fee || 0) * (entries || []).length;
+      await supabaseAdmin.schema('stockmarket').from('audit_log').insert({
+        tournament_id: tournamentId, gameweek, expected_pot: expectedPot,
+        actual_total: actualTotal, drift: actualTotal - expectedPot
+      });
+    } catch (auditErr) {
+      console.error('audit_log insert failed:', auditErr);
     }
 
     // Season over once we've processed the tournament's final gameweek —
