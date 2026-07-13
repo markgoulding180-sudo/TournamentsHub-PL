@@ -111,6 +111,18 @@
     .portfolio-card .p-value{ font-family:var(--font-head); font-weight:700; font-size:20px; text-align:center; }
     .portfolio-card .p-est{ color:var(--text-faint); font-size:10px; font-weight:500; }
 
+    .pack-fill-btn{ background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:10.5px; font-weight:700; color:var(--text-dim); }
+    .pack-fill-btn:hover{ border-color:var(--border-hover); color:var(--text); }
+    .weeks-badge{ font-size:10px; color:var(--text-faint); margin-top:6px; }
+    .weeks-badge.warn{ color:var(--gold); font-weight:700; }
+    .weeks-badge.sub{ color:var(--accent-2); font-weight:700; }
+    .card-actions{ display:flex; gap:6px; justify-content:center; margin-top:10px; }
+    .mini-btn{ font-size:10.5px; font-weight:700; padding:5px 10px; border-radius:6px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
+    .mini-btn:hover{ border-color:var(--border-hover); color:var(--text); }
+    .mini-btn.danger:hover{ border-color:var(--red); color:#fca5a5; }
+    .transfer-pool-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--bg-panel); border-radius:6px; margin-top:4px; font-size:11px; }
+    .transfer-pool-item button{ background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; }
+
     .market-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; flex-wrap:wrap; }
     .market-row:last-child{ border-bottom:none; }
     .market-row .m-rank{ width:20px; color:var(--text-faint); font-family:var(--font-head); font-size:12px; flex:none; }
@@ -344,6 +356,22 @@
         document.getElementById('portfolioBody').innerHTML = '<div class="empty">No squad drafted yet.</div>';
       } else {
         const cards = portfolio.map(p => {
+          if (p.empty) {
+            return `
+            <div class="portfolio-card" style="border-style:dashed;" id="slot-${p.position}">
+              <div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>
+              <div class="p-est" style="margin-bottom:10px;">Reserved: ${money(p.reserved_value)}</div>
+              ${marketIsLive ? `
+                <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
+                  <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Bronze')">Bronze</button>
+                  <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Silver')">Silver</button>
+                  <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Gold')">Gold</button>
+                </div>
+                <div id="transfer-pool-${p.position}"></div>
+              ` : ''}
+            </div>`;
+          }
+
           let valueHtml;
           if (p.your_value !== null) {
             valueHtml = `<div class="p-value">${money(p.your_value)}</div>`;
@@ -352,11 +380,27 @@
           } else {
             valueHtml = `<div class="p-est">Not valued yet</div>`;
           }
+
+          const weeksHeld = p.active_weeks_held || 0;
+          const weeksBadge = marketIsLive
+            ? (p.is_sub
+                ? `<div class="weeks-badge sub">Benched</div>`
+                : `<div class="weeks-badge ${weeksHeld >= 1 ? 'warn' : ''}">${weeksHeld}/2 weeks held</div>`)
+            : '';
+
+          const actions = marketIsLive ? `
+            <div class="card-actions">
+              <button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
+              <button class="mini-btn danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</button>
+            </div>` : '';
+
           return `
           <div class="portfolio-card">
             <div class="p-name">${escapeHtml(p.name)}</div>
             <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
             ${valueHtml}
+            ${weeksBadge}
+            ${actions}
           </div>`;
         }).join('');
         document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${cards}</div>`;
@@ -390,6 +434,84 @@
       } catch (e) {
         console.error('Failed to load market:', e);
         body.innerHTML = '<div class="empty">Couldn\'t load the market right now.</div>';
+      }
+    }
+
+    async function sellPlayer(playerId, playerName) {
+      if (!confirm(`Sell ${playerName}? You'll get 1 transfer per gameweek, so make sure you're ready to buy a replacement.`)) return;
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_sell', tournament_id: tournamentId, player_id: playerId })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to sell player'); return; }
+        await loadTournament();
+      } catch (e) {
+        console.error('sellPlayer failed:', e);
+        alert("Couldn't sell that player right now.");
+      }
+    }
+
+    async function toggleSub(playerId, newIsSub) {
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_toggle_sub', tournament_id: tournamentId, player_id: playerId, is_sub: newIsSub })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to update'); return; }
+        await loadTournament();
+      } catch (e) {
+        console.error('toggleSub failed:', e);
+        alert("Couldn't update that right now.");
+      }
+    }
+
+    async function openTransferPack(position, packType) {
+      const poolEl = document.getElementById(`transfer-pool-${position}`);
+      poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;"><i class="fas fa-spinner fa-spin"></i> Opening…</div>';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_open_pack', tournament_id: tournamentId, pack_type: packType, position })
+        });
+        const data = await res.json();
+        if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to open pack')}</div>`; return; }
+
+        const candidates = data.candidates || [];
+        if (candidates.length === 0) {
+          poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players in that pack right now.</div>';
+          return;
+        }
+
+        poolEl.innerHTML = candidates.map(c => `
+          <div class="transfer-pool-item">
+            <span>${escapeHtml(c.name)} <span style="color:var(--text-faint);">(${c.total_points || 0} pts)</span></span>
+            <button onclick="buyReplacement(${c.id}, '${position}')">Buy</button>
+          </div>`).join('');
+      } catch (e) {
+        console.error('openTransferPack failed:', e);
+        poolEl.innerHTML = '<div style="font-size:11px; color:var(--red); margin-top:6px;">Couldn\'t open a pack right now.</div>';
+      }
+    }
+
+    async function buyReplacement(playerId, position) {
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Failed to buy replacement'); return; }
+        await loadTournament();
+      } catch (e) {
+        console.error('buyReplacement failed:', e);
+        alert("Couldn't complete that purchase right now.");
       }
     }
 

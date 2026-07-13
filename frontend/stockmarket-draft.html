@@ -15,7 +15,7 @@
       --border:#131f35; --border-hover:#3b82f6;
       --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
       --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
-      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --gold:#f2b93d; --silver:#c0c8d6; --bronze:#d97757; --red:#ef4444; --green:#22c55e;
       --radius:14px;
       --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
@@ -33,7 +33,7 @@
     .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
     .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
     .nav-links{display:flex; gap:30px;}
-    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; }
     .nav-links a:hover{color:var(--text);}
     .nav-links a.active{color:var(--text);}
     .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
@@ -42,70 +42,53 @@
     .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent;}
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
 
-    main{ position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:32px 24px 100px; }
+    main{ position:relative; z-index:1; max-width:1000px; margin:0 auto; padding:32px 24px 120px; }
     h1{ font-family:var(--font-display); font-size:28px; letter-spacing:.4px; margin-bottom:4px; }
     .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
 
-    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
-    .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:20px; }
+    .empty-state{ text-align:center; padding:50px 20px; }
+    .empty-state i{ font-size:40px; color:var(--accent-2); margin-bottom:16px; }
+    .empty-state p{ color:var(--text-dim); font-size:14px; margin-bottom:24px; max-width:440px; margin-left:auto; margin-right:auto; }
+    .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:.4px; padding:13px 28px; border-radius:10px; }
+    .btn-primary:disabled{ opacity:0.4; cursor:not-allowed; }
 
-    /* Squad slots */
-    .squad-grid{ display:grid; grid-template-columns:repeat(6, 1fr); gap:10px; margin-bottom:20px; }
-    @media (max-width:760px){ .squad-grid{ grid-template-columns:repeat(3, 1fr); } }
-    @media (max-width:400px){ .squad-grid{ grid-template-columns:repeat(2, 1fr); gap:8px; } }
+    .rarity-legend{ display:flex; gap:14px; justify-content:center; margin-top:18px; font-size:11px; color:var(--text-faint); flex-wrap:wrap; }
+    .rarity-legend span{ display:inline-flex; align-items:center; gap:5px; }
+    .rarity-dot{ width:9px;height:9px;border-radius:50%; }
+
+    .pack-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; }
+    .pack-card{ background:var(--bg-card); border:2px solid var(--border); border-radius:12px; padding:14px 10px; text-align:center; position:relative; }
+    .pack-card.selected{ border-color:var(--accent); background:rgba(59,130,246,0.1); }
+    .pack-card .rarity-badge{ position:absolute; top:8px; right:8px; width:10px;height:10px;border-radius:50%; }
+    .pack-card .pos-tag{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); margin-bottom:6px; }
+    .pack-card .p-name{ font-family:var(--font-head); font-weight:700; font-size:14px; margin-bottom:2px; }
+    .pack-card .p-team{ font-size:11px; color:var(--text-dim); margin-bottom:6px; }
+    .pack-card .p-points{ font-size:11px; color:var(--accent-2); font-weight:600; }
+    .pack-card .check{ position:absolute; top:8px; left:8px; width:18px;height:18px;border-radius:50%; background:var(--accent); display:none; align-items:center; justify-content:center; font-size:10px; color:#fff; }
+    .pack-card.selected .check{ display:flex; }
+
+    .comp-checklist{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .comp-item{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; background:var(--bg-card); border:1px solid var(--border); font-size:12px; color:var(--text-dim); }
+    .comp-item.met{ border-color:var(--green); color:var(--green); }
+    .comp-item i{ font-size:11px; }
+
+    .confirm-bar{
+      position:fixed; bottom:0; left:0; right:0; z-index:90;
+      background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-top:1px solid var(--border);
+      padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    }
+    .confirm-bar .count{ font-family:var(--font-head); font-weight:700; font-size:15px; }
+
+    .loading{ text-align:center; padding:40px; color:var(--text-faint); }
 
     @media (max-width:640px){
       .navbar{ padding:12px 16px; }
       .logo-text{ font-size:14px; }
-      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-      .nav-links{ gap:16px; }
-      .nav-links a{ font-size:12px; padding-bottom:12px; }
-      main{ padding:18px 14px 100px; }
-      h1{ font-size:22px; }
-      .subtitle{ font-size:13px; }
-      .card{ padding:14px; }
-      .slot{ padding:10px 6px; min-height:76px; }
-      .slot .slot-name{ font-size:11px; }
-      .filter-tabs{ overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
-      .filter-tab{ flex:none; white-space:nowrap; }
-      .player-list{ max-height:360px; }
-      .confirm-bar{ padding:12px 16px; }
-      .search-input{ font-size:16px; }
+      .nav-links{ display:none; }
+      main{ padding:20px 14px 130px; }
+      .pack-grid{ grid-template-columns:repeat(2, 1fr); gap:8px; }
     }
-    .slot{ background:var(--bg-card); border:1.5px dashed var(--border); border-radius:10px; padding:14px 8px; text-align:center; min-height:90px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
-    .slot.filled{ border-style:solid; border-color:var(--green); background:rgba(34,197,94,0.06); }
-    .slot .slot-label{ font-size:9px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); margin-bottom:6px; }
-    .slot .slot-name{ font-size:12.5px; font-weight:700; line-height:1.25; }
-    .slot .slot-remove{ position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:rgba(239,68,68,0.15); color:var(--red); font-size:11px; display:flex; align-items:center; justify-content:center; }
-
-    .checklist{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px; font-size:12.5px; }
-    .check-item{ display:flex; align-items:center; gap:6px; color:var(--text-faint); }
-    .check-item.done{ color:var(--green); }
-    .check-item i{ font-size:12px; }
-
-    .filter-tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-    .filter-tab{ padding:6px 14px; border-radius:2rem; font-size:12.5px; font-weight:600; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
-    .filter-tab.active{ background:rgba(59,130,246,0.12); border-color:var(--accent); color:var(--accent-2); }
-    .search-input{ width:100%; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:14px; margin-bottom:14px; }
-    .search-input:focus{ outline:none; border-color:var(--accent); }
-
-    .player-list{ display:flex; flex-direction:column; gap:6px; max-height:440px; overflow-y:auto; }
-    .player-row{ display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; }
-    .player-row .pl-name{ flex:1; font-size:13.5px; font-weight:600; }
-    .player-row .pl-meta{ font-size:10.5px; color:var(--text-faint); }
-    .player-row .add-btn{ width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,0.12); color:var(--green); display:flex; align-items:center; justify-content:center; font-size:13px; }
-    .player-row .add-btn:disabled{ opacity:.3; cursor:not-allowed; }
-
-    .confirm-bar{
-      position:fixed; left:0; right:0; bottom:0; z-index:50;
-      background:rgba(7,13,26,0.97); backdrop-filter:blur(12px); border-top:1px solid var(--border);
-      padding:16px 24px; display:flex; align-items:center; justify-content:center; gap:16px;
-    }
-    .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--green), #16a34a); color:#04120a; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 26px; border-radius:10px; }
-    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
-
-    .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
-    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
   </style>
 </head>
 <body>
@@ -126,250 +109,164 @@
       <button class="icon-btn"><i class="fas fa-bell"></i></button>
       <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fstock-market-draft" title="Log in">
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
     </div>
   </header>
 
   <main>
-    <h1><i class="fas fa-list-check" style="color:var(--green);"></i> Draft Your Squad</h1>
-    <p class="subtitle">1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 6 total.</p>
+    <h1><i class="fas fa-box-open" style="color:var(--gold);"></i> Draft Your Squad</h1>
+    <p class="subtitle">Open a starter pack and pick 6 players — 1 goalkeeper, at least one defender/midfielder/forward, plus 2 more of your choice.</p>
 
-    <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
-
-    <div class="card" style="margin-bottom:20px;">
-      <div class="squad-grid" id="squadGrid"></div>
-      <div class="checklist" id="checklist"></div>
+    <div class="card" id="preOpenCard">
+      <div class="empty-state">
+        <i class="fas fa-gift"></i>
+        <p>Your starter pack pulls a mix of Bronze, Silver and Gold players — rarity is based on how many points they've scored this season, so it self-adjusts as the season goes. Once opened, pick your 6 from the pack.</p>
+        <button class="btn-primary" id="openPackBtn"><i class="fas fa-box-open"></i> Open Starter Pack</button>
+        <div class="rarity-legend">
+          <span><span class="rarity-dot" style="background:var(--bronze);"></span> Bronze — 0-50 pts</span>
+          <span><span class="rarity-dot" style="background:var(--silver);"></span> Silver — 51-100 pts</span>
+          <span><span class="rarity-dot" style="background:var(--gold);"></span> Gold — 101+ pts</span>
+        </div>
+      </div>
     </div>
 
-    <div class="card">
-      <input type="text" class="search-input" id="searchInput" placeholder="Search players…">
-      <div class="filter-tabs" id="filterTabs">
-        <button class="filter-tab active" data-pos="all">All</button>
-        <button class="filter-tab" data-pos="1">GK</button>
-        <button class="filter-tab" data-pos="2">DEF</button>
-        <button class="filter-tab" data-pos="3">MID</button>
-        <button class="filter-tab" data-pos="4">FWD</button>
-      </div>
-      <div class="player-list" id="playerList"><div class="loading">Loading players…</div></div>
+    <div class="card" id="pickCard" style="display:none;">
+      <div class="comp-checklist" id="compChecklist"></div>
+      <div class="pack-grid" id="packGrid"></div>
     </div>
   </main>
 
   <div class="confirm-bar" id="confirmBar" style="display:none;">
-    <button class="btn-primary" id="saveBtn" disabled><i class="fas fa-check"></i> Save Squad</button>
+    <div class="count"><span id="selectedCount">0</span>/6 selected</div>
+    <button class="btn-primary" id="saveSquadBtn" disabled><i class="fas fa-check"></i> Save Squad</button>
   </div>
 
-  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
-
-  <script src="toast.js"></script>
   <script src="live-poll.js"></script>
   <script>
-    const POSITION_LABELS = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
-    const SLOT_LABELS = ['GK', 'DEF/MID/FWD', 'DEF/MID/FWD', 'DEF/MID/FWD', 'DEF/MID/FWD', 'DEF/MID/FWD'];
+    const params = new URLSearchParams(window.location.search);
+    let tournamentId = params.get('tournament_id');
+    let candidates = [];
+    let selected = new Map(); // player_id -> candidate object
 
-    function escapeHtml(str) {
-      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
     function authHeaders() {
       const token = localStorage.getItem('gbf_token');
       return token ? { 'Authorization': `Bearer ${token}` } : {};
     }
-    function isLoggedIn() { return !!localStorage.getItem('gbf_token'); }
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    const rarityColor = { Bronze: 'var(--bronze)', Silver: 'var(--silver)', Gold: 'var(--gold)' };
+    const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
 
-    let tournamentId = null;
-    let allPlayers = [];
-    let teamsById = {};
-    let squad = []; // array of player objects
-    let locked = false;
-    let activeFilter = 'all';
-    let searchTerm = '';
+    async function ensureTournamentId() {
+      if (tournamentId) return;
+      const res = await fetch('/api/tournaments?status=upcoming&tournament_type=stockmarket');
+      const data = await res.json();
+      let t = (data.tournaments || [])[0];
+      if (!t) {
+        const res2 = await fetch('/api/tournaments?status=live&tournament_type=stockmarket');
+        const data2 = await res2.json();
+        t = (data2.tournaments || [])[0];
+      }
+      if (t) tournamentId = t.id;
+    }
 
-    async function init() {
-      if (!isLoggedIn()) {
+    async function openPack() {
+      if (!localStorage.getItem('gbf_token')) {
         window.location.href = '/login?redirect=%2Fstock-market-draft';
         return;
       }
-
-      try {
-        const tRes = await fetch('/api/tournaments?status=live&tournament_type=stockmarket');
-        const tData = await tRes.json();
-        let tournament = (tData.tournaments || [])[0];
-        if (!tournament) {
-          const upRes = await fetch('/api/tournaments?status=upcoming&tournament_type=stockmarket');
-          const upData = await upRes.json();
-          tournament = (upData.tournaments || [])[0];
-        }
-        if (!tournament) {
-          document.getElementById('playerList').innerHTML = '<div class="empty">No Stock Market tournament is open right now.</div>';
-          return;
-        }
-        tournamentId = tournament.id;
-
-        const lockRes = await fetch(`/api/tournaments?stockmarket_lock_status=true&tournament_id=${tournamentId}`);
-        const lockStatus = await lockRes.json();
-        locked = !!lockStatus.locked;
-        if (locked) {
-          document.getElementById('lockBanner').style.display = 'flex';
-          document.getElementById('lockText').textContent = lockStatus.reason || 'The draft window has closed.';
-        }
-
-        const stateRes = await fetch(`/api/tournaments?stockmarket_state=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
-        const stateData = await stateRes.json();
-        if (!stateData.entry) {
-          document.getElementById('playerList').innerHTML = '<div class="empty">Enter the Stock Market from the hub page first.</div>';
-          return;
-        }
-        if (stateData.entry.squad_locked) {
-          locked = true;
-          document.getElementById('lockBanner').style.display = 'flex';
-          document.getElementById('lockText').textContent = 'Your squad is already locked in — no changes possible.';
-        }
-
-        await loadPlayers();
-
-        if (stateData.entry.squad_players && Array.isArray(stateData.entry.squad_players)) {
-          squad = stateData.entry.squad_players.map(sp => allPlayers.find(p => p.id === sp.player_id)).filter(Boolean);
-        }
-
-        renderSquad();
-        renderPlayerList();
-      } catch (e) {
-        console.error('Init failed:', e);
-        document.getElementById('playerList').innerHTML = '<div class="empty">Something went wrong loading this page.</div>';
-      }
-    }
-
-    async function loadPlayers() {
-      const res = await fetch('/api/sync-players?list=true');
-      const data = await res.json();
-      allPlayers = data.players || [];
-      (data.teams || []).forEach(t => { teamsById[t.id] = t; });
-    }
-
-    function teamName(teamId) {
-      return teamsById[teamId] ? (teamsById[teamId].short_name || teamsById[teamId].name) : '';
-    }
-
-    function renderSquad() {
-      const grid = document.getElementById('squadGrid');
-      const slots = [];
-      const gk = squad.find(p => p.element_type === 1);
-      const outfield = squad.filter(p => p.element_type !== 1);
-      slots.push(gk || null);
-      for (let i = 0; i < 5; i++) slots.push(outfield[i] || null);
-
-      grid.innerHTML = slots.map((p, i) => {
-        if (!p) {
-          return `<div class="slot"><div class="slot-label">${SLOT_LABELS[i]}</div><div class="slot-name" style="color:var(--text-faint);">Empty</div></div>`;
-        }
-        return `
-          <div class="slot filled">
-            ${!locked ? `<button class="slot-remove" data-remove="${p.id}"><i class="fas fa-xmark"></i></button>` : ''}
-            <div class="slot-label">${POSITION_LABELS[p.element_type]}</div>
-            <div class="slot-name">${escapeHtml(p.web_name)}</div>
-          </div>`;
-      }).join('');
-
-      grid.querySelectorAll('[data-remove]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const pid = Number(btn.dataset.remove);
-          squad = squad.filter(p => p.id !== pid);
-          renderSquad();
-          renderPlayerList();
-        });
-      });
-
-      renderChecklist();
-    }
-
-    function renderChecklist() {
-      const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
-      squad.forEach(p => { counts[p.element_type] = (counts[p.element_type] || 0) + 1; });
-
-      const items = [
-        { label: '1 Goalkeeper', done: counts[1] === 1 },
-        { label: 'At least 1 Defender', done: counts[2] >= 1 },
-        { label: 'At least 1 Midfielder', done: counts[3] >= 1 },
-        { label: 'At least 1 Forward', done: counts[4] >= 1 },
-        { label: '6 players total', done: squad.length === 6 }
-      ];
-
-      document.getElementById('checklist').innerHTML = items.map(it => `
-        <div class="check-item ${it.done ? 'done' : ''}"><i class="fas ${it.done ? 'fa-circle-check' : 'fa-circle'}"></i> ${it.label}</div>
-      `).join('');
-
-      const allDone = items.every(it => it.done);
-      const bar = document.getElementById('confirmBar');
-      const btn = document.getElementById('saveBtn');
-      if (locked) {
-        bar.style.display = 'none';
-      } else {
-        bar.style.display = 'flex';
-        btn.disabled = !allDone;
-      }
-    }
-
-    function renderPlayerList() {
-      const list = document.getElementById('playerList');
-      const squadIds = new Set(squad.map(p => p.id));
-      const hasGK = squad.some(p => p.element_type === 1);
-
-      let filtered = allPlayers;
-      if (activeFilter !== 'all') filtered = filtered.filter(p => p.element_type === Number(activeFilter));
-      if (searchTerm) filtered = filtered.filter(p => p.web_name.toLowerCase().includes(searchTerm));
-      filtered = filtered.slice(0, 100);
-
-      if (filtered.length === 0) {
-        list.innerHTML = '<div class="empty">No players match.</div>';
+      await ensureTournamentId();
+      if (!tournamentId) {
+        alert('No Stock Market tournament is open right now.');
         return;
       }
 
-      list.innerHTML = filtered.map(p => {
-        const already = squadIds.has(p.id);
-        const squadFull = squad.length >= 6;
-        const gkBlocked = p.element_type === 1 && hasGK && !already;
-        const disabled = locked || already || squadFull || gkBlocked;
+      document.getElementById('openPackBtn').disabled = true;
+      document.getElementById('openPackBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening…';
+
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_open_pack', tournament_id: tournamentId })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'Failed to open pack');
+          document.getElementById('openPackBtn').disabled = false;
+          document.getElementById('openPackBtn').innerHTML = '<i class="fas fa-box-open"></i> Open Starter Pack';
+          return;
+        }
+        candidates = data.candidates || [];
+        renderPack();
+        document.getElementById('preOpenCard').style.display = 'none';
+        document.getElementById('pickCard').style.display = 'block';
+        document.getElementById('confirmBar').style.display = 'flex';
+      } catch (e) {
+        console.error('openPack failed:', e);
+        alert("Couldn't open a pack right now.");
+        document.getElementById('openPackBtn').disabled = false;
+        document.getElementById('openPackBtn').innerHTML = '<i class="fas fa-box-open"></i> Open Starter Pack';
+      }
+    }
+
+    function toggleSelect(playerId) {
+      const candidate = candidates.find(c => c.id === playerId);
+      if (!candidate) return;
+
+      if (selected.has(playerId)) {
+        selected.delete(playerId);
+      } else {
+        if (selected.size >= 6) return; // full
+        selected.set(playerId, candidate);
+      }
+      renderPack();
+    }
+
+    function currentComposition() {
+      const comp = { gk: 0, def: 0, mid: 0, fwd: 0 };
+      selected.forEach(c => { comp[c.position] = (comp[c.position] || 0) + 1; });
+      return comp;
+    }
+
+    function renderPack() {
+      const grid = document.getElementById('packGrid');
+      grid.innerHTML = candidates.map(c => {
+        const isSelected = selected.has(c.id);
         return `
-          <div class="player-row">
-            <div style="flex:1;">
-              <div class="pl-name">${escapeHtml(p.web_name)}</div>
-              <div class="pl-meta">${POSITION_LABELS[p.element_type]} · ${escapeHtml(teamName(p.team))}</div>
-            </div>
-            <button class="add-btn" data-add="${p.id}" ${disabled ? 'disabled' : ''}>
-              <i class="fas ${already ? 'fa-check' : 'fa-plus'}"></i>
-            </button>
+          <div class="pack-card ${isSelected ? 'selected' : ''}" onclick="toggleSelect(${c.id})">
+            <div class="rarity-badge" style="background:${rarityColor[c.rarity]};"></div>
+            <div class="check"><i class="fas fa-check"></i></div>
+            <div class="pos-tag">${posLabel[c.position]} · ${escapeHtml(c.rarity)}</div>
+            <div class="p-name">${escapeHtml(c.name)}</div>
+            <div class="p-points">${c.total_points || 0} pts</div>
           </div>`;
       }).join('');
 
-      list.querySelectorAll('[data-add]:not(:disabled)').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const pid = Number(btn.dataset.add);
-          const player = allPlayers.find(p => p.id === pid);
-          if (!player || squad.length >= 6) return;
-          squad.push(player);
-          renderSquad();
-          renderPlayerList();
-        });
-      });
+      const comp = currentComposition();
+      const rules = [
+        { key: 'gk', label: 'Goalkeeper', met: comp.gk >= 1 && comp.gk <= 1 },
+        { key: 'def', label: 'Defender', met: comp.def >= 1 },
+        { key: 'mid', label: 'Midfielder', met: comp.mid >= 1 },
+        { key: 'fwd', label: 'Forward', met: comp.fwd >= 1 },
+        { key: 'total', label: '6 total', met: selected.size === 6 }
+      ];
+      document.getElementById('compChecklist').innerHTML = rules.map(r => `
+        <div class="comp-item ${r.met ? 'met' : ''}"><i class="fas ${r.met ? 'fa-check-circle' : 'fa-circle'}"></i> ${r.label}</div>
+      `).join('');
+
+      document.getElementById('selectedCount').textContent = selected.size;
+      const allRulesMet = comp.gk === 1 && comp.def >= 1 && comp.mid >= 1 && comp.fwd >= 1 && selected.size === 6;
+      document.getElementById('saveSquadBtn').disabled = !allRulesMet;
     }
 
-    document.getElementById('filterTabs').addEventListener('click', (e) => {
-      const btn = e.target.closest('.filter-tab');
-      if (!btn) return;
-      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
-      activeFilter = btn.dataset.pos;
-      renderPlayerList();
-    });
-
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      searchTerm = e.target.value.trim().toLowerCase();
-      renderPlayerList();
-    });
-
-    document.getElementById('saveBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('saveBtn');
+    async function saveSquad() {
+      const btn = document.getElementById('saveSquadBtn');
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
       try {
         const res = await fetch('/api/tournaments', {
           method: 'POST',
@@ -378,22 +275,46 @@
             action: 'join',
             tournament_id: tournamentId,
             tournament_type: 'stockmarket',
-            squad_players: squad.map(p => p.id)
+            squad_players: Array.from(selected.keys())
           })
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to save squad');
-        showToast('Squad saved!', 'success');
-        setTimeout(() => { window.location.href = '/stock-market'; }, 1200);
+        if (!res.ok) {
+          alert(data.error || 'Failed to save squad');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
+          return;
+        }
+        window.location.href = '/stock-market';
       } catch (e) {
-        console.error(e);
-        showToast(e.message || "Couldn't save your squad right now.", 'error');
+        console.error('saveSquad failed:', e);
+        alert("Couldn't save your squad right now.");
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
       }
-    });
+    }
 
-    document.addEventListener('DOMContentLoaded', init);
+    function initAuthButton() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const avatar = document.getElementById('navAvatar');
+      const label = document.getElementById('navAuthLabel');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        label.textContent = name;
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+
+    document.getElementById('openPackBtn').addEventListener('click', openPack);
+    document.getElementById('saveSquadBtn').addEventListener('click', saveSquad);
+    document.addEventListener('DOMContentLoaded', initAuthButton);
   </script>
 </body>
 </html>

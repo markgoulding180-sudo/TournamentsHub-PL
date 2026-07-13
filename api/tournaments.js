@@ -176,7 +176,7 @@ module.exports = async (req, res) => {
             .schema('stockmarket').from('player_market')
             .select('*')
             .eq('tournament_id', tournamentId)
-            .in('player_id', squad.map(s => s.player_id));
+            .in('player_id', squad.filter(s => !s.empty).map(s => s.player_id));
 
           const marketByPid = {};
           (marketRows || []).forEach(m => { marketByPid[m.player_id] = m; });
@@ -214,22 +214,34 @@ module.exports = async (req, res) => {
           }
 
           portfolio = squad.map(s => {
+            if (s.empty) {
+              const shortToLabel = { gk: 'Goalkeeper', def: 'Defender', mid: 'Midfielder', fwd: 'Forward' };
+              return {
+                player_id: null, name: null, position: s.position, position_label: shortToLabel[s.position] || s.position, team: null,
+                empty: true, reserved_value: s.reserved_value || 0,
+                your_value: s.reserved_value || 0, preview_value: null, market_value: null
+              };
+            }
             const m = marketByPid[s.player_id] || {};
             const ownership = m.ownership_count || 1;
             const posLabel = { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[s.position] || s.position;
             const previewValue = previewSlotValue > 0
               ? previewSlotValue * (previewOwnership[s.player_id] || 1)
               : null;
+            const sharedShare = m.current_value ? Math.round(m.current_value / ownership) : null;
             return {
               player_id: s.player_id,
               name: m.name || s.name || '',
               position: m.position || posLabel || '',
               team: m.team || s.team || '',
               ownership_count: ownership,
-              your_value: m.current_value ? Math.round(m.current_value / ownership) : null,
+              your_value: sharedShare !== null ? sharedShare + (s.bonus_value || 0) : null,
+              bonus_value: s.bonus_value || 0,
               preview_value: previewValue,
               market_value: m.current_value || null,
-              last_gw_stats: m.last_gw_stats || null
+              last_gw_stats: m.last_gw_stats || null,
+              is_sub: s.is_sub || false,
+              active_weeks_held: s.active_weeks_held || 0
             };
           });
         }
@@ -378,6 +390,14 @@ module.exports = async (req, res) => {
 
             if (smEntry && !smEntry.squad_locked && (!smEntry.squad_players || smEntry.squad_players.length === 0) && draftOpen) {
               actionItems.push({ type: 'stockmarket', href: '/stock-market-draft', message: "You haven't drafted your Stock Market squad yet." });
+            }
+
+            if (smEntry && smEntry.squad_locked && smEntry.squad_players) {
+              const emptySlots = smEntry.squad_players.filter(s => s.empty);
+              if (emptySlots.length > 0) {
+                const posNames = emptySlots.map(s => ({ 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[s.position] || 'player').toLowerCase());
+                actionItems.push({ type: 'stockmarket', href: '/stock-market', message: `You have an empty ${posNames.join(', ')} slot to fill in Stock Market.` });
+              }
             }
           }
         } catch (e) { console.error('notifications: stockmarket check failed', e); }
@@ -633,7 +653,7 @@ module.exports = async (req, res) => {
       
       console.log('Tournaments API - User authenticated:', user.id);
 
-      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type, team } = req.body;
+      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type, team, pack_type, position, player_id, is_sub } = req.body;
       const schemaName = resolveSchema(tournament_type);
 
       // CREATE tournament (admin action)
@@ -882,7 +902,11 @@ module.exports = async (req, res) => {
                 player_id: pid,
                 position: p.element_type,
                 name: p.web_name,
-                team: teamNameByIdForSquad[p.team] || ''
+                team: teamNameByIdForSquad[p.team] || '',
+                bonus_value: 0,          // private value on top of the shared stock price — never affects other owners
+                acquired_gameweek: null, // set once the market actually initializes
+                active_weeks_held: 0,    // only increments while not marked sub — 2 triggers auto-sell
+                is_sub: false
               };
             });
           }
@@ -931,6 +955,254 @@ module.exports = async (req, res) => {
           
         } catch (err) {
           console.error('Join handler crash:', err.message);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Stock Market: open a pack (starter draft, or a targeted transfer
+      // pack after selling). Doesn't commit anything — just returns
+      // candidates for the user to choose from.
+      if (action === 'stockmarket_open_pack') {
+        try {
+          if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
+
+          const { data: config } = await supabaseAdmin
+            .schema('stockmarket').from('config')
+            .select('*').eq('tournament_id', tournament_id).maybeSingle();
+
+          const mode = position ? 'transfer' : 'starter';
+          if (mode === 'transfer' && !pack_type) {
+            return res.status(400).json({ error: 'pack_type is required for a transfer pack' });
+          }
+
+          const candidates = await buildCandidatePool(supabaseAdmin, masterDb, tournament_id, config || {},
+            mode === 'starter' ? { mode: 'starter' } : { mode: 'transfer', packType: pack_type, position });
+
+          return res.status(200).json({ candidates, mode });
+        } catch (err) {
+          console.error('stockmarket_open_pack error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Stock Market: sell a player from your squad. Cashes out your
+      // private share of their value; a portion re-seeds the (now empty)
+      // slot at the original starting value, the remainder splits across
+      // your other remaining players as a private bonus_value — never
+      // touches the shared stock price other owners see.
+      if (action === 'stockmarket_sell') {
+        try {
+          if (!tournament_id || !player_id) {
+            return res.status(400).json({ error: 'tournament_id and player_id are required' });
+          }
+
+          const { data: entry, error: entryError } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+
+          if (entryError || !entry) return res.status(404).json({ error: 'Entry not found' });
+          if (!entry.squad_locked) return res.status(400).json({ error: 'Squad not locked yet — nothing to sell' });
+
+          const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+          const currentGW = clock ? clock.current_gameweek : null;
+
+          if (currentGW && entry.last_transfer_gameweek && entry.last_transfer_gameweek >= currentGW) {
+            return res.status(403).json({ error: 'You can only make 1 transfer per gameweek' });
+          }
+
+          const squad = entry.squad_players || [];
+          const sellIdx = squad.findIndex(s => s.player_id === player_id);
+          if (sellIdx === -1) return res.status(404).json({ error: 'That player is not in your squad' });
+          if (squad[sellIdx].empty) return res.status(400).json({ error: 'That slot is already empty' });
+
+          const { data: marketRow } = await supabaseAdmin
+            .schema('stockmarket').from('player_market')
+            .select('*').eq('tournament_id', tournament_id).eq('player_id', player_id).maybeSingle();
+          if (!marketRow) return res.status(404).json({ error: 'Player not found in market' });
+
+          const ownership = marketRow.ownership_count || 1;
+          const sharedShare = Math.round((marketRow.current_value || 0) / ownership);
+          const yourValue = sharedShare + (squad[sellIdx].bonus_value || 0);
+
+          const { data: config } = await supabaseAdmin
+            .schema('stockmarket').from('config')
+            .select('slot_value').eq('tournament_id', tournament_id).maybeSingle();
+          const slotValue = (config && config.slot_value) || 0;
+
+          const reseed = Math.min(yourValue, slotValue);
+          const remainder = yourValue - reseed;
+          const others = squad.filter((s, i) => i !== sellIdx && !s.empty);
+
+          // Reduce ownership on the sold player's shared stock — only
+          // this changes what other owners see, and only via ownership
+          // count, not a direct value edit.
+          const newOwnership = Math.max(0, ownership - 1);
+          const newMarketValue = newOwnership > 0
+            ? Math.round((marketRow.current_value || 0) * (newOwnership / ownership))
+            : 0;
+          await supabaseAdmin
+            .schema('stockmarket').from('player_market')
+            .update({ ownership_count: newOwnership, current_value: newMarketValue })
+            .eq('id', marketRow.id);
+
+          squad[sellIdx] = { empty: true, position: POSITION_KEY[squad[sellIdx].position] || squad[sellIdx].position, reserved_value: reseed };
+
+          if (others.length > 0 && remainder > 0) {
+            const share = Math.floor(remainder / others.length);
+            others.forEach(o => { o.bonus_value = (o.bonus_value || 0) + share; });
+          }
+
+          await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .update({ squad_players: squad, last_transfer_gameweek: currentGW })
+            .eq('id', entry.id);
+
+          return res.status(200).json({ success: true, sold_for: yourValue, reseed, remainder });
+        } catch (err) {
+          console.error('stockmarket_sell error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Stock Market: buy a replacement to fill an empty slot after a
+      // sale. The pack fee comes out of YOUR squad's own value (spread
+      // across your other players) and is redistributed evenly across
+      // every OTHER entrant's squad as a private bonus_value.
+      if (action === 'stockmarket_buy_replacement') {
+        try {
+          if (!tournament_id || !player_id || !position) {
+            return res.status(400).json({ error: 'tournament_id, player_id and position are required' });
+          }
+
+          const { data: entry, error: entryError } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+          if (entryError || !entry) return res.status(404).json({ error: 'Entry not found' });
+
+          const squad = entry.squad_players || [];
+          const emptyIdx = squad.findIndex(s => s.empty && s.position === position);
+          if (emptyIdx === -1) return res.status(400).json({ error: `No empty ${position} slot to fill` });
+
+          const alreadyOwned = squad.some(s => s.player_id === player_id);
+          if (alreadyOwned) return res.status(400).json({ error: 'You already own this player' });
+
+          const { data: config } = await supabaseAdmin
+            .schema('stockmarket').from('config')
+            .select('slot_value, pack_fee_pct').eq('tournament_id', tournament_id).maybeSingle();
+          const slotValue = (config && config.slot_value) || 0;
+          const packFeePct = (config && config.pack_fee_pct) || 1.0;
+          const packFee = Math.round(slotValue * packFeePct);
+
+          const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+          const currentGW = clock ? clock.current_gameweek : null;
+
+          const { data: teamRows } = await masterDb.from('teams').select('id, name');
+          const { data: playerRow } = await masterDb.from('players').select('id, web_name, team, element_type').eq('id', player_id).maybeSingle();
+          if (!playerRow) return res.status(404).json({ error: 'Player not found' });
+          const teamName = (teamRows || []).find(t => t.id === playerRow.team)?.name || '';
+
+          const reservedValue = squad[emptyIdx].reserved_value || slotValue;
+
+          // Fill the slot. Starting value = whatever was reserved from the
+          // sale, minus this pack's fee (paid by you).
+          squad[emptyIdx] = {
+            player_id,
+            position,
+            name: playerRow.web_name,
+            team: teamName,
+            bonus_value: Math.max(0, reservedValue - packFee),
+            acquired_gameweek: currentGW,
+            active_weeks_held: 0,
+            is_sub: false
+          };
+
+          // Spread the pack fee cost across your OTHER players if the
+          // reserve alone didn't cover it (fee > reserved_value case);
+          // otherwise the fee was already absorbed above.
+          const shortfall = Math.max(0, packFee - reservedValue);
+          if (shortfall > 0) {
+            const others = squad.filter((s, i) => i !== emptyIdx && !s.empty);
+            if (others.length > 0) {
+              const share = Math.ceil(shortfall / others.length);
+              others.forEach(o => { o.bonus_value = Math.max(0, (o.bonus_value || 0) - share); });
+            }
+          }
+
+          // Upsert the new player into the shared market (create the stock
+          // if nobody's ever owned it before this tournament)
+          const { data: existingMarket } = await supabaseAdmin
+            .schema('stockmarket').from('player_market')
+            .select('*').eq('tournament_id', tournament_id).eq('player_id', player_id).maybeSingle();
+
+          if (existingMarket) {
+            await supabaseAdmin.schema('stockmarket').from('player_market')
+              .update({
+                ownership_count: (existingMarket.ownership_count || 0) + 1,
+                current_value: (existingMarket.current_value || 0) + slotValue
+              })
+              .eq('id', existingMarket.id);
+          } else {
+            await supabaseAdmin.schema('stockmarket').from('player_market').insert({
+              tournament_id, player_id, name: playerRow.web_name,
+              position: { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[playerRow.element_type] || '',
+              team: teamName, ownership_count: 1, current_value: slotValue, last_week_value: slotValue
+            });
+          }
+
+          // Redistribute the pack fee evenly across every OTHER entrant's
+          // squad — a private bonus_value bump, same mechanism as above.
+          const { data: otherEntries } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true);
+
+          if (otherEntries && otherEntries.length > 0 && packFee > 0) {
+            const perEntryShare = Math.floor(packFee / otherEntries.length);
+            for (const other of otherEntries) {
+              const otherSquad = other.squad_players || [];
+              const nonEmpty = otherSquad.filter(s => !s.empty);
+              if (nonEmpty.length === 0) continue;
+              const perPlayerShare = Math.floor(perEntryShare / nonEmpty.length);
+              nonEmpty.forEach(s => { s.bonus_value = (s.bonus_value || 0) + perPlayerShare; });
+              await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+                .update({ squad_players: otherSquad }).eq('id', other.id);
+            }
+          }
+
+          await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+            .update({ squad_players: squad }).eq('id', entry.id);
+
+          return res.status(200).json({ success: true, pack_fee: packFee });
+        } catch (err) {
+          console.error('stockmarket_buy_replacement error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Stock Market: toggle sub status — pauses the 2-week auto-sell
+      // clock while benched, resumes (doesn't reset) when reactivated.
+      if (action === 'stockmarket_toggle_sub') {
+        try {
+          if (!tournament_id || !player_id || typeof is_sub !== 'boolean') {
+            return res.status(400).json({ error: 'tournament_id, player_id and is_sub are required' });
+          }
+
+          const { data: entry, error: entryError } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+          if (entryError || !entry) return res.status(404).json({ error: 'Entry not found' });
+
+          const squad = entry.squad_players || [];
+          const idx = squad.findIndex(s => s.player_id === player_id);
+          if (idx === -1) return res.status(404).json({ error: 'That player is not in your squad' });
+
+          squad[idx].is_sub = is_sub;
+
+          await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+            .update({ squad_players: squad }).eq('id', entry.id);
+
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('stockmarket_toggle_sub error:', err);
           return res.status(500).json({ error: err.message });
         }
       }
@@ -1445,7 +1717,7 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
   try {
     const { data: tournament, error: tError } = await supabaseAdmin
       .schema('stockmarket').from('tournaments')
-      .select('id, entry_fee, status')
+      .select('id, entry_fee, status, gameweek')
       .eq('id', tournamentId)
       .maybeSingle();
 
@@ -1516,9 +1788,17 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
 
     const startingValue = 6 * slotValue;
     for (const entry of entries) {
+      const stampedSquad = (entry.squad_players || []).map(p => ({
+        ...p,
+        acquired_gameweek: tournament.gameweek,
+        active_weeks_held: 0,
+        is_sub: p.is_sub || false,
+        bonus_value: p.bonus_value || 0
+      }));
       await supabaseAdmin.schema('stockmarket').from('tournament_entries')
         .update({
           squad_locked: true,
+          squad_players: stampedSquad,
           start_value: startingValue,
           current_value: startingValue,
           last_week_value: startingValue
@@ -1587,6 +1867,91 @@ function redistributeTwoTier(prices, targetPid, delta, totalPot, matchSharePct, 
       prices[pid].current_value = Math.round((prices[pid].current_value || 0) * factor);
     });
   }
+}
+
+// Rarity tiers based on FPL points this season — self-adjusts as the
+// season progresses (everyone's "Bronze" early on, proven performers
+// migrate to Gold pools later). Matches the original pack system's model.
+const RARITY_THRESHOLDS = {
+  Bronze: { min: 0, max: 50 },
+  Silver: { min: 51, max: 100 },
+  Gold: { min: 101, max: 9999 }
+};
+
+// How many of each rarity/position slot a STARTER pack offers, scaled
+// down from the original 16-man matrix for a 6-man squad.
+const STARTER_PACK_MATRIX = {
+  Bronze: { gk: 2, def: 4, mid: 3, fwd: 2 },
+  Silver: { gk: 1, def: 2, mid: 2, fwd: 1 },
+  Gold: { gk: 0, def: 1, mid: 1, fwd: 1 }
+};
+
+const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
+const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+async function getMaxCopiesAllowed(supabaseAdmin, tournamentId, config) {
+  const { count } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('tournament_id', tournamentId);
+  const divisor = (config && config.max_copies_divisor) || 4;
+  return Math.max(1, Math.floor((count || 0) / divisor));
+}
+
+async function fetchRarityPool(masterDb, rarity, positionKey) {
+  const threshold = RARITY_THRESHOLDS[rarity];
+  const elementType = POSITION_ELEMENT_TYPE[positionKey];
+  const { data, error } = await masterDb
+    .from('players')
+    .select('id, web_name, element_type, team, total_points')
+    .eq('element_type', elementType)
+    .gte('total_points', threshold.min)
+    .lte('total_points', threshold.max)
+    .order('total_points', { ascending: false })
+    .limit(200);
+  if (error) { console.error('fetchRarityPool error:', error); return []; }
+  return data || [];
+}
+
+async function buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config, opts) {
+  const maxCopies = await getMaxCopiesAllowed(supabaseAdmin, tournamentId, config);
+
+  const { data: marketRows } = await supabaseAdmin
+    .schema('stockmarket').from('player_market')
+    .select('player_id, ownership_count')
+    .eq('tournament_id', tournamentId);
+  const cappedIds = new Set((marketRows || []).filter(m => m.ownership_count >= maxCopies).map(m => m.player_id));
+
+  if (opts.mode === 'starter') {
+    const picked = [];
+    for (const rarity of ['Bronze', 'Silver', 'Gold']) {
+      const matrix = STARTER_PACK_MATRIX[rarity];
+      for (const pos of ['gk', 'def', 'mid', 'fwd']) {
+        const needed = matrix[pos] || 0;
+        if (needed === 0) continue;
+        const pool = await fetchRarityPool(masterDb, rarity, pos);
+        const eligible = pool.filter(p => !cappedIds.has(p.id));
+        const chosen = shuffleArray(eligible).slice(0, needed);
+        chosen.forEach(p => picked.push({ id: p.id, name: p.web_name, team: p.team, total_points: p.total_points, rarity, position: pos }));
+      }
+    }
+    return picked;
+  }
+
+  // Transfer pack: targeted position, single rarity tier, offer 6 candidates
+  const pool = await fetchRarityPool(masterDb, opts.packType, opts.position);
+  const eligible = pool.filter(p => !cappedIds.has(p.id));
+  const chosen = shuffleArray(eligible).slice(0, 6);
+  return chosen.map(p => ({ id: p.id, name: p.web_name, team: p.team, total_points: p.total_points, rarity: opts.packType, position: opts.position }));
 }
 
 async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, gameweek) {
@@ -1734,6 +2099,68 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
         .eq('player_id', Number(pid));
     }
 
+    // 2-week hold clock: increment for every active (non-sub) player,
+    // auto-sell anyone who's hit 2 active weeks held. Uses the same cash-
+    // out mechanic as a manual sell — private bonus_value, shared stock
+    // price only moves via ownership_count, never a direct value edit.
+    const { data: entriesForClock } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries')
+      .select('id, squad_players')
+      .eq('tournament_id', tournamentId)
+      .eq('squad_locked', true);
+
+    const { data: clockConfig } = await supabaseAdmin
+      .schema('stockmarket').from('config')
+      .select('slot_value').eq('tournament_id', tournamentId).maybeSingle();
+    const clockSlotValue = (clockConfig && clockConfig.slot_value) || 0;
+
+    for (const entry of (entriesForClock || [])) {
+      const squad = entry.squad_players || [];
+      let changed = false;
+
+      for (let i = 0; i < squad.length; i++) {
+        const slot = squad[i];
+        if (!slot || slot.empty || slot.is_sub) continue;
+
+        slot.active_weeks_held = (slot.active_weeks_held || 0) + 1;
+        changed = true;
+
+        if (slot.active_weeks_held >= 2) {
+          const p = prices[String(slot.player_id)];
+          if (!p) continue; // no market row somehow — leave alone rather than risk a bad sell
+
+          const ownership = p.ownership_count || 1;
+          const sharedShare = Math.round((p.current_value || 0) / ownership);
+          const yourValue = sharedShare + (slot.bonus_value || 0);
+          const reseed = Math.min(yourValue, clockSlotValue);
+
+          const newOwnership = Math.max(0, ownership - 1);
+          const newMarketValue = newOwnership > 0
+            ? Math.round((p.current_value || 0) * (newOwnership / ownership))
+            : 0;
+          await supabaseAdmin.schema('stockmarket').from('player_market')
+            .update({ ownership_count: newOwnership, current_value: newMarketValue })
+            .eq('tournament_id', tournamentId).eq('player_id', slot.player_id);
+          p.ownership_count = newOwnership;
+          p.current_value = newMarketValue;
+
+          const remainder = yourValue - reseed;
+          const others = squad.filter((s, j) => j !== i && !s.empty);
+          if (others.length > 0 && remainder > 0) {
+            const share = Math.floor(remainder / others.length);
+            others.forEach(o => { o.bonus_value = (o.bonus_value || 0) + share; });
+          }
+
+          squad[i] = { empty: true, position: POSITION_KEY[slot.position] || slot.position, reserved_value: reseed };
+        }
+      }
+
+      if (changed) {
+        await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+          .update({ squad_players: squad }).eq('id', entry.id);
+      }
+    }
+
     // Recalculate every entrant's portfolio from the final prices
     const { data: entries } = await supabaseAdmin
       .schema('stockmarket').from('tournament_entries')
@@ -1743,9 +2170,10 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
     for (const entry of (entries || [])) {
       const squad = entry.squad_players || [];
       const newValue = Math.round(squad.reduce((sum, sp) => {
+        if (sp.empty) return sum + (sp.reserved_value || 0);
         const p = prices[String(sp.player_id)];
-        if (!p) return sum;
-        return sum + (p.current_value || 0) / (p.ownership_count || 1);
+        const sharePart = p ? (p.current_value || 0) / (p.ownership_count || 1) : 0;
+        return sum + sharePart + (sp.bonus_value || 0);
       }, 0));
 
       await supabaseAdmin.schema('stockmarket').from('tournament_entries')
