@@ -181,6 +181,15 @@ module.exports = async (req, res) => {
           const marketByPid = {};
           (marketRows || []).forEach(m => { marketByPid[m.player_id] = m; });
 
+          const filledIds = squad.filter(s => !s.empty).map(s => s.player_id);
+          const { data: photoRows } = filledIds.length > 0
+            ? await masterDb.from('players').select('id, photo').in('id', filledIds)
+            : { data: [] };
+          const photoByPid = {};
+          (photoRows || []).forEach(p => {
+            photoByPid[p.id] = p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null;
+          });
+
           // If the real market hasn't initialized yet (still drafting),
           // compute a live, non-permanent preview from everyone who's
           // currently entered — same formula the real initialization
@@ -229,13 +238,18 @@ module.exports = async (req, res) => {
               ? previewSlotValue * (previewOwnership[s.player_id] || 1)
               : null;
             const sharedShare = m.current_value ? Math.round(m.current_value / ownership) : null;
+            const lastWeekShare = m.last_week_value ? Math.round(m.last_week_value / ownership) : null;
+            const yourValue = sharedShare !== null ? sharedShare + (s.bonus_value || 0) : null;
+            const yourLastWeekValue = lastWeekShare !== null ? lastWeekShare + (s.bonus_value || 0) : null;
             return {
               player_id: s.player_id,
               name: m.name || s.name || '',
               position: m.position || posLabel || '',
               team: m.team || s.team || '',
+              photo: photoByPid[s.player_id] || null,
               ownership_count: ownership,
-              your_value: sharedShare !== null ? sharedShare + (s.bonus_value || 0) : null,
+              your_value: yourValue,
+              value_change: (yourValue !== null && yourLastWeekValue !== null) ? yourValue - yourLastWeekValue : null,
               bonus_value: s.bonus_value || 0,
               preview_value: previewValue,
               market_value: m.current_value || null,

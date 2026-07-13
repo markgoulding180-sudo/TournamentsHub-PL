@@ -105,11 +105,26 @@
 
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
     @media (max-width:480px){ .portfolio-grid{ grid-template-columns:1fr; } }
-    .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px 12px; text-align:center; }
+    .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; }
+    .portfolio-card .p-photo-wrap{ height:90px; background:linear-gradient(180deg, rgba(34,197,94,0.12), transparent); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+    .portfolio-card .p-photo-wrap img{ height:100%; object-fit:contain; filter:drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
+    .portfolio-card .p-photo-wrap .no-photo{ font-size:34px; color:var(--text-faint); margin-bottom:8px; }
+    .portfolio-card .p-body{ padding:10px 12px 14px; }
     .portfolio-card .p-name{ font-weight:700; font-size:14px; margin-bottom:2px; }
-    .portfolio-card .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:10px; }
+    .portfolio-card .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px; }
     .portfolio-card .p-value{ font-family:var(--font-head); font-weight:700; font-size:20px; text-align:center; }
     .portfolio-card .p-est{ color:var(--text-faint); font-size:10px; font-weight:500; }
+    .portfolio-card .p-delta{ font-size:11px; font-weight:700; margin-top:2px; }
+    .portfolio-card .p-delta.up{ color:var(--green); }
+    .portfolio-card .p-delta.down{ color:var(--red); }
+    .portfolio-card .p-delta.flat{ color:var(--text-faint); }
+    .portfolio-card .p-stats-row{ display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    .stat-pill{ display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; padding:3px 7px; border-radius:20px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
+    .stat-pill.active{ color:var(--text); }
+    .stat-pill.GL.active{ border-color:var(--green); color:var(--green); }
+    .stat-pill.AS.active{ border-color:var(--accent-2); color:var(--accent-2); }
+    .stat-pill.YC.active{ border-color:var(--gold); color:var(--gold); }
+    .stat-pill.RC.active{ border-color:var(--red); color:var(--red); }
 
     .pack-fill-btn{ background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:10.5px; font-weight:700; color:var(--text-dim); }
     .pack-fill-btn:hover{ border-color:var(--border-hover); color:var(--text); }
@@ -359,22 +374,31 @@
           if (p.empty) {
             return `
             <div class="portfolio-card" style="border-style:dashed;" id="slot-${p.position}">
-              <div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>
-              <div class="p-est" style="margin-bottom:10px;">Reserved: ${money(p.reserved_value)}</div>
-              ${marketIsLive ? `
-                <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
-                  <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Bronze')">Bronze</button>
-                  <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Silver')">Silver</button>
-                  <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Gold')">Gold</button>
-                </div>
-                <div id="transfer-pool-${p.position}"></div>
-              ` : ''}
+              <div class="p-body">
+                <div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>
+                <div class="p-est" style="margin-bottom:10px;">Reserved: ${money(p.reserved_value)}</div>
+                ${marketIsLive ? `
+                  <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
+                    <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Bronze')">Bronze</button>
+                    <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Silver')">Silver</button>
+                    <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Gold')">Gold</button>
+                  </div>
+                  <div id="transfer-pool-${p.position}"></div>
+                ` : ''}
+              </div>
             </div>`;
           }
 
           let valueHtml;
           if (p.your_value !== null) {
             valueHtml = `<div class="p-value">${money(p.your_value)}</div>`;
+            if (marketIsLive && p.value_change !== null && p.value_change !== 0) {
+              const dir = p.value_change > 0 ? 'up' : 'down';
+              const arrow = p.value_change > 0 ? '▲' : '▼';
+              valueHtml += `<div class="p-delta ${dir}">${arrow} ${money(Math.abs(p.value_change))} this week</div>`;
+            } else if (marketIsLive) {
+              valueHtml += `<div class="p-delta flat">— no change this week</div>`;
+            }
           } else if (p.preview_value !== null) {
             valueHtml = `<div class="p-value">${money(p.preview_value)}</div><div class="p-est">est.</div>`;
           } else {
@@ -388,6 +412,15 @@
                 : `<div class="weeks-badge ${weeksHeld >= 1 ? 'warn' : ''}">${weeksHeld}/2 weeks held</div>`)
             : '';
 
+          const stats = p.last_gw_stats;
+          const statsRow = (marketIsLive && stats) ? `
+            <div class="p-stats-row">
+              <span class="stat-pill GL ${stats.goals > 0 ? 'active' : ''}">GL ${stats.goals || 0}</span>
+              <span class="stat-pill AS ${stats.assists > 0 ? 'active' : ''}">AS ${stats.assists || 0}</span>
+              <span class="stat-pill YC ${stats.yellow_cards > 0 ? 'active' : ''}">YC ${stats.yellow_cards || 0}</span>
+              <span class="stat-pill RC ${stats.red_cards > 0 ? 'active' : ''}">RC ${stats.red_cards || 0}</span>
+            </div>` : '';
+
           const actions = marketIsLive ? `
             <div class="card-actions">
               <button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
@@ -396,11 +429,18 @@
 
           return `
           <div class="portfolio-card">
-            <div class="p-name">${escapeHtml(p.name)}</div>
-            <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
-            ${valueHtml}
-            ${weeksBadge}
-            ${actions}
+            <div class="p-photo-wrap">
+              ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+              <div class="no-photo" style="${p.photo ? 'display:none;' : 'display:flex; align-items:flex-end;'}"><i class="fas fa-user"></i></div>
+            </div>
+            <div class="p-body">
+              <div class="p-name">${escapeHtml(p.name)}</div>
+              <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
+              ${valueHtml}
+              ${statsRow}
+              ${weeksBadge}
+              ${actions}
+            </div>
           </div>`;
         }).join('');
         document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${cards}</div>`;
@@ -446,11 +486,11 @@
           body: JSON.stringify({ action: 'stockmarket_sell', tournament_id: tournamentId, player_id: playerId })
         });
         const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Failed to sell player'); return; }
+        if (!res.ok) { showToast(data.error || 'Failed to sell player', 'error'); return; }
         await loadTournament();
       } catch (e) {
         console.error('sellPlayer failed:', e);
-        alert("Couldn't sell that player right now.");
+        showToast("Couldn't sell that player right now.", "error");
       }
     }
 
@@ -462,11 +502,11 @@
           body: JSON.stringify({ action: 'stockmarket_toggle_sub', tournament_id: tournamentId, player_id: playerId, is_sub: newIsSub })
         });
         const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Failed to update'); return; }
+        if (!res.ok) { showToast(data.error || 'Failed to update', 'error'); return; }
         await loadTournament();
       } catch (e) {
         console.error('toggleSub failed:', e);
-        alert("Couldn't update that right now.");
+        showToast("Couldn't update that right now.", "error");
       }
     }
 
@@ -507,11 +547,11 @@
           body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position })
         });
         const data = await res.json();
-        if (!res.ok) { alert(data.error || 'Failed to buy replacement'); return; }
+        if (!res.ok) { showToast(data.error || 'Failed to buy replacement', 'error'); return; }
         await loadTournament();
       } catch (e) {
         console.error('buyReplacement failed:', e);
-        alert("Couldn't complete that purchase right now.");
+        showToast("Couldn't complete that purchase right now.", "error");
       }
     }
 

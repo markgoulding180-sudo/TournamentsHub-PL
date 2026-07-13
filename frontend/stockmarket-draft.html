@@ -210,6 +210,7 @@
   </div>
 
   <script src="live-poll.js"></script>
+  <script src="toast.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
     let tournamentId = params.get('tournament_id');
@@ -245,7 +246,7 @@
       }
       await ensureTournamentId();
       if (!tournamentId) {
-        alert('No Stock Market tournament is open right now.');
+        showToast('No Stock Market tournament is open right now.', 'error');
         return;
       }
 
@@ -261,14 +262,14 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          alert(data.error || 'Failed to open pack');
+          showToast(data.error || 'Failed to open pack', 'error');
           stack.style.pointerEvents = 'auto';
           stack.style.opacity = '1';
           return;
         }
         candidates = data.candidates || [];
         if (candidates.length === 0) {
-          alert('No eligible players available right now — try again shortly.');
+          showToast('No eligible players available right now — try again shortly.', 'error');
           stack.style.pointerEvents = 'auto';
           stack.style.opacity = '1';
           return;
@@ -282,7 +283,7 @@
         renderChecklist();
       } catch (e) {
         console.error('openPack failed:', e);
-        alert("Couldn't open a pack right now.");
+        showToast("Couldn't open a pack right now.", "error");
         stack.style.pointerEvents = 'auto';
         stack.style.opacity = '1';
       }
@@ -334,7 +335,7 @@
       if (selected.has(c.id)) {
         selected.delete(c.id);
       } else {
-        if (selected.size >= 6) { alert('You already have 6 players selected — remove one first.'); return; }
+        if (selected.size >= 6) { showToast('You already have 6 players selected — remove one first.', 'error'); return; }
         selected.set(c.id, c);
       }
       renderCard(false);
@@ -396,7 +397,7 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          alert(data.error || 'Failed to save squad');
+          showToast(data.error || 'Failed to save squad', 'error');
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
           return;
@@ -404,7 +405,7 @@
         window.location.href = '/stock-market';
       } catch (e) {
         console.error('saveSquad failed:', e);
-        alert("Couldn't save your squad right now.");
+        showToast("Couldn't save your squad right now.", "error");
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
       }
