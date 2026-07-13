@@ -129,6 +129,31 @@
     .pack-fill-btn{ background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:10.5px; font-weight:700; color:var(--text-dim); }
     .pack-fill-btn:hover{ border-color:var(--border-hover); color:var(--text); }
     .weeks-badge{ font-size:10px; color:var(--text-faint); margin-top:6px; }
+
+    /* ============ AUTO-NOTICE POPUP ============ */
+    .notice-overlay{ display:none; position:fixed; inset:0; z-index:298; background:rgba(0,0,0,0.65); }
+    .notice-overlay.open{ display:block; }
+    .notice-popup{
+      display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:299;
+      width:90%; max-width:460px; max-height:85vh; overflow-y:auto;
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.6); padding:24px;
+    }
+    .notice-popup.open{ display:block; }
+    .notice-title{ font-family:var(--font-head); font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; color:var(--gold); margin-bottom:8px; }
+    .notice-msg{ font-size:13.5px; color:var(--text-dim); line-height:1.5; margin-bottom:18px; }
+    .notice-cards{ display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; }
+    .notice-cards .arrow{ color:var(--text-faint); font-size:18px; text-align:center; }
+    .notice-card{ background:var(--bg-card); border:2px solid var(--border); border-radius:12px; padding:14px 10px; text-align:center; }
+    .notice-card.sold{ border-color:var(--red); }
+    .notice-card.bought{ border-color:var(--green); }
+    .notice-card .notice-tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; font-weight:800; margin-bottom:8px; }
+    .notice-card.sold .notice-tag{ color:#fca5a5; }
+    .notice-card.bought .notice-tag{ color:var(--green); }
+    .notice-card .notice-photo{ width:56px; height:56px; border-radius:10px; margin:0 auto 8px; background:var(--bg-panel); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .notice-card .notice-photo img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+    .notice-card .notice-name{ font-family:var(--font-head); font-weight:700; font-size:13px; }
+    .notice-card .notice-detail{ font-size:10.5px; color:var(--text-faint); margin-top:2px; }
     .weeks-badge.warn{ color:var(--gold); font-weight:700; }
     .weeks-badge.sub{ color:var(--accent-2); font-weight:700; }
     .card-actions{ display:flex; gap:6px; justify-content:center; margin-top:10px; }
@@ -252,6 +277,15 @@
     </div>
   </main>
 
+  <!-- Auto-notice popup: shown once when the system had to sell/buy for you -->
+  <div class="notice-overlay" id="noticeOverlay"></div>
+  <div class="notice-popup" id="noticePopup">
+    <div class="notice-title"><i class="fas fa-circle-info"></i> While you were away…</div>
+    <p class="notice-msg" id="noticeMsg"></p>
+    <div class="notice-cards" id="noticeCards"></div>
+    <button class="btn-primary" style="width:100%; margin-top:16px; justify-content:center;" onclick="closeAutoNoticePopup()">Got it</button>
+  </div>
+
   <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
   <script src="toast.js"></script>
@@ -314,6 +348,8 @@
 
       const stateRes = await fetch(`/api/tournaments?stockmarket_state=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
       const stateData = await stateRes.json();
+
+      if (stateData.auto_notice) showAutoNoticePopup(stateData.auto_notice);
 
       if (!stateData.entry) {
         document.getElementById('enterGate').style.display = 'block';
@@ -409,12 +445,7 @@
             valueHtml = `<div class="p-est">Not valued yet</div>`;
           }
 
-          const weeksHeld = p.active_weeks_held || 0;
-          const weeksBadge = marketIsLive
-            ? (p.is_sub
-                ? `<div class="weeks-badge sub">Benched</div>`
-                : `<div class="weeks-badge ${weeksHeld >= 1 ? 'warn' : ''}">${weeksHeld}/2 weeks held</div>`)
-            : '';
+          const weeksBadge = (marketIsLive && p.is_sub) ? `<div class="weeks-badge sub">Benched — value frozen</div>` : '';
 
           const stats = p.last_gw_stats;
           const statsRow = (marketIsLive && stats) ? `
@@ -481,6 +512,43 @@
       }
     }
 
+    function showAutoNoticePopup(notice) {
+      const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
+      document.getElementById('noticeMsg').textContent =
+        `You didn't sell anyone in Gameweek ${notice.gameweek}, so the system picked one of your active players to keep your squad moving.`;
+
+      const soldCard = `
+        <div class="notice-card sold">
+          <div class="notice-tag">Sold</div>
+          <div class="notice-photo"><i class="fas fa-user" style="color:var(--text-faint); font-size:20px;"></i></div>
+          <div class="notice-name">${escapeHtml(notice.sold.name)}</div>
+          <div class="notice-detail">${posLabel[notice.sold.position] || notice.sold.position} · ${escapeHtml(notice.sold.team || '')}</div>
+          <div class="notice-detail">${money(notice.sold.value)}</div>
+        </div>`;
+
+      const boughtCard = notice.bought ? `
+        <div class="notice-card bought">
+          <div class="notice-tag">Bought (Bronze)</div>
+          <div class="notice-photo">${notice.bought.photo ? `<img src="${notice.bought.photo}" alt="${escapeHtml(notice.bought.name)}">` : `<i class="fas fa-user" style="color:var(--text-faint); font-size:20px;"></i>`}</div>
+          <div class="notice-name">${escapeHtml(notice.bought.name)}</div>
+          <div class="notice-detail">${posLabel[notice.bought.position] || notice.bought.position} · ${escapeHtml(notice.bought.team || '')}</div>
+          <div class="notice-detail">Fee: ${money(notice.bought.fee)}</div>
+        </div>` : `
+        <div class="notice-card">
+          <div class="notice-tag" style="color:var(--text-faint);">No replacement</div>
+          <div class="notice-detail">No eligible Bronze player was available — that slot's still empty, fill it whenever you're ready.</div>
+        </div>`;
+
+      document.getElementById('noticeCards').innerHTML = `${soldCard}<div class="arrow"><i class="fas fa-arrow-right"></i></div>${boughtCard}`;
+      document.getElementById('noticePopup').classList.add('open');
+      document.getElementById('noticeOverlay').classList.add('open');
+    }
+
+    function closeAutoNoticePopup() {
+      document.getElementById('noticePopup').classList.remove('open');
+      document.getElementById('noticeOverlay').classList.remove('open');
+    }
+
     async function sellPlayer(playerId, playerName) {
       if (!confirm(`Sell ${playerName}? You'll get 1 transfer per gameweek, so make sure you're ready to buy a replacement.`)) return;
       try {
@@ -527,15 +595,19 @@
         if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to open pack')}</div>`; return; }
 
         const candidates = data.candidates || [];
+        const feeNote = data.pack_fee !== null && data.pack_fee !== undefined
+          ? `<div style="font-size:11px; color:var(--gold); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Costs ${money(data.pack_fee)} to open this pack — comes out of your squad, split evenly across everyone else's. Charged once, whichever player you pick.</div>`
+          : '';
+
         if (candidates.length === 0) {
-          poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players in that pack right now.</div>';
+          poolEl.innerHTML = feeNote + '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players in that pack right now.</div>';
           return;
         }
 
-        poolEl.innerHTML = candidates.map(c => `
+        poolEl.innerHTML = feeNote + candidates.map(c => `
           <div class="transfer-pool-item">
             <span>${escapeHtml(c.name)} <span style="color:var(--text-faint);">(${c.total_points || 0} pts)</span></span>
-            <button onclick="buyReplacement(${c.id}, '${position}')">Buy</button>
+            <button onclick="buyReplacement(${c.id}, '${position}', ${data.pack_fee || 0}, '${escapeHtml(c.name)}', '${packType}')">Buy</button>
           </div>`).join('');
       } catch (e) {
         console.error('openTransferPack failed:', e);
@@ -543,15 +615,17 @@
       }
     }
 
-    async function buyReplacement(playerId, position) {
+    async function buyReplacement(playerId, position, packFee, playerName, packType) {
+      if (!confirm(`Buy ${playerName} for ${money(packFee)}? That's charged from your squad and split across everyone else's.`)) return;
       try {
         const res = await fetch('/api/tournaments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position })
+          body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position, pack_type: packType })
         });
         const data = await res.json();
         if (!res.ok) { showToast(data.error || 'Failed to buy replacement', 'error'); return; }
+        showToast(`Bought ${playerName} for ${money(data.pack_fee)}.`, 'success');
         await loadTournament();
       } catch (e) {
         console.error('buyReplacement failed:', e);
