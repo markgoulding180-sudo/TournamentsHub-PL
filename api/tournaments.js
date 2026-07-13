@@ -1907,12 +1907,14 @@ async function getMaxCopiesAllowed(supabaseAdmin, tournamentId, config) {
   return Math.max(1, Math.floor((count || 0) / divisor));
 }
 
+const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/players/250x250/p';
+
 async function fetchRarityPool(masterDb, rarity, positionKey) {
   const threshold = RARITY_THRESHOLDS[rarity];
   const elementType = POSITION_ELEMENT_TYPE[positionKey];
   const { data, error } = await masterDb
     .from('players')
-    .select('id, web_name, element_type, team, total_points')
+    .select('id, web_name, element_type, team, total_points, now_cost, photo')
     .eq('element_type', elementType)
     .gte('total_points', threshold.min)
     .lte('total_points', threshold.max)
@@ -1920,6 +1922,19 @@ async function fetchRarityPool(masterDb, rarity, positionKey) {
     .limit(200);
   if (error) { console.error('fetchRarityPool error:', error); return []; }
   return data || [];
+}
+
+function candidateCard(p, teamNameById, rarity, position) {
+  return {
+    id: p.id,
+    name: p.web_name,
+    team: teamNameById[p.team] || '',
+    total_points: p.total_points,
+    cost: p.now_cost ? (p.now_cost / 10).toFixed(1) : null,
+    photo: p.photo ? `${FPL_PHOTO_URL}${p.photo.replace('.jpg', '')}.png` : null,
+    rarity,
+    position
+  };
 }
 
 async function buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config, opts) {
@@ -1931,6 +1946,10 @@ async function buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config,
     .eq('tournament_id', tournamentId);
   const cappedIds = new Set((marketRows || []).filter(m => m.ownership_count >= maxCopies).map(m => m.player_id));
 
+  const { data: teamRows } = await masterDb.from('teams').select('id, name');
+  const teamNameById = {};
+  (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+
   if (opts.mode === 'starter') {
     const picked = [];
     for (const rarity of ['Bronze', 'Silver', 'Gold']) {
@@ -1941,7 +1960,7 @@ async function buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config,
         const pool = await fetchRarityPool(masterDb, rarity, pos);
         const eligible = pool.filter(p => !cappedIds.has(p.id));
         const chosen = shuffleArray(eligible).slice(0, needed);
-        chosen.forEach(p => picked.push({ id: p.id, name: p.web_name, team: p.team, total_points: p.total_points, rarity, position: pos }));
+        chosen.forEach(p => picked.push(candidateCard(p, teamNameById, rarity, pos)));
       }
     }
     return picked;
@@ -1951,7 +1970,7 @@ async function buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config,
   const pool = await fetchRarityPool(masterDb, opts.packType, opts.position);
   const eligible = pool.filter(p => !cappedIds.has(p.id));
   const chosen = shuffleArray(eligible).slice(0, 6);
-  return chosen.map(p => ({ id: p.id, name: p.web_name, team: p.team, total_points: p.total_points, rarity: opts.packType, position: opts.position }));
+  return chosen.map(p => candidateCard(p, teamNameById, opts.packType, opts.position));
 }
 
 async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, gameweek) {
