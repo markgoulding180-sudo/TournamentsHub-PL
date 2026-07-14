@@ -259,6 +259,15 @@
     </div>
 
     <div id="mainContent" style="display:none;">
+      <!-- TEMPORARY TEST TOOL — delete after testing. Seeds the other 3
+           known test users' squads randomly, never touches your own. -->
+      <div class="card" style="border-color:var(--gold); margin-bottom:16px;">
+        <button class="btn-primary" onclick="seedTestSquads()" id="seedBtn">
+          <i class="fas fa-flask"></i> Seed Other 3 Test Squads
+        </button>
+        <div id="seedResults" style="margin-top:10px; font-size:12.5px; color:var(--text-faint);"></div>
+      </div>
+
       <div class="stat-row" id="statRow"></div>
 
       <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
@@ -558,6 +567,35 @@
         showToast("Couldn't complete that purchase right now.", "error");
       } finally {
         buyInFlight = false;
+      }
+    }
+
+    // TEMPORARY TEST TOOL — delete after testing.
+    const TEST_USER_IDS = [
+      '04bb6461-bd3b-4be1-b2b5-dfd61f6eb9cc',
+      '347fe8d3-297c-4cb1-816f-af61177c9072',
+      '4d935300-c707-4e73-86a3-217d73e006a8',
+      'a12d9dce-a807-487b-85e5-8c9f8ade2fb0'
+    ];
+    async function seedTestSquads() {
+      const btn = document.getElementById('seedBtn');
+      const resultsEl = document.getElementById('seedResults');
+      btn.disabled = true;
+      resultsEl.textContent = 'Seeding…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_seed_squads', tournament_id: tournamentId, user_ids: TEST_USER_IDS })
+        });
+        const data = await res.json();
+        if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
+        resultsEl.innerHTML = `Seeded ${data.seeded} squad(s):<br>` +
+          data.results.map(r => `${r.user_id.slice(0, 8)}… — ${r.squad.join(', ')}`).join('<br>');
+      } catch (e) {
+        resultsEl.textContent = `Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
       }
     }
 

@@ -932,6 +932,75 @@ module.exports = async (req, res) => {
 
       // JOIN tournament (user action) — also used to save/update a Fantasy
       // Manager squad, since a squad is just extra payload on the entry.
+      // ADMIN: instantly seed valid random squads for a list of existing
+      // users, skipping the draft UI entirely — for repeated testing
+      // without having to click through drafting every single time.
+      if (action === 'stockmarket_seed_squads') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: seedTournamentId, user_ids } = req.body;
+        if (!seedTournamentId || !Array.isArray(user_ids) || user_ids.length === 0) {
+          return res.status(400).json({ error: 'tournament_id and a non-empty user_ids array are required' });
+        }
+
+        try {
+          const { data: teamRows } = await masterDb.from('teams').select('id, name');
+          const teamNameById = {};
+          (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+
+          const { data: playerRows } = await masterDb.from('players').select('id, web_name, element_type, team').limit(700);
+          const byPosition = { 1: [], 2: [], 3: [], 4: [] };
+          (playerRows || []).forEach(p => { if (byPosition[p.element_type]) byPosition[p.element_type].push(p); });
+
+          const results = [];
+          for (const uid of user_ids) {
+            if (uid === user.id) continue; // never touch your own squad
+            // 1 GK, 1 DEF, 1 MID, 1 FWD, then 2 more from DEF/MID/FWD at random.
+            const picks = [];
+            const usedIds = new Set();
+            const pickRandom = (pool) => {
+              const eligible = pool.filter(p => !usedIds.has(p.id));
+              const chosen = eligible[Math.floor(Math.random() * eligible.length)];
+              usedIds.add(chosen.id);
+              return chosen;
+            };
+
+            picks.push({ p: pickRandom(byPosition[1]), pos: 'gk' });
+            picks.push({ p: pickRandom(byPosition[2]), pos: 'def' });
+            picks.push({ p: pickRandom(byPosition[3]), pos: 'mid' });
+            picks.push({ p: pickRandom(byPosition[4]), pos: 'fwd' });
+            for (let i = 0; i < 2; i++) {
+              const flexType = [2, 3, 4][Math.floor(Math.random() * 3)];
+              const posKey = { 2: 'def', 3: 'mid', 4: 'fwd' }[flexType];
+              picks.push({ p: pickRandom(byPosition[flexType]), pos: posKey });
+            }
+
+            const squad_players = picks.map(({ p, pos }) => ({
+              player_id: p.id, position: pos, name: p.web_name, team: teamNameById[p.team] || '', is_sub: false
+            }));
+
+            const { data: existing } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('id').eq('tournament_id', seedTournamentId).eq('user_id', uid).maybeSingle();
+
+            if (existing) {
+              await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+                .update({ squad_players, squad_locked: false }).eq('id', existing.id);
+            } else {
+              await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+                .insert({ tournament_id: seedTournamentId, user_id: uid, squad_players, squad_locked: false, current_value: 0, start_value: 0, last_week_value: 0 });
+            }
+            results.push({ user_id: uid, squad: squad_players.map(s => s.name) });
+          }
+
+          return res.status(200).json({ success: true, seeded: results.length, results });
+        } catch (err) {
+          console.error('stockmarket_seed_squads error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'join') {
         try {
           console.log('Join action - tournament_id:', tournament_id, 'user_id:', user.id, 'schema:', schemaName);
