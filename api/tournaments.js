@@ -1199,42 +1199,12 @@ module.exports = async (req, res) => {
           if (sellIdx === -1) return res.status(404).json({ error: 'That player is not in your squad' });
           if (squad[sellIdx].empty) return res.status(400).json({ error: 'That slot is already empty' });
 
-          const { data: marketRow } = await supabaseAdmin
-            .schema('stockmarket').from('player_market')
-            .select('*').eq('tournament_id', tournament_id).eq('player_id', player_id).maybeSingle();
-          if (!marketRow) return res.status(404).json({ error: 'Player not found in market' });
+          // Their own current value — nothing shared, this is entirely
+          // theirs, from their own actions and match results so far.
+          const soldValue = squad[sellIdx].value || 0;
+          const positionKey = POSITION_KEY[squad[sellIdx].position] || squad[sellIdx].position;
 
-          const ownership = marketRow.ownership_count || 1;
-          const sharedShare = Math.round((marketRow.current_value || 0) / ownership);
-          const yourValue = sharedShare + (squad[sellIdx].bonus_value || 0);
-
-          const { data: config } = await supabaseAdmin
-            .schema('stockmarket').from('config')
-            .select('slot_value').eq('tournament_id', tournament_id).maybeSingle();
-          const slotValue = (config && config.slot_value) || 0;
-
-          const reseed = Math.min(yourValue, slotValue);
-          const remainder = yourValue - reseed;
-          const others = squad.filter((s, i) => i !== sellIdx && !s.empty && !s.is_sub);
-
-          // Reduce ownership on the sold player's shared stock — only
-          // this changes what other owners see, and only via ownership
-          // count, not a direct value edit.
-          const newOwnership = Math.max(0, ownership - 1);
-          const newMarketValue = newOwnership > 0
-            ? Math.round((marketRow.current_value || 0) * (newOwnership / ownership))
-            : 0;
-          await supabaseAdmin
-            .schema('stockmarket').from('player_market')
-            .update({ ownership_count: newOwnership, current_value: newMarketValue })
-            .eq('id', marketRow.id);
-
-          squad[sellIdx] = { empty: true, position: POSITION_KEY[squad[sellIdx].position] || squad[sellIdx].position, reserved_value: reseed };
-
-          if (others.length > 0 && remainder > 0) {
-            const share = Math.floor(remainder / others.length);
-            others.forEach(o => { o.bonus_value = (o.bonus_value || 0) + share; });
-          }
+          squad[sellIdx] = { empty: true, position: positionKey, reserved_value: soldValue };
 
           const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
           await supabaseAdmin
@@ -1242,17 +1212,19 @@ module.exports = async (req, res) => {
             .update({ squad_players: squad, last_transfer_gameweek: currentGW, current_value: newTotal })
             .eq('id', entry.id);
 
-          return res.status(200).json({ success: true, sold_for: yourValue, reseed, remainder });
+          return res.status(200).json({ success: true, sold_for: soldValue });
         } catch (err) {
           console.error('stockmarket_sell error:', err);
           return res.status(500).json({ error: err.message });
         }
       }
 
-      // Stock Market: buy a replacement to fill an empty slot after a
-      // sale. The pack fee comes out of YOUR squad's own value (spread
-      // across your other players) and is redistributed evenly across
-      // every OTHER entrant's squad as a private bonus_value.
+      // Buy a replacement to fill an empty slot after a sale. Fee comes
+      // out of the reserve first, then the rest of your own squad if the
+      // reserve doesn't cover it — but the fee itself doesn't stay in your
+      // economy at all. It leaves your squad entirely and spreads as a
+      // tiny, visible bump across every OTHER entrant's players in the
+      // tournament — a real, felt cost for upgrading, not an internal shuffle.
       if (action === 'stockmarket_buy_replacement') {
         try {
           if (!tournament_id || !player_id || !position) {
@@ -1291,60 +1263,41 @@ module.exports = async (req, res) => {
           if (!playerRow) return res.status(404).json({ error: 'Player not found' });
           const teamName = (teamRows || []).find(t => t.id === playerRow.team)?.name || '';
 
-          const reservedValue = squad[emptyIdx].reserved_value || slotValue;
+          const reservedValue = squad[emptyIdx].reserved_value || 0;
 
           // Fill the slot. Starting value = whatever was reserved from the
-          // sale, minus this pack's fee (paid by you).
+          // sale, minus this pack's fee.
           squad[emptyIdx] = {
             player_id,
             position,
             name: playerRow.web_name,
             team: teamName,
-            bonus_value: Math.max(0, reservedValue - packFee),
+            value: Math.max(0, reservedValue - packFee),
             acquired_gameweek: currentGW,
-            active_weeks_held: 0,
             is_sub: false
           };
 
-          // Spread the pack fee cost across your OTHER players if the
-          // reserve alone didn't cover it (fee > reserved_value case);
-          // otherwise the fee was already absorbed above.
+          // If the reserve didn't cover the fee, the shortfall comes out
+          // of your own other players too.
           const shortfall = Math.max(0, packFee - reservedValue);
           if (shortfall > 0) {
             const others = squad.filter((s, i) => i !== emptyIdx && !s.empty && !s.is_sub);
             if (others.length > 0) {
               const share = Math.ceil(shortfall / others.length);
-              others.forEach(o => { o.bonus_value = Math.max(0, (o.bonus_value || 0) - share); });
+              others.forEach(o => { o.value = Math.max(0, (o.value || 0) - share); });
             }
           }
 
-          // Upsert the new player into the shared market (create the stock
-          // if nobody's ever owned it before this tournament). Never add
-          // fresh value here — the buyer's contribution is already fully
-          // tracked via their private bonus_value; doing both was minting
-          // money out of nothing every single purchase.
-          const { data: existingMarket } = await supabaseAdmin
-            .schema('stockmarket').from('player_market')
-            .select('*').eq('tournament_id', tournament_id).eq('player_id', player_id).maybeSingle();
-
-          if (existingMarket) {
-            await supabaseAdmin.schema('stockmarket').from('player_market')
-              .update({ ownership_count: (existingMarket.ownership_count || 0) + 1 })
-              .eq('id', existingMarket.id);
-          } else {
-            await supabaseAdmin.schema('stockmarket').from('player_market').insert({
-              tournament_id, player_id, name: playerRow.web_name,
-              position: { 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[playerRow.element_type] || '',
-              team: teamName, ownership_count: 1, current_value: 0, last_week_value: 0
-            });
-          }
-
-          // Redistribute the pack fee evenly across every OTHER entrant's
-          // squad — a private bonus_value bump, same mechanism as above.
+          // The fee itself leaves your squad's economy entirely and
+          // spreads as a small, real bump across every OTHER entrant's
+          // own players — a genuine tournament-wide cost for upgrading,
+          // not an internal shuffle. Flagged on the response so the
+          // frontend can show it plainly.
           const { data: otherEntries } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
             .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true);
 
+          let feeRecipients = 0;
           if (otherEntries && otherEntries.length > 0 && packFee > 0) {
             const perEntryShare = Math.floor(packFee / otherEntries.length);
             for (const other of otherEntries) {
@@ -1352,24 +1305,19 @@ module.exports = async (req, res) => {
               const nonEmpty = otherSquad.filter(s => !s.empty);
               if (nonEmpty.length === 0) continue;
               const perPlayerShare = Math.floor(perEntryShare / nonEmpty.length);
-              nonEmpty.forEach(s => { s.bonus_value = (s.bonus_value || 0) + perPlayerShare; });
+              nonEmpty.forEach(s => { s.value = (s.value || 0) + perPlayerShare; s.fee_bump = perPlayerShare; });
+              feeRecipients += nonEmpty.length;
+              const otherTotal = Math.round(otherSquad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
               await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-                .update({ squad_players: otherSquad }).eq('id', other.id);
+                .update({ squad_players: otherSquad, current_value: otherTotal }).eq('id', other.id);
             }
           }
 
           const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
-          const debug = {
-            reservedValue, packFee, shortfall, newRayaBonusValue: squad[emptyIdx].bonus_value,
-            othersAfterShortfall: squad.filter((s, i) => i !== emptyIdx && !s.empty).map(s => ({ id: s.player_id, bonus_value: s.bonus_value })),
-            entryCurrentValueBefore: entry.current_value, newTotal
-          };
-          console.log('[BUY DEBUG]', JSON.stringify(debug));
-
           await supabaseAdmin.schema('stockmarket').from('tournament_entries')
             .update({ squad_players: squad, current_value: newTotal }).eq('id', entry.id);
 
-          return res.status(200).json({ success: true, pack_fee: packFee, debug });
+          return res.status(200).json({ success: true, pack_fee: packFee, shortfall, fee_recipients: feeRecipients });
         } catch (err) {
           console.error('stockmarket_buy_replacement error:', err);
           return res.status(500).json({ error: err.message });
@@ -2185,7 +2133,7 @@ function settleMatchup(squadA, squadB) {
   }
 
   if (remaining > 0) {
-    const cleanPlayers = loserSquad.filter(p => !p.hadNegative);
+    const cleanPlayers = loserSquad.filter(p => !p.hadNegative && !p.is_sub);
     const pool = cleanPlayers.length > 0 ? cleanPlayers : loserSquad;
     const share = remaining / pool.length;
     pool.forEach(p => {
@@ -2205,24 +2153,8 @@ function settleMatchup(squadA, squadB) {
 }
 const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
 
-async function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
-  const playerIds = squad.filter(s => !s.empty).map(s => s.player_id);
-  let marketByPid = {};
-  if (playerIds.length > 0) {
-    const { data: rows } = await supabaseAdmin
-      .schema('stockmarket').from('player_market')
-      .select('player_id, current_value, ownership_count')
-      .eq('tournament_id', tournamentId)
-      .in('player_id', playerIds);
-    (rows || []).forEach(r => { marketByPid[r.player_id] = r; });
-  }
-
-  return Math.round(squad.reduce((sum, s) => {
-    if (s.empty) return sum + (s.reserved_value || 0);
-    const m = marketByPid[s.player_id];
-    const sharePart = m && m.current_value != null ? m.current_value / (m.ownership_count || 1) : 0;
-    return sum + sharePart + (s.bonus_value || 0);
-  }, 0));
+function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
+  return Math.round(squad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
 }
 
 async function getTeamGoalsConcededMap(masterDb, gameweek) {
@@ -2267,6 +2199,11 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   for (const entry of entries) {
     const squad = entry.squad_players || [];
     const slots = squad.filter(s => !s.empty).map(s => {
+      if (s.is_sub) {
+        // Benched: excluded from this week's actions entirely — no
+        // change, doesn't count toward the head-to-head total either way.
+        return { ...s, value: s.value || 0, actualChange: 0, hadNegative: false, cardSeverity: 0, penaltyPaid: 0, winBonus: 0 };
+      }
       const stats = statsByPid[s.player_id] || {};
       const teamConceded = concededByTeam[s.team] || 0;
       const { newValue, actualChange, hadNegative } = computePlayerRawChange(

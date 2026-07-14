@@ -416,10 +416,25 @@
         <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
       `;
 
-      const renderPlayerCard = (p) => {
-        if (!p || p.empty) return `<div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div></div></div>`;
+      const renderPlayerCard = (p, isMine) => {
+        if (!p || p.empty) {
+          const packButtons = isMine ? `
+            <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
+              <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Bronze')">Bronze</button>
+              <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Silver')">Silver</button>
+              <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Gold')">Gold</button>
+            </div>
+            <div id="transfer-pool-${p ? p.position : ''}"></div>` : '';
+          return `<div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
+        }
         const bestHtml = (p.best_elsewhere !== null && p.best_elsewhere !== undefined && p.best_elsewhere > (p.value || 0))
           ? `<div class="p-est" style="color:var(--accent-2); margin-top:4px;">Best elsewhere: ${money(p.best_elsewhere)}</div>` : '';
+        const benchedHtml = p.is_sub ? `<div class="weeks-badge sub">Benched — excluded this week</div>` : '';
+        const actions = isMine ? `
+          <div class="card-actions">
+            <button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
+            <button class="mini-btn danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</button>
+          </div>` : '';
         return `
         <div class="portfolio-card">
           <div class="p-photo-wrap"><div class="no-photo"><i class="fas fa-user"></i></div></div>
@@ -428,11 +443,13 @@
             <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team || '')}</div>
             <div class="p-value">${money(p.value)}</div>
             ${bestHtml}
+            ${benchedHtml}
+            ${actions}
           </div>
         </div>`;
       };
 
-      const myCards = (entry.squad_players || []).map(renderPlayerCard).join('');
+      const myCards = (entry.squad_players || []).map(p => renderPlayerCard(p, true)).join('');
       document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
 
       if (!data.opponent) {
@@ -442,11 +459,103 @@
         const m = data.matchup;
         const iWon = m && m.winner_entry_id === entry.id;
         const resultBanner = !m ? '' : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
-        const oppCards = (opp.squad_players || []).map(renderPlayerCard).join('');
+        const oppCards = (opp.squad_players || []).map(p => renderPlayerCard(p, false)).join('');
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
           <div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>
           <div class="portfolio-grid">${oppCards}</div>`;
+      }
+    }
+
+    async function sellPlayer(playerId, playerName) {
+      if (!confirm(`Sell ${playerName}? You'll get 1 transfer per gameweek, so make sure you're ready to buy a replacement.`)) return;
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_sell', tournament_id: tournamentId, player_id: playerId })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Failed to sell player', 'error'); return; }
+        showToast(`Sold ${playerName} for ${money(data.sold_for)}.`, 'success');
+        await loadTournament();
+      } catch (e) {
+        console.error('sellPlayer failed:', e);
+        showToast("Couldn't sell that player right now.", "error");
+      }
+    }
+
+    async function toggleSub(playerId, newIsSub) {
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_toggle_sub', tournament_id: tournamentId, player_id: playerId, is_sub: newIsSub })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Failed to update', 'error'); return; }
+        await loadTournament();
+      } catch (e) {
+        console.error('toggleSub failed:', e);
+        showToast("Couldn't update that right now.", "error");
+      }
+    }
+
+    async function openTransferPack(position, packType) {
+      const poolEl = document.getElementById(`transfer-pool-${position}`);
+      if (!poolEl) return;
+      poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_open_pack', tournament_id: tournamentId, pack_type: packType, position })
+        });
+        const data = await res.json();
+        if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to load')}</div>`; return; }
+
+        const candidates = data.candidates || [];
+        const feeNote = data.pack_fee !== null && data.pack_fee !== undefined
+          ? `<div style="font-size:11px; color:var(--gold); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Costs ${money(data.pack_fee)} — comes off your reserve first, then your squad if needed. The fee itself goes to every other entrant in the tournament, split evenly.</div>`
+          : '';
+
+        if (candidates.length === 0) {
+          poolEl.innerHTML = feeNote + '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players right now.</div>';
+          return;
+        }
+
+        poolEl.innerHTML = feeNote + candidates.map(c => `
+          <div class="transfer-pool-item">
+            <span>${escapeHtml(c.name)} <span style="color:var(--text-faint);">(${c.total_points || 0} pts)</span></span>
+            <button onclick="buyReplacement(${c.id}, '${position}', ${data.pack_fee || 0}, '${escapeHtml(c.name)}', '${packType}')">Buy</button>
+          </div>`).join('');
+      } catch (e) {
+        console.error('openTransferPack failed:', e);
+        poolEl.innerHTML = '<div style="font-size:11px; color:var(--red); margin-top:6px;">Couldn\'t load candidates right now.</div>';
+      }
+    }
+
+    let buyInFlight = false;
+    async function buyReplacement(playerId, position, packFee, playerName, packType) {
+      if (buyInFlight) return;
+      if (!confirm(`Buy ${playerName} for ${money(packFee)}? That fee goes to every other entrant in the tournament, split evenly — not back into your own squad.`)) return;
+      buyInFlight = true;
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position, pack_type: packType })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || 'Failed to buy replacement', 'error'); return; }
+        showToast(`Bought ${playerName} for ${money(data.pack_fee)}.`, 'success');
+        await loadTournament();
+      } catch (e) {
+        console.error('buyReplacement failed:', e);
+        showToast("Couldn't complete that purchase right now.", "error");
+      } finally {
+        buyInFlight = false;
       }
     }
 
