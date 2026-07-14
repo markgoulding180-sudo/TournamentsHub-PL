@@ -450,15 +450,24 @@
           const weeksBadge = (marketIsLive && p.is_sub) ? `<div class="weeks-badge sub">Benched — value frozen</div>` : '';
 
           const stats = p.last_gw_stats;
+          // Only show a stat pill if it actually carries weight for this
+          // player's position — otherwise a stat shows up looking relevant
+          // (e.g. "GC 1" on a midfielder) when it had zero effect on their
+          // price, which is actively misleading rather than just unhelpful.
+          const posForStats = (p.position || '').toLowerCase();
+          const showCS = posForStats === 'goalkeeper' || posForStats === 'defender' || posForStats === 'midfielder';
+          const showGC = posForStats === 'goalkeeper' || posForStats === 'defender';
+          const showSV = posForStats === 'goalkeeper';
+
           const statsRow = (marketIsLive && stats) ? `
             <div class="p-stats-row">
               <span class="stat-pill GL ${stats.goals > 0 ? 'active' : ''}" title="Goals">GL ${stats.goals || 0}</span>
               <span class="stat-pill AS ${stats.assists > 0 ? 'active' : ''}" title="Assists">AS ${stats.assists || 0}</span>
               <span class="stat-pill YC ${stats.yellow_cards > 0 ? 'active' : ''}" title="Yellow Cards">YC ${stats.yellow_cards || 0}</span>
               <span class="stat-pill RC ${stats.red_cards > 0 ? 'active' : ''}" title="Red Cards">RC ${stats.red_cards || 0}</span>
-              <span class="stat-pill CS ${stats.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${stats.clean_sheets || 0}</span>
-              <span class="stat-pill GC ${stats.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded">GC ${stats.goals_conceded || 0}</span>
-              <span class="stat-pill SV ${stats.saves > 0 ? 'active' : ''}" title="Saves">SV ${stats.saves || 0}</span>
+              ${showCS ? `<span class="stat-pill CS ${stats.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${stats.clean_sheets || 0}</span>` : ''}
+              ${showGC ? `<span class="stat-pill GC ${stats.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded">GC ${stats.goals_conceded || 0}</span>` : ''}
+              ${showSV ? `<span class="stat-pill SV ${stats.saves > 0 ? 'active' : ''}" title="Saves">SV ${stats.saves || 0}</span>` : ''}
             </div>` : '';
 
           const actions = marketIsLive ? `
