@@ -2091,14 +2091,14 @@ function settleMatchup(squadA, squadB) {
   const totalPositive = positiveContribs.reduce((s, p) => s + p.actualChange, 0);
   if (totalPositive > 0) {
     positiveContribs.forEach(p => {
-      const share = (p.actualChange / totalPositive) * gap;
-      p.value = p.value + share;
+      const share = Math.round((p.actualChange / totalPositive) * gap);
+      p.value = Math.round(p.value) + share;
       p.winBonus = share;
     });
   } else {
     // Nobody on the winning side had a positive week (won only because
     // the opponent did even worse) — nothing to weight by, split evenly.
-    winnerSquad.forEach(p => { const share = gap / 6; p.value += share; p.winBonus = share; });
+    winnerSquad.forEach(p => { const share = Math.round(gap / 6); p.value = Math.round(p.value) + share; p.winBonus = share; });
   }
 
   // Loser: collect the gap in priority order — cards first (red weighted
@@ -2112,21 +2112,21 @@ function settleMatchup(squadA, squadB) {
   if (totalCardSeverity > 0 && remaining > 0) {
     cardedPlayers.forEach(p => {
       if (remaining <= 0) return;
-      const want = (p.cardSeverity / totalCardSeverity) * Math.min(remaining, gap);
-      const take = Math.min(want, p.value, remaining);
-      p.value -= take;
+      const want = Math.round((p.cardSeverity / totalCardSeverity) * Math.min(remaining, gap));
+      const take = Math.min(want, Math.round(p.value), remaining);
+      p.value = Math.round(p.value) - take;
       p.penaltyPaid = (p.penaltyPaid || 0) + take;
       remaining -= take;
-      if (take < want - 0.01) spillover.push({ player_id: p.player_id, name: p.name, shortBy: want - take });
+      if (take < want) spillover.push({ player_id: p.player_id, name: p.name, shortBy: want - take });
     });
   }
 
   const concededPlayers = loserSquad.filter(p => p.cardSeverity === 0 && p.hadNegative);
   if (remaining > 0 && concededPlayers.length > 0) {
-    const share = remaining / concededPlayers.length;
+    const share = Math.round(remaining / concededPlayers.length);
     concededPlayers.forEach(p => {
-      const take = Math.min(share, p.value, remaining);
-      p.value -= take;
+      const take = Math.min(share, Math.round(p.value), remaining);
+      p.value = Math.round(p.value) - take;
       p.penaltyPaid = (p.penaltyPaid || 0) + take;
       remaining -= take;
     });
@@ -2135,10 +2135,10 @@ function settleMatchup(squadA, squadB) {
   if (remaining > 0) {
     const cleanPlayers = loserSquad.filter(p => !p.hadNegative && !p.is_sub);
     const pool = cleanPlayers.length > 0 ? cleanPlayers : loserSquad;
-    const share = remaining / pool.length;
+    const share = Math.round(remaining / pool.length);
     pool.forEach(p => {
-      const take = Math.min(share, p.value, remaining);
-      p.value -= take;
+      const take = Math.min(share, Math.round(p.value), remaining);
+      p.value = Math.round(p.value) - take;
       p.penaltyPaid = (p.penaltyPaid || 0) + take;
       remaining -= take;
       if (pool === cleanPlayers) spillover.push({ player_id: p.player_id, name: p.name, note: 'covered part of a teammate\'s penalty' });
@@ -2193,24 +2193,27 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
   const concededByTeam = await getTeamGoalsConcededMap(masterDb, gameweek);
 
-  // Compute each entry's own Layer 1 result — every player's own
-  // actions applied to their own value, nothing shared.
+  // Compute each entry's own Layer 1 raw change — used only to determine
+  // the head-to-head gap and who pays/gets paid first. It does NOT get
+  // applied to anyone's value directly here — only settleMatchup ever
+  // actually moves money, as a pure transfer between the two matched
+  // squads. Applying it here too was the exact bug that let unfunded
+  // money leak in and out of the whole system every gameweek.
   const prepared = {}; // entry.id -> array of enriched player slots
   for (const entry of entries) {
     const squad = entry.squad_players || [];
     const slots = squad.filter(s => !s.empty).map(s => {
+      const startingValue = s.value || 0;
       if (s.is_sub) {
-        // Benched: excluded from this week's actions entirely — no
-        // change, doesn't count toward the head-to-head total either way.
-        return { ...s, value: s.value || 0, actualChange: 0, hadNegative: false, cardSeverity: 0, penaltyPaid: 0, winBonus: 0 };
+        return { ...s, value: startingValue, actualChange: 0, hadNegative: false, cardSeverity: 0, penaltyPaid: 0, winBonus: 0 };
       }
       const stats = statsByPid[s.player_id] || {};
       const teamConceded = concededByTeam[s.team] || 0;
-      const { newValue, actualChange, hadNegative } = computePlayerRawChange(
-        s.position, { ...stats, team_goals_conceded: teamConceded }, s.value || 0
+      const { actualChange, hadNegative } = computePlayerRawChange(
+        s.position, { ...stats, team_goals_conceded: teamConceded }, startingValue
       );
       const cardSeverity = (stats.red_cards || 0) > 0 ? 100 : (stats.yellow_cards || 0) > 0 ? 30 : 0;
-      return { ...s, value: newValue, actualChange, hadNegative, cardSeverity, penaltyPaid: 0, winBonus: 0 };
+      return { ...s, value: startingValue, actualChange, hadNegative, cardSeverity, penaltyPaid: 0, winBonus: 0 };
     });
     prepared[entry.id] = { entry, slots };
   }
