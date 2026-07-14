@@ -1856,6 +1856,11 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
       return { locked: false, drafting: false, marketLive: true, gameweek: tournament.gameweek, reason: `Market starts processing from Gameweek ${tournament.gameweek}.`, debug };
     }
 
+    // Pair everyone up as soon as the gameweek begins — well before
+    // results come in, so a user can see who they're facing this week
+    // immediately, not just after the numbers already moved.
+    await ensureMatchupsForGameweek(supabaseAdmin, tournamentId, currentGW);
+
     const { data: gwMatches, error: matchErr } = await masterDb
       .from('matches')
       .select('status, kickoff_time')
@@ -2167,6 +2172,44 @@ async function getTeamGoalsConcededMap(masterDb, gameweek) {
   return map;
 }
 
+// Pairs everyone up for a gameweek as soon as it begins — before any
+// real match has kicked off, let alone finished. This is what lets a
+// user see WHO they're facing before any scores come in, same as a
+// real head-to-head league. Idempotent: safe to call every reload,
+// only actually creates rows the first time for a given gameweek.
+async function ensureMatchupsForGameweek(supabaseAdmin, tournamentId, gameweek) {
+  const { data: existing } = await supabaseAdmin
+    .schema('stockmarket').from('matchups')
+    .select('id').eq('tournament_id', tournamentId).eq('gameweek', gameweek).limit(1);
+  if (existing && existing.length > 0) return { ok: true, alreadyPaired: true };
+
+  const { data: entries } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('id').eq('tournament_id', tournamentId).eq('squad_locked', true);
+  if (!entries || entries.length === 0) return { ok: false, step: 'no entries' };
+
+  const pool = entries.map(e => e.id);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const rows = [];
+  for (let i = 0; i < pool.length - 1; i += 2) {
+    rows.push({ tournament_id: tournamentId, gameweek, entry_id_1: pool[i], entry_id_2: pool[i + 1], settled: false });
+  }
+  // Odd one out gets a bye — still worth a row so it's visible as "no
+  // opponent this week" rather than indistinguishable from an error.
+  if (pool.length % 2 === 1) {
+    rows.push({ tournament_id: tournamentId, gameweek, entry_id_1: pool[pool.length - 1], entry_id_2: null, settled: true });
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabaseAdmin.schema('stockmarket').from('matchups').insert(rows);
+    if (error) { console.error('ensureMatchupsForGameweek insert failed:', error); return { ok: false, step: 'insert', error: error.message }; }
+  }
+  return { ok: true, alreadyPaired: false, pairs: rows.length };
+}
+
 async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, gameweek) {
   const { data: claimed } = await supabaseAdmin
     .schema('stockmarket').from('tournaments')
@@ -2177,6 +2220,15 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     .select('id, end_gameweek, gameweek')
     .maybeSingle();
   if (!claimed) return { ok: false, step: 'claim' };
+
+  // Pairing should already exist (created as soon as the gameweek began),
+  // but ensure it here too as a safety net in case this is the very first
+  // time anyone's loaded the page this gameweek.
+  await ensureMatchupsForGameweek(supabaseAdmin, tournamentId, gameweek);
+
+  const { data: matchupRowsExisting } = await supabaseAdmin
+    .schema('stockmarket').from('matchups')
+    .select('*').eq('tournament_id', tournamentId).eq('gameweek', gameweek).eq('settled', false);
 
   const { data: entries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
@@ -2218,27 +2270,18 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     prepared[entry.id] = { entry, slots };
   }
 
-  // Pairing: random each gameweek. Odd numbers get a bye (no settlement
-  // that week, their Layer 1 results just stand as-is).
-  const pool = entries.map(e => e.id);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  const pairs = [];
-  for (let i = 0; i < pool.length - 1; i += 2) pairs.push([pool[i], pool[i + 1]]);
-  const byeEntryId = pool.length % 2 === 1 ? pool[pool.length - 1] : null;
-
-  const matchupRows = [];
-  for (const [idA, idB] of pairs) {
-    const { slots: slotsA } = prepared[idA];
-    const { slots: slotsB } = prepared[idB];
+  // Settle each already-paired, not-yet-settled matchup.
+  for (const row of (matchupRowsExisting || [])) {
+    if (!row.entry_id_2) continue; // bye row, nothing to settle
+    const { slots: slotsA } = prepared[row.entry_id_1] || {};
+    const { slots: slotsB } = prepared[row.entry_id_2] || {};
+    if (!slotsA || !slotsB) continue;
     const result = settleMatchup(slotsA, slotsB);
-    matchupRows.push({
-      tournament_id: tournamentId, gameweek, entry_id_1: idA, entry_id_2: idB,
+    await supabaseAdmin.schema('stockmarket').from('matchups').update({
       raw_total_1: result.totalA, raw_total_2: result.totalB, gap: result.gap,
-      winner_entry_id: result.draw ? null : (result.winnerIsA ? idA : idB), settled: true
-    });
+      winner_entry_id: result.draw ? null : (result.winnerIsA ? row.entry_id_1 : row.entry_id_2),
+      settled: true
+    }).eq('id', row.id);
   }
 
   // Save every entry's updated squad + total value.
@@ -2253,11 +2296,6 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     await supabaseAdmin.schema('stockmarket').from('tournament_entries')
       .update({ squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal })
       .eq('id', entryId);
-  }
-
-  if (matchupRows.length > 0) {
-    const { error: matchupInsertError } = await supabaseAdmin.schema('stockmarket').from('matchups').insert(matchupRows);
-    if (matchupInsertError) console.error('matchups insert failed:', matchupInsertError);
   }
 
   if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {

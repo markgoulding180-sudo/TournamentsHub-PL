@@ -458,7 +458,9 @@
         const opp = data.opponent;
         const m = data.matchup;
         const iWon = m && m.winner_entry_id === entry.id;
-        const resultBanner = !m ? '' : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
+        const resultBanner = !m ? '' : !m.settled
+          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
+          : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
         const oppCards = (opp.squad_players || []).map(p => renderPlayerCard(p, false)).join('');
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
