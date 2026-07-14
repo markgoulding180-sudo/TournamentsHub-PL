@@ -2253,7 +2253,8 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   }
 
   if (matchupRows.length > 0) {
-    await supabaseAdmin.schema('stockmarket').from('matchups').insert(matchupRows);
+    const { error: matchupInsertError } = await supabaseAdmin.schema('stockmarket').from('matchups').insert(matchupRows);
+    if (matchupInsertError) console.error('matchups insert failed:', matchupInsertError);
   }
 
   if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {
