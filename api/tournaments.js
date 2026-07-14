@@ -120,6 +120,68 @@ module.exports = async (req, res) => {
       // Stock Market's status (public, no auth needed) — also triggers
       // market initialization (once, when the draft window closes) and
       // per-gameweek price processing (once matches finish).
+      // Your current gameweek matchup: your squad, your opponent's squad,
+      // and — for any of your players also owned by other entrants —
+      // the best value that same real player is achieving elsewhere.
+      const stockmarketMatchup = params.get('stockmarket_matchup');
+      if (stockmarketMatchup === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (!user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: myEntry } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('*').eq('tournament_id', tournamentId).eq('user_id', user.id).maybeSingle();
+        if (!myEntry) return res.status(200).json({ entry: null });
+
+        const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        const currentGw = clock ? clock.current_gameweek : null;
+
+        const { data: matchup } = await supabaseAdmin
+          .schema('stockmarket').from('matchups')
+          .select('*').eq('tournament_id', tournamentId).eq('gameweek', currentGw)
+          .or(`entry_id_1.eq.${myEntry.id},entry_id_2.eq.${myEntry.id}`)
+          .maybeSingle();
+
+        let opponentEntry = null;
+        if (matchup) {
+          const opponentId = matchup.entry_id_1 === myEntry.id ? matchup.entry_id_2 : matchup.entry_id_1;
+          const { data: oppData } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, user_id, squad_players, current_value').eq('id', opponentId).maybeSingle();
+          opponentEntry = oppData;
+        }
+
+        // Best value elsewhere for each of my own players
+        const { data: allEntries } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, squad_players').eq('tournament_id', tournamentId).eq('squad_locked', true).neq('id', myEntry.id);
+
+        const bestValueByPid = {};
+        (allEntries || []).forEach(e => {
+          (e.squad_players || []).forEach(s => {
+            if (s.empty) return;
+            if (!bestValueByPid[s.player_id] || s.value > bestValueByPid[s.player_id]) {
+              bestValueByPid[s.player_id] = s.value;
+            }
+          });
+        });
+
+        const mySquadWithComparison = (myEntry.squad_players || []).map(s => {
+          if (s.empty) return s;
+          return { ...s, best_elsewhere: bestValueByPid[s.player_id] || null };
+        });
+
+        return res.status(200).json({
+          entry: { ...myEntry, squad_players: mySquadWithComparison },
+          opponent: opponentEntry,
+          matchup: matchup || null,
+          gameweek: currentGw
+        });
+      }
+
       const stockmarketLockStatus = params.get('stockmarket_lock_status');
       if (stockmarketLockStatus === 'true' && tournamentId) {
         const status = await getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId);
@@ -1859,7 +1921,7 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
     if (allFinished) {
       debug.push(`last_processed_gameweek BEFORE claim attempt = ${tournament.last_processed_gameweek}`);
       console.log('[SM DEBUG]', debug.join(' | '));
-      const processResult = await processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
+      const processResult = await processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
       debug.push(`processStockMarketGameweek returned: ${JSON.stringify(processResult)}`);
       console.log('[SM DEBUG post-process]', debug.join(' | '));
     } else {
@@ -1904,49 +1966,7 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
     }
 
     const totalPot = (tournament.entry_fee || 0) * entries.length;
-    const totalSlots = entries.length * 6;
-    const slotValue = totalSlots > 0 ? Math.floor(totalPot / totalSlots) : 0;
-
-    // Count ownership across every entrant's squad
-    const ownership = {}; // player_id -> count
-    entries.forEach(e => {
-      (e.squad_players || []).forEach(p => {
-        ownership[p.player_id] = (ownership[p.player_id] || 0) + 1;
-      });
-    });
-
-    const playerIds = Object.keys(ownership).map(Number);
-    const { data: playerRows } = await masterDb
-      .from('players')
-      .select('id, web_name, element_type, team')
-      .in('id', playerIds);
-
-    const { data: teamRows } = await masterDb.from('teams').select('id, name');
-    const teamNameById = {};
-    (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
-
-    const playerById = {};
-    (playerRows || []).forEach(p => { playerById[p.id] = p; });
-
-    const marketRows = playerIds.map(pid => {
-      const p = playerById[pid] || {};
-      const count = ownership[pid];
-      return {
-        tournament_id: tournamentId,
-        player_id: pid,
-        name: p.web_name || `Player ${pid}`,
-        position: elementTypeToPosition(p.element_type),
-        team: teamNameById[p.team] || '',
-        ownership_count: count,
-        current_value: count * slotValue,
-        last_week_value: count * slotValue
-      };
-    });
-
-    if (marketRows.length > 0) {
-      await supabaseAdmin.schema('stockmarket').from('player_market')
-        .upsert(marketRows, { onConflict: 'tournament_id,player_id' });
-    }
+    const slotValue = Math.floor((tournament.entry_fee || 0) / 6); // per-player baseline, same for everyone regardless of who else drafted them
 
     await supabaseAdmin.schema('stockmarket').from('config')
       .upsert({ tournament_id: tournamentId, slot_value: slotValue }, { onConflict: 'tournament_id' });
@@ -1956,9 +1976,8 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
       const stampedSquad = (entry.squad_players || []).map(p => ({
         ...p,
         acquired_gameweek: tournament.gameweek,
-        active_weeks_held: 0,
         is_sub: p.is_sub || false,
-        bonus_value: p.bonus_value || 0
+        value: slotValue // each player's own independent value — nothing shared
       }));
       await supabaseAdmin.schema('stockmarket').from('tournament_entries')
         .update({
@@ -1975,7 +1994,7 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
       .update({ status: 'live', current_entries: entries.length })
       .eq('id', tournamentId);
 
-    console.log(`Stock Market ${tournamentId} initialized: ${entries.length} entrants, ${playerIds.length} distinct players, slot value ${slotValue}p`);
+    console.log(`Stock Market ${tournamentId} initialized: ${entries.length} entrants, slot value ${slotValue}p each, head-to-head model`);
   } catch (error) {
     console.error('initializeStockMarket error:', error);
   }
@@ -2052,6 +2071,138 @@ const STARTER_PACK_MATRIX = {
 };
 
 const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
+
+// ================= HEAD-TO-HEAD MODEL =================
+// Every player's own actions affect only that player's own value —
+// nothing shared, nothing pooled. The head-to-head layer is a pure
+// transfer between two matched squads: whatever one gains, the other
+// loses, by construction — guaranteed zero-sum, no rounding-drift
+// corrections needed anywhere.
+const FLAT_REWARDS = {
+  goal: 75, assist: 45, yellow_card: -30, red_card: -100,
+  clean_sheet: 60, save: 10, save_cap: 5,
+  gk_goal_conceded: -40, gk_goal_conceded_cap: 4,
+  outfield_goal_conceded: -10
+};
+
+// Computes one player's own raw value change for the gameweek, floored
+// so a single slot's own actions never push them below zero. Also
+// returns whether they had a "negative" week (cards/conceded), needed
+// later to decide who pays first when their squad loses.
+function computePlayerRawChange(position, stats, currentValue) {
+  let delta = 0;
+  let hadNegative = false;
+
+  const goals = Math.min(stats.goals_scored || 0, 99);
+  const assists = Math.min(stats.assists || 0, 99);
+  if (goals > 0) delta += goals * FLAT_REWARDS.goal;
+  if (assists > 0) delta += assists * FLAT_REWARDS.assist;
+  if ((stats.yellow_cards || 0) > 0) { delta += stats.yellow_cards * FLAT_REWARDS.yellow_card; hadNegative = true; }
+  if ((stats.red_cards || 0) > 0) { delta += stats.red_cards * FLAT_REWARDS.red_card; hadNegative = true; }
+
+  if (position === 'gk') {
+    if ((stats.clean_sheets || 0) > 0) delta += FLAT_REWARDS.clean_sheet;
+    const cappedSaves = Math.min(stats.saves || 0, FLAT_REWARDS.save_cap);
+    if (cappedSaves > 0) delta += cappedSaves * FLAT_REWARDS.save;
+    const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
+    if (cappedConceded > 0) { delta += cappedConceded * FLAT_REWARDS.gk_goal_conceded; hadNegative = true; }
+  } else {
+    // Outfield players on the same real team share a smaller conceded
+    // penalty — a defensive collapse is everyone's problem, weighted
+    // toward the keeper.
+    if ((stats.team_goals_conceded || 0) > 0) {
+      delta += stats.team_goals_conceded * FLAT_REWARDS.outfield_goal_conceded;
+      hadNegative = true;
+    }
+  }
+
+  const newValue = Math.max(0, currentValue + delta);
+  const actualChange = newValue - currentValue; // may be less than delta if it hit the floor
+  return { newValue, rawDelta: delta, actualChange, hadNegative };
+}
+
+// Settles one head-to-head matchup. squadA/squadB are arrays of 6 slots:
+// { player_id, position, name, team, value, actualChange, hadNegative,
+//   cardSeverity } — cardSeverity used only to prioritize who pays first.
+// Mutates .value on each slot in place and returns a settlement summary
+// for transparency (who paid what, and whether it spilled past the
+// actual culprit onto clean teammates).
+function settleMatchup(squadA, squadB) {
+  const totalA = squadA.reduce((s, p) => s + p.actualChange, 0);
+  const totalB = squadB.reduce((s, p) => s + p.actualChange, 0);
+  const gap = Math.abs(totalA - totalB);
+
+  if (gap === 0) return { draw: true, gap: 0, totalA, totalB };
+
+  const winnerSquad = totalA > totalB ? squadA : squadB;
+  const loserSquad = totalA > totalB ? squadB : squadA;
+  const winnerIsA = totalA > totalB;
+
+  // Winner: gap split proportionally among players who had a positive week.
+  const positiveContribs = winnerSquad.filter(p => p.actualChange > 0);
+  const totalPositive = positiveContribs.reduce((s, p) => s + p.actualChange, 0);
+  if (totalPositive > 0) {
+    positiveContribs.forEach(p => {
+      const share = (p.actualChange / totalPositive) * gap;
+      p.value = p.value + share;
+      p.winBonus = share;
+    });
+  } else {
+    // Nobody on the winning side had a positive week (won only because
+    // the opponent did even worse) — nothing to weight by, split evenly.
+    winnerSquad.forEach(p => { const share = gap / 6; p.value += share; p.winBonus = share; });
+  }
+
+  // Loser: collect the gap in priority order — cards first (red weighted
+  // heaviest), then conceded-goal penalties, then spread any remainder
+  // across players who had a clean week. Flag every spillover.
+  let remaining = gap;
+  const spillover = [];
+
+  const cardedPlayers = loserSquad.filter(p => p.cardSeverity > 0);
+  const totalCardSeverity = cardedPlayers.reduce((s, p) => s + p.cardSeverity, 0);
+  if (totalCardSeverity > 0 && remaining > 0) {
+    cardedPlayers.forEach(p => {
+      if (remaining <= 0) return;
+      const want = (p.cardSeverity / totalCardSeverity) * Math.min(remaining, gap);
+      const take = Math.min(want, p.value, remaining);
+      p.value -= take;
+      p.penaltyPaid = (p.penaltyPaid || 0) + take;
+      remaining -= take;
+      if (take < want - 0.01) spillover.push({ player_id: p.player_id, name: p.name, shortBy: want - take });
+    });
+  }
+
+  const concededPlayers = loserSquad.filter(p => p.cardSeverity === 0 && p.hadNegative);
+  if (remaining > 0 && concededPlayers.length > 0) {
+    const share = remaining / concededPlayers.length;
+    concededPlayers.forEach(p => {
+      const take = Math.min(share, p.value, remaining);
+      p.value -= take;
+      p.penaltyPaid = (p.penaltyPaid || 0) + take;
+      remaining -= take;
+    });
+  }
+
+  if (remaining > 0) {
+    const cleanPlayers = loserSquad.filter(p => !p.hadNegative);
+    const pool = cleanPlayers.length > 0 ? cleanPlayers : loserSquad;
+    const share = remaining / pool.length;
+    pool.forEach(p => {
+      const take = Math.min(share, p.value, remaining);
+      p.value -= take;
+      p.penaltyPaid = (p.penaltyPaid || 0) + take;
+      remaining -= take;
+      if (pool === cleanPlayers) spillover.push({ player_id: p.player_id, name: p.name, note: 'covered part of a teammate\'s penalty' });
+    });
+  }
+
+  return {
+    draw: false, gap, totalA, totalB,
+    winnerIsA, spillover,
+    uncollectable: Math.round(remaining) // true leak only if the whole squad is floored at 0 already
+  };
+}
 const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
 
 async function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
@@ -2072,6 +2223,107 @@ async function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
     const sharePart = m && m.current_value != null ? m.current_value / (m.ownership_count || 1) : 0;
     return sum + sharePart + (s.bonus_value || 0);
   }, 0));
+}
+
+async function getTeamGoalsConcededMap(masterDb, gameweek) {
+  const { data: matches } = await masterDb.from('matches').select('home_team, away_team, home_score, away_score').eq('gameweek', gameweek);
+  const map = {};
+  (matches || []).forEach(m => {
+    map[m.home_team] = m.away_score || 0;
+    map[m.away_team] = m.home_score || 0;
+  });
+  return map;
+}
+
+async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, gameweek) {
+  const { data: claimed } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments')
+    .update({ last_processed_gameweek: gameweek })
+    .eq('id', tournamentId)
+    .neq('status', 'finished')
+    .or(`last_processed_gameweek.is.null,last_processed_gameweek.lt.${gameweek}`)
+    .select('id, end_gameweek, gameweek')
+    .maybeSingle();
+  if (!claimed) return { ok: false, step: 'claim' };
+
+  const { data: entries } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('*').eq('tournament_id', tournamentId).eq('squad_locked', true);
+  if (!entries || entries.length === 0) return { ok: false, step: 'no entries' };
+
+  // Gather every distinct player_id across every squad, fetch their
+  // GW stats once, plus each real team's goals conceded this gameweek.
+  const allPlayerIds = [...new Set(entries.flatMap(e => (e.squad_players || []).filter(s => !s.empty).map(s => s.player_id)))];
+  const { data: statRows } = allPlayerIds.length > 0
+    ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', gameweek).in('player_id', allPlayerIds)
+    : { data: [] };
+  const statsByPid = {};
+  (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
+  const concededByTeam = await getTeamGoalsConcededMap(masterDb, gameweek);
+
+  // Compute each entry's own Layer 1 result — every player's own
+  // actions applied to their own value, nothing shared.
+  const prepared = {}; // entry.id -> array of enriched player slots
+  for (const entry of entries) {
+    const squad = entry.squad_players || [];
+    const slots = squad.filter(s => !s.empty).map(s => {
+      const stats = statsByPid[s.player_id] || {};
+      const teamConceded = concededByTeam[s.team] || 0;
+      const { newValue, actualChange, hadNegative } = computePlayerRawChange(
+        s.position, { ...stats, team_goals_conceded: teamConceded }, s.value || 0
+      );
+      const cardSeverity = (stats.red_cards || 0) > 0 ? 100 : (stats.yellow_cards || 0) > 0 ? 30 : 0;
+      return { ...s, value: newValue, actualChange, hadNegative, cardSeverity, penaltyPaid: 0, winBonus: 0 };
+    });
+    prepared[entry.id] = { entry, slots };
+  }
+
+  // Pairing: random each gameweek. Odd numbers get a bye (no settlement
+  // that week, their Layer 1 results just stand as-is).
+  const pool = entries.map(e => e.id);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const pairs = [];
+  for (let i = 0; i < pool.length - 1; i += 2) pairs.push([pool[i], pool[i + 1]]);
+  const byeEntryId = pool.length % 2 === 1 ? pool[pool.length - 1] : null;
+
+  const matchupRows = [];
+  for (const [idA, idB] of pairs) {
+    const { slots: slotsA } = prepared[idA];
+    const { slots: slotsB } = prepared[idB];
+    const result = settleMatchup(slotsA, slotsB);
+    matchupRows.push({
+      tournament_id: tournamentId, gameweek, entry_id_1: idA, entry_id_2: idB,
+      raw_total_1: result.totalA, raw_total_2: result.totalB, gap: result.gap,
+      winner_entry_id: result.draw ? null : (result.winnerIsA ? idA : idB), settled: true
+    });
+  }
+
+  // Save every entry's updated squad + total value.
+  for (const entryId of Object.keys(prepared)) {
+    const { entry, slots } = prepared[entryId];
+    const fullSquad = (entry.squad_players || []).map(s => {
+      if (s.empty) return s;
+      const updated = slots.find(sl => sl.player_id === s.player_id);
+      return updated ? { ...s, value: updated.value } : s;
+    });
+    const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
+    await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+      .update({ squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal })
+      .eq('id', entryId);
+  }
+
+  if (matchupRows.length > 0) {
+    await supabaseAdmin.schema('stockmarket').from('matchups').insert(matchupRows);
+  }
+
+  if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {
+    await supabaseAdmin.schema('stockmarket').from('tournaments').update({ status: 'finished' }).eq('id', tournamentId);
+  }
+
+  return { ok: true, pairs: matchupRows.length, bye: byeEntryId };
 }
 
 function packPriceFor(config, rarity) {

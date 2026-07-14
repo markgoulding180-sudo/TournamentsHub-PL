@@ -268,26 +268,17 @@
 
       <div class="cards-grid">
         <section class="card">
-          <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Portfolio</div>
+          <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Squad</div>
           <div id="portfolioBody"><div class="loading">Loading…</div></div>
         </section>
 
         <section class="card">
-          <div class="card-title"><i class="fas fa-chart-simple" style="color:var(--accent-2);"></i> Market Board</div>
+          <div class="card-title"><i class="fas fa-swords" style="color:var(--accent-2);"></i> This Week's Opponent</div>
           <div id="marketBody"><div class="loading">Loading…</div></div>
         </section>
       </div>
     </div>
   </main>
-
-  <!-- Auto-notice popup: shown once when the system had to sell/buy for you -->
-  <div class="notice-overlay" id="noticeOverlay"></div>
-  <div class="notice-popup" id="noticePopup">
-    <div class="notice-title"><i class="fas fa-circle-info"></i> While you were away…</div>
-    <p class="notice-msg" id="noticeMsg"></p>
-    <div class="notice-cards" id="noticeCards"></div>
-    <button class="btn-primary" style="width:100%; margin-top:16px; justify-content:center;" onclick="closeAutoNoticePopup()">Got it</button>
-  </div>
 
   <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
@@ -349,307 +340,113 @@
         return;
       }
 
-      const stateRes = await fetch(`/api/tournaments?stockmarket_state=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
-      const stateData = await stateRes.json();
-
-      if (stateData.auto_notice) showAutoNoticePopup(stateData.auto_notice);
-
-      if (!stateData.entry) {
-        document.getElementById('enterGate').style.display = 'block';
-        document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
-        document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
-        return;
-      }
-
-      document.getElementById('enterGate').style.display = 'none';
-      document.getElementById('mainContent').style.display = 'block';
-
-      const entry = stateData.entry;
-      const portfolio = stateData.portfolio || [];
-      const hasSquad = Array.isArray(entry.squad_players) && entry.squad_players.length === 6;
-
-      if (!hasSquad) {
-        document.getElementById('draftPromptCard').style.display = 'block';
-        document.getElementById('draftPromptBtn').style.display = 'inline-flex';
-        if (marketStatus && marketStatus.marketLive) {
-          document.getElementById('draftPromptText').textContent = 'The draft window has closed and you didn\'t submit a squad in time.';
-          document.getElementById('draftPromptBtn').style.display = 'none';
-        } else {
-          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet — do it before the draft window closes.';
-        }
-      } else if (!entry.squad_locked) {
-        document.getElementById('draftPromptCard').style.display = 'block';
-        document.getElementById('draftPromptText').textContent = "Squad locked in — you get what you get. It'll go live once the draft window closes.";
-        document.getElementById('draftPromptBtn').style.display = 'none';
-      } else {
-        document.getElementById('draftPromptCard').style.display = 'none';
-      }
-
       const marketIsLive = marketStatus && marketStatus.marketLive;
+
+      // Pre-lock: still just a squad preview, same as before.
       if (!marketIsLive) {
+        const stateRes = await fetch(`/api/tournaments?stockmarket_state=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+        const stateData = await stateRes.json();
+
+        if (!stateData.entry) {
+          document.getElementById('enterGate').style.display = 'block';
+          document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
+          document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
+          return;
+        }
+
+        document.getElementById('enterGate').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+
+        const entry = stateData.entry;
+        const portfolio = stateData.portfolio || [];
+        const hasSquad = Array.isArray(entry.squad_players) && entry.squad_players.length === 6;
+
+        if (!hasSquad) {
+          document.getElementById('draftPromptCard').style.display = 'block';
+          document.getElementById('draftPromptBtn').style.display = 'inline-flex';
+          document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet — do it before the draft window closes.';
+        } else {
+          document.getElementById('draftPromptCard').style.display = 'block';
+          document.getElementById('draftPromptText').textContent = "Squad locked in — you get what you get. It'll go live once the draft window closes.";
+          document.getElementById('draftPromptBtn').style.display = 'none';
+        }
+
         const hasPreview = portfolio.some(p => p.preview_value !== null);
         const projectedTotal = portfolio.reduce((sum, p) => sum + (p.preview_value || 0), 0);
         document.getElementById('statRow').innerHTML = hasPreview
           ? `
             <div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>
             <div class="stat"><div class="label">Projected Value</div><div class="value">${money(projectedTotal)}</div></div>
-            <div class="stat"><div class="label">If Market Started Now</div><div class="value" style="font-size:12px; color:var(--text-faint);">Updates as more people join</div></div>
           `
           : `<div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>`;
-      } else {
-        const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
-        document.getElementById('statRow').innerHTML = `
-          <div class="stat"><div class="label">Your Value</div><div class="value">${money(entry.current_value)}</div></div>
-          <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
-          <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
-        `;
-      }
 
-      if (portfolio.length === 0) {
-        document.getElementById('portfolioBody').innerHTML = '<div class="empty">No squad drafted yet.</div>';
-      } else {
-        const cards = portfolio.map(p => {
-          if (p.empty) {
-            return `
-            <div class="portfolio-card" style="border-style:dashed;" id="slot-${p.position}">
-              <div class="p-body">
-                <div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>
-                <div class="p-est" style="margin-bottom:10px;">Reserved: ${money(p.reserved_value)}</div>
-                ${marketIsLive ? `
-                  <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
-                    <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Bronze')">Bronze</button>
-                    <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Silver')">Silver</button>
-                    <button class="pack-fill-btn" onclick="openTransferPack('${p.position}','Gold')">Gold</button>
-                  </div>
-                  <div id="transfer-pool-${p.position}"></div>
-                ` : ''}
-              </div>
-            </div>`;
-          }
-
-          let valueHtml;
-          if (p.your_value !== null) {
-            valueHtml = `<div class="p-value">${money(p.your_value)}</div>`;
-            if (marketIsLive && p.value_change !== null && p.value_change !== 0) {
-              const dir = p.value_change > 0 ? 'up' : 'down';
-              const arrow = p.value_change > 0 ? '▲' : '▼';
-              valueHtml += `<div class="p-delta ${dir}">${arrow} ${money(Math.abs(p.value_change))} this week</div>`;
-            } else if (marketIsLive) {
-              valueHtml += `<div class="p-delta flat">— no change this week</div>`;
-            }
-          } else if (p.preview_value !== null) {
-            valueHtml = `<div class="p-value">${money(p.preview_value)}</div><div class="p-est">est.</div>`;
-            if (p.ownership_count > 1) {
-              const others = p.ownership_count - 1;
-              valueHtml += `<div class="p-est" style="color:var(--accent-2); margin-top:4px;">Also picked by ${others} other squad${others === 1 ? '' : 's'} — worth more because it's shared</div>`;
-            }
-          } else {
-            valueHtml = `<div class="p-est">Not valued yet</div>`;
-          }
-
-          const weeksBadge = (marketIsLive && p.is_sub) ? `<div class="weeks-badge sub">Benched — value frozen</div>` : '';
-
-          const stats = p.last_gw_stats;
-          // Only show a stat pill if it actually carries weight for this
-          // player's position — otherwise a stat shows up looking relevant
-          // (e.g. "GC 1" on a midfielder) when it had zero effect on their
-          // price, which is actively misleading rather than just unhelpful.
-          const posForStats = (p.position || '').toLowerCase();
-          const showCS = posForStats === 'goalkeeper' || posForStats === 'defender' || posForStats === 'midfielder';
-          const showGC = posForStats === 'goalkeeper' || posForStats === 'defender';
-          const showSV = posForStats === 'goalkeeper';
-
-          const statsRow = (marketIsLive && stats) ? `
-            <div class="p-stats-row">
-              <span class="stat-pill GL ${stats.goals > 0 ? 'active' : ''}" title="Goals">GL ${stats.goals || 0}</span>
-              <span class="stat-pill AS ${stats.assists > 0 ? 'active' : ''}" title="Assists">AS ${stats.assists || 0}</span>
-              <span class="stat-pill YC ${stats.yellow_cards > 0 ? 'active' : ''}" title="Yellow Cards">YC ${stats.yellow_cards || 0}</span>
-              <span class="stat-pill RC ${stats.red_cards > 0 ? 'active' : ''}" title="Red Cards">RC ${stats.red_cards || 0}</span>
-              ${showCS ? `<span class="stat-pill CS ${stats.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${stats.clean_sheets || 0}</span>` : ''}
-              ${showGC ? `<span class="stat-pill GC ${stats.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded">GC ${stats.goals_conceded || 0}</span>` : ''}
-              ${showSV ? `<span class="stat-pill SV ${stats.saves > 0 ? 'active' : ''}" title="Saves">SV ${stats.saves || 0}</span>` : ''}
-            </div>` : '';
-
-          const actions = marketIsLive ? `
-            <div class="card-actions">
-              <button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
-              <button class="mini-btn danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</button>
-            </div>` : '';
-
-          return `
+        const cards = portfolio.map(p => p.empty ? `
+          <div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div></div></div>
+        ` : `
           <div class="portfolio-card">
-            <div class="p-photo-wrap">
-              ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
-              <div class="no-photo" style="${p.photo ? 'display:none;' : 'display:flex; align-items:flex-end;'}"><i class="fas fa-user"></i></div>
-            </div>
+            <div class="p-photo-wrap">${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}">` : ''}<div class="no-photo"><i class="fas fa-user"></i></div></div>
             <div class="p-body">
               <div class="p-name">${escapeHtml(p.name)}</div>
-              <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}${p.ownership_count > 1 ? ` · ${p.ownership_count} owners` : ''}</div>
-              ${valueHtml}
-              ${statsRow}
-              ${weeksBadge}
-              ${actions}
+              <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}</div>
+              <div class="p-value">${money(p.preview_value)}</div><div class="p-est">est.</div>
             </div>
-          </div>`;
-        }).join('');
-        document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${cards}</div>`;
-      }
-
-      await loadMarket();
-    }
-
-    async function loadMarket() {
-      const body = document.getElementById('marketBody');
-      try {
-        const res = await fetch(`/api/tournaments?stockmarket_prices=true&tournament_id=${tournamentId}`);
-        const data = await res.json();
-        const rows = (data.market || []).slice(0, 25);
-
-        if (rows.length === 0) {
-          body.innerHTML = '<div class="empty">Market opens once the draft window closes.</div>';
-          return;
-        }
-
-        body.innerHTML = rows.map((p, i) => `
-          <div class="market-row">
-            <div class="m-rank">${i + 1}</div>
-            <div class="m-info">
-              <div class="m-name">${escapeHtml(p.name)}</div>
-              <div class="m-team">${escapeHtml(p.position)} · ${escapeHtml(p.team)}</div>
-            </div>
-            <div class="m-owned">${p.ownership_count}&times;</div>
-            <div class="m-value">${money(p.current_value)}</div>
           </div>`).join('');
-      } catch (e) {
-        console.error('Failed to load market:', e);
-        body.innerHTML = '<div class="empty">Couldn\'t load the market right now.</div>';
+        document.getElementById('portfolioBody').innerHTML = portfolio.length ? `<div class="portfolio-grid">${cards}</div>` : '<div class="empty">No squad drafted yet.</div>';
+        document.getElementById('marketBody').innerHTML = '<div class="empty">Matchups start once the draft window closes.</div>';
+        return;
       }
-    }
 
-    function showAutoNoticePopup(notice) {
-      const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
-      document.getElementById('noticeMsg').textContent =
-        `You didn't sell anyone in Gameweek ${notice.gameweek}, so the system picked one of your active players to keep your squad moving.`;
+      // Live: head-to-head matchup view.
+      document.getElementById('draftPromptCard').style.display = 'none';
+      const res = await fetch(`/api/tournaments?stockmarket_matchup=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+      const data = await res.json();
 
-      const soldCard = `
-        <div class="notice-card sold">
-          <div class="notice-tag">Sold</div>
-          <div class="notice-photo"><i class="fas fa-user" style="color:var(--text-faint); font-size:20px;"></i></div>
-          <div class="notice-name">${escapeHtml(notice.sold.name)}</div>
-          <div class="notice-detail">${posLabel[notice.sold.position] || notice.sold.position} · ${escapeHtml(notice.sold.team || '')}</div>
-          <div class="notice-detail">${money(notice.sold.value)}</div>
+      if (!data.entry) {
+        document.getElementById('enterGate').style.display = 'block';
+        return;
+      }
+      document.getElementById('enterGate').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+
+      const entry = data.entry;
+      const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
+      document.getElementById('statRow').innerHTML = `
+        <div class="stat"><div class="label">Your Value</div><div class="value">${money(entry.current_value)}</div></div>
+        <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
+        <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
+      `;
+
+      const renderPlayerCard = (p) => {
+        if (!p || p.empty) return `<div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div></div></div>`;
+        const bestHtml = (p.best_elsewhere !== null && p.best_elsewhere !== undefined && p.best_elsewhere > (p.value || 0))
+          ? `<div class="p-est" style="color:var(--accent-2); margin-top:4px;">Best elsewhere: ${money(p.best_elsewhere)}</div>` : '';
+        return `
+        <div class="portfolio-card">
+          <div class="p-photo-wrap"><div class="no-photo"><i class="fas fa-user"></i></div></div>
+          <div class="p-body">
+            <div class="p-name">${escapeHtml(p.name)}</div>
+            <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team || '')}</div>
+            <div class="p-value">${money(p.value)}</div>
+            ${bestHtml}
+          </div>
         </div>`;
+      };
 
-      const boughtCard = notice.bought ? `
-        <div class="notice-card bought">
-          <div class="notice-tag">Bought (Bronze)</div>
-          <div class="notice-photo">${notice.bought.photo ? `<img src="${notice.bought.photo}" alt="${escapeHtml(notice.bought.name)}">` : `<i class="fas fa-user" style="color:var(--text-faint); font-size:20px;"></i>`}</div>
-          <div class="notice-name">${escapeHtml(notice.bought.name)}</div>
-          <div class="notice-detail">${posLabel[notice.bought.position] || notice.bought.position} · ${escapeHtml(notice.bought.team || '')}</div>
-          <div class="notice-detail">Fee: ${money(notice.bought.fee)}</div>
-        </div>` : `
-        <div class="notice-card">
-          <div class="notice-tag" style="color:var(--text-faint);">No replacement</div>
-          <div class="notice-detail">No eligible Bronze player was available — that slot's still empty, fill it whenever you're ready.</div>
-        </div>`;
+      const myCards = (entry.squad_players || []).map(renderPlayerCard).join('');
+      document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
 
-      document.getElementById('noticeCards').innerHTML = `${soldCard}<div class="arrow"><i class="fas fa-arrow-right"></i></div>${boughtCard}`;
-      document.getElementById('noticePopup').classList.add('open');
-      document.getElementById('noticeOverlay').classList.add('open');
-    }
-
-    function closeAutoNoticePopup() {
-      document.getElementById('noticePopup').classList.remove('open');
-      document.getElementById('noticeOverlay').classList.remove('open');
-    }
-
-    async function sellPlayer(playerId, playerName) {
-      if (!confirm(`Sell ${playerName}? You'll get 1 transfer per gameweek, so make sure you're ready to buy a replacement.`)) return;
-      try {
-        const res = await fetch('/api/tournaments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_sell', tournament_id: tournamentId, player_id: playerId })
-        });
-        const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Failed to sell player', 'error'); return; }
-        await loadTournament();
-      } catch (e) {
-        console.error('sellPlayer failed:', e);
-        showToast("Couldn't sell that player right now.", "error");
-      }
-    }
-
-    async function toggleSub(playerId, newIsSub) {
-      try {
-        const res = await fetch('/api/tournaments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_toggle_sub', tournament_id: tournamentId, player_id: playerId, is_sub: newIsSub })
-        });
-        const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Failed to update', 'error'); return; }
-        await loadTournament();
-      } catch (e) {
-        console.error('toggleSub failed:', e);
-        showToast("Couldn't update that right now.", "error");
-      }
-    }
-
-    async function openTransferPack(position, packType) {
-      const poolEl = document.getElementById(`transfer-pool-${position}`);
-      poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;"><i class="fas fa-spinner fa-spin"></i> Opening…</div>';
-      try {
-        const res = await fetch('/api/tournaments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_open_pack', tournament_id: tournamentId, pack_type: packType, position })
-        });
-        const data = await res.json();
-        if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to open pack')}</div>`; return; }
-
-        const candidates = data.candidates || [];
-        const feeNote = data.pack_fee !== null && data.pack_fee !== undefined
-          ? `<div style="font-size:11px; color:var(--gold); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Costs ${money(data.pack_fee)} to open this pack — comes out of your squad, split evenly across everyone else's. Charged once, whichever player you pick.</div>`
-          : '';
-
-        if (candidates.length === 0) {
-          poolEl.innerHTML = feeNote + '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players in that pack right now.</div>';
-          return;
-        }
-
-        poolEl.innerHTML = feeNote + candidates.map(c => `
-          <div class="transfer-pool-item">
-            <span>${escapeHtml(c.name)} <span style="color:var(--text-faint);">(${c.total_points || 0} pts)</span></span>
-            <button onclick="buyReplacement(${c.id}, '${position}', ${data.pack_fee || 0}, '${escapeHtml(c.name)}', '${packType}')">Buy</button>
-          </div>`).join('');
-      } catch (e) {
-        console.error('openTransferPack failed:', e);
-        poolEl.innerHTML = '<div style="font-size:11px; color:var(--red); margin-top:6px;">Couldn\'t open a pack right now.</div>';
-      }
-    }
-
-    let buyInFlight = false;
-    async function buyReplacement(playerId, position, packFee, playerName, packType) {
-      if (buyInFlight) return;
-      if (!confirm(`Buy ${playerName} for ${money(packFee)}? That's charged from your squad and split across everyone else's.`)) return;
-      buyInFlight = true;
-      try {
-        const res = await fetch('/api/tournaments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_buy_replacement', tournament_id: tournamentId, player_id: playerId, position, pack_type: packType })
-        });
-        const data = await res.json();
-        if (!res.ok) { console.log('[BUY FAILED DEBUG]', data.debug); showToast(data.error || 'Failed to buy replacement', 'error'); return; }
-        console.log('[BUY DEBUG]', data.debug);
-        showToast(`Bought ${playerName} for ${money(data.pack_fee)}.`, 'success');
-        await loadTournament();
-      } catch (e) {
-        console.error('buyReplacement failed:', e);
-        showToast("Couldn't complete that purchase right now.", "error");
-      } finally {
-        buyInFlight = false;
+      if (!data.opponent) {
+        document.getElementById('marketBody').innerHTML = '<div class="empty">No matchup this week — you had a bye.</div>';
+      } else {
+        const opp = data.opponent;
+        const m = data.matchup;
+        const iWon = m && m.winner_entry_id === entry.id;
+        const resultBanner = !m ? '' : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
+        const oppCards = (opp.squad_players || []).map(renderPlayerCard).join('');
+        document.getElementById('marketBody').innerHTML = `
+          ${resultBanner}
+          <div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>
+          <div class="portfolio-grid">${oppCards}</div>`;
       }
     }
 
