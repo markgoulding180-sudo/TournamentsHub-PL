@@ -1151,12 +1151,11 @@ module.exports = async (req, res) => {
               const p = squadRows.find(r => r.id === pid);
               return {
                 player_id: pid,
-                position: p.element_type,
+                position: POSITION_KEY[p.element_type] || p.element_type,
                 name: p.web_name,
                 team: teamNameByIdForSquad[p.team] || '',
-                bonus_value: 0,          // private value on top of the shared stock price — never affects other owners
+                value: 0,                // set once the market actually initializes
                 acquired_gameweek: null, // set once the market actually initializes
-                active_weeks_held: 0,    // only increments while not marked sub — 2 triggers auto-sell
                 is_sub: false
               };
             });

@@ -303,6 +303,10 @@
     }
     function isLoggedIn() { return !!localStorage.getItem('gbf_token'); }
     function money(pence) { return `£${((pence||0)/100).toFixed(2)}`; }
+    function posDisplay(position) {
+      const map = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD', gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
+      return map[position] || position || '';
+    }
 
     let tournamentId = null;
     let marketStatus = null;
@@ -449,7 +453,7 @@
           <div class="p-photo-wrap"><div class="no-photo"><i class="fas fa-user"></i></div></div>
           <div class="p-body">
             <div class="p-name">${escapeHtml(p.name)}</div>
-            <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team || '')}</div>
+            <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
             <div class="p-value">${money(p.value)}</div>
             ${bestHtml}
             ${benchedHtml}
