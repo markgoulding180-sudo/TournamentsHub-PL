@@ -210,12 +210,19 @@ module.exports = async (req, res) => {
           .maybeSingle();
 
         let opponentEntry = null;
+        let opponentName = null;
         if (matchup) {
           const opponentId = matchup.entry_id_1 === myEntry.id ? matchup.entry_id_2 : matchup.entry_id_1;
-          const { data: oppData } = await supabaseAdmin
-            .schema('stockmarket').from('tournament_entries')
-            .select('id, user_id, squad_players, current_value').eq('id', opponentId).maybeSingle();
-          opponentEntry = oppData;
+          if (opponentId) {
+            const { data: oppData } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('id, user_id, squad_players, current_value').eq('id', opponentId).maybeSingle();
+            opponentEntry = oppData;
+            if (opponentEntry) {
+              const { data: oppUser } = await supabaseAdmin.from('users').select('email').eq('id', opponentEntry.user_id).maybeSingle();
+              opponentName = oppUser ? oppUser.email : null;
+            }
+          }
         }
 
         // Best value elsewhere for each of my own players
@@ -273,7 +280,8 @@ module.exports = async (req, res) => {
           opponent: opponentEntry,
           matchup: matchup || null,
           gameweek: currentGw,
-          live: liveMine ? { mine: liveMine, opponent: liveOpponent } : null
+          live: liveMine ? { mine: liveMine, opponent: liveOpponent } : null,
+          opponent_name: opponentName
         });
       }
 
@@ -2362,20 +2370,29 @@ function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
 // once the gameweek's matches are actually finished) remains the only
 // thing that actually moves real money.
 async function computeLiveProvisional(masterDb, squadA, squadB, gameweek, concededByTeam, statsByPid) {
-  const provA = squadA.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0 }));
-  const provB = squadB.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0 }));
+  const provA = squadA.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0, liveContribution: 0, liveStats: null }));
+  const provB = squadB.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0, liveContribution: 0, liveStats: null }));
 
   const applyEvents = (mySide, otherSide) => {
     mySide.forEach(p => {
-      if (p.is_sub) return; // benched — excluded from live events too
       const stats = statsByPid[p.player_id] || {};
       const teamConceded = concededByTeam[p.team] || 0;
+      p.liveStats = {
+        goals: stats.goals_scored || 0, assists: stats.assists || 0,
+        yellow_cards: stats.yellow_cards || 0, red_cards: stats.red_cards || 0,
+        clean_sheets: stats.clean_sheets || 0,
+        goals_conceded: p.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded,
+        saves: stats.saves || 0
+      };
+      if (p.is_sub) return; // benched — excluded from live events too
+
       const { actualChange } = computePlayerRawChange(
         p.position, { ...stats, team_goals_conceded: teamConceded }, p.liveValue
       );
       if (actualChange === 0) return;
 
       p.liveValue = Math.round(p.liveValue + actualChange);
+      p.liveContribution = (p.liveContribution || 0) + actualChange;
       if (otherSide.length > 0) {
         // Distribute the EXACT integer amount, pence-exact — no
         // independent-rounding drift across the 6 opponent players.
@@ -2384,7 +2401,9 @@ async function computeLiveProvisional(masterDb, squadA, squadB, gameweek, conced
         const remainder = actualChange - (base * n); // same sign as actualChange, magnitude < n
         otherSide.forEach((o, i) => {
           const extra = i < Math.abs(remainder) ? Math.sign(remainder) : 0;
-          o.liveValue = Math.round(o.liveValue - (base + extra));
+          const debit = base + extra;
+          o.liveValue = Math.round(o.liveValue - debit);
+          o.liveContribution = (o.liveContribution || 0) - debit;
         });
       }
     });

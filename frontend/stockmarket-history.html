@@ -139,8 +139,43 @@
           document.getElementById('weeksContainer').innerHTML = '<div class="empty">You haven\'t entered this tournament.</div>';
           return;
         }
-        historyData = data;
-        renderWeeks(data.weeks || []);
+
+        let weeks = data.weeks || [];
+
+        // If the current gameweek hasn't been finally settled yet, pull
+        // in the live/provisional view too, so this week shows something
+        // rather than nothing until the real settlement runs.
+        try {
+          const liveRes = await fetch(`/api/tournaments?stockmarket_matchup=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+          const liveData = await liveRes.json();
+          if (liveData.live && liveData.live.mine) {
+            const alreadyHasThisWeek = weeks.some(w => w.gameweek === liveData.gameweek);
+            if (!alreadyHasThisWeek) {
+              weeks = [...weeks, {
+                gameweek: liveData.gameweek,
+                opponent_name: liveData.opponent_name,
+                settled: false,
+                bye: !liveData.opponent,
+                gap: null,
+                won: null,
+                is_live: true,
+                players: liveData.live.mine.map(p => ({
+                  player_id: p.player_id, name: p.name, position: p.position, team: p.team,
+                  starting_value: (p.liveValue || 0) - (p.liveContribution || 0),
+                  ending_value: p.liveValue, benched: !!p.is_sub,
+                  win_bonus: p.liveContribution > 0 ? p.liveContribution : 0,
+                  penalty_paid: p.liveContribution < 0 ? -p.liveContribution : 0,
+                  stats: p.liveStats
+                }))
+              }];
+            }
+          }
+        } catch (liveErr) {
+          console.error('Failed to load live data for history page:', liveErr);
+        }
+
+        historyData = { ...data, weeks };
+        renderWeeks(weeks);
       } catch (e) {
         console.error('loadHistory failed:', e);
         document.getElementById('weeksContainer').innerHTML = '<div class="empty">Couldn\'t load history right now.</div>';
@@ -156,13 +191,14 @@
 
       container.innerHTML = weeks.map((w) => {
         let badgeClass, badgeText;
-        if (w.bye) { badgeClass = 'bye'; badgeText = 'Bye'; }
+        if (w.is_live) { badgeClass = 'pending'; badgeText = 'LIVE'; }
+        else if (w.bye) { badgeClass = 'bye'; badgeText = 'Bye'; }
         else if (!w.settled) { badgeClass = 'pending'; badgeText = 'Pending'; }
         else if (w.gap === 0) { badgeClass = 'draw'; badgeText = 'Draw'; }
         else if (w.won) { badgeClass = 'win'; badgeText = 'Won'; }
         else { badgeClass = 'loss'; badgeText = 'Lost'; }
 
-        const playerRows = w.players.map(p => {
+        const playerRows = w.players.map((p, pIdx) => {
           const change = (p.ending_value || 0) - (p.starting_value || 0);
           const s = p.stats || {};
           const statTok = (label, val, positive) => {
@@ -176,6 +212,27 @@
               statTok('CS', s.clean_sheets||0, true), statTok('GC', s.goals_conceded||0, false),
               statTok('SV', s.saves||0, true)
             ].join(' ');
+
+          const whyId = `why-${w.gameweek}-${pIdx}`;
+          const whyLines = [];
+          if (p.benched) {
+            whyLines.push('Benched — excluded from scoring entirely.');
+          } else {
+            if ((s.goals||0) > 0) whyLines.push(`${s.goals} goal(s): +${money(s.goals*75)}`);
+            if ((s.assists||0) > 0) whyLines.push(`${s.assists} assist(s): +${money(s.assists*45)}`);
+            if ((s.yellow_cards||0) > 0) whyLines.push(`Yellow card: -${money(30)}`);
+            if ((s.red_cards||0) > 0) whyLines.push(`Red card: -${money(100)}`);
+            if ((s.clean_sheets||0) > 0) whyLines.push(`Clean sheet: +${money(60)}`);
+            if ((s.saves||0) > 0) whyLines.push(`${s.saves} save(s): +${money(Math.min(s.saves,5)*10)}`);
+            if ((s.goals_conceded||0) > 0) whyLines.push(`Conceded ${s.goals_conceded}: -${money(s.goals_conceded * (posDisplay(p.position)==='GK'?40:10))}`);
+            if (whyLines.length === 0) whyLines.push('No events this week.');
+            whyLines.push(w.is_live
+              ? `Live: this player's own events fund directly from the opponent, evenly across their squad, as they happen.`
+              : `Final: the win/loss splits evenly across all 6 players regardless of individual performance.`);
+            if (p.win_bonus > 0) whyLines.push(`Received: +${money(p.win_bonus)}`);
+            if (p.penalty_paid > 0) whyLines.push(`Paid: -${money(p.penalty_paid)}`);
+          }
+
           return `
           <tr class="${p.benched ? 'benched-row' : ''}">
             <td>${escapeHtml(p.name)}</td>
@@ -187,6 +244,12 @@
             <td class="num">${p.penalty_paid > 0 ? '-' + money(p.penalty_paid) : money(0)}</td>
             <td class="num">${money(p.ending_value)}</td>
             <td class="num ${change > 0 ? 'up' : change < 0 ? 'down' : ''}">${change >= 0 ? '+' : ''}${money(change)}</td>
+            <td><button class="btn" style="padding:4px 8px; font-size:10px;" onclick="document.getElementById('${whyId}').style.display = document.getElementById('${whyId}').style.display === 'none' ? 'table-row' : 'none';">Why?</button></td>
+          </tr>
+          <tr id="${whyId}" style="display:none;">
+            <td colspan="10" style="background:var(--bg-card); font-size:11px; color:var(--text-dim); padding:10px;">
+              ${whyLines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('')}
+            </td>
           </tr>`;
         }).join('');
 
@@ -210,8 +273,8 @@
           </div>
           <div class="week-body">
             <table>
-              <tr><th>Player</th><th>Pos</th><th>Team</th><th>Stats</th><th>Start</th><th>Won</th><th>Paid</th><th>End</th><th>Change</th></tr>
-              ${playerRows || '<tr><td colspan="9" style="color:var(--text-faint); text-align:center; padding:16px;">No player data for this week.</td></tr>'}
+              <tr><th>Player</th><th>Pos</th><th>Team</th><th>Stats</th><th>Start</th><th>Won</th><th>Paid</th><th>End</th><th>Change</th><th></th></tr>
+              ${playerRows || '<tr><td colspan="10" style="color:var(--text-faint); text-align:center; padding:16px;">No player data for this week.</td></tr>'}
             </table>
             ${w.settled && !w.bye ? `<div style="font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;">
               <i class="fas fa-circle-info"></i> "Stats" shows each player's own goals/assists/cards/etc that gameweek — these determine the squad's overall result, not each player's own payout.

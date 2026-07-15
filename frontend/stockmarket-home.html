@@ -509,10 +509,17 @@
             }
             if (eventLines.length === 0) eventLines.push('No goals, assists, cards, or clean sheet/conceded events this week.');
             lines.push(...eventLines);
-            lines.push(`Own total this gameweek: ${money(bd.raw_change)} — added up across all 6 of your squad's players and compared against your opponent's own total to decide the week's result.`);
-            if (bd.win_bonus > 0) lines.push(`Your squad won this week's head-to-head. The win splits evenly across all 6 players regardless of individual performance — this player's equal share: +${money(bd.win_bonus)}.`);
-            if (bd.penalty_paid > 0) lines.push(`Your squad lost this week's head-to-head. The loss splits evenly across all 6 players regardless of individual performance — this player's equal share: -${money(bd.penalty_paid)}.`);
-            if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result — a draw, or this player was benched during the settlement.');
+            if (bd.is_live) {
+              lines.push(`Live and provisional — GW${bd.gameweek} hasn't finished yet. This player's own events apply directly and are funded straight from the opponent's squad, evenly across their 6 players, as they happen.`);
+              if (bd.win_bonus > 0) lines.push(`Net gain from own events so far: +${money(bd.win_bonus)} — funded directly from the opponent's squad.`);
+              if (bd.penalty_paid > 0) lines.push(`Net loss from own events so far: -${money(bd.penalty_paid)} — this amount was sent to the opponent's squad.`);
+              lines.push('Once GW' + bd.gameweek + ' actually finishes, the real, final settlement runs — that\'s the one that genuinely moves money.');
+            } else {
+              lines.push(`Own total this gameweek: ${money(bd.raw_change)} — added up across all 6 of your squad's players and compared against your opponent's own total to decide the week's result.`);
+              if (bd.win_bonus > 0) lines.push(`Your squad won this week's head-to-head. The win splits evenly across all 6 players regardless of individual performance — this player's equal share: +${money(bd.win_bonus)}.`);
+              if (bd.penalty_paid > 0) lines.push(`Your squad lost this week's head-to-head. The loss splits evenly across all 6 players regardless of individual performance — this player's equal share: -${money(bd.penalty_paid)}.`);
+              if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result — a draw, or this player was benched during the settlement.');
+            }
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           breakdownHtml = `
@@ -556,19 +563,30 @@
         </div>`;
       };
 
-      const liveByPid = {};
+      const liveByPidMine = {}, liveByPidOpp = {};
       let liveTotalMine = null, liveTotalOpp = null;
       if (data.live && data.live.mine) {
-        data.live.mine.forEach(p => { liveByPid[p.player_id] = p.liveValue; });
+        data.live.mine.forEach(p => { liveByPidMine[p.player_id] = p; });
+        (data.live.opponent || []).forEach(p => { liveByPidOpp[p.player_id] = p; });
         liveTotalMine = Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0));
         liveTotalOpp = Math.round((data.live.opponent || []).reduce((s, p) => s + p.liveValue, 0));
       }
-      const withLive = (squad) => (squad || []).map(s => {
-        if (s.empty || liveByPid[s.player_id] === undefined) return s;
-        return { ...s, value: liveByPid[s.player_id], is_live: true };
+      const withLive = (squad, liveMap) => (squad || []).map(s => {
+        if (s.empty || !liveMap[s.player_id]) return s;
+        const lv = liveMap[s.player_id];
+        return {
+          ...s, value: lv.liveValue, is_live: true,
+          last_gw_breakdown: {
+            gameweek: data.gameweek, stats: lv.liveStats, benched: !!s.is_sub,
+            raw_change: lv.liveContribution || 0,
+            win_bonus: lv.liveContribution > 0 ? lv.liveContribution : 0,
+            penalty_paid: lv.liveContribution < 0 ? -lv.liveContribution : 0,
+            is_live: true
+          }
+        };
       });
 
-      const myCards = withLive(entry.squad_players).map(p => renderPlayerCard(p, true)).join('');
+      const myCards = withLive(entry.squad_players, liveByPidMine).map(p => renderPlayerCard(p, true)).join('');
       document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
 
       if (!data.opponent) {
@@ -586,7 +604,7 @@
              ${bothNegative ? `<div class="p-est" style="margin-bottom:10px; color:var(--accent-2);">Both squads had a rough week — ${iWon ? 'yours was still the smaller loss, so you win the £' + (m.gap/100).toFixed(2) + ' difference' : "your opponent's was the smaller loss"}.</div>` : '<div style="margin-bottom:10px;"></div>'}`
           : '';
         const liveBanner = isLive
-          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);"><i class="fas fa-bolt"></i> LIVE — events funded directly from your opponent as they happen. Provisional until GW${data.gameweek} finishes, when the real settlement runs.</div>`
+          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);"><i class="fas fa-bolt"></i> LIVE vs ${escapeHtml(data.opponent_name || 'your opponent')} — events funded directly from your opponent as they happen. Provisional until GW${data.gameweek} finishes, when the real settlement runs.</div>`
           : '';
         const resultBanner = !m ? '' : !m.settled
           ? liveBanner || `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
@@ -594,7 +612,7 @@
         const liveTotalsHtml = isLive
           ? `<div class="p-est" style="margin-bottom:10px;">Live totals — Yours: ${money(liveTotalMine)} · Opponent's: ${money(liveTotalOpp)}</div>`
           : '';
-        const oppCards = withLive(opp.squad_players).map(p => renderPlayerCard(p, false)).join('');
+        const oppCards = withLive(opp.squad_players, liveByPidOpp).map(p => renderPlayerCard(p, false)).join('');
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
           ${rawSummary}
