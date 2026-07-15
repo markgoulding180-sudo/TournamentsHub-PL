@@ -2377,8 +2377,15 @@ async function computeLiveProvisional(masterDb, squadA, squadB, gameweek, conced
 
       p.liveValue = Math.round(p.liveValue + actualChange);
       if (otherSide.length > 0) {
-        const share = actualChange / otherSide.length;
-        otherSide.forEach(o => { o.liveValue = Math.round(o.liveValue - share); });
+        // Distribute the EXACT integer amount, pence-exact — no
+        // independent-rounding drift across the 6 opponent players.
+        const n = otherSide.length;
+        const base = Math.trunc(actualChange / n);
+        const remainder = actualChange - (base * n); // same sign as actualChange, magnitude < n
+        otherSide.forEach((o, i) => {
+          const extra = i < Math.abs(remainder) ? Math.sign(remainder) : 0;
+          o.liveValue = Math.round(o.liveValue - (base + extra));
+        });
       }
     });
   };

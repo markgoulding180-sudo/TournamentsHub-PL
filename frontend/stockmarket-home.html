@@ -599,7 +599,7 @@
           ${resultBanner}
           ${rawSummary}
           ${liveTotalsHtml}
-          <div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>
+          ${!isLive ? `<div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>` : ''}
           <div class="portfolio-grid">${oppCards}</div>`;
       }
     }
