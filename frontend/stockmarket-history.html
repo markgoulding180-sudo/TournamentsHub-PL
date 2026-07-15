@@ -165,14 +165,23 @@
         const playerRows = w.players.map(p => {
           const change = (p.ending_value || 0) - (p.starting_value || 0);
           const s = p.stats || {};
-          const statText = p.benched ? 'Benched' :
-            `GL ${s.goals||0} AS ${s.assists||0} YC ${s.yellow_cards||0} RC ${s.red_cards||0} CS ${s.clean_sheets||0} GC ${s.goals_conceded||0} SV ${s.saves||0}`;
+          const statTok = (label, val, positive) => {
+            const color = val > 0 ? (positive ? 'var(--green)' : 'var(--red)') : 'var(--text-faint)';
+            return `<span style="color:${color};">${label} ${val}</span>`;
+          };
+          const statText = p.benched ? '<span style="color:var(--text-faint);">Benched</span>' :
+            [
+              statTok('GL', s.goals||0, true), statTok('AS', s.assists||0, true),
+              statTok('YC', s.yellow_cards||0, false), statTok('RC', s.red_cards||0, false),
+              statTok('CS', s.clean_sheets||0, true), statTok('GC', s.goals_conceded||0, false),
+              statTok('SV', s.saves||0, true)
+            ].join(' ');
           return `
           <tr class="${p.benched ? 'benched-row' : ''}">
             <td>${escapeHtml(p.name)}</td>
             <td class="pos">${posDisplay(p.position)}</td>
             <td>${escapeHtml(p.team || '')}</td>
-            <td style="font-size:11px; color:var(--text-faint);">${statText}</td>
+            <td style="font-size:11px;">${statText}</td>
             <td class="num">${money(p.starting_value)}</td>
             <td class="num">${money(p.win_bonus)}</td>
             <td class="num">${p.penalty_paid > 0 ? '-' + money(p.penalty_paid) : money(0)}</td>
@@ -181,6 +190,10 @@
           </tr>`;
         }).join('');
 
+        const weekStart = w.players.reduce((sum, p) => sum + (p.starting_value || 0), 0);
+        const weekEnd = w.players.reduce((sum, p) => sum + (p.ending_value || 0), 0);
+        const gapColor = w.bye || !w.settled ? 'var(--text-dim)' : (w.gap === 0 ? 'var(--gold)' : (w.won ? 'var(--green)' : 'var(--red)'));
+
         return `
         <div class="week-card" id="week-${w.gameweek}">
           <div class="week-header" onclick="document.getElementById('week-${w.gameweek}').classList.toggle('open')">
@@ -188,9 +201,10 @@
               GW${w.gameweek}
               <span class="week-badge ${badgeClass}">${badgeText}</span>
               ${w.opponent_name ? `<span class="week-opponent">vs ${escapeHtml(w.opponent_name)}</span>` : ''}
+              ${w.players.length > 0 ? `<span class="week-opponent">${money(weekStart)} → ${money(weekEnd)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:14px;">
-              ${w.settled && !w.bye ? `<span class="week-gap">Gap: ${money(w.gap)}</span>` : ''}
+              ${w.settled && !w.bye ? `<span class="week-gap" style="color:${gapColor};">Gap: ${money(w.gap)}</span>` : ''}
               <i class="fas fa-chevron-down chevron"></i>
             </div>
           </div>
