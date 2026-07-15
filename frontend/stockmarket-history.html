@@ -213,6 +213,10 @@
               <tr><th>Player</th><th>Pos</th><th>Team</th><th>Stats</th><th>Start</th><th>Won</th><th>Paid</th><th>End</th><th>Change</th></tr>
               ${playerRows || '<tr><td colspan="9" style="color:var(--text-faint); text-align:center; padding:16px;">No player data for this week.</td></tr>'}
             </table>
+            ${w.settled && !w.bye ? `<div style="font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.5;">
+              <i class="fas fa-circle-info"></i> "Stats" shows each player's own goals/assists/cards/etc that gameweek — these determine the squad's overall result, not each player's own payout.
+              The ${w.gap === 0 ? "week was a draw, so no money moved" : (w.won ? "£" + (w.gap/100).toFixed(2) + " win" : "£" + (w.gap/100).toFixed(2) + " loss") + " (\"Gap\") splits evenly across all 6 players in \"Won\"/\"Paid\", regardless of individual performance"}.
+            </div>` : ''}
           </div>
         </div>`;
       }).join('');

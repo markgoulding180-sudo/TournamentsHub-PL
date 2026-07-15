@@ -2274,47 +2274,37 @@ function settleMatchup(squadA, squadB) {
     winnerSquad.forEach(p => { const share = Math.round(gap / 6); p.value = Math.round(p.value) + share; p.winBonus = share; });
   }
 
-  // Loser: collect the gap in priority order — cards first (red weighted
-  // heaviest), then conceded-goal penalties, then spread any remainder
-  // across players who had a clean week. Flag every spillover.
+  // Loser: the team lost as a team, so the team pays as a team — the
+  // gap splits evenly across all 6 players, regardless of which specific
+  // players had a good or bad week individually. No priority, no
+  // weighting by who did worse — simple and predictable. Flags any
+  // spillover if a player doesn't have enough value to cover their share.
   let remaining = gap;
   const spillover = [];
 
-  const cardedPlayers = loserSquad.filter(p => p.cardSeverity > 0);
-  const totalCardSeverity = cardedPlayers.reduce((s, p) => s + p.cardSeverity, 0);
-  if (totalCardSeverity > 0 && remaining > 0) {
-    cardedPlayers.forEach(p => {
-      if (remaining <= 0) return;
-      const want = Math.round((p.cardSeverity / totalCardSeverity) * Math.min(remaining, gap));
-      const take = Math.min(want, Math.round(p.value), remaining);
-      p.value = Math.round(p.value) - take;
-      p.penaltyPaid = (p.penaltyPaid || 0) + take;
-      remaining -= take;
-      if (take < want) spillover.push({ player_id: p.player_id, name: p.name, shortBy: want - take });
-    });
-  }
-
-  const concededPlayers = loserSquad.filter(p => p.cardSeverity === 0 && p.hadNegative);
-  if (remaining > 0 && concededPlayers.length > 0) {
-    const share = Math.round(remaining / concededPlayers.length);
-    concededPlayers.forEach(p => {
-      const take = Math.min(share, Math.round(p.value), remaining);
-      p.value = Math.round(p.value) - take;
-      p.penaltyPaid = (p.penaltyPaid || 0) + take;
-      remaining -= take;
-    });
-  }
+  const eligiblePlayers = loserSquad.filter(p => !p.is_sub);
+  const pool = eligiblePlayers.length > 0 ? eligiblePlayers : loserSquad;
+  const share = Math.round(gap / pool.length);
+  pool.forEach(p => {
+    if (remaining <= 0) return;
+    const take = Math.min(share, Math.round(p.value), remaining);
+    p.value = Math.round(p.value) - take;
+    p.penaltyPaid = (p.penaltyPaid || 0) + take;
+    remaining -= take;
+    if (take < share) spillover.push({ player_id: p.player_id, name: p.name, shortBy: share - take });
+  });
 
   if (remaining > 0) {
-    const cleanPlayers = loserSquad.filter(p => !p.hadNegative && !p.is_sub);
-    const pool = cleanPlayers.length > 0 ? cleanPlayers : loserSquad;
-    const share = Math.round(remaining / pool.length);
-    pool.forEach(p => {
-      const take = Math.min(share, Math.round(p.value), remaining);
+    // A player couldn't cover their even share — spread whatever's left
+    // across whoever still has value, so the full gap is always collected.
+    const stillHasValue = pool.filter(p => p.value > 0);
+    const fallbackPool = stillHasValue.length > 0 ? stillHasValue : pool;
+    const fallbackShare = Math.round(remaining / fallbackPool.length);
+    fallbackPool.forEach(p => {
+      const take = Math.min(fallbackShare, Math.round(p.value), remaining);
       p.value = Math.round(p.value) - take;
       p.penaltyPaid = (p.penaltyPaid || 0) + take;
       remaining -= take;
-      if (pool === cleanPlayers) spillover.push({ player_id: p.player_id, name: p.name, note: 'covered part of a teammate\'s penalty' });
     });
   }
 

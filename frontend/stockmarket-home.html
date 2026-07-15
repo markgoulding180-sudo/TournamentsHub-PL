@@ -128,6 +128,7 @@
     .stat-pill.CS.active{ border-color:var(--green); color:var(--green); }
     .stat-pill.SV.active{ border-color:var(--accent-2); color:var(--accent-2); }
     .stat-pill.GC.active-bad{ border-color:var(--red); color:var(--red); background:rgba(239,68,68,0.08); }
+    .stat-pill.active-bad{ border-color:var(--red); color:var(--red); background:rgba(239,68,68,0.08); }
 
     .pack-fill-btn{ background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:10.5px; font-weight:700; color:var(--text-dim); }
     .pack-fill-btn:hover{ border-color:var(--border-hover); color:var(--text); }
@@ -467,6 +468,14 @@
         let statsRow = '', breakdownHtml = '';
         if (bd && bd.stats) {
           const s = bd.stats;
+          const payout = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
+          const payoutPill = bd.benched
+            ? `<span class="stat-pill" title="Benched — excluded from the squad's result">FROZEN</span>`
+            : payout > 0
+              ? `<span class="stat-pill active" style="border-color:var(--green); color:var(--green);" title="Received from the squad's head-to-head win">PAY +${money(payout)}</span>`
+              : payout < 0
+                ? `<span class="stat-pill active-bad" title="Contributed to the squad's head-to-head loss">PAY -${money(Math.abs(payout))}</span>`
+                : `<span class="stat-pill" title="No head-to-head payout this week">PAY £0.00</span>`;
           statsRow = `
             <div class="p-stats-row">
               <span class="stat-pill GL ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
@@ -476,6 +485,7 @@
               ${showCS ? `<span class="stat-pill CS ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
               ${showGC ? `<span class="stat-pill GC ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
               ${showSV ? `<span class="stat-pill SV ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
+              ${payoutPill}
             </div>`;
 
           const lines = [];
@@ -497,10 +507,10 @@
             }
             if (eventLines.length === 0) eventLines.push('No goals, assists, cards, or clean sheet/conceded events this week.');
             lines.push(...eventLines);
-            lines.push(`Own total this gameweek: ${money(bd.raw_change)} — this is compared against your opponent's own total to decide the week's result, not applied to value directly.`);
-            if (bd.win_bonus > 0) lines.push(`Your squad won this week's head-to-head — this player's share of the win: +${money(bd.win_bonus)}.`);
-            if (bd.penalty_paid > 0) lines.push(`Your squad lost this week's head-to-head — this player's share of the loss: -${money(bd.penalty_paid)}.`);
-            if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result — a draw, or this player wasn\'t involved in the win/loss split.');
+            lines.push(`Own total this gameweek: ${money(bd.raw_change)} — added up across all 6 of your squad's players and compared against your opponent's own total to decide the week's result.`);
+            if (bd.win_bonus > 0) lines.push(`Your squad won this week's head-to-head. The win splits evenly across all 6 players regardless of individual performance — this player's equal share: +${money(bd.win_bonus)}.`);
+            if (bd.penalty_paid > 0) lines.push(`Your squad lost this week's head-to-head. The loss splits evenly across all 6 players regardless of individual performance — this player's equal share: -${money(bd.penalty_paid)}.`);
+            if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result — a draw, or this player was benched during the settlement.');
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           breakdownHtml = `
@@ -513,15 +523,18 @@
         }
 
         let deltaHtml = '';
-        if (bd && !bd.benched) {
-          const net = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
-          if (net !== 0) {
-            deltaHtml = `<div class="p-delta ${net > 0 ? 'up' : 'down'}">${net > 0 ? '▲' : '▼'} ${money(Math.abs(net))} this week</div>`;
-          } else {
-            deltaHtml = `<div class="p-delta flat">— no change this week</div>`;
-          }
-        } else if (bd && bd.benched) {
+        if (bd && bd.benched) {
           deltaHtml = `<div class="p-delta flat">— benched, frozen</div>`;
+        } else if (bd) {
+          const raw = bd.raw_change || 0;
+          const payout = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
+          const rawLine = raw !== 0
+            ? `<div class="p-delta ${raw > 0 ? 'up' : 'down'}">${raw > 0 ? '▲' : '▼'} ${money(Math.abs(raw))} own actions</div>`
+            : `<div class="p-delta flat">— no own actions this week</div>`;
+          const payoutLine = payout !== 0
+            ? `<div class="p-delta ${payout > 0 ? 'up' : 'down'}" style="margin-top:1px;">${payout > 0 ? '▲' : '▼'} ${money(Math.abs(payout))} from head-to-head</div>`
+            : `<div class="p-delta flat" style="margin-top:1px;">— no head-to-head change</div>`;
+          deltaHtml = rawLine + payoutLine;
         }
 
         return `
