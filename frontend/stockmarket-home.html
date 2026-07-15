@@ -509,8 +509,14 @@
             }
             if (eventLines.length === 0) eventLines.push('No goals, assists, cards, or clean sheet/conceded events this week.');
             lines.push(...eventLines);
-            if (bd.win_bonus > 0) lines.push(`Received +${money(bd.win_bonus)}, funded directly from the opponent's squad.`);
-            if (bd.penalty_paid > 0) lines.push(`Paid -${money(bd.penalty_paid)}, sent directly to the opponent's squad.`);
+            const ownNet = bd.own_event_net || 0;
+            const totalNet = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
+            const fromOpponentActivity = totalNet - ownNet;
+            if (bd.win_bonus > 0) lines.push(`Received +${money(bd.win_bonus)} total this week.`);
+            if (bd.penalty_paid > 0) lines.push(`Paid -${money(bd.penalty_paid)} total this week.`);
+            if (fromOpponentActivity !== 0) {
+              lines.push(`${Math.abs(fromOpponentActivity) === Math.abs(totalNet) ? 'None of this came from this player\'s own events' : `${money(Math.abs(fromOpponentActivity))} of it came`} from being one of this squad's 6 players when the opponent's own events needed funding, split evenly — not from anything this player personally did.`);
+            }
             if (bd.win_bonus === 0 && bd.penalty_paid === 0 && !bd.short_by) lines.push('No change this week.');
             if (bd.short_by > 0) lines.push(`⚠ Fell ${money(bd.short_by)} short of the full amount — the opponent's squad didn't have enough left to cover it in full. Goals are always paid first, then assists, then saves, then clean sheets — whatever category runs short is the last one funded.`);
             lines.push(bd.is_live
@@ -574,7 +580,8 @@
           ...s, value: lv.liveValue, is_live: true,
           last_gw_breakdown: {
             gameweek: data.gameweek, stats: lv.liveStats, benched: !!s.is_sub,
-            raw_change: lv.liveContribution || 0,
+            raw_change: lv.ownEventNet || 0,
+            own_event_net: lv.ownEventNet || 0,
             win_bonus: lv.liveContribution > 0 ? lv.liveContribution : 0,
             penalty_paid: lv.liveContribution < 0 ? -lv.liveContribution : 0,
             short_by: lv.shortBy || 0,

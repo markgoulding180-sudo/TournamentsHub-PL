@@ -270,6 +270,7 @@ module.exports = async (req, res) => {
             const mapOut = (p) => ({
               player_id: p.player_id, name: p.name, position: p.position, team: p.team, is_sub: p.is_sub,
               liveValue: p.liveValue, liveContribution: (p.received || 0) - (p.paid || 0),
+              ownEventNet: (p.ownEventReceived || 0) - (p.ownEventPaid || 0),
               liveStats: p.gwStats, shortBy: p.shortBy || 0
             });
             liveMine = provA.map(mapOut);
@@ -2337,7 +2338,8 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
         red_cards: stats.red_cards || 0, clean_sheets: stats.clean_sheets || 0,
         goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded, saves: stats.saves || 0
       },
-      received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub
+      received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub,
+      ownEventReceived: 0, ownEventPaid: 0 // this player's OWN events only — not funding credits from the opponent
     };
   });
 
@@ -2371,6 +2373,7 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
       if (actual > 0) {
         p.liveValue = Math.round(p.liveValue + actual);
         p.received = (p.received || 0) + actual;
+        p.ownEventReceived = (p.ownEventReceived || 0) + actual; // this IS this player's own event
         distributeExact(provB, actual);
         capacityB -= actual;
       }
@@ -2383,6 +2386,7 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
       if (actual > 0) {
         p.liveValue = Math.round(p.liveValue + actual);
         p.received = (p.received || 0) + actual;
+        p.ownEventReceived = (p.ownEventReceived || 0) + actual;
         distributeExact(provA, actual);
         capacityA -= actual;
       }
@@ -2397,6 +2401,7 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
       const actualLoss = Math.min(-negTotal, p.liveValue);
       p.liveValue = Math.round(p.liveValue - actualLoss);
       p.paid = (p.paid || 0) + actualLoss;
+      p.ownEventPaid = (p.ownEventPaid || 0) + actualLoss; // this IS this player's own event
       distributeExact(otherSide, -actualLoss);
     });
   };
@@ -2542,11 +2547,12 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
       const updated = settled.find(sl => sl.player_id === s.player_id);
       if (!updated) return s;
 
+      const ownEventNet = (updated.ownEventReceived || 0) - (updated.ownEventPaid || 0);
       historyRows.push({
         tournament_id: tournamentId, entry_id: entry.id, gameweek,
         player_id: s.player_id, name: s.name, position: s.position, team: s.team,
         starting_value: s.value || 0, ending_value: Math.round(updated.liveValue),
-        raw_change: (updated.received || 0) - (updated.paid || 0),
+        raw_change: ownEventNet,
         win_bonus: Math.round(updated.received || 0),
         penalty_paid: Math.round(updated.paid || 0), benched: updated.benched,
         stats: updated.gwStats
@@ -2558,7 +2564,8 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
           gameweek,
           stats: updated.gwStats,
           benched: updated.benched,
-          raw_change: (updated.received || 0) - (updated.paid || 0),
+          raw_change: ownEventNet,
+          own_event_net: ownEventNet,
           win_bonus: updated.received || 0,
           penalty_paid: updated.paid || 0,
           short_by: updated.shortBy || 0
