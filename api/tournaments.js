@@ -251,15 +251,15 @@ module.exports = async (req, res) => {
         // stats come in — the exact same mechanic as the real final
         // settlement, just not yet persisted. Purely a display
         // computation until GW${currentGw} actually finishes.
-        let liveMine = null, liveOpponent = null;
+        let liveMine = null, liveOpponent = null, liveDebug = null;
         if (matchup && opponentEntry && !matchup.settled) {
           try {
             const myPlayerIds = mySquadWithComparison.filter(s => !s.empty).map(s => s.player_id);
             const oppPlayerIds = (opponentEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id);
             const allIds = [...new Set([...myPlayerIds, ...oppPlayerIds])];
-            const { data: statRows } = allIds.length > 0
+            const { data: statRows, error: statErr } = allIds.length > 0
               ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', currentGw).in('player_id', allIds)
-              : { data: [] };
+              : { data: [], error: null };
             const statsByPid = {};
             (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
             const concededByTeam = await getTeamGoalsConcededMap(masterDb, currentGw);
@@ -274,8 +274,15 @@ module.exports = async (req, res) => {
             });
             liveMine = provA.map(mapOut);
             liveOpponent = provB.map(mapOut);
+            liveDebug = {
+              currentGw, allIdsCount: allIds.length, allIds,
+              statErr: statErr ? statErr.message : null,
+              statRowsFound: (statRows || []).length,
+              matchedStatsForMyIds: myPlayerIds.map(id => ({ id, hasStats: !!statsByPid[id], stats: statsByPid[id] || null }))
+            };
           } catch (liveErr) {
             console.error('computeUnifiedSettlement (live) failed:', liveErr);
+            liveDebug = { error: liveErr.message, stack: liveErr.stack };
           }
         }
 
@@ -283,6 +290,7 @@ module.exports = async (req, res) => {
           entry: { ...myEntry, squad_players: mySquadWithComparison },
           opponent: opponentEntry,
           matchup: matchup || null,
+          live_debug: liveDebug,
           gameweek: currentGw,
           live: liveMine ? { mine: liveMine, opponent: liveOpponent } : null,
           opponent_name: opponentName
