@@ -493,6 +493,18 @@
             </div>`;
         }
 
+        let deltaHtml = '';
+        if (bd && !bd.benched) {
+          const net = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
+          if (net !== 0) {
+            deltaHtml = `<div class="p-delta ${net > 0 ? 'up' : 'down'}">${net > 0 ? '▲' : '▼'} ${money(Math.abs(net))} this week</div>`;
+          } else {
+            deltaHtml = `<div class="p-delta flat">— no change this week</div>`;
+          }
+        } else if (bd && bd.benched) {
+          deltaHtml = `<div class="p-delta flat">— benched, frozen</div>`;
+        }
+
         return `
         <div class="portfolio-card">
           <div class="p-photo-wrap"><div class="no-photo"><i class="fas fa-user"></i></div></div>
@@ -500,6 +512,7 @@
             <div class="p-name">${escapeHtml(p.name)}</div>
             <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
             <div class="p-value">${money(p.value)}</div>
+            ${deltaHtml}
             ${bestHtml}
             ${benchedHtml}
             ${statsRow}

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gameweek History - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .navbar .logo{ display:flex; align-items:center; gap:10px; }
+    .navbar .logo-icon{ width:38px; height:38px; border-radius:9px; background:linear-gradient(145deg,var(--accent),#1d4ed8); display:flex; align-items:center; justify-content:center; }
+    .navbar .logo-text{ font-family:var(--font-display); font-size:18px; letter-spacing:.5px; }
+    .navbar .logo-sub{ font-family:var(--font-head); font-size:10px; color:var(--accent-2); letter-spacing:2px; }
+    .back-link{ font-family:var(--font-head); font-size:13px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+    .back-link:hover{ color:var(--accent-2); }
+
+    main{ max-width:900px; margin:0 auto; padding:32px 20px 60px; }
+    h1{ font-family:var(--font-display); font-size:32px; letter-spacing:.5px; margin-bottom:6px; }
+    .subhead{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
+
+    .toolbar{ display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
+    .btn{ font-family:var(--font-head); font-weight:700; font-size:13px; padding:10px 18px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); display:inline-flex; align-items:center; gap:8px; }
+    .btn:hover{ border-color:var(--border-hover); }
+    .btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+    .week-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:16px; overflow:hidden; }
+    .week-header{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; cursor:pointer; }
+    .week-header:hover{ background:var(--bg-card); }
+    .week-title{ font-family:var(--font-head); font-weight:700; font-size:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .week-badge{ font-size:10px; font-weight:800; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:.4px; }
+    .week-badge.win{ background:rgba(34,197,94,0.15); color:var(--green); }
+    .week-badge.loss{ background:rgba(239,68,68,0.15); color:var(--red); }
+    .week-badge.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
+    .week-badge.bye{ background:var(--bg-card); color:var(--text-faint); }
+    .week-badge.pending{ background:rgba(96,165,250,0.15); color:var(--accent-2); }
+    .week-opponent{ font-size:12.5px; color:var(--text-dim); font-weight:500; }
+    .week-gap{ font-family:var(--font-head); font-weight:700; font-size:14px; }
+    .chevron{ color:var(--text-faint); transition:transform .2s; }
+    .week-card.open .chevron{ transform:rotate(180deg); }
+
+    .week-body{ display:none; padding:0 20px 20px; overflow-x:auto; }
+    .week-card.open .week-body{ display:block; }
+
+    table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:640px; }
+    th{ text-align:left; padding:8px 6px; color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:.3px; border-bottom:1px solid var(--border); }
+    td{ padding:8px 6px; border-bottom:1px solid var(--border); }
+    tr:last-child td{ border-bottom:none; }
+    .num{ text-align:right; font-family:var(--font-head); font-weight:600; }
+    .pos{ color:var(--text-faint); text-transform:uppercase; font-size:10px; }
+    .up{ color:var(--green); }
+    .down{ color:var(--red); }
+    .benched-row{ opacity:0.5; }
+
+    .empty{ text-align:center; padding:60px 20px; color:var(--text-faint); }
+    .loading{ text-align:center; padding:60px 20px; color:var(--text-faint); }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">
+      <div class="logo-icon"><i class="fas fa-trophy" style="color:#fff;"></i></div>
+      <div><div class="logo-text">GB TOURNAMENTS</div><div class="logo-sub">GAMEWEEK HISTORY</div></div>
+    </div>
+    <a href="/stock-market" class="back-link"><i class="fas fa-arrow-left"></i> Back to Stock Market</a>
+  </nav>
+
+  <main>
+    <h1>Gameweek History</h1>
+    <p class="subhead">Full week-by-week breakdown — every player, every action, every head-to-head result.</p>
+
+    <div class="toolbar">
+      <button class="btn primary" onclick="downloadCsv()"><i class="fas fa-download"></i> Download CSV</button>
+      <button class="btn" onclick="loadHistory()"><i class="fas fa-rotate"></i> Refresh</button>
+    </div>
+
+    <div id="weeksContainer"><div class="loading">Loading…</div></div>
+  </main>
+
+  <script>
+    let tournamentId = null;
+    let historyData = null;
+
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : str;
+      return div.innerHTML;
+    }
+    function money(pence) { return `£${((pence||0)/100).toFixed(2)}`; }
+    function posDisplay(position) {
+      const map = { 1:'GK',2:'DEF',3:'MID',4:'FWD', gk:'GK', def:'DEF', mid:'MID', fwd:'FWD' };
+      return map[position] || position || '';
+    }
+
+    async function ensureTournamentId() {
+      if (tournamentId) return;
+      const res = await fetch('/api/tournaments?status=live&tournament_type=stockmarket');
+      const data = await res.json();
+      if (data.tournaments && data.tournaments.length > 0) tournamentId = data.tournaments[0].id;
+    }
+
+    async function loadHistory() {
+      if (!localStorage.getItem('gbf_token')) {
+        window.location.href = '/login?redirect=%2Fstock-market-history';
+        return;
+      }
+      document.getElementById('weeksContainer').innerHTML = '<div class="loading">Loading…</div>';
+      await ensureTournamentId();
+      if (!tournamentId) {
+        document.getElementById('weeksContainer').innerHTML = '<div class="empty">No live Stock Market tournament found.</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/tournaments?stockmarket_history=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+        const data = await res.json();
+        if (!data.entry) {
+          document.getElementById('weeksContainer').innerHTML = '<div class="empty">You haven\'t entered this tournament.</div>';
+          return;
+        }
+        historyData = data;
+        renderWeeks(data.weeks || []);
+      } catch (e) {
+        console.error('loadHistory failed:', e);
+        document.getElementById('weeksContainer').innerHTML = '<div class="empty">Couldn\'t load history right now.</div>';
+      }
+    }
+
+    function renderWeeks(weeks) {
+      const container = document.getElementById('weeksContainer');
+      if (weeks.length === 0) {
+        container.innerHTML = '<div class="empty">No gameweeks processed yet.</div>';
+        return;
+      }
+
+      container.innerHTML = weeks.map((w) => {
+        let badgeClass, badgeText;
+        if (w.bye) { badgeClass = 'bye'; badgeText = 'Bye'; }
+        else if (!w.settled) { badgeClass = 'pending'; badgeText = 'Pending'; }
+        else if (w.gap === 0) { badgeClass = 'draw'; badgeText = 'Draw'; }
+        else if (w.won) { badgeClass = 'win'; badgeText = 'Won'; }
+        else { badgeClass = 'loss'; badgeText = 'Lost'; }
+
+        const playerRows = w.players.map(p => {
+          const change = (p.ending_value || 0) - (p.starting_value || 0);
+          const s = p.stats || {};
+          const statText = p.benched ? 'Benched' :
+            `GL ${s.goals||0} AS ${s.assists||0} YC ${s.yellow_cards||0} RC ${s.red_cards||0} CS ${s.clean_sheets||0} GC ${s.goals_conceded||0} SV ${s.saves||0}`;
+          return `
+          <tr class="${p.benched ? 'benched-row' : ''}">
+            <td>${escapeHtml(p.name)}</td>
+            <td class="pos">${posDisplay(p.position)}</td>
+            <td>${escapeHtml(p.team || '')}</td>
+            <td style="font-size:11px; color:var(--text-faint);">${statText}</td>
+            <td class="num">${money(p.starting_value)}</td>
+            <td class="num">${money(p.win_bonus)}</td>
+            <td class="num">${p.penalty_paid > 0 ? '-' + money(p.penalty_paid) : money(0)}</td>
+            <td class="num">${money(p.ending_value)}</td>
+            <td class="num ${change > 0 ? 'up' : change < 0 ? 'down' : ''}">${change >= 0 ? '+' : ''}${money(change)}</td>
+          </tr>`;
+        }).join('');
+
+        return `
+        <div class="week-card" id="week-${w.gameweek}">
+          <div class="week-header" onclick="document.getElementById('week-${w.gameweek}').classList.toggle('open')">
+            <div class="week-title">
+              GW${w.gameweek}
+              <span class="week-badge ${badgeClass}">${badgeText}</span>
+              ${w.opponent_name ? `<span class="week-opponent">vs ${escapeHtml(w.opponent_name)}</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              ${w.settled && !w.bye ? `<span class="week-gap">Gap: ${money(w.gap)}</span>` : ''}
+              <i class="fas fa-chevron-down chevron"></i>
+            </div>
+          </div>
+          <div class="week-body">
+            <table>
+              <tr><th>Player</th><th>Pos</th><th>Team</th><th>Stats</th><th>Start</th><th>Won</th><th>Paid</th><th>End</th><th>Change</th></tr>
+              ${playerRows || '<tr><td colspan="9" style="color:var(--text-faint); text-align:center; padding:16px;">No player data for this week.</td></tr>'}
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+
+      const last = weeks[weeks.length - 1];
+      if (last) {
+        const el = document.getElementById(`week-${last.gameweek}`);
+        if (el) el.classList.add('open');
+      }
+    }
+
+    function downloadCsv() {
+      if (!historyData || !historyData.weeks || historyData.weeks.length === 0) {
+        alert('Nothing to download yet.');
+        return;
+      }
+      const rows = [['Gameweek', 'Opponent', 'Result', 'Gap', 'Player', 'Position', 'Team', 'Benched', 'Goals', 'Assists', 'Yellow', 'Red', 'CleanSheets', 'GoalsConceded', 'Saves', 'StartValue', 'WinBonus', 'PenaltyPaid', 'EndValue', 'Change']];
+      historyData.weeks.forEach(w => {
+        const result = w.bye ? 'Bye' : !w.settled ? 'Pending' : w.gap === 0 ? 'Draw' : (w.won ? 'Won' : 'Lost');
+        w.players.forEach(p => {
+          const s = p.stats || {};
+          const change = (p.ending_value || 0) - (p.starting_value || 0);
+          rows.push([
+            w.gameweek, w.opponent_name || '', result, ((w.gap||0)/100).toFixed(2),
+            p.name, posDisplay(p.position), p.team || '', p.benched ? 'Yes' : 'No',
+            s.goals||0, s.assists||0, s.yellow_cards||0, s.red_cards||0, s.clean_sheets||0, s.goals_conceded||0, s.saves||0,
+            ((p.starting_value||0)/100).toFixed(2), ((p.win_bonus||0)/100).toFixed(2), ((p.penalty_paid||0)/100).toFixed(2),
+            ((p.ending_value||0)/100).toFixed(2), (change/100).toFixed(2)
+          ]);
+        });
+      });
+      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stock-market-history-gw${historyData.weeks[0].gameweek}-${historyData.weeks[historyData.weeks.length-1].gameweek}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadHistory);
+  </script>
+</body>
+</html>

@@ -123,6 +123,70 @@ module.exports = async (req, res) => {
       // Your current gameweek matchup: your squad, your opponent's squad,
       // and — for any of your players also owned by other entrants —
       // the best value that same real player is achieving elsewhere.
+      // Full gameweek-by-gameweek history for a user's entry — every
+      // player's breakdown for every processed week, plus who they
+      // played and the result, for full week-by-week verification.
+      const stockmarketHistory = params.get('stockmarket_history');
+      if (stockmarketHistory === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (!user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: myEntry } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, current_value, start_value').eq('tournament_id', tournamentId).eq('user_id', user.id).maybeSingle();
+        if (!myEntry) return res.status(200).json({ entry: null });
+
+        const { data: historyRows } = await supabaseAdmin
+          .schema('stockmarket').from('player_gw_history')
+          .select('*').eq('entry_id', myEntry.id).order('gameweek', { ascending: true });
+
+        const { data: matchupRows } = await supabaseAdmin
+          .schema('stockmarket').from('matchups')
+          .select('*').eq('tournament_id', tournamentId)
+          .or(`entry_id_1.eq.${myEntry.id},entry_id_2.eq.${myEntry.id}`)
+          .order('gameweek', { ascending: true });
+
+        // Resolve opponent names for every matchup
+        const opponentEntryIds = [...new Set((matchupRows || [])
+          .map(m => m.entry_id_1 === myEntry.id ? m.entry_id_2 : m.entry_id_1)
+          .filter(Boolean))];
+        let opponentNameByEntryId = {};
+        if (opponentEntryIds.length > 0) {
+          const { data: oppEntries } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, user_id').in('id', opponentEntryIds);
+          const oppUserIds = (oppEntries || []).map(e => e.user_id);
+          const { data: oppUsers } = oppUserIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, email').in('id', oppUserIds)
+            : { data: [] };
+          const emailByUserId = {};
+          (oppUsers || []).forEach(u => { emailByUserId[u.id] = u.email; });
+          (oppEntries || []).forEach(e => { opponentNameByEntryId[e.id] = emailByUserId[e.user_id] || 'Unknown'; });
+        }
+
+        // Group everything by gameweek for easy display
+        const byGameweek = {};
+        (historyRows || []).forEach(row => {
+          byGameweek[row.gameweek] = byGameweek[row.gameweek] || { gameweek: row.gameweek, players: [] };
+          byGameweek[row.gameweek].players.push(row);
+        });
+        (matchupRows || []).forEach(m => {
+          byGameweek[m.gameweek] = byGameweek[m.gameweek] || { gameweek: m.gameweek, players: [] };
+          const oppEntryId = m.entry_id_1 === myEntry.id ? m.entry_id_2 : m.entry_id_1;
+          byGameweek[m.gameweek].opponent_name = oppEntryId ? (opponentNameByEntryId[oppEntryId] || 'Unknown') : null;
+          byGameweek[m.gameweek].bye = !oppEntryId;
+          byGameweek[m.gameweek].settled = m.settled;
+          byGameweek[m.gameweek].gap = m.gap;
+          byGameweek[m.gameweek].won = m.settled ? (m.winner_entry_id === myEntry.id) : null;
+        });
+
+        const weeks = Object.values(byGameweek).sort((a, b) => a.gameweek - b.gameweek);
+        return res.status(200).json({ entry: myEntry, weeks });
+      }
+
       const stockmarketMatchup = params.get('stockmarket_matchup');
       if (stockmarketMatchup === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
@@ -2397,12 +2461,25 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 
   // Save every entry's updated squad + total value, including a full
   // breakdown per player of exactly what happened this gameweek and why.
+  // Also permanently log it to player_gw_history — squad_players only
+  // ever holds the latest snapshot, this is the full week-by-week record.
+  const historyRows = [];
   for (const entryId of Object.keys(prepared)) {
     const { entry, slots } = prepared[entryId];
     const fullSquad = (entry.squad_players || []).map(s => {
       if (s.empty) return s;
       const updated = slots.find(sl => sl.player_id === s.player_id);
       if (!updated) return s;
+
+      historyRows.push({
+        tournament_id: tournamentId, entry_id: entryId, gameweek,
+        player_id: s.player_id, name: s.name, position: s.position, team: s.team,
+        starting_value: s.value || 0, ending_value: Math.round(updated.value),
+        raw_change: updated.actualChange, win_bonus: Math.round(updated.winBonus || 0),
+        penalty_paid: Math.round(updated.penaltyPaid || 0), benched: updated.benched,
+        stats: updated.gwStats
+      });
+
       return {
         ...s, value: updated.value,
         last_gw_breakdown: {
@@ -2419,6 +2496,10 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     await supabaseAdmin.schema('stockmarket').from('tournament_entries')
       .update({ squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal })
       .eq('id', entryId);
+  }
+  if (historyRows.length > 0) {
+    const { error: historyError } = await supabaseAdmin.schema('stockmarket').from('player_gw_history').insert(historyRows);
+    if (historyError) console.error('player_gw_history insert failed:', historyError);
   }
 
   if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {
