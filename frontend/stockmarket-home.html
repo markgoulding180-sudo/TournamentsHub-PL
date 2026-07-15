@@ -537,15 +537,19 @@
         if (bd && bd.benched) {
           deltaHtml = `<div class="p-delta flat">— benched, frozen</div>`;
         } else if (bd) {
-          const raw = bd.raw_change || 0;
-          const payout = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
-          const rawLine = raw !== 0
-            ? `<div class="p-delta ${raw > 0 ? 'up' : 'down'}">${raw > 0 ? '▲' : '▼'} ${money(Math.abs(raw))} own actions</div>`
-            : `<div class="p-delta flat">— no own actions this week</div>`;
-          const payoutLine = payout !== 0
-            ? `<div class="p-delta ${payout > 0 ? 'up' : 'down'}" style="margin-top:1px;">${payout > 0 ? '▲' : '▼'} ${money(Math.abs(payout))} from head-to-head</div>`
-            : `<div class="p-delta flat" style="margin-top:1px;">— no head-to-head change</div>`;
-          deltaHtml = rawLine + payoutLine;
+          const own = bd.own_event_net || 0;
+          const total = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
+          const fromOpponent = total - own;
+
+          const ownLine = own !== 0
+            ? `<div class="p-delta ${own > 0 ? 'up' : 'down'}">${own > 0 ? '▲' : '▼'} ${money(Math.abs(own))} own actions</div>`
+            : `<div class="p-delta flat">— £0.00 own actions</div>`;
+          const oppLine = fromOpponent !== 0
+            ? `<div class="p-delta ${fromOpponent > 0 ? 'up' : 'down'}" style="margin-top:1px;">${fromOpponent > 0 ? '▲' : '▼'} ${money(Math.abs(fromOpponent))} from opponent's events</div>`
+            : `<div class="p-delta flat" style="margin-top:1px;">— £0.00 from opponent's events</div>`;
+          const totalLine = `<div class="p-delta ${total > 0 ? 'up' : total < 0 ? 'down' : 'flat'}" style="margin-top:1px; font-weight:800; border-top:1px solid var(--border); padding-top:3px;">${total > 0 ? '▲' : total < 0 ? '▼' : '—'} ${money(Math.abs(total))} total this week</div>`;
+
+          deltaHtml = ownLine + oppLine + totalLine;
         }
 
         return `
