@@ -238,11 +238,42 @@ module.exports = async (req, res) => {
           return { ...s, best_elsewhere: bestValueByPid[s.player_id] || null };
         });
 
+        // If this week's matchup exists but hasn't been finally settled
+        // yet, compute a LIVE, provisional view — every event funds
+        // directly from the opponent, evenly, updating in real time as
+        // stats come in. Purely a display computation, nothing here is
+        // ever written to the database; the final settlement (once the
+        // gameweek's matches are actually finished) is what really moves
+        // money, using the proven even-split gap model.
+        let liveMine = null, liveOpponent = null;
+        if (matchup && opponentEntry && !matchup.settled) {
+          try {
+            const myPlayerIds = mySquadWithComparison.filter(s => !s.empty).map(s => s.player_id);
+            const oppPlayerIds = (opponentEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id);
+            const allIds = [...new Set([...myPlayerIds, ...oppPlayerIds])];
+            const { data: statRows } = allIds.length > 0
+              ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', currentGw).in('player_id', allIds)
+              : { data: [] };
+            const statsByPid = {};
+            (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
+            const concededByTeam = await getTeamGoalsConcededMap(masterDb, currentGw);
+
+            const { provA, provB } = await computeLiveProvisional(
+              masterDb, mySquadWithComparison, opponentEntry.squad_players || [], currentGw, concededByTeam, statsByPid
+            );
+            liveMine = provA;
+            liveOpponent = provB;
+          } catch (liveErr) {
+            console.error('computeLiveProvisional failed:', liveErr);
+          }
+        }
+
         return res.status(200).json({
           entry: { ...myEntry, squad_players: mySquadWithComparison },
           opponent: opponentEntry,
           matchup: matchup || null,
-          gameweek: currentGw
+          gameweek: currentGw,
+          live: liveMine ? { mine: liveMine, opponent: liveOpponent } : null
         });
       }
 
@@ -2318,6 +2349,44 @@ const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
 
 function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
   return Math.round(squad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
+}
+
+// Computes LIVE, PROVISIONAL values for a matched pair — every event
+// (goal, card, clean sheet, conceded, etc) applies directly and
+// immediately to the player it happened to, funded evenly from the
+// OTHER squad's 6 players at that exact moment. This is provably
+// zero-sum for the pair regardless of magnitude (each event's gain on
+// one side is an equal, simultaneous loss spread across the other),
+// with no separate "gap" step needed. Purely a display computation —
+// never written to the database. The final settlement (even-split gap,
+// once the gameweek's matches are actually finished) remains the only
+// thing that actually moves real money.
+async function computeLiveProvisional(masterDb, squadA, squadB, gameweek, concededByTeam, statsByPid) {
+  const provA = squadA.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0 }));
+  const provB = squadB.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0 }));
+
+  const applyEvents = (mySide, otherSide) => {
+    mySide.forEach(p => {
+      if (p.is_sub) return; // benched — excluded from live events too
+      const stats = statsByPid[p.player_id] || {};
+      const teamConceded = concededByTeam[p.team] || 0;
+      const { actualChange } = computePlayerRawChange(
+        p.position, { ...stats, team_goals_conceded: teamConceded }, p.liveValue
+      );
+      if (actualChange === 0) return;
+
+      p.liveValue = Math.round(p.liveValue + actualChange);
+      if (otherSide.length > 0) {
+        const share = actualChange / otherSide.length;
+        otherSide.forEach(o => { o.liveValue = Math.round(o.liveValue - share); });
+      }
+    });
+  };
+
+  applyEvents(provA, provB);
+  applyEvents(provB, provA);
+
+  return { provA, provB };
 }
 
 async function getTeamGoalsConcededMap(masterDb, gameweek) {

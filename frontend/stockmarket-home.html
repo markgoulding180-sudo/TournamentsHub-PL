@@ -432,9 +432,11 @@
       document.getElementById('mainContent').style.display = 'block';
 
       const entry = data.entry;
-      const gainLoss = (entry.current_value || 0) - (entry.start_value || 0);
+      const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
+      const displayValue = liveTotalNow !== null ? liveTotalNow : entry.current_value;
+      const gainLoss = (displayValue || 0) - (entry.start_value || 0);
       document.getElementById('statRow').innerHTML = `
-        <div class="stat"><div class="label">Your Value</div><div class="value">${money(entry.current_value)}</div></div>
+        <div class="stat"><div class="label">${liveTotalNow !== null ? 'Your Value (Live)' : 'Your Value'}</div><div class="value">${money(displayValue)}</div></div>
         <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
         <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
       `;
@@ -554,7 +556,19 @@
         </div>`;
       };
 
-      const myCards = (entry.squad_players || []).map(p => renderPlayerCard(p, true)).join('');
+      const liveByPid = {};
+      let liveTotalMine = null, liveTotalOpp = null;
+      if (data.live && data.live.mine) {
+        data.live.mine.forEach(p => { liveByPid[p.player_id] = p.liveValue; });
+        liveTotalMine = Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0));
+        liveTotalOpp = Math.round((data.live.opponent || []).reduce((s, p) => s + p.liveValue, 0));
+      }
+      const withLive = (squad) => (squad || []).map(s => {
+        if (s.empty || liveByPid[s.player_id] === undefined) return s;
+        return { ...s, value: liveByPid[s.player_id], is_live: true };
+      });
+
+      const myCards = withLive(entry.squad_players).map(p => renderPlayerCard(p, true)).join('');
       document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
 
       if (!data.opponent) {
@@ -562,6 +576,7 @@
       } else {
         const opp = data.opponent;
         const m = data.matchup;
+        const isLive = !!data.live;
         const iWon = m && m.winner_entry_id === entry.id;
         const myRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_1 : m.raw_total_2) : null;
         const oppRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_2 : m.raw_total_1) : null;
@@ -570,13 +585,20 @@
           ? `<div class="p-est" style="margin-bottom:4px;">Your squad's own actions this week: ${money(myRaw)} · Opponent's: ${money(oppRaw)} · Gap: ${money(m.gap)}</div>
              ${bothNegative ? `<div class="p-est" style="margin-bottom:10px; color:var(--accent-2);">Both squads had a rough week — ${iWon ? 'yours was still the smaller loss, so you win the £' + (m.gap/100).toFixed(2) + ' difference' : "your opponent's was the smaller loss"}.</div>` : '<div style="margin-bottom:10px;"></div>'}`
           : '';
+        const liveBanner = isLive
+          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);"><i class="fas fa-bolt"></i> LIVE — events funded directly from your opponent as they happen. Provisional until GW${data.gameweek} finishes, when the real settlement runs.</div>`
+          : '';
         const resultBanner = !m ? '' : !m.settled
-          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
+          ? liveBanner || `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
           : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
-        const oppCards = (opp.squad_players || []).map(p => renderPlayerCard(p, false)).join('');
+        const liveTotalsHtml = isLive
+          ? `<div class="p-est" style="margin-bottom:10px;">Live totals — Yours: ${money(liveTotalMine)} · Opponent's: ${money(liveTotalOpp)}</div>`
+          : '';
+        const oppCards = withLive(opp.squad_players).map(p => renderPlayerCard(p, false)).join('');
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
           ${rawSummary}
+          ${liveTotalsHtml}
           <div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>
           <div class="portfolio-grid">${oppCards}</div>`;
       }
