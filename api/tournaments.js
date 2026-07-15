@@ -2361,7 +2361,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     const slots = squad.filter(s => !s.empty).map(s => {
       const startingValue = s.value || 0;
       if (s.is_sub) {
-        return { ...s, value: startingValue, actualChange: 0, hadNegative: false, cardSeverity: 0, penaltyPaid: 0, winBonus: 0 };
+        return { ...s, value: startingValue, actualChange: 0, hadNegative: false, cardSeverity: 0, penaltyPaid: 0, winBonus: 0, gwStats: null, benched: true };
       }
       const stats = statsByPid[s.player_id] || {};
       const teamConceded = concededByTeam[s.team] || 0;
@@ -2369,7 +2369,14 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
         s.position, { ...stats, team_goals_conceded: teamConceded }, startingValue
       );
       const cardSeverity = (stats.red_cards || 0) > 0 ? 100 : (stats.yellow_cards || 0) > 0 ? 30 : 0;
-      return { ...s, value: startingValue, actualChange, hadNegative, cardSeverity, penaltyPaid: 0, winBonus: 0 };
+      const gwStats = {
+        goals: stats.goals_scored || 0, assists: stats.assists || 0,
+        yellow_cards: stats.yellow_cards || 0, red_cards: stats.red_cards || 0,
+        clean_sheets: stats.clean_sheets || 0,
+        goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded,
+        saves: stats.saves || 0
+      };
+      return { ...s, value: startingValue, actualChange, hadNegative, cardSeverity, penaltyPaid: 0, winBonus: 0, gwStats, benched: false };
     });
     prepared[entry.id] = { entry, slots };
   }
@@ -2388,13 +2395,25 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     }).eq('id', row.id);
   }
 
-  // Save every entry's updated squad + total value.
+  // Save every entry's updated squad + total value, including a full
+  // breakdown per player of exactly what happened this gameweek and why.
   for (const entryId of Object.keys(prepared)) {
     const { entry, slots } = prepared[entryId];
     const fullSquad = (entry.squad_players || []).map(s => {
       if (s.empty) return s;
       const updated = slots.find(sl => sl.player_id === s.player_id);
-      return updated ? { ...s, value: updated.value } : s;
+      if (!updated) return s;
+      return {
+        ...s, value: updated.value,
+        last_gw_breakdown: {
+          gameweek,
+          stats: updated.gwStats,
+          benched: updated.benched,
+          raw_change: updated.actualChange,
+          win_bonus: updated.winBonus || 0,
+          penalty_paid: updated.penaltyPaid || 0
+        }
+      };
     });
     const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
     await supabaseAdmin.schema('stockmarket').from('tournament_entries')

@@ -453,6 +453,46 @@
             <button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
             <button class="mini-btn danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</button>
           </div>` : '';
+
+        const bd = p.last_gw_breakdown;
+        const posKey = (p.position || '').toLowerCase();
+        const showCS = posKey === 'gk';
+        const showSV = posKey === 'gk';
+        const showGC = posKey === 'gk' || posKey === 'def' || posKey === 'mid' || posKey === 'fwd';
+
+        let statsRow = '', breakdownHtml = '';
+        if (bd && bd.stats) {
+          const s = bd.stats;
+          statsRow = `
+            <div class="p-stats-row">
+              <span class="stat-pill GL ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
+              <span class="stat-pill AS ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
+              <span class="stat-pill YC ${s.yellow_cards > 0 ? 'active' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
+              <span class="stat-pill RC ${s.red_cards > 0 ? 'active' : ''}" title="Red Cards">RC ${s.red_cards}</span>
+              ${showCS ? `<span class="stat-pill CS ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
+              ${showGC ? `<span class="stat-pill GC ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
+              ${showSV ? `<span class="stat-pill SV ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
+            </div>`;
+
+          const lines = [];
+          if (bd.benched) {
+            lines.push('Benched this gameweek — excluded from scoring entirely.');
+          } else {
+            lines.push(`Own actions this gameweek: ${money(bd.raw_change)} raw change (used only to help decide the head-to-head result, not applied directly to value).`);
+            if (bd.win_bonus > 0) lines.push(`Won ${money(bd.win_bonus)} from this week's head-to-head result.`);
+            if (bd.penalty_paid > 0) lines.push(`Paid ${money(bd.penalty_paid)} toward this week's head-to-head loss.`);
+            if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result this week.');
+          }
+          const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
+          breakdownHtml = `
+            <button class="mini-btn" style="margin-top:6px; width:100%;" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'block' : 'none';">
+              <i class="fas fa-circle-info"></i> Why?
+            </button>
+            <div id="${detailId}" style="display:none; text-align:left; font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.5;">
+              ${lines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('')}
+            </div>`;
+        }
+
         return `
         <div class="portfolio-card">
           <div class="p-photo-wrap"><div class="no-photo"><i class="fas fa-user"></i></div></div>
@@ -462,6 +502,8 @@
             <div class="p-value">${money(p.value)}</div>
             ${bestHtml}
             ${benchedHtml}
+            ${statsRow}
+            ${breakdownHtml}
             ${actions}
           </div>
         </div>`;
@@ -476,12 +518,18 @@
         const opp = data.opponent;
         const m = data.matchup;
         const iWon = m && m.winner_entry_id === entry.id;
+        const myRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_1 : m.raw_total_2) : null;
+        const oppRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_2 : m.raw_total_1) : null;
+        const rawSummary = (m && m.settled)
+          ? `<div class="p-est" style="margin-bottom:10px;">Your squad's own actions this week: ${money(myRaw)} · Opponent's: ${money(oppRaw)} · Gap: ${money(m.gap)}</div>`
+          : '';
         const resultBanner = !m ? '' : !m.settled
           ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
           : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
         const oppCards = (opp.squad_players || []).map(p => renderPlayerCard(p, false)).join('');
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
+          ${rawSummary}
           <div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>
           <div class="portfolio-grid">${oppCards}</div>`;
       }
