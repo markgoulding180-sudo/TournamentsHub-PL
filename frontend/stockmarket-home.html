@@ -275,6 +275,10 @@
 
       <div class="stat-row" id="statRow"></div>
 
+      <a href="/stock-market-history" class="btn-primary" style="display:inline-flex; margin-bottom:20px;">
+        <i class="fas fa-clock-rotate-left"></i> View Full Gameweek History
+      </a>
+
       <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
         <p style="font-size:15px; color:var(--text-dim); margin-bottom:16px;" id="draftPromptText">You haven't drafted your squad yet.</p>
         <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
@@ -478,10 +482,25 @@
           if (bd.benched) {
             lines.push('Benched this gameweek — excluded from scoring entirely.');
           } else {
-            lines.push(`Own actions this gameweek: ${money(bd.raw_change)} raw change (used only to help decide the head-to-head result, not applied directly to value).`);
-            if (bd.win_bonus > 0) lines.push(`Won ${money(bd.win_bonus)} from this week's head-to-head result.`);
-            if (bd.penalty_paid > 0) lines.push(`Paid ${money(bd.penalty_paid)} toward this week's head-to-head loss.`);
-            if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result this week.');
+            const st = bd.stats || {};
+            const eventLines = [];
+            if (st.goals > 0) eventLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''}: +${money(st.goals * 75)}`);
+            if (st.assists > 0) eventLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''}: +${money(st.assists * 45)}`);
+            if (st.yellow_cards > 0) eventLines.push(`${st.yellow_cards} yellow card: -${money(30)}`);
+            if (st.red_cards > 0) eventLines.push(`Red card: -${money(100)}`);
+            if (showCS && st.clean_sheets > 0) eventLines.push(`Clean sheet: +${money(60)}`);
+            if (showSV && st.saves > 0) eventLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''}: +${money(Math.min(st.saves, 5) * 10)}`);
+            if (showGC && st.goals_conceded > 0) {
+              const rate = posKey === 'gk' ? 40 : 10;
+              const capped = posKey === 'gk' ? Math.min(st.goals_conceded, 4) : st.goals_conceded;
+              eventLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''}: -${money(capped * rate)}`);
+            }
+            if (eventLines.length === 0) eventLines.push('No goals, assists, cards, or clean sheet/conceded events this week.');
+            lines.push(...eventLines);
+            lines.push(`Own total this gameweek: ${money(bd.raw_change)} — this is compared against your opponent's own total to decide the week's result, not applied to value directly.`);
+            if (bd.win_bonus > 0) lines.push(`Your squad won this week's head-to-head — this player's share of the win: +${money(bd.win_bonus)}.`);
+            if (bd.penalty_paid > 0) lines.push(`Your squad lost this week's head-to-head — this player's share of the loss: -${money(bd.penalty_paid)}.`);
+            if (bd.win_bonus === 0 && bd.penalty_paid === 0) lines.push('No change from the head-to-head result — a draw, or this player wasn\'t involved in the win/loss split.');
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           breakdownHtml = `
@@ -533,8 +552,10 @@
         const iWon = m && m.winner_entry_id === entry.id;
         const myRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_1 : m.raw_total_2) : null;
         const oppRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_2 : m.raw_total_1) : null;
+        const bothNegative = m && m.settled && myRaw < 0 && oppRaw < 0;
         const rawSummary = (m && m.settled)
-          ? `<div class="p-est" style="margin-bottom:10px;">Your squad's own actions this week: ${money(myRaw)} · Opponent's: ${money(oppRaw)} · Gap: ${money(m.gap)}</div>`
+          ? `<div class="p-est" style="margin-bottom:4px;">Your squad's own actions this week: ${money(myRaw)} · Opponent's: ${money(oppRaw)} · Gap: ${money(m.gap)}</div>
+             ${bothNegative ? `<div class="p-est" style="margin-bottom:10px; color:var(--accent-2);">Both squads had a rough week — ${iWon ? 'yours was still the smaller loss, so you win the £' + (m.gap/100).toFixed(2) + ' difference' : "your opponent's was the smaller loss"}.</div>` : '<div style="margin-bottom:10px;"></div>'}`
           : '';
         const resultBanner = !m ? '' : !m.settled
           ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
