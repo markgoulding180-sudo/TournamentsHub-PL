@@ -935,6 +935,26 @@ module.exports = async (req, res) => {
       // ADMIN: instantly seed valid random squads for a list of existing
       // users, skipping the draft UI entirely — for repeated testing
       // without having to click through drafting every single time.
+      // TEMPORARY TEST TOOL — delete after testing. Force-closes the
+      // draft window right now instead of needing manual SQL each time.
+      if (action === 'stockmarket_force_close') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: closeTournamentId } = req.body;
+        if (!closeTournamentId) return res.status(400).json({ error: 'tournament_id is required' });
+
+        try {
+          await supabaseAdmin.schema('stockmarket').from('tournaments')
+            .update({ closes_at: new Date(Date.now() - 60000).toISOString() })
+            .eq('id', closeTournamentId);
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('stockmarket_force_close error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'stockmarket_seed_squads') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
@@ -1359,25 +1379,41 @@ module.exports = async (req, res) => {
           // The fee itself leaves your squad's economy entirely and
           // spreads as a small, real bump across every OTHER entrant's
           // own players — a genuine tournament-wide cost for upgrading,
-          // not an internal shuffle. Flagged on the response so the
-          // frontend can show it plainly.
+          // not an internal shuffle. Distributed pence-exact: no leak,
+          // however many entrants or players it's split across.
           const { data: otherEntries } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
             .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true);
 
           let feeRecipients = 0;
           if (otherEntries && otherEntries.length > 0 && packFee > 0) {
-            const perEntryShare = Math.floor(packFee / otherEntries.length);
-            for (const other of otherEntries) {
-              const otherSquad = other.squad_players || [];
-              const nonEmpty = otherSquad.filter(s => !s.empty);
-              if (nonEmpty.length === 0) continue;
-              const perPlayerShare = Math.floor(perEntryShare / nonEmpty.length);
-              nonEmpty.forEach(s => { s.value = (s.value || 0) + perPlayerShare; s.fee_bump = perPlayerShare; });
-              feeRecipients += nonEmpty.length;
-              const otherTotal = Math.round(otherSquad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
-              await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-                .update({ squad_players: otherSquad, current_value: otherTotal }).eq('id', other.id);
+            // Flatten to one list of every player across every other
+            // entrant — dividing once across this flat list (instead of
+            // per-entry then per-player) is what avoids the double-floor
+            // leak. Any leftover pence from the division go to the first
+            // few players in the list, so the full fee always lands
+            // exactly, to the penny, every single time.
+            const allOtherPlayers = [];
+            otherEntries.forEach(other => {
+              (other.squad_players || []).filter(s => !s.empty).forEach(s => allOtherPlayers.push({ entry: other, slot: s }));
+            });
+
+            if (allOtherPlayers.length > 0) {
+              const baseShare = Math.floor(packFee / allOtherPlayers.length);
+              const remainder = packFee - (baseShare * allOtherPlayers.length);
+              allOtherPlayers.forEach((item, i) => {
+                const bump = baseShare + (i < remainder ? 1 : 0);
+                item.slot.value = (item.slot.value || 0) + bump;
+                item.slot.fee_bump = bump;
+              });
+              feeRecipients = allOtherPlayers.length;
+
+              for (const other of otherEntries) {
+                const otherSquad = other.squad_players || [];
+                const otherTotal = Math.round(otherSquad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
+                await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+                  .update({ squad_players: otherSquad, current_value: otherTotal }).eq('id', other.id);
+              }
             }
           }
 
@@ -2784,15 +2820,21 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
                 .schema('stockmarket').from('tournament_entries')
                 .select('id, squad_players').eq('tournament_id', tournamentId).neq('id', entry.id).eq('squad_locked', true);
               if (otherEntries && otherEntries.length > 0 && bronzeFee > 0) {
-                const perEntryShare = Math.floor(bronzeFee / otherEntries.length);
-                for (const other of otherEntries) {
-                  const otherSquad = other.squad_players || [];
-                  const nonEmpty = otherSquad.filter(s => !s.empty);
-                  if (nonEmpty.length === 0) continue;
-                  const perPlayerShare = Math.floor(perEntryShare / nonEmpty.length);
-                  nonEmpty.forEach(s => { s.bonus_value = (s.bonus_value || 0) + perPlayerShare; });
-                  await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-                    .update({ squad_players: otherSquad }).eq('id', other.id);
+                const allOtherPlayers = [];
+                otherEntries.forEach(other => {
+                  (other.squad_players || []).filter(s => !s.empty).forEach(s => allOtherPlayers.push({ entry: other, slot: s }));
+                });
+                if (allOtherPlayers.length > 0) {
+                  const baseShare = Math.floor(bronzeFee / allOtherPlayers.length);
+                  const remainder = bronzeFee - (baseShare * allOtherPlayers.length);
+                  allOtherPlayers.forEach((item, i) => {
+                    const bump = baseShare + (i < remainder ? 1 : 0);
+                    item.slot.bonus_value = (item.slot.bonus_value || 0) + bump;
+                  });
+                  for (const other of otherEntries) {
+                    await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+                      .update({ squad_players: other.squad_players }).eq('id', other.id);
+                  }
                 }
               }
 

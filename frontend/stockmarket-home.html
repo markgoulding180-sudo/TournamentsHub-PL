@@ -262,9 +262,14 @@
       <!-- TEMPORARY TEST TOOL — delete after testing. Seeds the other 3
            known test users' squads randomly, never touches your own. -->
       <div class="card" style="border-color:var(--gold); margin-bottom:16px;">
-        <button class="btn-primary" onclick="seedTestSquads()" id="seedBtn">
-          <i class="fas fa-flask"></i> Seed Other 3 Test Squads
-        </button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="seedTestSquads()" id="seedBtn">
+            <i class="fas fa-flask"></i> Seed Other 3 Test Squads
+          </button>
+          <button class="btn-primary" onclick="forceCloseWindow()" id="closeWindowBtn" style="background:var(--red);">
+            <i class="fas fa-door-closed"></i> Force Close Draft Window
+          </button>
+        </div>
         <div id="seedResults" style="margin-top:10px; font-size:12.5px; color:var(--text-faint);"></div>
       </div>
 
@@ -596,6 +601,29 @@
         if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
         resultsEl.innerHTML = `Seeded ${data.seeded} squad(s):<br>` +
           data.results.map(r => `${r.user_id.slice(0, 8)}… — ${r.squad.join(', ')}`).join('<br>');
+      } catch (e) {
+        resultsEl.textContent = `Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function forceCloseWindow() {
+      const btn = document.getElementById('closeWindowBtn');
+      const resultsEl = document.getElementById('seedResults');
+      btn.disabled = true;
+      resultsEl.textContent = 'Closing draft window…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_force_close', tournament_id: tournamentId })
+        });
+        const data = await res.json();
+        if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
+        resultsEl.textContent = 'Draft window closed — reloading…';
+        await loadTournament();
+        resultsEl.textContent = 'Draft window closed. Reload again shortly to see it go fully live.';
       } catch (e) {
         resultsEl.textContent = `Error: ${e.message}`;
       } finally {
