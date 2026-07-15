@@ -248,10 +248,9 @@ module.exports = async (req, res) => {
         // If this week's matchup exists but hasn't been finally settled
         // yet, compute a LIVE, provisional view — every event funds
         // directly from the opponent, evenly, updating in real time as
-        // stats come in. Purely a display computation, nothing here is
-        // ever written to the database; the final settlement (once the
-        // gameweek's matches are actually finished) is what really moves
-        // money, using the proven even-split gap model.
+        // stats come in — the exact same mechanic as the real final
+        // settlement, just not yet persisted. Purely a display
+        // computation until GW${currentGw} actually finishes.
         let liveMine = null, liveOpponent = null;
         if (matchup && opponentEntry && !matchup.settled) {
           try {
@@ -265,13 +264,18 @@ module.exports = async (req, res) => {
             (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
             const concededByTeam = await getTeamGoalsConcededMap(masterDb, currentGw);
 
-            const { provA, provB } = await computeLiveProvisional(
-              masterDb, mySquadWithComparison, opponentEntry.squad_players || [], currentGw, concededByTeam, statsByPid
+            const { provA, provB } = computeUnifiedSettlement(
+              mySquadWithComparison, opponentEntry.squad_players || [], statsByPid, concededByTeam
             );
-            liveMine = provA;
-            liveOpponent = provB;
+            const mapOut = (p) => ({
+              player_id: p.player_id, name: p.name, position: p.position, team: p.team, is_sub: p.is_sub,
+              liveValue: p.liveValue, liveContribution: (p.received || 0) - (p.paid || 0),
+              liveStats: p.gwStats, shortBy: p.shortBy || 0
+            });
+            liveMine = provA.map(mapOut);
+            liveOpponent = provB.map(mapOut);
           } catch (liveErr) {
-            console.error('computeLiveProvisional failed:', liveErr);
+            console.error('computeUnifiedSettlement (live) failed:', liveErr);
           }
         }
 
@@ -2267,9 +2271,6 @@ function computePlayerRawChange(position, stats, currentValue) {
     const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
     if (cappedConceded > 0) { delta += cappedConceded * FLAT_REWARDS.gk_goal_conceded; hadNegative = true; }
   } else {
-    // Outfield players on the same real team share a smaller conceded
-    // penalty — a defensive collapse is everyone's problem, weighted
-    // toward the keeper.
     if ((stats.team_goals_conceded || 0) > 0) {
       delta += stats.team_goals_conceded * FLAT_REWARDS.outfield_goal_conceded;
       hadNegative = true;
@@ -2277,142 +2278,129 @@ function computePlayerRawChange(position, stats, currentValue) {
   }
 
   const newValue = Math.max(0, currentValue + delta);
-  const actualChange = newValue - currentValue; // may be less than delta if it hit the floor
+  const actualChange = newValue - currentValue;
   return { newValue, rawDelta: delta, actualChange, hadNegative };
 }
 
-// Settles one head-to-head matchup. squadA/squadB are arrays of 6 slots:
-// { player_id, position, name, team, value, actualChange, hadNegative,
-//   cardSeverity } — cardSeverity used only to prioritize who pays first.
-// Mutates .value on each slot in place and returns a settlement summary
-// for transparency (who paid what, and whether it spilled past the
-// actual culprit onto clean teammates).
-function settleMatchup(squadA, squadB) {
-  const totalA = squadA.reduce((s, p) => s + p.actualChange, 0);
-  const totalB = squadB.reduce((s, p) => s + p.actualChange, 0);
-  const gap = Math.abs(totalA - totalB);
-
-  if (gap === 0) return { draw: true, gap: 0, totalA, totalB };
-
-  const winnerSquad = totalA > totalB ? squadA : squadB;
-  const loserSquad = totalA > totalB ? squadB : squadA;
-  const winnerIsA = totalA > totalB;
-
-  // Winner: gap split proportionally among players who had a positive week.
-  const positiveContribs = winnerSquad.filter(p => p.actualChange > 0);
-  const totalPositive = positiveContribs.reduce((s, p) => s + p.actualChange, 0);
-  if (totalPositive > 0) {
-    positiveContribs.forEach(p => {
-      const share = Math.round((p.actualChange / totalPositive) * gap);
-      p.value = Math.round(p.value) + share;
-      p.winBonus = share;
-    });
+// Breaks one player's gameweek into separate categorized amounts, so the
+// settlement can process them in strict priority order (goals, then
+// assists, then saves, then clean sheets) when the funding squad doesn't
+// have enough to cover everything.
+function computePlayerEventBreakdown(position, stats) {
+  const goals = Math.min(stats.goals_scored || 0, 99);
+  const assists = Math.min(stats.assists || 0, 99);
+  const goalAmt = goals * FLAT_REWARDS.goal;
+  const assistAmt = assists * FLAT_REWARDS.assist;
+  const yellowAmt = (stats.yellow_cards || 0) * FLAT_REWARDS.yellow_card;
+  const redAmt = (stats.red_cards || 0) * FLAT_REWARDS.red_card;
+  let cleanSheetAmt = 0, saveAmt = 0, concededAmt = 0;
+  if (position === 'gk') {
+    if ((stats.clean_sheets || 0) > 0) cleanSheetAmt = FLAT_REWARDS.clean_sheet;
+    const cappedSaves = Math.min(stats.saves || 0, FLAT_REWARDS.save_cap);
+    saveAmt = cappedSaves * FLAT_REWARDS.save;
+    const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
+    concededAmt = cappedConceded * FLAT_REWARDS.gk_goal_conceded;
   } else {
-    // Nobody on the winning side had a positive week (won only because
-    // the opponent did even worse) — nothing to weight by, split evenly.
-    winnerSquad.forEach(p => { const share = Math.round(gap / 6); p.value = Math.round(p.value) + share; p.winBonus = share; });
+    concededAmt = (stats.team_goals_conceded || 0) * FLAT_REWARDS.outfield_goal_conceded;
   }
+  return { goalAmt, assistAmt, saveAmt, cleanSheetAmt, yellowAmt, redAmt, concededAmt };
+}
 
-  // Loser: the team lost as a team, so the team pays as a team — the
-  // gap splits evenly across all 6 players, regardless of which specific
-  // players had a good or bad week individually. No priority, no
-  // weighting by who did worse — simple and predictable. Flags any
-  // spillover if a player doesn't have enough value to cover their share.
-  let remaining = gap;
-  const spillover = [];
-
-  const eligiblePlayers = loserSquad.filter(p => !p.is_sub);
-  const pool = eligiblePlayers.length > 0 ? eligiblePlayers : loserSquad;
-  const share = Math.round(gap / pool.length);
-  pool.forEach(p => {
-    if (remaining <= 0) return;
-    const take = Math.min(share, Math.round(p.value), remaining);
-    p.value = Math.round(p.value) - take;
-    p.penaltyPaid = (p.penaltyPaid || 0) + take;
-    remaining -= take;
-    if (take < share) spillover.push({ player_id: p.player_id, name: p.name, shortBy: share - take });
+// The one, unified settlement mechanic — used identically for the live,
+// provisional view AND the real, final, persisted result. A player's own
+// events apply directly and fund/are funded by the opponent squad,
+// evenly, in strict priority order (goals, assists, saves, clean sheets)
+// so that if the funding squad runs short, the least important category
+// gets shortchanged first, never goals. Negative events (cards, team
+// conceded) apply directly too, floored at the player's own value, and
+// credit the other squad. Provably zero-sum for the pair, event by
+// event, by construction.
+function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
+  const prep = (squad) => squad.filter(s => !s.empty).map(s => {
+    const stats = statsByPid[s.player_id] || {};
+    const teamConceded = concededByTeam[s.team] || 0;
+    const events = s.is_sub
+      ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
+      : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded });
+    return {
+      ...s, liveValue: Math.round(s.value || 0), events,
+      gwStats: {
+        goals: stats.goals_scored || 0, assists: stats.assists || 0, yellow_cards: stats.yellow_cards || 0,
+        red_cards: stats.red_cards || 0, clean_sheets: stats.clean_sheets || 0,
+        goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded, saves: stats.saves || 0
+      },
+      received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub
+    };
   });
 
-  if (remaining > 0) {
-    // A player couldn't cover their even share — spread whatever's left
-    // across whoever still has value, so the full gap is always collected.
-    const stillHasValue = pool.filter(p => p.value > 0);
-    const fallbackPool = stillHasValue.length > 0 ? stillHasValue : pool;
-    const fallbackShare = Math.round(remaining / fallbackPool.length);
-    fallbackPool.forEach(p => {
-      const take = Math.min(fallbackShare, Math.round(p.value), remaining);
-      p.value = Math.round(p.value) - take;
-      p.penaltyPaid = (p.penaltyPaid || 0) + take;
-      remaining -= take;
+  const provA = prep(squadA);
+  const provB = prep(squadB);
+
+  const distributeExact = (funders, amount) => {
+    const n = funders.length;
+    if (n === 0 || amount === 0) return;
+    const base = Math.trunc(amount / n);
+    const remainder = amount - base * n;
+    const sign = remainder > 0 ? 1 : (remainder < 0 ? -1 : 0);
+    funders.forEach((o, i) => {
+      const extra = i < Math.abs(remainder) ? sign : 0;
+      const debit = base + extra;
+      o.liveValue = Math.round(o.liveValue - debit);
+      if (debit > 0) o.paid = (o.paid || 0) + debit;
+      else o.received = (o.received || 0) + (-debit);
+    });
+  };
+
+  let capacityA = provA.reduce((s, p) => s + p.liveValue, 0);
+  let capacityB = provB.reduce((s, p) => s + p.liveValue, 0);
+
+  const priorityKeys = ['goalAmt', 'assistAmt', 'saveAmt', 'cleanSheetAmt'];
+  for (const key of priorityKeys) {
+    provA.forEach(p => {
+      const amt = p.events[key];
+      if (!amt || amt <= 0) return;
+      const actual = Math.min(amt, Math.max(0, capacityB));
+      if (actual > 0) {
+        p.liveValue = Math.round(p.liveValue + actual);
+        p.received = (p.received || 0) + actual;
+        distributeExact(provB, actual);
+        capacityB -= actual;
+      }
+      if (actual < amt) p.shortBy += (amt - actual);
+    });
+    provB.forEach(p => {
+      const amt = p.events[key];
+      if (!amt || amt <= 0) return;
+      const actual = Math.min(amt, Math.max(0, capacityA));
+      if (actual > 0) {
+        p.liveValue = Math.round(p.liveValue + actual);
+        p.received = (p.received || 0) + actual;
+        distributeExact(provA, actual);
+        capacityA -= actual;
+      }
+      if (actual < amt) p.shortBy += (amt - actual);
     });
   }
 
-  return {
-    draw: false, gap, totalA, totalB,
-    winnerIsA, spillover,
-    uncollectable: Math.round(remaining) // true leak only if the whole squad is floored at 0 already
+  const applyNegative = (mySide, otherSide) => {
+    mySide.forEach(p => {
+      const negTotal = (p.events.yellowAmt || 0) + (p.events.redAmt || 0) + (p.events.concededAmt || 0);
+      if (negTotal >= 0) return;
+      const actualLoss = Math.min(-negTotal, p.liveValue);
+      p.liveValue = Math.round(p.liveValue - actualLoss);
+      p.paid = (p.paid || 0) + actualLoss;
+      distributeExact(otherSide, -actualLoss);
+    });
   };
+  applyNegative(provA, provB);
+  applyNegative(provB, provA);
+
+  return { provA, provB };
 }
 const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
 
 function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
   return Math.round(squad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
-}
-
-// Computes LIVE, PROVISIONAL values for a matched pair — every event
-// (goal, card, clean sheet, conceded, etc) applies directly and
-// immediately to the player it happened to, funded evenly from the
-// OTHER squad's 6 players at that exact moment. This is provably
-// zero-sum for the pair regardless of magnitude (each event's gain on
-// one side is an equal, simultaneous loss spread across the other),
-// with no separate "gap" step needed. Purely a display computation —
-// never written to the database. The final settlement (even-split gap,
-// once the gameweek's matches are actually finished) remains the only
-// thing that actually moves real money.
-async function computeLiveProvisional(masterDb, squadA, squadB, gameweek, concededByTeam, statsByPid) {
-  const provA = squadA.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0, liveContribution: 0, liveStats: null }));
-  const provB = squadB.filter(s => !s.empty).map(s => ({ ...s, liveValue: s.value || 0, liveContribution: 0, liveStats: null }));
-
-  const applyEvents = (mySide, otherSide) => {
-    mySide.forEach(p => {
-      const stats = statsByPid[p.player_id] || {};
-      const teamConceded = concededByTeam[p.team] || 0;
-      p.liveStats = {
-        goals: stats.goals_scored || 0, assists: stats.assists || 0,
-        yellow_cards: stats.yellow_cards || 0, red_cards: stats.red_cards || 0,
-        clean_sheets: stats.clean_sheets || 0,
-        goals_conceded: p.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded,
-        saves: stats.saves || 0
-      };
-      if (p.is_sub) return; // benched — excluded from live events too
-
-      const { actualChange } = computePlayerRawChange(
-        p.position, { ...stats, team_goals_conceded: teamConceded }, p.liveValue
-      );
-      if (actualChange === 0) return;
-
-      p.liveValue = Math.round(p.liveValue + actualChange);
-      p.liveContribution = (p.liveContribution || 0) + actualChange;
-      if (otherSide.length > 0) {
-        // Distribute the EXACT integer amount, pence-exact — no
-        // independent-rounding drift across the 6 opponent players.
-        const n = otherSide.length;
-        const base = Math.trunc(actualChange / n);
-        const remainder = actualChange - (base * n); // same sign as actualChange, magnitude < n
-        otherSide.forEach((o, i) => {
-          const extra = i < Math.abs(remainder) ? Math.sign(remainder) : 0;
-          const debit = base + extra;
-          o.liveValue = Math.round(o.liveValue - debit);
-          o.liveContribution = (o.liveContribution || 0) - debit;
-        });
-      }
-    });
-  };
-
-  applyEvents(provA, provB);
-  applyEvents(provB, provA);
-
-  return { provA, provB };
 }
 
 async function getTeamGoalsConcededMap(masterDb, gameweek) {
@@ -2498,48 +2486,37 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
   const concededByTeam = await getTeamGoalsConcededMap(masterDb, gameweek);
 
-  // Compute each entry's own Layer 1 raw change — used only to determine
-  // the head-to-head gap and who pays/gets paid first. It does NOT get
-  // applied to anyone's value directly here — only settleMatchup ever
-  // actually moves money, as a pure transfer between the two matched
-  // squads. Applying it here too was the exact bug that let unfunded
-  // money leak in and out of the whole system every gameweek.
-  const prepared = {}; // entry.id -> array of enriched player slots
-  for (const entry of entries) {
-    const squad = entry.squad_players || [];
-    const slots = squad.filter(s => !s.empty).map(s => {
-      const startingValue = s.value || 0;
-      if (s.is_sub) {
-        return { ...s, value: startingValue, actualChange: 0, hadNegative: false, cardSeverity: 0, penaltyPaid: 0, winBonus: 0, gwStats: null, benched: true };
-      }
-      const stats = statsByPid[s.player_id] || {};
-      const teamConceded = concededByTeam[s.team] || 0;
-      const { actualChange, hadNegative } = computePlayerRawChange(
-        s.position, { ...stats, team_goals_conceded: teamConceded }, startingValue
-      );
-      const cardSeverity = (stats.red_cards || 0) > 0 ? 100 : (stats.yellow_cards || 0) > 0 ? 30 : 0;
-      const gwStats = {
-        goals: stats.goals_scored || 0, assists: stats.assists || 0,
-        yellow_cards: stats.yellow_cards || 0, red_cards: stats.red_cards || 0,
-        clean_sheets: stats.clean_sheets || 0,
-        goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded,
-        saves: stats.saves || 0
-      };
-      return { ...s, value: startingValue, actualChange, hadNegative, cardSeverity, penaltyPaid: 0, winBonus: 0, gwStats, benched: false };
-    });
-    prepared[entry.id] = { entry, slots };
-  }
+  // Squads keyed by entry id, ready for the unified settlement function.
+  const squadByEntry = {};
+  entries.forEach(e => { squadByEntry[e.id] = e.squad_players || []; });
 
-  // Settle each already-paired, not-yet-settled matchup.
+  // Settle each already-paired, not-yet-settled matchup using the exact
+  // same mechanic as the live view — a player's own event keeps its full
+  // real value, funded directly from the opponent, in priority order
+  // (goals, then assists, then saves, then clean sheets) so a funding
+  // shortfall always hits the least important category first.
+  const finalResults = {}; // entry.id -> array of settled player slots
+  const historyRows = [];
+
   for (const row of (matchupRowsExisting || [])) {
     if (!row.entry_id_2) continue; // bye row, nothing to settle
-    const { slots: slotsA } = prepared[row.entry_id_1] || {};
-    const { slots: slotsB } = prepared[row.entry_id_2] || {};
-    if (!slotsA || !slotsB) continue;
-    const result = settleMatchup(slotsA, slotsB);
+    const squadA = squadByEntry[row.entry_id_1];
+    const squadB = squadByEntry[row.entry_id_2];
+    if (!squadA || !squadB) continue;
+
+    const { provA, provB } = computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam);
+    finalResults[row.entry_id_1] = provA;
+    finalResults[row.entry_id_2] = provB;
+
+    const totalA = provA.reduce((s, p) => s + p.liveValue, 0);
+    const totalB = provB.reduce((s, p) => s + p.liveValue, 0);
+    const startA = provA.reduce((s, p) => s + (p.value || 0), 0);
+    const startB = provB.reduce((s, p) => s + (p.value || 0), 0);
+    const gapA = totalA - startA, gapB = totalB - startB;
+
     await supabaseAdmin.schema('stockmarket').from('matchups').update({
-      raw_total_1: result.totalA, raw_total_2: result.totalB, gap: result.gap,
-      winner_entry_id: result.draw ? null : (result.winnerIsA ? row.entry_id_1 : row.entry_id_2),
+      raw_total_1: gapA, raw_total_2: gapB, gap: Math.abs(gapA - gapB),
+      winner_entry_id: gapA === gapB ? null : (gapA > gapB ? row.entry_id_1 : row.entry_id_2),
       settled: true
     }).eq('id', row.id);
   }
@@ -2548,39 +2525,42 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   // breakdown per player of exactly what happened this gameweek and why.
   // Also permanently log it to player_gw_history — squad_players only
   // ever holds the latest snapshot, this is the full week-by-week record.
-  const historyRows = [];
-  for (const entryId of Object.keys(prepared)) {
-    const { entry, slots } = prepared[entryId];
+  for (const entry of entries) {
+    const settled = finalResults[entry.id];
+    if (!settled) continue; // had a bye this week, nothing changed
+
     const fullSquad = (entry.squad_players || []).map(s => {
       if (s.empty) return s;
-      const updated = slots.find(sl => sl.player_id === s.player_id);
+      const updated = settled.find(sl => sl.player_id === s.player_id);
       if (!updated) return s;
 
       historyRows.push({
-        tournament_id: tournamentId, entry_id: entryId, gameweek,
+        tournament_id: tournamentId, entry_id: entry.id, gameweek,
         player_id: s.player_id, name: s.name, position: s.position, team: s.team,
-        starting_value: s.value || 0, ending_value: Math.round(updated.value),
-        raw_change: updated.actualChange, win_bonus: Math.round(updated.winBonus || 0),
-        penalty_paid: Math.round(updated.penaltyPaid || 0), benched: updated.benched,
+        starting_value: s.value || 0, ending_value: Math.round(updated.liveValue),
+        raw_change: (updated.received || 0) - (updated.paid || 0),
+        win_bonus: Math.round(updated.received || 0),
+        penalty_paid: Math.round(updated.paid || 0), benched: updated.benched,
         stats: updated.gwStats
       });
 
       return {
-        ...s, value: updated.value,
+        ...s, value: updated.liveValue,
         last_gw_breakdown: {
           gameweek,
           stats: updated.gwStats,
           benched: updated.benched,
-          raw_change: updated.actualChange,
-          win_bonus: updated.winBonus || 0,
-          penalty_paid: updated.penaltyPaid || 0
+          raw_change: (updated.received || 0) - (updated.paid || 0),
+          win_bonus: updated.received || 0,
+          penalty_paid: updated.paid || 0,
+          short_by: updated.shortBy || 0
         }
       };
     });
     const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
     await supabaseAdmin.schema('stockmarket').from('tournament_entries')
       .update({ squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal })
-      .eq('id', entryId);
+      .eq('id', entry.id);
   }
   if (historyRows.length > 0) {
     const { error: historyError } = await supabaseAdmin.schema('stockmarket').from('player_gw_history').insert(historyRows);
@@ -2591,7 +2571,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     await supabaseAdmin.schema('stockmarket').from('tournaments').update({ status: 'finished' }).eq('id', tournamentId);
   }
 
-  return { ok: true, pairs: matchupRows.length, bye: byeEntryId };
+  return { ok: true, pairs: (matchupRowsExisting || []).filter(r => r.entry_id_2).length };
 }
 
 function packPriceFor(config, rarity) {
