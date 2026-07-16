@@ -603,6 +603,7 @@
         const opp = data.opponent;
         const m = data.matchup;
         const isLive = !!data.live;
+        const isDraw = m && m.settled && m.winner_entry_id === null;
         const iWon = m && m.winner_entry_id === entry.id;
         const myRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_1 : m.raw_total_2) : null;
         const oppRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_2 : m.raw_total_1) : null;
@@ -616,7 +617,9 @@
           : '';
         const resultBanner = !m ? '' : !m.settled
           ? liveBanner || `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
-          : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
+          : isDraw
+            ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);">Draw — both squads finished the week exactly even, nothing changed hands</div>`
+            : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
         const liveTotalsHtml = isLive
           ? `<div class="p-est" style="margin-bottom:10px;">Live totals — Yours: ${money(liveTotalMine)} · Opponent's: ${money(liveTotalOpp)}</div>`
           : '';
