@@ -434,20 +434,13 @@
       const entry = data.entry;
       const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
       const displayValue = liveTotalNow !== null ? liveTotalNow : entry.current_value;
-      const gainLoss = (displayValue || 0) - (entry.start_value || 0);
-      const myWeekStart = entry.last_week_value != null ? entry.last_week_value : entry.start_value;
-      const myWeekNet = (displayValue || 0) - (myWeekStart || 0);
       const mySquadArr = entry.squad_players || [];
       const myTotalPaid = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
       const myTotalReceived = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
       document.getElementById('statRow').innerHTML = `
-        <div class="stat"><div class="label">${liveTotalNow !== null ? 'Your Value (Live)' : 'Your Value'}</div><div class="value">${money(displayValue)}</div></div>
-        <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
-        <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
-        <div class="stat"><div class="label">Started This Week</div><div class="value">${money(myWeekStart)}</div></div>
-        <div class="stat"><div class="label">This Week's Net</div><div class="value ${myWeekNet > 0 ? 'up' : myWeekNet < 0 ? 'down' : ''}">${myWeekNet >= 0 ? '+' : ''}${money(myWeekNet)}</div></div>
-        <div class="stat"><div class="label">Total Received</div><div class="value up">+${money(myTotalReceived)}</div></div>
-        <div class="stat"><div class="label">Total Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
+        <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(displayValue)}</div></div>
+        <div class="stat"><div class="label">Earned</div><div class="value up">+${money(myTotalReceived)}</div></div>
+        <div class="stat"><div class="label">Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
       `;
 
       const renderPlayerCard = (p, isMine) => {
@@ -614,51 +607,35 @@
         const isLive = !!data.live;
         const isDraw = m && m.settled && m.winner_entry_id === null;
         const iWon = m && m.winner_entry_id === entry.id;
-        const myRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_1 : m.raw_total_2) : null;
-        const oppRaw = m ? (m.entry_id_1 === entry.id ? m.raw_total_2 : m.raw_total_1) : null;
-        const bothNegative = m && m.settled && myRaw < 0 && oppRaw < 0;
-        const rawSummary = (m && m.settled)
-          ? `<div class="p-est" style="margin-bottom:4px;">Your squad's own actions this week: ${money(myRaw)} · Opponent's: ${money(oppRaw)} · Gap: ${money(m.gap)}</div>
-             ${bothNegative ? `<div class="p-est" style="margin-bottom:10px; color:var(--accent-2);">Both squads had a rough week — ${iWon ? 'yours was still the smaller loss, so you win the £' + (m.gap/100).toFixed(2) + ' difference' : "your opponent's was the smaller loss"}.</div>` : '<div style="margin-bottom:10px;"></div>'}`
-          : '';
         const liveBanner = isLive
-          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);"><i class="fas fa-bolt"></i> LIVE vs ${escapeHtml(data.opponent_name || 'your opponent')} — events funded directly from your opponent as they happen. Provisional until GW${data.gameweek} finishes, when the real settlement runs.</div>`
+          ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);"><i class="fas fa-bolt"></i> LIVE vs ${escapeHtml(data.opponent_name || 'your opponent')}</div>`
           : '';
         const resultBanner = !m ? '' : !m.settled
           ? liveBanner || `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
           : isDraw
-            ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);">Draw — both squads finished the week exactly even, nothing changed hands</div>`
-            : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this matchup' : 'You lost this matchup'} — gap £${((m.gap||0)/100).toFixed(2)}</div>`;
-        const liveTotalsHtml = isLive
-          ? `<div class="p-est" style="margin-bottom:10px;">Live totals — Yours: ${money(liveTotalMine)} · Opponent's: ${money(liveTotalOpp)}</div>`
-          : '';
+            ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);">Draw this week</div>`
+            : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this week' : 'You lost this week'}</div>`;
         const oppSquadWithLive = withLive(opp.squad_players, liveByPidOpp);
         const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false)).join('');
 
-        const oppStart = opp.last_week_value != null ? opp.last_week_value : opp.current_value;
         const oppEnd = isLive ? liveTotalOpp : opp.current_value;
         const oppTotalPaid = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
         const oppTotalReceived = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
-        const oppNet = (oppEnd || 0) - (oppStart || 0);
 
         const oppSummaryCard = `
           <div class="card" style="margin-bottom:16px; padding:16px;">
             <div style="font-weight:700; font-size:13px; margin-bottom:10px; color:var(--text-dim);">
-              <i class="fas fa-user"></i> ${escapeHtml(data.opponent_name || 'Opponent')}'s Squad Summary
+              <i class="fas fa-user"></i> ${escapeHtml(data.opponent_name || 'Opponent')}
             </div>
             <div class="stat-row" style="gap:16px;">
-              <div class="stat"><div class="label">Started This Week</div><div class="value">${money(oppStart)}</div></div>
-              <div class="stat"><div class="label">${isLive ? 'Live Now' : 'Ended This Week'}</div><div class="value">${money(oppEnd)}</div></div>
-              <div class="stat"><div class="label">Net Change</div><div class="value ${oppNet > 0 ? 'up' : oppNet < 0 ? 'down' : ''}">${oppNet >= 0 ? '+' : ''}${money(oppNet)}</div></div>
-              <div class="stat"><div class="label">Total Received</div><div class="value up">+${money(oppTotalReceived)}</div></div>
-              <div class="stat"><div class="label">Total Paid Out</div><div class="value down">-${money(oppTotalPaid)}</div></div>
+              <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(oppEnd)}</div></div>
+              <div class="stat"><div class="label">Earned</div><div class="value up">+${money(oppTotalReceived)}</div></div>
+              <div class="stat"><div class="label">Paid Out</div><div class="value down">-${money(oppTotalPaid)}</div></div>
             </div>
           </div>`;
 
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
-          ${rawSummary}
-          ${liveTotalsHtml}
           ${oppSummaryCard}
           <div class="portfolio-grid">${oppCards}</div>`;
       }
