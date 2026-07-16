@@ -1000,8 +1000,21 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: `No data returned for GW${syncGw} — it may not have been played yet` });
           }
 
+          // Snapshot each player's team RIGHT NOW, at sync time — this is
+          // what protects this gameweek's team-conceded calculation from
+          // ever being silently corrupted by a LATER transfer. Without
+          // this, a player's team lookup always reflects whatever club
+          // they're on today, even when re-processing an old gameweek.
+          const { data: playerRows } = await masterDb.from('players').select('id, team');
+          const { data: teamRows } = await masterDb.from('teams').select('id, name');
+          const teamNameById = {};
+          (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+          const teamByPlayerId = {};
+          (playerRows || []).forEach(p => { teamByPlayerId[p.id] = teamNameById[p.team] || null; });
+
           const statRows = elements.map(el => ({
             gameweek: syncGw, player_id: el.id,
+            team: teamByPlayerId[el.id] || null,
             goals_scored: el.stats?.goals_scored || 0,
             assists: el.stats?.assists || 0,
             yellow_cards: el.stats?.yellow_cards || 0,
@@ -2327,7 +2340,11 @@ function computePlayerEventBreakdown(position, stats) {
 function prepSquadForSettlement(squad, statsByPid, concededByTeam) {
   return squad.filter(s => !s.empty).map(s => {
     const stats = statsByPid[s.player_id] || {};
-    const teamConceded = concededByTeam[s.team] || 0;
+    // Prefer the team snapshotted at the moment these stats were synced
+    // (immune to any later transfer) — fall back to the squad's own
+    // stored team only for older rows synced before this snapshot existed.
+    const effectiveTeam = stats.team || s.team;
+    const teamConceded = concededByTeam[effectiveTeam] || 0;
     const events = s.is_sub
       ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
       : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded });
