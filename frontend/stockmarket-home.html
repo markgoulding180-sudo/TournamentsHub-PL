@@ -288,7 +288,6 @@
       <div class="cards-grid">
         <section class="card">
           <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Squad</div>
-          <div id="mySummaryContainer"></div>
           <div id="portfolioBody"><div class="loading">Loading…</div></div>
         </section>
 
@@ -436,33 +435,20 @@
       const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
       const displayValue = liveTotalNow !== null ? liveTotalNow : entry.current_value;
       const gainLoss = (displayValue || 0) - (entry.start_value || 0);
-      document.getElementById('statRow').innerHTML = `
-        <div class="stat"><div class="label">${liveTotalNow !== null ? 'Your Value (Live)' : 'Your Value'}</div><div class="value">${money(displayValue)}</div></div>
-        <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
-        <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
-      `;
-
-      // Own-squad summary — mirrors the opponent's card but styled boldly
-      // (electric blue border + glow) so it's unmistakably "yours" at a glance.
       const myWeekStart = entry.last_week_value != null ? entry.last_week_value : entry.start_value;
       const myWeekNet = (displayValue || 0) - (myWeekStart || 0);
       const mySquadArr = entry.squad_players || [];
       const myTotalPaid = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
       const myTotalReceived = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
-      const mySummaryCard = `
-        <div class="card" style="margin-bottom:16px; padding:16px; border:2px solid var(--accent); box-shadow:0 0 20px rgba(59,130,246,0.25); background:linear-gradient(180deg, rgba(59,130,246,0.06), transparent);">
-          <div style="font-weight:800; font-size:14px; margin-bottom:10px; color:var(--accent-2); text-transform:uppercase; letter-spacing:.5px;">
-            <i class="fas fa-shield-halved"></i> Your Squad Summary
-          </div>
-          <div class="stat-row" style="gap:16px;">
-            <div class="stat"><div class="label">Started This Week</div><div class="value">${money(myWeekStart)}</div></div>
-            <div class="stat"><div class="label">${liveTotalNow !== null ? 'Live Now' : 'Ended This Week'}</div><div class="value">${money(displayValue)}</div></div>
-            <div class="stat"><div class="label">Net Change</div><div class="value ${myWeekNet > 0 ? 'up' : myWeekNet < 0 ? 'down' : ''}">${myWeekNet >= 0 ? '+' : ''}${money(myWeekNet)}</div></div>
-            <div class="stat"><div class="label">Total Received</div><div class="value up">+${money(myTotalReceived)}</div></div>
-            <div class="stat"><div class="label">Total Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
-          </div>
-        </div>`;
-      document.getElementById('mySummaryContainer').innerHTML = mySummaryCard;
+      document.getElementById('statRow').innerHTML = `
+        <div class="stat"><div class="label">${liveTotalNow !== null ? 'Your Value (Live)' : 'Your Value'}</div><div class="value">${money(displayValue)}</div></div>
+        <div class="stat"><div class="label">Started At</div><div class="value">${money(entry.start_value)}</div></div>
+        <div class="stat"><div class="label">Gain / Loss</div><div class="value ${gainLoss > 0 ? 'up' : gainLoss < 0 ? 'down' : ''}">${gainLoss >= 0 ? '+' : ''}${money(gainLoss)}</div></div>
+        <div class="stat"><div class="label">Started This Week</div><div class="value">${money(myWeekStart)}</div></div>
+        <div class="stat"><div class="label">This Week's Net</div><div class="value ${myWeekNet > 0 ? 'up' : myWeekNet < 0 ? 'down' : ''}">${myWeekNet >= 0 ? '+' : ''}${money(myWeekNet)}</div></div>
+        <div class="stat"><div class="label">Total Received</div><div class="value up">+${money(myTotalReceived)}</div></div>
+        <div class="stat"><div class="label">Total Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
+      `;
 
       const renderPlayerCard = (p, isMine) => {
         if (!p || p.empty) {
