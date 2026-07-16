@@ -270,6 +270,7 @@ module.exports = async (req, res) => {
             const mapOut = (p) => ({
               player_id: p.player_id, name: p.name, position: p.position, team: p.team, is_sub: p.is_sub,
               liveValue: p.liveValue, liveContribution: (p.received || 0) - (p.paid || 0),
+              received: p.received || 0, paid: p.paid || 0,
               ownEventNet: (p.ownEventReceived || 0) - (p.ownEventPaid || 0),
               liveStats: p.gwStats, shortBy: p.shortBy || 0
             });

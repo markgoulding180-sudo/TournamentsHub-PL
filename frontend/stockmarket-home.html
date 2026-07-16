@@ -595,8 +595,8 @@
             gameweek: data.gameweek, stats: lv.liveStats, benched: !!s.is_sub,
             raw_change: lv.ownEventNet || 0,
             own_event_net: lv.ownEventNet || 0,
-            win_bonus: lv.liveContribution > 0 ? lv.liveContribution : 0,
-            penalty_paid: lv.liveContribution < 0 ? -lv.liveContribution : 0,
+            win_bonus: lv.received || 0,
+            penalty_paid: lv.paid || 0,
             short_by: lv.shortBy || 0,
             is_live: true
           }
