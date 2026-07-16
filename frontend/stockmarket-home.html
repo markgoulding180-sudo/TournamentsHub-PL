@@ -623,12 +623,34 @@
         const liveTotalsHtml = isLive
           ? `<div class="p-est" style="margin-bottom:10px;">Live totals — Yours: ${money(liveTotalMine)} · Opponent's: ${money(liveTotalOpp)}</div>`
           : '';
-        const oppCards = withLive(opp.squad_players, liveByPidOpp).map(p => renderPlayerCard(p, false)).join('');
+        const oppSquadWithLive = withLive(opp.squad_players, liveByPidOpp);
+        const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false)).join('');
+
+        const oppStart = opp.last_week_value != null ? opp.last_week_value : opp.current_value;
+        const oppEnd = isLive ? liveTotalOpp : opp.current_value;
+        const oppTotalPaid = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
+        const oppTotalReceived = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
+        const oppNet = (oppEnd || 0) - (oppStart || 0);
+
+        const oppSummaryCard = `
+          <div class="card" style="margin-bottom:16px; padding:16px;">
+            <div style="font-weight:700; font-size:13px; margin-bottom:10px; color:var(--text-dim);">
+              <i class="fas fa-user"></i> ${escapeHtml(data.opponent_name || 'Opponent')}'s Squad Summary
+            </div>
+            <div class="stat-row" style="gap:16px;">
+              <div class="stat"><div class="label">Started This Week</div><div class="value">${money(oppStart)}</div></div>
+              <div class="stat"><div class="label">${isLive ? 'Live Now' : 'Ended This Week'}</div><div class="value">${money(oppEnd)}</div></div>
+              <div class="stat"><div class="label">Net Change</div><div class="value ${oppNet > 0 ? 'up' : oppNet < 0 ? 'down' : ''}">${oppNet >= 0 ? '+' : ''}${money(oppNet)}</div></div>
+              <div class="stat"><div class="label">Total Received</div><div class="value up">+${money(oppTotalReceived)}</div></div>
+              <div class="stat"><div class="label">Total Paid Out</div><div class="value down">-${money(oppTotalPaid)}</div></div>
+            </div>
+          </div>`;
+
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
           ${rawSummary}
           ${liveTotalsHtml}
-          ${!isLive ? `<div class="p-est" style="margin-bottom:10px;">Opponent's total: ${money(opp.current_value)}</div>` : ''}
+          ${oppSummaryCard}
           <div class="portfolio-grid">${oppCards}</div>`;
       }
     }

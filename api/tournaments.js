@@ -216,7 +216,7 @@ module.exports = async (req, res) => {
           if (opponentId) {
             const { data: oppData } = await supabaseAdmin
               .schema('stockmarket').from('tournament_entries')
-              .select('id, user_id, squad_players, current_value').eq('id', opponentId).maybeSingle();
+              .select('id, user_id, squad_players, current_value, last_week_value, start_value').eq('id', opponentId).maybeSingle();
             opponentEntry = oppData;
             if (opponentEntry) {
               const { data: oppUser } = await supabaseAdmin.from('users').select('email').eq('id', opponentEntry.user_id).maybeSingle();
@@ -2324,8 +2324,8 @@ function computePlayerEventBreakdown(position, stats) {
 // conceded) apply directly too, floored at the player's own value, and
 // credit the other squad. Provably zero-sum for the pair, event by
 // event, by construction.
-function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
-  const prep = (squad) => squad.filter(s => !s.empty).map(s => {
+function prepSquadForSettlement(squad, statsByPid, concededByTeam) {
+  return squad.filter(s => !s.empty).map(s => {
     const stats = statsByPid[s.player_id] || {};
     const teamConceded = concededByTeam[s.team] || 0;
     const events = s.is_sub
@@ -2342,10 +2342,13 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
       ownEventReceived: 0, ownEventPaid: 0 // this player's OWN events only — not funding credits from the opponent
     };
   });
+}
 
-  const provA = prep(squadA);
-  const provB = prep(squadB);
-
+// Settles one matchup pair using already-prepped player objects (mutated
+// in place). A player's own event funds directly from the opponent's
+// capacity only — if the opponent can't cover it in full, the shortfall
+// is real and gets flagged, not covered by anyone else.
+function settleUnified(provA, provB) {
   const distributeExact = (funders, amount) => {
     const n = funders.length;
     if (n === 0 || amount === 0) return;
@@ -2364,33 +2367,29 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
   let capacityA = provA.reduce((s, p) => s + p.liveValue, 0);
   let capacityB = provB.reduce((s, p) => s + p.liveValue, 0);
 
+  const fundEvent = (p, amt, opponentPool, getOppCapacity, setOppCapacity) => {
+    const actual = Math.min(amt, Math.max(0, getOppCapacity()));
+    if (actual > 0) {
+      p.liveValue = Math.round(p.liveValue + actual);
+      p.received = (p.received || 0) + actual;
+      p.ownEventReceived = (p.ownEventReceived || 0) + actual;
+      distributeExact(opponentPool, actual);
+      setOppCapacity(getOppCapacity() - actual);
+    }
+    if (actual < amt) p.shortBy += (amt - actual);
+  };
+
   const priorityKeys = ['goalAmt', 'assistAmt', 'saveAmt', 'cleanSheetAmt'];
   for (const key of priorityKeys) {
     provA.forEach(p => {
       const amt = p.events[key];
       if (!amt || amt <= 0) return;
-      const actual = Math.min(amt, Math.max(0, capacityB));
-      if (actual > 0) {
-        p.liveValue = Math.round(p.liveValue + actual);
-        p.received = (p.received || 0) + actual;
-        p.ownEventReceived = (p.ownEventReceived || 0) + actual; // this IS this player's own event
-        distributeExact(provB, actual);
-        capacityB -= actual;
-      }
-      if (actual < amt) p.shortBy += (amt - actual);
+      fundEvent(p, amt, provB, () => capacityB, (v) => { capacityB = v; });
     });
     provB.forEach(p => {
       const amt = p.events[key];
       if (!amt || amt <= 0) return;
-      const actual = Math.min(amt, Math.max(0, capacityA));
-      if (actual > 0) {
-        p.liveValue = Math.round(p.liveValue + actual);
-        p.received = (p.received || 0) + actual;
-        p.ownEventReceived = (p.ownEventReceived || 0) + actual;
-        distributeExact(provA, actual);
-        capacityA -= actual;
-      }
-      if (actual < amt) p.shortBy += (amt - actual);
+      fundEvent(p, amt, provA, () => capacityA, (v) => { capacityA = v; });
     });
   }
 
@@ -2407,7 +2406,13 @@ function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
   };
   applyNegative(provA, provB);
   applyNegative(provB, provA);
+}
 
+// Convenience wrapper for the LIVE view (just the two matched squads).
+function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
+  const provA = prepSquadForSettlement(squadA, statsByPid, concededByTeam);
+  const provB = prepSquadForSettlement(squadB, statsByPid, concededByTeam);
+  settleUnified(provA, provB);
   return { provA, provB };
 }
 const POSITION_ELEMENT_TYPE = { gk: 1, def: 2, mid: 3, fwd: 4 };
@@ -2499,27 +2504,31 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
   const concededByTeam = await getTeamGoalsConcededMap(masterDb, gameweek);
 
-  // Squads keyed by entry id, ready for the unified settlement function.
-  const squadByEntry = {};
-  entries.forEach(e => { squadByEntry[e.id] = e.squad_players || []; });
+  // Prep every entry's squad ONCE into shared, mutable player objects.
+  // Sharing these same references across every matchup settled this
+  // gameweek is what lets a wider-pool funding effect on a squad persist
+  // correctly, even when that same squad is later settled in its own
+  // separate matchup against someone else.
+  const preppedByEntry = {};
+  entries.forEach(e => {
+    preppedByEntry[e.id] = prepSquadForSettlement(e.squad_players || [], statsByPid, concededByTeam);
+  });
 
   // Settle each already-paired, not-yet-settled matchup using the exact
   // same mechanic as the live view — a player's own event keeps its full
-  // real value, funded directly from the opponent, in priority order
-  // (goals, then assists, then saves, then clean sheets) so a funding
-  // shortfall always hits the least important category first.
-  const finalResults = {}; // entry.id -> array of settled player slots
+  // real value, funded directly from the opponent first, in priority
+  // order (goals, then assists, then saves, then clean sheets); if the
+  // opponent runs short, the remainder falls back to every OTHER squad
+  // in the tournament, spread evenly, before finally giving up.
   const historyRows = [];
 
   for (const row of (matchupRowsExisting || [])) {
     if (!row.entry_id_2) continue; // bye row, nothing to settle
-    const squadA = squadByEntry[row.entry_id_1];
-    const squadB = squadByEntry[row.entry_id_2];
-    if (!squadA || !squadB) continue;
+    const provA = preppedByEntry[row.entry_id_1];
+    const provB = preppedByEntry[row.entry_id_2];
+    if (!provA || !provB) continue;
 
-    const { provA, provB } = computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam);
-    finalResults[row.entry_id_1] = provA;
-    finalResults[row.entry_id_2] = provB;
+    settleUnified(provA, provB);
 
     const totalA = provA.reduce((s, p) => s + p.liveValue, 0);
     const totalB = provB.reduce((s, p) => s + p.liveValue, 0);
@@ -2539,8 +2548,8 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   // Also permanently log it to player_gw_history — squad_players only
   // ever holds the latest snapshot, this is the full week-by-week record.
   for (const entry of entries) {
-    const settled = finalResults[entry.id];
-    if (!settled) continue; // had a bye this week, nothing changed
+    const settled = preppedByEntry[entry.id];
+    if (!settled) continue;
 
     const fullSquad = (entry.squad_players || []).map(s => {
       if (s.empty) return s;
