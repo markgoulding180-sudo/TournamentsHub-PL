@@ -265,8 +265,11 @@
            known test users' squads randomly, never touches your own. -->
       <div class="card" style="border-color:var(--gold); margin-bottom:16px;">
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="createLoadTestUsers()" id="createUsersBtn">
+            <i class="fas fa-users"></i> Create 30 Test Accounts
+          </button>
           <button class="btn-primary" onclick="seedTestSquads()" id="seedBtn">
-            <i class="fas fa-flask"></i> Seed Other 3 Test Squads
+            <i class="fas fa-flask"></i> Seed All Test Squads
           </button>
           <button class="btn-primary" onclick="forceCloseWindow()" id="closeWindowBtn" style="background:var(--red);">
             <i class="fas fa-door-closed"></i> Force Close Draft Window
@@ -757,21 +760,41 @@
       '4d935300-c707-4e73-86a3-217d73e006a8',
       'a12d9dce-a807-487b-85e5-8c9f8ade2fb0'
     ];
+    let dynamicTestUserIds = [];
+
+    async function createLoadTestUsers() {
+      const resultsEl = document.getElementById('seedResults');
+      resultsEl.textContent = 'Creating 30 test accounts…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_create_test_users', count: 30 })
+        });
+        const data = await res.json();
+        if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
+        dynamicTestUserIds = data.user_ids || [];
+        resultsEl.textContent = `Created ${data.created} test accounts. Now click "Seed All Test Squads".`;
+      } catch (e) {
+        resultsEl.textContent = `Error: ${e.message}`;
+      }
+    }
+
     async function seedTestSquads() {
       const btn = document.getElementById('seedBtn');
       const resultsEl = document.getElementById('seedResults');
       btn.disabled = true;
       resultsEl.textContent = 'Seeding…';
       try {
+        const allIds = [...TEST_USER_IDS, ...dynamicTestUserIds];
         const res = await fetch('/api/tournaments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_seed_squads', tournament_id: tournamentId, user_ids: TEST_USER_IDS })
+          body: JSON.stringify({ action: 'stockmarket_seed_squads', tournament_id: tournamentId, user_ids: allIds })
         });
         const data = await res.json();
         if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
-        resultsEl.innerHTML = `Seeded ${data.seeded} squad(s):<br>` +
-          data.results.map(r => `${r.user_id.slice(0, 8)}… — ${r.squad.join(', ')}`).join('<br>');
+        resultsEl.innerHTML = `Seeded ${data.seeded} squad(s).`;
       } catch (e) {
         resultsEl.textContent = `Error: ${e.message}`;
       } finally {

@@ -1130,6 +1130,41 @@ module.exports = async (req, res) => {
         }
       }
 
+      // TEMPORARY TEST TOOL — delete after testing. Creates N test user
+      // accounts via Supabase's admin auth API, for large-scale testing.
+      if (action === 'stockmarket_create_test_users') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { count } = req.body;
+        const n = Math.min(Math.max(parseInt(count) || 0, 1), 50);
+
+        try {
+          const created = [];
+          for (let i = 1; i <= n; i++) {
+            const email = `loadtest${i}@stocktest.local`;
+            const { data: existingUser } = await supabaseAdmin.from('users').select('id').eq('email', email).maybeSingle();
+            if (existingUser) { created.push(existingUser.id); continue; }
+
+            const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+              email, password: `LoadTest${i}!2026`, email_confirm: true
+            });
+            if (createErr) { console.error(`Failed to create ${email}:`, createErr); continue; }
+
+            const { error: profileErr } = await supabaseAdmin.from('users').insert({
+              id: newUser.user.id, username: `loadtest${i}`, display_name: `Load Test ${i}`, email
+            });
+            if (profileErr) { console.error(`Failed to create profile for ${email}:`, profileErr); continue; }
+
+            created.push(newUser.user.id);
+          }
+          return res.status(200).json({ success: true, created: created.length, user_ids: created });
+        } catch (err) {
+          console.error('stockmarket_create_test_users error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'stockmarket_seed_squads') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
