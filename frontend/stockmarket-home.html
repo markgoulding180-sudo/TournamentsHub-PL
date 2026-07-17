@@ -260,6 +260,21 @@
       <button class="btn-primary" id="enterBtn"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
     </div>
 
+    <div id="finalResultsCard" style="display:none;">
+      <div class="card" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
+        <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+        <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Tournament Complete — Final Standings</h2>
+        <p style="max-width:460px; margin:0 auto; font-size:14px; color:var(--text-dim);" id="finalResultsSummary">Loading final standings…</p>
+      </div>
+      <section class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fas fa-money-bill-trend-up" style="color:var(--gold);"></i> Payouts — Final Value = Amount Owed</div>
+        <div id="finalResultsBody"><div class="loading">Loading…</div></div>
+      </section>
+      <a href="/stock-market-history" class="btn-primary" style="display:inline-flex; margin-bottom:20px;">
+        <i class="fas fa-clock-rotate-left"></i> View Full Gameweek History
+      </a>
+    </div>
+
     <div id="mainContent" style="display:none;">
       <!-- TEMPORARY TEST TOOL — delete after testing. Seeds the other 3
            known test users' squads randomly, never touches your own. -->
@@ -347,13 +362,14 @@
           const finRes = await fetch('/api/tournaments?status=finished&tournament_type=stockmarket');
           const finData = await finRes.json();
           const finished = (finData.tournaments || [])[0];
-          document.getElementById('enterGate').style.display = 'block';
           if (finished) {
-            document.getElementById('enterDesc').innerHTML = 'This Stock Market tournament has finished. <a href="/stock-market-history" style="color:var(--accent-2);">View the full gameweek history →</a>';
+            document.getElementById('finalResultsCard').style.display = 'block';
+            loadFinalResults(finished.id);
           } else {
+            document.getElementById('enterGate').style.display = 'block';
             document.getElementById('enterDesc').textContent = 'No Stock Market tournament is open right now — check back soon.';
+            document.getElementById('enterBtn').style.display = 'none';
           }
-          document.getElementById('enterBtn').style.display = 'none';
           return;
         }
         tournamentId = t.id;
@@ -826,6 +842,61 @@
         resultsEl.textContent = `Error: ${e.message}`;
       } finally {
         btn.disabled = false;
+      }
+    }
+
+    async function loadFinalResults(finishedTournamentId) {
+      const bodyEl = document.getElementById('finalResultsBody');
+      const summaryEl = document.getElementById('finalResultsSummary');
+      try {
+        const res = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${finishedTournamentId}`);
+        const data = await res.json();
+        const rows = data.leaderboard || [];
+        const relegatedRows = data.relegated || [];
+
+        if (rows.length === 0 && relegatedRows.length === 0) {
+          bodyEl.innerHTML = '<div class="empty">No entrants on record.</div>';
+          summaryEl.textContent = '';
+          return;
+        }
+
+        const totalPayout = rows.reduce((s, r) => s + (r.current_value || 0), 0);
+        summaryEl.textContent = `${rows.length} finisher${rows.length === 1 ? '' : 's'} — total pot ${money(totalPayout)}. Each finisher's final value below is what they're owed. Relegated entrants (${relegatedRows.length}) are not owed anything — their value left the pot when they were cut.`;
+
+        const medal = (rank) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+        const relegatedSection = relegatedRows.length > 0 ? `
+          <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--red); margin-bottom:6px;">Relegated — No Payout (${relegatedRows.length})</div>
+            <table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
+              ${relegatedRows.map(r => `
+                <tr style="border-top:1px solid var(--border);">
+                  <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
+                  <td style="padding:6px;">${escapeHtml(r.user_email)}</td>
+                  <td style="padding:6px; text-align:right;">${money(r.current_value)} (not paid)</td>
+                </tr>`).join('')}
+            </table>
+          </div>` : '';
+
+        bodyEl.innerHTML = `
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
+              <th style="text-align:left; padding:6px;">Rank</th>
+              <th style="text-align:left; padding:6px;">Player</th>
+              <th style="text-align:right; padding:6px;">Final Value</th>
+              <th style="text-align:right; padding:6px;">Amount Owed</th>
+            </tr>
+            ${rows.map(r => `
+              <tr style="border-top:1px solid var(--border);">
+                <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
+                <td style="padding:8px 6px;">${escapeHtml(r.user_email)}</td>
+                <td style="padding:8px 6px; text-align:right;">${money(r.current_value)}</td>
+                <td style="padding:8px 6px; text-align:right; font-weight:700; color:var(--green);">${money(r.current_value)}</td>
+              </tr>`).join('')}
+          </table>
+          ${relegatedSection}`;
+      } catch (e) {
+        console.error('loadFinalResults failed:', e);
+        bodyEl.innerHTML = '<div class="empty">Couldn\'t load final results right now.</div>';
       }
     }
 
