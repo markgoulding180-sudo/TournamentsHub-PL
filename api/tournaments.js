@@ -424,44 +424,59 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { data: exportCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', exportUser.id).maybeSingle();
         if (!exportCaller || !exportCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
-        const { data: allTournamentEntries } = await supabaseAdmin
-          .schema('stockmarket').from('tournament_entries')
-          .select('id, user_id, relegated, relegated_at_gameweek').eq('tournament_id', tournamentId);
+        try {
+          const { data: allTournamentEntries } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, user_id, relegated, relegated_at_gameweek').eq('tournament_id', tournamentId);
 
-        const entryIds = (allTournamentEntries || []).map(e => e.id);
-        const userIds = (allTournamentEntries || []).map(e => e.user_id);
-        const { data: exportUsers } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, email').in('id', userIds)
-          : { data: [] };
-        const exportEmailByUserId = {};
-        (exportUsers || []).forEach(u => { exportEmailByUserId[u.id] = u.email; });
+          const entryIds = (allTournamentEntries || []).map(e => e.id);
+          const userIds = (allTournamentEntries || []).map(e => e.user_id);
+          const { data: exportUsers } = userIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, email').in('id', userIds)
+            : { data: [] };
+          const exportEmailByUserId = {};
+          (exportUsers || []).forEach(u => { exportEmailByUserId[u.id] = u.email; });
 
-        const entryMeta = {};
-        (allTournamentEntries || []).forEach(e => {
-          entryMeta[e.id] = { email: exportEmailByUserId[e.user_id] || 'Unknown', relegated: !!e.relegated, relegated_at_gameweek: e.relegated_at_gameweek || null };
-        });
+          const entryMeta = {};
+          (allTournamentEntries || []).forEach(e => {
+            entryMeta[e.id] = { email: exportEmailByUserId[e.user_id] || 'Unknown', relegated: !!e.relegated, relegated_at_gameweek: e.relegated_at_gameweek || null };
+          });
 
-        const allHistoryRows = entryIds.length > 0
-          ? await fetchAllRows(() => supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*').in('entry_id', entryIds).order('gameweek', { ascending: true }).order('id', { ascending: true }))
-          : [];
+          const allHistoryRows = entryIds.length > 0
+            ? await fetchAllRows(() => supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*').in('entry_id', entryIds).order('gameweek', { ascending: true }).order('id', { ascending: true }))
+            : [];
 
-        const players = (allHistoryRows || []).map(row => ({
-          user_email: entryMeta[row.entry_id]?.email || 'Unknown',
-          relegated: entryMeta[row.entry_id]?.relegated || false,
-          relegated_at_gameweek: entryMeta[row.entry_id]?.relegated_at_gameweek || null,
-          ...row
-        }));
+          const players = (allHistoryRows || []).map(row => ({
+            user_email: entryMeta[row.entry_id]?.email || 'Unknown',
+            relegated: entryMeta[row.entry_id]?.relegated || false,
+            relegated_at_gameweek: entryMeta[row.entry_id]?.relegated_at_gameweek || null,
+            ...row
+          }));
 
-        const allTransactions = await fetchAllRows(() =>
-          supabaseAdmin.schema('stockmarket').from('transactions').select('*').eq('tournament_id', tournamentId).order('gameweek', { ascending: true }).order('id', { ascending: true })
-        );
+          let transactions = [];
+          let transactionsError = null;
+          try {
+            const allTransactions = await fetchAllRows(() =>
+              supabaseAdmin.schema('stockmarket').from('transactions').select('*').eq('tournament_id', tournamentId).order('gameweek', { ascending: true }).order('id', { ascending: true })
+            );
+            transactions = (allTransactions || []).map(row => ({
+              user_email: entryMeta[row.entry_id]?.email || 'Unknown',
+              ...row
+            }));
+          } catch (txErr) {
+            // Most likely cause: the stockmarket.transactions table hasn't
+            // been created yet (migration 005 not run). Don't fail the
+            // whole export over it — the player history half is still
+            // valuable — just flag it clearly instead.
+            console.error('Transactions fetch failed in full export:', txErr);
+            transactionsError = `Couldn't load transactions — has migration 005_transactions_log.sql been run in TB-PL? (${txErr.message})`;
+          }
 
-        const transactions = (allTransactions || []).map(row => ({
-          user_email: entryMeta[row.entry_id]?.email || 'Unknown',
-          ...row
-        }));
-
-        return res.status(200).json({ players, transactions, truncation_note: 'Fully paginated — this export never caps at 1000 rows.' });
+          return res.status(200).json({ players, transactions, transactions_error: transactionsError });
+        } catch (err) {
+          console.error('stockmarket_full_export error:', err);
+          return res.status(500).json({ error: err.message });
+        }
       }
 
       // Returns all 8 stage slots for the admin "Relegation Stages" panel —
@@ -1811,10 +1826,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             .update({ squad_players: squad, last_transfer_gameweek: currentGW, current_value: newTotal })
             .eq('id', entry.id);
 
-          await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+          const { error: sellLogErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
             tournament_id, entry_id: entry.id, gameweek: currentGW, type: 'sell',
             player_id, player_name: soldName, position: positionKey, amount: soldValue
           });
+          if (sellLogErr) console.error('[TRANSACTION LOG FAILED - sell]', sellLogErr.message);
 
           return res.status(200).json({ success: true, sold_for: soldValue });
         } catch (err) {
@@ -1937,11 +1953,12 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           await supabaseAdmin.schema('stockmarket').from('tournament_entries')
             .update({ squad_players: squad, current_value: newTotal }).eq('id', entry.id);
 
-          await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+          const { error: buyLogErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
             tournament_id, entry_id: entry.id, gameweek: currentGW, type: 'buy',
             player_id, player_name: playerRow.web_name, position, amount: -packFee,
             pack_type, shortfall, fee_recipients: feeRecipients
           });
+          if (buyLogErr) console.error('[TRANSACTION LOG FAILED - buy]', buyLogErr.message);
 
           return res.status(200).json({ success: true, pack_fee: packFee, shortfall, fee_recipients: feeRecipients });
         } catch (err) {

@@ -644,7 +644,11 @@ async function downloadFullExport() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(transactions), 'Transactions');
     XLSX.writeFile(wb, `stockmarket-full-export-${tournamentId.slice(0, 8)}.xlsx`);
 
-    resultEl.innerHTML = `<span style="color:var(--accent-green);">Downloaded — ${players.length} player rows, ${transactions.length} transactions.</span>`;
+    if (data.transactions_error) {
+      resultEl.innerHTML = `<span style="color:var(--accent-amber);">Downloaded — ${players.length} player rows, but transactions failed: ${data.transactions_error}</span>`;
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--accent-green);">Downloaded — ${players.length} player rows, ${transactions.length} transactions.</span>`;
+    }
   } catch (error) {
     resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
   }
