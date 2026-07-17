@@ -357,17 +357,21 @@
           return;
         }
         tournamentId = t.id;
-        loadLeaderboard();
+        loadLeaderboard(); // immediate first paint
 
         // This call is what actually triggers the draft-deadline check
-        // (initializing the market once it passes) and per-gameweek price
-        // processing once matches finish — not just a status read.
+        // (initializing the market once it passes), per-gameweek price
+        // processing once matches finish, AND any due relegation stage.
+        // Must resolve before we trust the leaderboard's relegation state —
+        // otherwise the leaderboard can render before a stage that should
+        // have already fired actually gets applied.
         try {
           const lockRes = await fetch(`/api/tournaments?stockmarket_lock_status=true&tournament_id=${tournamentId}`);
           marketStatus = await lockRes.json();
         } catch (e) {
           console.error('Failed to check market status:', e);
         }
+        loadLeaderboard(); // refresh now that any due stage has been applied
 
         await refreshEntryState(t);
       } catch (e) {
