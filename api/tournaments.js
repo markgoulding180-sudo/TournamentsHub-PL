@@ -2535,7 +2535,11 @@ const FLAT_REWARDS = {
   goal: 300, assist: 150, yellow_card: -150, red_card: -300,
   clean_sheet: 125, save: 30, save_cap: 5,
   gk_goal_conceded: -75, gk_goal_conceded_cap: 4,
-  outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4
+  outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4,
+  // Forwards earn more from their own goal involvements than every other
+  // position (+20%, kept a whole number and divisible by 6 so it splits
+  // cleanly across an opponent's 6-player squad with no leftover pence).
+  fwd_goal: 360, fwd_assist: 180
 };
 
 // Computes one player's own raw value change for the gameweek, floored
@@ -2579,8 +2583,10 @@ function computePlayerEventBreakdown(position, stats, costMultiplier) {
   const mult = costMultiplier || 1;
   const goals = Math.min(stats.goals_scored || 0, 99);
   const assists = Math.min(stats.assists || 0, 99);
-  const goalAmt = Math.round(goals * FLAT_REWARDS.goal * mult);
-  const assistAmt = Math.round(assists * FLAT_REWARDS.assist * mult);
+  const goalRate = position === 'fwd' ? FLAT_REWARDS.fwd_goal : FLAT_REWARDS.goal;
+  const assistRate = position === 'fwd' ? FLAT_REWARDS.fwd_assist : FLAT_REWARDS.assist;
+  const goalAmt = Math.round(goals * goalRate * mult);
+  const assistAmt = Math.round(assists * assistRate * mult);
   const yellowAmt = Math.round((stats.yellow_cards || 0) * FLAT_REWARDS.yellow_card * mult);
   const redAmt = Math.round((stats.red_cards || 0) * FLAT_REWARDS.red_card * mult);
   let cleanSheetAmt = 0, saveAmt = 0, concededAmt = 0;
