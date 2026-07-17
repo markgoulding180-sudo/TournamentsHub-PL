@@ -19,6 +19,7 @@ async function checkAdminAccess() {
   if (pinVerified === 'true') {
     // PIN already verified, load admin panel
     refreshStatus();
+    loadStockMarketTournamentList();
     return;
   }
   
@@ -121,6 +122,7 @@ function verifyPin() {
     sessionStorage.setItem('admin_pin_verified', 'true');
     document.getElementById('pin-modal').style.display = 'none';
     refreshStatus();
+    loadStockMarketTournamentList();
   } else {
     // PIN incorrect
     document.getElementById('pin-error').style.display = 'block';
@@ -447,6 +449,37 @@ async function loadAuditHistory() {
 
 // ================= RELEGATION STAGES =================
 let currentStagesData = [];
+
+async function loadStockMarketTournamentList() {
+  const select = document.getElementById('stagesTournamentSelect');
+  if (!select) return;
+  try {
+    const response = await fetch('/api/tournaments?tournament_type=stockmarket');
+    const data = await response.json();
+    const tournaments = data.tournaments || [];
+    if (tournaments.length === 0) {
+      select.innerHTML = '<option value="">No Stock Market tournaments found</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">-- choose a tournament --</option>' +
+      tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status} (GW${t.gameweek ?? '?'})</option>`).join('');
+  } catch (error) {
+    select.innerHTML = '<option value="">Failed to load tournament list</option>';
+  }
+}
+
+function escapeHtmlAdmin(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function onStagesTournamentSelected() {
+  const select = document.getElementById('stagesTournamentSelect');
+  if (!select.value) return;
+  document.getElementById('stagesTournamentId').value = select.value;
+  loadRelegationStages();
+}
 
 async function loadRelegationStages() {
   const tournamentId = document.getElementById('stagesTournamentId').value.trim();

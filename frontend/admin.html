@@ -207,8 +207,15 @@
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
         Up to 8 checkpoints. At each one's trigger gameweek, the bottom N currently-active entries are relegated (out for the rest of the season) and their combined portfolio value is split evenly across every remaining player slot. The cost-per-action multiplier also updates from that gameweek onward. Leave Trigger GW blank on any row you don't want to use. A stage already applied can no longer be edited (shown greyed out).
       </p>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Select tournament</label>
+        <select id="stagesTournamentSelect" onchange="onStagesTournamentSelected()"
+          style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="">Loading tournaments…</option>
+        </select>
+      </div>
       <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
-        <input type="text" id="stagesTournamentId" placeholder="Tournament ID"
+        <input type="text" id="stagesTournamentId" placeholder="...or paste a Tournament ID directly"
           style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
         <button class="btn btn-primary" onclick="loadRelegationStages()"><i class="fas fa-magnifying-glass"></i> Load</button>
       </div>
