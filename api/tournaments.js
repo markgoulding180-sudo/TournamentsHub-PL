@@ -2266,10 +2266,10 @@ const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 // loses, by construction — guaranteed zero-sum, no rounding-drift
 // corrections needed anywhere.
 const FLAT_REWARDS = {
-  goal: 75, assist: 45, yellow_card: -30, red_card: -100,
-  clean_sheet: 60, save: 10, save_cap: 5,
-  gk_goal_conceded: -40, gk_goal_conceded_cap: 4,
-  outfield_goal_conceded: -10
+  goal: 200, assist: 100, yellow_card: -100, red_card: -200,
+  clean_sheet: 100, save: 30, save_cap: 5,
+  gk_goal_conceded: -50, gk_goal_conceded_cap: 4,
+  outfield_goal_conceded: -50, outfield_goal_conceded_cap: 4
 };
 
 // Computes one player's own raw value change for the gameweek, floored
@@ -2324,7 +2324,8 @@ function computePlayerEventBreakdown(position, stats) {
     const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
     concededAmt = cappedConceded * FLAT_REWARDS.gk_goal_conceded;
   } else {
-    concededAmt = (stats.team_goals_conceded || 0) * FLAT_REWARDS.outfield_goal_conceded;
+    const cappedTeamConceded = Math.min(stats.team_goals_conceded || 0, FLAT_REWARDS.outfield_goal_conceded_cap);
+    concededAmt = cappedTeamConceded * FLAT_REWARDS.outfield_goal_conceded;
   }
   return { goalAmt, assistAmt, saveAmt, cleanSheetAmt, yellowAmt, redAmt, concededAmt };
 }
