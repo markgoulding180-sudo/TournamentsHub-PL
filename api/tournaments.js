@@ -390,6 +390,25 @@ module.exports = async (req, res) => {
         });
       }
 
+// Supabase caps any single select at 1000 rows by default — silently,
+// with no error, no truncated flag, nothing. A full-tournament export
+// (34 entrants x 6 players x 38 gameweeks) blows past that easily, so
+// every query in the export path pages through with .range() until it
+// genuinely runs out, rather than trusting whatever the first page returns.
+async function fetchAllRows(queryFactory, pageSize = 1000) {
+  let all = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await queryFactory().range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
       // Full-tournament export for offline analysis — admin only. Every
       // entrant's per-gameweek player breakdown plus every logged
       // sell/buy transaction, each row tagged with which user it belongs
@@ -422,9 +441,9 @@ module.exports = async (req, res) => {
           entryMeta[e.id] = { email: exportEmailByUserId[e.user_id] || 'Unknown', relegated: !!e.relegated, relegated_at_gameweek: e.relegated_at_gameweek || null };
         });
 
-        const { data: allHistoryRows } = entryIds.length > 0
-          ? await supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*').in('entry_id', entryIds).order('gameweek', { ascending: true })
-          : { data: [] };
+        const allHistoryRows = entryIds.length > 0
+          ? await fetchAllRows(() => supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*').in('entry_id', entryIds).order('gameweek', { ascending: true }).order('id', { ascending: true }))
+          : [];
 
         const players = (allHistoryRows || []).map(row => ({
           user_email: entryMeta[row.entry_id]?.email || 'Unknown',
@@ -433,16 +452,16 @@ module.exports = async (req, res) => {
           ...row
         }));
 
-        const { data: allTransactions } = await supabaseAdmin
-          .schema('stockmarket').from('transactions')
-          .select('*').eq('tournament_id', tournamentId).order('gameweek', { ascending: true });
+        const allTransactions = await fetchAllRows(() =>
+          supabaseAdmin.schema('stockmarket').from('transactions').select('*').eq('tournament_id', tournamentId).order('gameweek', { ascending: true }).order('id', { ascending: true })
+        );
 
         const transactions = (allTransactions || []).map(row => ({
           user_email: entryMeta[row.entry_id]?.email || 'Unknown',
           ...row
         }));
 
-        return res.status(200).json({ players, transactions });
+        return res.status(200).json({ players, transactions, truncation_note: 'Fully paginated — this export never caps at 1000 rows.' });
       }
 
       // Returns all 8 stage slots for the admin "Relegation Stages" panel —
