@@ -2346,10 +2346,10 @@ const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 // loses, by construction — guaranteed zero-sum, no rounding-drift
 // corrections needed anywhere.
 const FLAT_REWARDS = {
-  goal: 200, assist: 100, yellow_card: -100, red_card: -200,
-  clean_sheet: 100, save: 30, save_cap: 5,
-  gk_goal_conceded: -50, gk_goal_conceded_cap: 4,
-  outfield_goal_conceded: -50, outfield_goal_conceded_cap: 4
+  goal: 300, assist: 150, yellow_card: -150, red_card: -300,
+  clean_sheet: 150, save: 45, save_cap: 5,
+  gk_goal_conceded: -75, gk_goal_conceded_cap: 4,
+  outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4
 };
 
 // Computes one player's own raw value change for the gameweek, floored
