@@ -115,9 +115,14 @@
 
     async function ensureTournamentId() {
       if (tournamentId) return;
-      const res = await fetch('/api/tournaments?status=live&tournament_type=stockmarket');
-      const data = await res.json();
-      if (data.tournaments && data.tournaments.length > 0) tournamentId = data.tournaments[0].id;
+      for (const status of ['live', 'finished', 'upcoming']) {
+        const res = await fetch(`/api/tournaments?status=${status}&tournament_type=stockmarket`);
+        const data = await res.json();
+        if (data.tournaments && data.tournaments.length > 0) {
+          tournamentId = data.tournaments[0].id;
+          return;
+        }
+      }
     }
 
     async function loadHistory() {
