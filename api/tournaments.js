@@ -158,18 +158,32 @@ module.exports = async (req, res) => {
         const zoneSize = nextStage ? Math.min(nextStage.relegate_count || 0, activeIdsInOrder.length) : 0;
         const zoneIds = new Set(zoneSize > 0 ? activeIdsInOrder.slice(activeIdsInOrder.length - zoneSize) : []);
 
-        const leaderboard = (allEntries || []).map((e, i) => ({
+        // Active entries get their own clean 1..N ranking — relegated
+        // players are pulled out entirely rather than interleaved, since
+        // their frozen value no longer means the same thing as an active
+        // player's still-moving value.
+        const activeEntries = (allEntries || []).filter(e => !e.relegated);
+        const relegatedEntries = (allEntries || []).filter(e => e.relegated)
+          .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || (b.current_value || 0) - (a.current_value || 0));
+
+        const leaderboard = activeEntries.map((e, i) => ({
           rank: i + 1,
           user_email: emailByUserId[e.user_id] || 'Unknown',
           current_value: e.current_value,
           gain_loss: (e.current_value || 0) - (e.start_value || 0),
-          relegated: !!e.relegated,
-          relegated_at_gameweek: e.relegated_at_gameweek || null,
           in_relegation_zone: zoneIds.has(e.id)
+        }));
+
+        const relegated = relegatedEntries.map(e => ({
+          user_email: emailByUserId[e.user_id] || 'Unknown',
+          current_value: e.current_value,
+          gain_loss: (e.current_value || 0) - (e.start_value || 0),
+          relegated_at_gameweek: e.relegated_at_gameweek || null
         }));
 
         return res.status(200).json({
           leaderboard,
+          relegated,
           next_stage: nextStage ? { stage_number: nextStage.stage_number, trigger_gameweek: nextStage.trigger_gameweek, relegate_count: nextStage.relegate_count } : null
         });
       }
