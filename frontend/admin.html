@@ -201,6 +201,26 @@
       <div id="auditResults" style="font-size:0.85rem;">Enter a tournament ID above to check its history.</div>
     </div>
 
+    <!-- Stock Market — Relegation Stages -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-arrow-trend-down"></i> Stock Market — Relegation Stages</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Up to 8 checkpoints. At each one's trigger gameweek, the bottom N currently-active entries are relegated (out for the rest of the season) and their combined portfolio value is split evenly across every remaining player slot. The cost-per-action multiplier also updates from that gameweek onward. Leave Trigger GW blank on any row you don't want to use. A stage already applied can no longer be edited (shown greyed out).
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+        <input type="text" id="stagesTournamentId" placeholder="Tournament ID"
+          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn btn-primary" onclick="loadRelegationStages()"><i class="fas fa-magnifying-glass"></i> Load</button>
+      </div>
+      <div id="stagesTableWrap" style="overflow-x:auto;">
+        <p class="text-muted" style="font-size:0.85rem;">Enter a tournament ID above and click Load.</p>
+      </div>
+      <button class="btn btn-primary" onclick="saveRelegationStages()" style="width:100%; margin-top:0.75rem;" id="saveStagesBtn" disabled>
+        <i class="fas fa-floppy-disk"></i> Save Stages
+      </button>
+      <div id="stagesSaveResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
     <!-- Current Status -->
     <div class="admin-card">
       <h3><i class="fas fa-info-circle"></i> Current Status</h3>

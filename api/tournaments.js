@@ -132,7 +132,7 @@ module.exports = async (req, res) => {
       if (stockmarketLeaderboard === 'true' && tournamentId) {
         const { data: allEntries } = await supabaseAdmin
           .schema('stockmarket').from('tournament_entries')
-          .select('id, user_id, current_value, start_value')
+          .select('id, user_id, current_value, start_value, relegated, relegated_at_gameweek')
           .eq('tournament_id', tournamentId).eq('squad_locked', true)
           .order('current_value', { ascending: false });
 
@@ -143,14 +143,35 @@ module.exports = async (req, res) => {
         const emailByUserId = {};
         (users || []).forEach(u => { emailByUserId[u.id] = u.email; });
 
+        // Next unapplied stage tells us how many of the currently-active
+        // bottom entries are in the relegation zone right now.
+        const { data: nextStage } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_stages')
+          .select('stage_number, trigger_gameweek, relegate_count')
+          .eq('tournament_id', tournamentId).eq('applied', false)
+          .order('stage_number', { ascending: true }).limit(1).maybeSingle();
+
+        // allEntries is sorted current_value descending, so the last
+        // `zoneSize` entries in the active-only subset are the lowest
+        // active values — exactly who'd be cut if the next stage ran now.
+        const activeIdsInOrder = (allEntries || []).filter(e => !e.relegated).map(e => e.id);
+        const zoneSize = nextStage ? Math.min(nextStage.relegate_count || 0, activeIdsInOrder.length) : 0;
+        const zoneIds = new Set(zoneSize > 0 ? activeIdsInOrder.slice(activeIdsInOrder.length - zoneSize) : []);
+
         const leaderboard = (allEntries || []).map((e, i) => ({
           rank: i + 1,
           user_email: emailByUserId[e.user_id] || 'Unknown',
           current_value: e.current_value,
-          gain_loss: (e.current_value || 0) - (e.start_value || 0)
+          gain_loss: (e.current_value || 0) - (e.start_value || 0),
+          relegated: !!e.relegated,
+          relegated_at_gameweek: e.relegated_at_gameweek || null,
+          in_relegation_zone: zoneIds.has(e.id)
         }));
 
-        return res.status(200).json({ leaderboard });
+        return res.status(200).json({
+          leaderboard,
+          next_stage: nextStage ? { stage_number: nextStage.stage_number, trigger_gameweek: nextStage.trigger_gameweek, relegate_count: nextStage.relegate_count } : null
+        });
       }
 
       const stockmarketHistory = params.get('stockmarket_history');
@@ -272,6 +293,11 @@ module.exports = async (req, res) => {
           return { ...s, best_elsewhere: bestValueByPid[s.player_id] || null };
         });
 
+        const { data: tForMult } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments')
+          .select('cost_multiplier').eq('id', tournamentId).maybeSingle();
+        const costMultiplier = (tForMult && tForMult.cost_multiplier) || 1;
+
         // If this week's matchup exists but hasn't been finally settled
         // yet, compute a LIVE, provisional view — every event funds
         // directly from the opponent, evenly, updating in real time as
@@ -292,7 +318,7 @@ module.exports = async (req, res) => {
             const concededByTeam = await getTeamGoalsConcededMap(masterDb, currentGw);
 
             const { provA, provB } = computeUnifiedSettlement(
-              mySquadWithComparison, opponentEntry.squad_players || [], statsByPid, concededByTeam
+              mySquadWithComparison, opponentEntry.squad_players || [], statsByPid, concededByTeam, costMultiplier
             );
             const mapOut = (p) => ({
               player_id: p.player_id, name: p.name, position: p.position, team: p.team, is_sub: p.is_sub,
@@ -322,8 +348,37 @@ module.exports = async (req, res) => {
           live_debug: liveDebug,
           gameweek: currentGw,
           live: liveMine ? { mine: liveMine, opponent: liveOpponent } : null,
-          opponent_name: opponentName
+          opponent_name: opponentName,
+          cost_multiplier: costMultiplier,
+          relegated: !!myEntry.relegated
         });
+      }
+
+      // Returns all 8 stage slots for the admin "Relegation Stages" panel —
+      // any slot not yet configured comes back as a blank template
+      // (relegate_count 0, cost_multiplier 1) rather than being omitted,
+      // so the admin UI always has exactly 8 rows to render.
+      const stockmarketStages = params.get('stockmarket_stages');
+      if (stockmarketStages === 'true' && tournamentId) {
+        const { data: existingStages } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_stages')
+          .select('*').eq('tournament_id', tournamentId).order('stage_number', { ascending: true });
+
+        const byNumber = {};
+        (existingStages || []).forEach(s => { byNumber[s.stage_number] = s; });
+
+        const stages = [];
+        for (let n = 1; n <= 8; n++) {
+          if (byNumber[n]) {
+            stages.push(byNumber[n]);
+          } else {
+            stages.push({
+              tournament_id: tournamentId, stage_number: n,
+              trigger_gameweek: null, relegate_count: 0, cost_multiplier: 1, applied: false
+            });
+          }
+        }
+        return res.status(200).json({ stages });
       }
 
       const stockmarketLockStatus = params.get('stockmarket_lock_status');
@@ -1108,6 +1163,64 @@ module.exports = async (req, res) => {
           return res.status(200).json({ success: true, new_gameweek: newGw });
         } catch (err) {
           console.error('stockmarket_advance_gameweek error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Admin saves the relegation-stage schedule for a tournament — up to
+      // 8 stages, each independently editable (trigger gameweek, how many
+      // get cut, and the cost-per-action multiplier from that point on).
+      // A stage already applied is left untouched even if included in the
+      // payload — its effect already happened and can't be un-done by
+      // editing the row after the fact.
+      if (action === 'stockmarket_save_stages') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: stagesTournamentId, stages } = req.body;
+        if (!stagesTournamentId || !Array.isArray(stages)) {
+          return res.status(400).json({ error: 'tournament_id and a stages array are required' });
+        }
+
+        try {
+          const { data: existingStages } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_stages')
+            .select('stage_number, applied').eq('tournament_id', stagesTournamentId);
+          const appliedNumbers = new Set((existingStages || []).filter(s => s.applied).map(s => s.stage_number));
+
+          const results = [];
+          for (const s of stages) {
+            const stageNumber = parseInt(s.stage_number);
+            if (!stageNumber || stageNumber < 1 || stageNumber > 8) continue;
+            if (appliedNumbers.has(stageNumber)) {
+              results.push({ stage_number: stageNumber, skipped: true, reason: 'already applied' });
+              continue;
+            }
+            const triggerGw = s.trigger_gameweek === '' || s.trigger_gameweek == null ? null : parseInt(s.trigger_gameweek);
+            const relegateCount = Math.max(0, parseInt(s.relegate_count) || 0);
+            const costMultiplier = Math.max(0.01, parseFloat(s.cost_multiplier) || 1);
+
+            if (triggerGw == null) {
+              // Blank trigger week = this slot isn't in use; remove any
+              // existing unapplied row for it rather than leaving a stale one.
+              await supabaseAdmin.schema('stockmarket').from('tournament_stages')
+                .delete().eq('tournament_id', stagesTournamentId).eq('stage_number', stageNumber).eq('applied', false);
+              results.push({ stage_number: stageNumber, cleared: true });
+              continue;
+            }
+
+            await supabaseAdmin.schema('stockmarket').from('tournament_stages')
+              .upsert({
+                tournament_id: stagesTournamentId, stage_number: stageNumber,
+                trigger_gameweek: triggerGw, relegate_count: relegateCount, cost_multiplier: costMultiplier,
+                applied: false
+              }, { onConflict: 'tournament_id,stage_number' });
+            results.push({ stage_number: stageNumber, saved: true, trigger_gameweek: triggerGw, relegate_count: relegateCount, cost_multiplier: costMultiplier });
+          }
+
+          return res.status(200).json({ success: true, results });
+        } catch (err) {
+          console.error('stockmarket_save_stages error:', err);
           return res.status(500).json({ error: err.message });
         }
       }
@@ -2170,6 +2283,11 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
       return { locked: false, drafting: false, marketLive: true, gameweek: tournament.gameweek, reason: `Market starts processing from Gameweek ${tournament.gameweek}.`, debug };
     }
 
+    // Apply any relegation stage whose trigger gameweek has arrived —
+    // must happen BEFORE pairing so newly-relegated entries never show
+    // up in this gameweek's matchups.
+    await applyDueStages(supabaseAdmin, tournamentId, currentGW);
+
     // Pair everyone up as soon as the gameweek begins — well before
     // results come in, so a user can see who they're facing this week
     // immediately, not just after the numbers already moved.
@@ -2389,23 +2507,24 @@ function computePlayerRawChange(position, stats, currentValue) {
 // settlement can process them in strict priority order (goals, then
 // assists, then saves, then clean sheets) when the funding squad doesn't
 // have enough to cover everything.
-function computePlayerEventBreakdown(position, stats) {
+function computePlayerEventBreakdown(position, stats, costMultiplier) {
+  const mult = costMultiplier || 1;
   const goals = Math.min(stats.goals_scored || 0, 99);
   const assists = Math.min(stats.assists || 0, 99);
-  const goalAmt = goals * FLAT_REWARDS.goal;
-  const assistAmt = assists * FLAT_REWARDS.assist;
-  const yellowAmt = (stats.yellow_cards || 0) * FLAT_REWARDS.yellow_card;
-  const redAmt = (stats.red_cards || 0) * FLAT_REWARDS.red_card;
+  const goalAmt = Math.round(goals * FLAT_REWARDS.goal * mult);
+  const assistAmt = Math.round(assists * FLAT_REWARDS.assist * mult);
+  const yellowAmt = Math.round((stats.yellow_cards || 0) * FLAT_REWARDS.yellow_card * mult);
+  const redAmt = Math.round((stats.red_cards || 0) * FLAT_REWARDS.red_card * mult);
   let cleanSheetAmt = 0, saveAmt = 0, concededAmt = 0;
   if (position === 'gk') {
-    if ((stats.clean_sheets || 0) > 0) cleanSheetAmt = FLAT_REWARDS.clean_sheet;
+    if ((stats.clean_sheets || 0) > 0) cleanSheetAmt = Math.round(FLAT_REWARDS.clean_sheet * mult);
     const cappedSaves = Math.min(stats.saves || 0, FLAT_REWARDS.save_cap);
-    saveAmt = cappedSaves * FLAT_REWARDS.save;
+    saveAmt = Math.round(cappedSaves * FLAT_REWARDS.save * mult);
     const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
-    concededAmt = cappedConceded * FLAT_REWARDS.gk_goal_conceded;
+    concededAmt = Math.round(cappedConceded * FLAT_REWARDS.gk_goal_conceded * mult);
   } else {
     const cappedTeamConceded = Math.min(stats.team_goals_conceded || 0, FLAT_REWARDS.outfield_goal_conceded_cap);
-    concededAmt = cappedTeamConceded * FLAT_REWARDS.outfield_goal_conceded;
+    concededAmt = Math.round(cappedTeamConceded * FLAT_REWARDS.outfield_goal_conceded * mult);
   }
   return { goalAmt, assistAmt, saveAmt, cleanSheetAmt, yellowAmt, redAmt, concededAmt };
 }
@@ -2419,7 +2538,7 @@ function computePlayerEventBreakdown(position, stats) {
 // conceded) apply directly too, floored at the player's own value, and
 // credit the other squad. Provably zero-sum for the pair, event by
 // event, by construction.
-function prepSquadForSettlement(squad, statsByPid, concededByTeam) {
+function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier) {
   return squad.filter(s => !s.empty).map(s => {
     const stats = statsByPid[s.player_id] || {};
     // Prefer the team snapshotted at the moment these stats were synced
@@ -2429,7 +2548,7 @@ function prepSquadForSettlement(squad, statsByPid, concededByTeam) {
     const teamConceded = concededByTeam[effectiveTeam] || 0;
     const events = s.is_sub
       ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
-      : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded });
+      : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded }, costMultiplier);
     return {
       ...s, liveValue: Math.round(s.value || 0), events,
       gwStats: {
@@ -2508,9 +2627,9 @@ function settleUnified(provA, provB) {
 }
 
 // Convenience wrapper for the LIVE view (just the two matched squads).
-function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam) {
-  const provA = prepSquadForSettlement(squadA, statsByPid, concededByTeam);
-  const provB = prepSquadForSettlement(squadB, statsByPid, concededByTeam);
+function computeUnifiedSettlement(squadA, squadB, statsByPid, concededByTeam, costMultiplier) {
+  const provA = prepSquadForSettlement(squadA, statsByPid, concededByTeam, costMultiplier);
+  const provB = prepSquadForSettlement(squadB, statsByPid, concededByTeam, costMultiplier);
   settleUnified(provA, provB);
   return { provA, provB };
 }
@@ -2543,7 +2662,7 @@ async function ensureMatchupsForGameweek(supabaseAdmin, tournamentId, gameweek) 
 
   const { data: entries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
-    .select('id').eq('tournament_id', tournamentId).eq('squad_locked', true);
+    .select('id').eq('tournament_id', tournamentId).eq('squad_locked', true).eq('relegated', false);
   if (!entries || entries.length === 0) return { ok: false, step: 'no entries' };
 
   const pool = entries.map(e => e.id);
@@ -2590,8 +2709,13 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 
   const { data: entries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
-    .select('*').eq('tournament_id', tournamentId).eq('squad_locked', true);
+    .select('*').eq('tournament_id', tournamentId).eq('squad_locked', true).eq('relegated', false);
   if (!entries || entries.length === 0) return { ok: false, step: 'no entries' };
+
+  const { data: tRow } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments')
+    .select('cost_multiplier').eq('id', tournamentId).maybeSingle();
+  const costMultiplier = (tRow && tRow.cost_multiplier) || 1;
 
   // Gather every distinct player_id across every squad, fetch their
   // GW stats once, plus each real team's goals conceded this gameweek.
@@ -2610,7 +2734,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   // separate matchup against someone else.
   const preppedByEntry = {};
   entries.forEach(e => {
-    preppedByEntry[e.id] = prepSquadForSettlement(e.squad_players || [], statsByPid, concededByTeam);
+    preppedByEntry[e.id] = prepSquadForSettlement(e.squad_players || [], statsByPid, concededByTeam, costMultiplier);
   });
 
   // Settle each already-paired, not-yet-settled matchup using the exact
@@ -2695,6 +2819,115 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   }
 
   return { ok: true, pairs: (matchupRowsExisting || []).filter(r => r.entry_id_2).length };
+}
+
+// ================= RELEGATION STAGES =================
+// Up to 8 admin-defined checkpoints per tournament. Each stage names a
+// trigger gameweek, how many of the currently-active bottom entries get
+// cut, and the cost-per-action multiplier that takes effect from that
+// point on. Fully admin-controlled, not auto-computed — see
+// frontend/admin.html "Stock Market — Relegation Stages" section.
+//
+// Finds every configured stage whose trigger_gameweek has arrived and
+// hasn't been applied yet, and applies them in stage_number order. Safe
+// to call on every page load / status check: each stage is claimed
+// atomically (applied flips false -> true in the same update that reads
+// it) so two overlapping requests can't double-apply the same stage.
+async function applyDueStages(supabaseAdmin, tournamentId, currentGW) {
+  const { data: dueStages } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_stages')
+    .select('*')
+    .eq('tournament_id', tournamentId)
+    .eq('applied', false)
+    .lte('trigger_gameweek', currentGW)
+    .order('stage_number', { ascending: true });
+
+  if (!dueStages || dueStages.length === 0) return { ok: true, applied: 0 };
+
+  let appliedCount = 0;
+  for (const stage of dueStages) {
+    // Atomic claim — only this call proceeds if it's still unapplied.
+    const { data: claimed } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_stages')
+      .update({ applied: true })
+      .eq('id', stage.id).eq('applied', false)
+      .select('id').maybeSingle();
+    if (!claimed) continue;
+
+    await applyRelegationStage(supabaseAdmin, tournamentId, stage, currentGW);
+    appliedCount++;
+  }
+  return { ok: true, applied: appliedCount };
+}
+
+// Cuts the bottom `relegate_count` currently-active entries (by current
+// portfolio value), pools their total value, and spreads that pot evenly
+// across every player slot in every surviving squad — condensing the
+// prize pool into fewer players as the tournament progresses. Then bumps
+// the tournament's cost_multiplier to this stage's configured value.
+async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentGW) {
+  const { data: activeEntries } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('id, current_value, squad_players')
+    .eq('tournament_id', tournamentId).eq('squad_locked', true).eq('relegated', false)
+    .order('current_value', { ascending: true });
+
+  if (!activeEntries || activeEntries.length === 0) {
+    console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: no active entries, skipping.`);
+    return;
+  }
+
+  const cutCount = Math.min(Math.max(stage.relegate_count || 0, 0), activeEntries.length);
+  if (cutCount === 0) {
+    console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegate_count is 0, nothing cut.`);
+  } else {
+    const relegatedEntries = activeEntries.slice(0, cutCount);
+    const survivors = activeEntries.slice(cutCount);
+
+    for (const e of relegatedEntries) {
+      await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+        .update({ relegated: true, relegated_at_gameweek: currentGW })
+        .eq('id', e.id);
+    }
+
+    const pot = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+
+    if (pot > 0 && survivors.length > 0) {
+      // Every non-empty player slot across every surviving squad gets an
+      // equal share, pence-exact (remainder handed to the first few slots).
+      const slotRefs = [];
+      const squadCopies = {};
+      survivors.forEach(e => {
+        squadCopies[e.id] = (e.squad_players || []).map(p => ({ ...p }));
+        squadCopies[e.id].forEach((p, idx) => { if (!p.empty) slotRefs.push({ entryId: e.id, idx }); });
+      });
+
+      if (slotRefs.length > 0) {
+        const base = Math.floor(pot / slotRefs.length);
+        const remainder = pot - base * slotRefs.length;
+        slotRefs.forEach((ref, i) => {
+          const amount = base + (i < remainder ? 1 : 0);
+          const slot = squadCopies[ref.entryId][ref.idx];
+          slot.value = Math.round((slot.value || 0) + amount);
+        });
+
+        for (const e of survivors) {
+          const squad = squadCopies[e.id];
+          const newTotal = Math.round(squad.reduce((s, p) => s + (p.empty ? 0 : (p.value || 0)), 0));
+          await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+            .update({ squad_players: squad, current_value: newTotal })
+            .eq('id', e.id);
+        }
+      }
+    }
+    console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegated ${relegatedEntries.length}, pot ${pot}p spread across ${survivors.length} survivors.`);
+  }
+
+  if (stage.cost_multiplier) {
+    await supabaseAdmin.schema('stockmarket').from('tournaments')
+      .update({ cost_multiplier: stage.cost_multiplier })
+      .eq('id', tournamentId);
+  }
 }
 
 function packPriceFor(config, rarity) {

@@ -835,7 +835,14 @@
           return;
         }
         const medal = (rank) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+        const nextStage = data.next_stage;
+        const stageNote = nextStage
+          ? `<div style="font-size:11px; color:var(--text-faint); margin-bottom:6px;">
+               Relegation zone (bottom ${nextStage.relegate_count}) shown in red — cuts at Gameweek ${nextStage.trigger_gameweek}.
+             </div>`
+          : '';
         document.getElementById('leaderboardBody').innerHTML = `
+          ${stageNote}
           <table style="width:100%; border-collapse:collapse; font-size:13px;">
             <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
               <th style="text-align:left; padding:6px;">Rank</th>
@@ -844,9 +851,13 @@
               <th style="text-align:right; padding:6px;">Gain/Loss</th>
             </tr>
             ${rows.map(r => `
-              <tr style="border-top:1px solid var(--border);">
+              <tr style="border-top:1px solid var(--border); ${r.relegated ? 'opacity:0.5;' : ''} ${r.in_relegation_zone ? 'background:rgba(239,68,68,0.12);' : ''}">
                 <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
-                <td style="padding:8px 6px;">${escapeHtml(r.user_email)}</td>
+                <td style="padding:8px 6px;">
+                  ${escapeHtml(r.user_email)}
+                  ${r.relegated ? '<span style="margin-left:6px; font-size:10px; text-transform:uppercase; color:var(--red);">Relegated GW' + r.relegated_at_gameweek + '</span>' : ''}
+                  ${(!r.relegated && r.in_relegation_zone) ? '<span style="margin-left:6px; font-size:10px; text-transform:uppercase; color:var(--red);">Relegation zone</span>' : ''}
+                </td>
                 <td style="padding:8px 6px; text-align:right; font-weight:700;">${money(r.current_value)}</td>
                 <td style="padding:8px 6px; text-align:right; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
               </tr>`).join('')}

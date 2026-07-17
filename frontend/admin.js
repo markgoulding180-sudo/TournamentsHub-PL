@@ -445,6 +445,101 @@ async function loadAuditHistory() {
   }
 }
 
+// ================= RELEGATION STAGES =================
+let currentStagesData = [];
+
+async function loadRelegationStages() {
+  const tournamentId = document.getElementById('stagesTournamentId').value.trim();
+  const wrap = document.getElementById('stagesTableWrap');
+  if (!tournamentId) { wrap.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Enter a tournament ID.</p>'; return; }
+
+  wrap.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Loading…</p>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch(`/api/tournaments?stockmarket_stages=true&tournament_id=${tournamentId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) { wrap.innerHTML = `Failed: ${data.error}`; return; }
+    currentStagesData = data.stages || [];
+    renderRelegationStages();
+    document.getElementById('saveStagesBtn').disabled = false;
+  } catch (error) {
+    wrap.innerHTML = `Error: ${error.message}`;
+  }
+}
+
+function renderRelegationStages() {
+  const wrap = document.getElementById('stagesTableWrap');
+  wrap.innerHTML = `
+    <table style="width:100%; border-collapse:collapse; font-size:0.85rem; min-width:560px;">
+      <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+        <th style="padding:6px 4px;">Stage</th>
+        <th style="padding:6px 4px;">Trigger GW</th>
+        <th style="padding:6px 4px;">Relegate Count</th>
+        <th style="padding:6px 4px;">Cost Multiplier</th>
+        <th style="padding:6px 4px;">Status</th>
+      </tr>
+      ${currentStagesData.map(s => `
+        <tr style="border-bottom:1px solid var(--border-color); ${s.applied ? 'opacity:0.55;' : ''}">
+          <td style="padding:6px 4px; font-weight:700;">${s.stage_number}</td>
+          <td style="padding:6px 4px;">
+            <input type="number" min="1" max="38" data-stage="${s.stage_number}" data-field="trigger_gameweek"
+              value="${s.trigger_gameweek ?? ''}" ${s.applied ? 'disabled' : ''}
+              style="width:80px; padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          </td>
+          <td style="padding:6px 4px;">
+            <input type="number" min="0" data-stage="${s.stage_number}" data-field="relegate_count"
+              value="${s.relegate_count ?? 0}" ${s.applied ? 'disabled' : ''}
+              style="width:90px; padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          </td>
+          <td style="padding:6px 4px;">
+            <input type="number" min="0.01" step="0.01" data-stage="${s.stage_number}" data-field="cost_multiplier"
+              value="${s.cost_multiplier ?? 1}" ${s.applied ? 'disabled' : ''}
+              style="width:90px; padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          </td>
+          <td style="padding:6px 4px;">
+            ${s.applied ? '<span style="color:var(--accent-red);">Applied</span>' : (s.trigger_gameweek ? '<span style="color:var(--accent-green);">Scheduled</span>' : '<span class="text-muted">Unused</span>')}
+          </td>
+        </tr>`).join('')}
+    </table>`;
+}
+
+async function saveRelegationStages() {
+  const tournamentId = document.getElementById('stagesTournamentId').value.trim();
+  const resultEl = document.getElementById('stagesSaveResult');
+  if (!tournamentId) return;
+
+  const stages = currentStagesData
+    .filter(s => !s.applied)
+    .map(s => {
+      const row = document.querySelector(`input[data-stage="${s.stage_number}"][data-field="trigger_gameweek"]`).closest('tr');
+      const get = (field) => row.querySelector(`input[data-field="${field}"]`).value;
+      return {
+        stage_number: s.stage_number,
+        trigger_gameweek: get('trigger_gameweek'),
+        relegate_count: get('relegate_count'),
+        cost_multiplier: get('cost_multiplier')
+      };
+    });
+
+  resultEl.textContent = 'Saving…';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_save_stages', tournament_id: tournamentId, stages })
+    });
+    const data = await response.json();
+    if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+    resultEl.innerHTML = '<span style="color:var(--accent-green);">Saved.</span>';
+    await loadRelegationStages();
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
 async function launchTournament() {
   if (!confirm('Launch new tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create £20 entry tournament\n3. Open for user registrations')) {
     return;
