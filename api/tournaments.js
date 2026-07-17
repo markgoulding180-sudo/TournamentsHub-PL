@@ -2533,7 +2533,7 @@ const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 // corrections needed anywhere.
 const FLAT_REWARDS = {
   goal: 300, assist: 150, yellow_card: -150, red_card: -300,
-  clean_sheet: 150, save: 45, save_cap: 5,
+  clean_sheet: 125, save: 30, save_cap: 5,
   gk_goal_conceded: -75, gk_goal_conceded_cap: 4,
   outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4
 };
