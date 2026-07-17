@@ -1067,6 +1067,24 @@ module.exports = async (req, res) => {
       // without having to click through drafting every single time.
       // TEMPORARY TEST TOOL — delete after testing. Force-closes the
       // draft window right now instead of needing manual SQL each time.
+      // TEMPORARY TEST TOOL — delete after testing. Advances the master
+      // clock's current gameweek by 1, so real historical data (already
+      // marked finished in reality) processes automatically on next load.
+      if (action === 'stockmarket_advance_gameweek') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        try {
+          const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+          const newGw = (clock ? clock.current_gameweek : 0) + 1;
+          await masterDb.from('master_clock').update({ current_gameweek: newGw }).eq('id', 'current');
+          return res.status(200).json({ success: true, new_gameweek: newGw });
+        } catch (err) {
+          console.error('stockmarket_advance_gameweek error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'stockmarket_force_close') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
