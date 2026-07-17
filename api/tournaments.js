@@ -390,6 +390,61 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Full-tournament export for offline analysis — admin only. Every
+      // entrant's per-gameweek player breakdown plus every logged
+      // sell/buy transaction, each row tagged with which user it belongs
+      // to. The frontend turns this into a two-sheet Excel file.
+      const stockmarketFullExport = params.get('stockmarket_full_export');
+      if (stockmarketFullExport === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: exportUser }, error: exportAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (exportAuthError || !exportUser) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: exportCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', exportUser.id).maybeSingle();
+        if (!exportCaller || !exportCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: allTournamentEntries } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, user_id, relegated, relegated_at_gameweek').eq('tournament_id', tournamentId);
+
+        const entryIds = (allTournamentEntries || []).map(e => e.id);
+        const userIds = (allTournamentEntries || []).map(e => e.user_id);
+        const { data: exportUsers } = userIds.length > 0
+          ? await supabaseAdmin.from('users').select('id, email').in('id', userIds)
+          : { data: [] };
+        const exportEmailByUserId = {};
+        (exportUsers || []).forEach(u => { exportEmailByUserId[u.id] = u.email; });
+
+        const entryMeta = {};
+        (allTournamentEntries || []).forEach(e => {
+          entryMeta[e.id] = { email: exportEmailByUserId[e.user_id] || 'Unknown', relegated: !!e.relegated, relegated_at_gameweek: e.relegated_at_gameweek || null };
+        });
+
+        const { data: allHistoryRows } = entryIds.length > 0
+          ? await supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*').in('entry_id', entryIds).order('gameweek', { ascending: true })
+          : { data: [] };
+
+        const players = (allHistoryRows || []).map(row => ({
+          user_email: entryMeta[row.entry_id]?.email || 'Unknown',
+          relegated: entryMeta[row.entry_id]?.relegated || false,
+          relegated_at_gameweek: entryMeta[row.entry_id]?.relegated_at_gameweek || null,
+          ...row
+        }));
+
+        const { data: allTransactions } = await supabaseAdmin
+          .schema('stockmarket').from('transactions')
+          .select('*').eq('tournament_id', tournamentId).order('gameweek', { ascending: true });
+
+        const transactions = (allTransactions || []).map(row => ({
+          user_email: entryMeta[row.entry_id]?.email || 'Unknown',
+          ...row
+        }));
+
+        return res.status(200).json({ players, transactions });
+      }
+
       // Returns all 8 stage slots for the admin "Relegation Stages" panel —
       // any slot not yet configured comes back as a blank template
       // (relegate_count 0, cost_multiplier 1) rather than being omitted,
@@ -1293,6 +1348,51 @@ module.exports = async (req, res) => {
         }
       }
 
+      // One-click version of the manual SQL reset used for testing —
+      // wipes every Stock Market table clean, creates one fresh
+      // 'upcoming' tournament at gameweek 1, and resets the shared
+      // master clock. Admin only, and deliberately mirrors the existing
+      // reset SQL exactly rather than trying to be clever about scoping,
+      // since that SQL has been the trusted, hand-verified process all
+      // along.
+      if (action === 'stockmarket_full_reset') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        try {
+          await supabaseAdmin.schema('stockmarket').from('matchups').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('player_gw_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('audit_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('player_market').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('tournament_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('tournament_stages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabaseAdmin.schema('stockmarket').from('tournaments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+          const name = (req.body.name) || 'Test Stock Market';
+          const entryFee = req.body.entry_fee != null ? parseInt(req.body.entry_fee) : 2400;
+          const maxEntries = req.body.max_entries != null ? parseInt(req.body.max_entries) : 200;
+          const endGameweek = req.body.end_gameweek != null ? parseInt(req.body.end_gameweek) : 38;
+
+          const { data: newTournament, error: createErr } = await supabaseAdmin
+            .schema('stockmarket').from('tournaments')
+            .insert({
+              name, description: 'description', gameweek: 1, end_gameweek: endGameweek,
+              entry_fee: entryFee, max_entries: maxEntries, status: 'upcoming',
+              closes_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+            })
+            .select('id').single();
+          if (createErr) throw createErr;
+
+          await masterDb.from('master_clock').update({ current_gameweek: 1 }).eq('id', 'current');
+
+          return res.status(200).json({ success: true, tournament_id: newTournament.id });
+        } catch (err) {
+          console.error('stockmarket_full_reset error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'stockmarket_force_close') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
@@ -1681,6 +1781,7 @@ module.exports = async (req, res) => {
           // Their own current value — nothing shared, this is entirely
           // theirs, from their own actions and match results so far.
           const soldValue = squad[sellIdx].value || 0;
+          const soldName = squad[sellIdx].name || null;
           const positionKey = POSITION_KEY[squad[sellIdx].position] || squad[sellIdx].position;
 
           squad[sellIdx] = { empty: true, position: positionKey, reserved_value: soldValue };
@@ -1690,6 +1791,11 @@ module.exports = async (req, res) => {
             .schema('stockmarket').from('tournament_entries')
             .update({ squad_players: squad, last_transfer_gameweek: currentGW, current_value: newTotal })
             .eq('id', entry.id);
+
+          await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+            tournament_id, entry_id: entry.id, gameweek: currentGW, type: 'sell',
+            player_id, player_name: soldName, position: positionKey, amount: soldValue
+          });
 
           return res.status(200).json({ success: true, sold_for: soldValue });
         } catch (err) {
@@ -1811,6 +1917,12 @@ module.exports = async (req, res) => {
           const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
           await supabaseAdmin.schema('stockmarket').from('tournament_entries')
             .update({ squad_players: squad, current_value: newTotal }).eq('id', entry.id);
+
+          await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+            tournament_id, entry_id: entry.id, gameweek: currentGW, type: 'buy',
+            player_id, player_name: playerRow.web_name, position, amount: -packFee,
+            pack_type, shortfall, fee_recipients: feeRecipients
+          });
 
           return res.status(200).json({ success: true, pack_fee: packFee, shortfall, fee_recipients: feeRecipients });
         } catch (err) {

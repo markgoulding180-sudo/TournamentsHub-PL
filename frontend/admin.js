@@ -579,6 +579,77 @@ async function saveRelegationStages() {
   }
 }
 
+async function fullTestReset() {
+  const resultEl = document.getElementById('resetResult');
+  if (!confirm('This wipes EVERY Stock Market tournament, entry, and history record, and starts a brand new one at Gameweek 1. This cannot be undone. Continue?')) return;
+
+  const name = document.getElementById('resetTournamentName').value.trim() || 'Test Stock Market';
+  const entryFee = parseInt(document.getElementById('resetEntryFee').value) || 2400;
+
+  resultEl.textContent = 'Resetting…';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_full_reset', name, entry_fee: entryFee })
+    });
+    const data = await response.json();
+    if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+    resultEl.innerHTML = `<span style="color:var(--accent-green);">Done. New tournament: ${data.tournament_id}</span>`;
+    document.getElementById('stagesTournamentId').value = data.tournament_id;
+    await loadStockMarketTournamentList();
+    const select = document.getElementById('stagesTournamentSelect');
+    if (select) select.value = data.tournament_id;
+    const auditSelect = document.getElementById('auditTournamentSelect');
+    if (auditSelect) auditSelect.value = data.tournament_id;
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
+async function downloadFullExport() {
+  const resultEl = document.getElementById('exportResult');
+  const tournamentId = document.getElementById('stagesTournamentId').value.trim();
+  if (!tournamentId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Pick a tournament in the panel above first.</span>'; return; }
+
+  resultEl.textContent = 'Building export…';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch(`/api/tournaments?stockmarket_full_export=true&tournament_id=${tournamentId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+
+    const players = (data.players || []).map(p => ({
+      User: p.user_email, Relegated: p.relegated ? `Yes (GW${p.relegated_at_gameweek})` : 'No',
+      Gameweek: p.gameweek, Player: p.name, Position: p.position, Team: p.team, Benched: p.benched ? 'Yes' : 'No',
+      Goals: p.stats?.goals || 0, Assists: p.stats?.assists || 0, Yellow: p.stats?.yellow_cards || 0, Red: p.stats?.red_cards || 0,
+      CleanSheets: p.stats?.clean_sheets || 0, GoalsConceded: p.stats?.goals_conceded || 0, Saves: p.stats?.saves || 0,
+      StartValue: ((p.starting_value || 0) / 100).toFixed(2), WinBonus: ((p.win_bonus || 0) / 100).toFixed(2),
+      PenaltyPaid: ((p.penalty_paid || 0) / 100).toFixed(2), EndValue: ((p.ending_value || 0) / 100).toFixed(2),
+      Change: (((p.ending_value || 0) - (p.starting_value || 0)) / 100).toFixed(2)
+    }));
+
+    const transactions = (data.transactions || []).map(t => ({
+      User: t.user_email, Gameweek: t.gameweek, Type: t.type, Player: t.player_name, Position: t.position,
+      PackType: t.pack_type || '', Amount: ((t.amount || 0) / 100).toFixed(2),
+      Shortfall: ((t.shortfall || 0) / 100).toFixed(2), FeeRecipients: t.fee_recipients || 0,
+      Timestamp: t.created_at
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(players), 'Player GW History');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(transactions), 'Transactions');
+    XLSX.writeFile(wb, `stockmarket-full-export-${tournamentId.slice(0, 8)}.xlsx`);
+
+    resultEl.innerHTML = `<span style="color:var(--accent-green);">Downloaded — ${players.length} player rows, ${transactions.length} transactions.</span>`;
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
 async function launchTournament() {
   if (!confirm('Launch new tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create £20 entry tournament\n3. Open for user registrations')) {
     return;

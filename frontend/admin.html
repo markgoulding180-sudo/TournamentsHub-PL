@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     html{ overflow-x:hidden; }
     :root{ --border: var(--border-color); }
@@ -233,6 +234,36 @@
         <i class="fas fa-floppy-disk"></i> Save Stages
       </button>
       <div id="stagesSaveResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
+    <!-- Stock Market — Full Test Reset -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-triangle-exclamation"></i> Stock Market — Full Test Reset</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        One-click version of the manual SQL reset: wipes every Stock Market table (matchups, history, transactions, entries, stages, tournaments) across the board, creates one fresh tournament at Gameweek 1, and resets the shared master clock. This affects ALL Stock Market tournaments, not just one — same as the manual SQL you've been running.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <input type="text" id="resetTournamentName" placeholder="Tournament name (optional)" value="Test Stock Market"
+          style="flex:1; min-width:180px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <input type="number" id="resetEntryFee" placeholder="Entry fee (pence)" value="2400"
+          style="width:140px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+      </div>
+      <button class="btn" onclick="fullTestReset()" style="width:100%; background:var(--accent-red); color:#fff;">
+        <i class="fas fa-rotate-left"></i> Reset & Start Fresh at GW1
+      </button>
+      <div id="resetResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
+    <!-- Stock Market — Full Data Export -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-file-excel"></i> Stock Market — Full Data Export</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Downloads an Excel file with two sheets: every entrant's full per-gameweek player breakdown (same detail as the individual player history pages, for everyone at once), and a full log of every sell/buy transaction across the tournament — including pack fees, shortfalls, and how many other players' values absorbed each fee. Use the same tournament dropdown as the panel above.
+      </p>
+      <button class="btn btn-primary" onclick="downloadFullExport()" style="width:100%;">
+        <i class="fas fa-download"></i> Download Full Export (Excel)
+      </button>
+      <div id="exportResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
     </div>
 
     <!-- Current Status -->
