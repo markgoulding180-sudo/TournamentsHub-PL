@@ -289,6 +289,11 @@
         <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
       </div>
 
+      <section class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fas fa-trophy" style="color:var(--gold);"></i> Leaderboard</div>
+        <div id="leaderboardBody"><div class="loading">Loading…</div></div>
+      </section>
+
       <div class="cards-grid">
         <section class="card">
           <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Squad</div>
@@ -349,6 +354,7 @@
           return;
         }
         tournamentId = t.id;
+        loadLeaderboard();
 
         // This call is what actually triggers the draft-deadline check
         // (initializing the market once it passes) and per-gameweek price
@@ -793,6 +799,38 @@
         resultsEl.textContent = `Error: ${e.message}`;
       } finally {
         btn.disabled = false;
+      }
+    }
+
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
+        const data = await res.json();
+        const rows = data.leaderboard || [];
+        if (rows.length === 0) {
+          document.getElementById('leaderboardBody').innerHTML = '<div class="empty">No entrants yet.</div>';
+          return;
+        }
+        const medal = (rank) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+        document.getElementById('leaderboardBody').innerHTML = `
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
+              <th style="text-align:left; padding:6px;">Rank</th>
+              <th style="text-align:left; padding:6px;">Player</th>
+              <th style="text-align:right; padding:6px;">Value</th>
+              <th style="text-align:right; padding:6px;">Gain/Loss</th>
+            </tr>
+            ${rows.map(r => `
+              <tr style="border-top:1px solid var(--border);">
+                <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
+                <td style="padding:8px 6px;">${escapeHtml(r.user_email)}</td>
+                <td style="padding:8px 6px; text-align:right; font-weight:700;">${money(r.current_value)}</td>
+                <td style="padding:8px 6px; text-align:right; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
+              </tr>`).join('')}
+          </table>`;
+      } catch (e) {
+        console.error('loadLeaderboard failed:', e);
+        document.getElementById('leaderboardBody').innerHTML = '<div class="empty">Couldn\'t load leaderboard right now.</div>';
       }
     }
 

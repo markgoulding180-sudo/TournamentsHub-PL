@@ -272,7 +272,7 @@
               ${w.players.length > 0 ? `<span class="week-opponent">${money(weekStart)} → ${money(weekEnd)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:14px;">
-              ${w.settled && !w.bye ? `<span class="week-gap" style="color:${gapColor};">Gap: ${money(w.gap)}</span>` : ''}
+              ${w.settled && !w.bye ? `<span class="week-gap" style="color:${gapColor};">${(weekEnd-weekStart) >= 0 ? '+' : ''}${money(weekEnd-weekStart)}</span>` : ''}
               <i class="fas fa-chevron-down chevron"></i>
             </div>
           </div>

@@ -126,6 +126,33 @@ module.exports = async (req, res) => {
       // Full gameweek-by-gameweek history for a user's entry — every
       // player's breakdown for every processed week, plus who they
       // played and the result, for full week-by-week verification.
+      // Leaderboard — every entrant in the tournament, ranked by current
+      // portfolio value.
+      const stockmarketLeaderboard = params.get('stockmarket_leaderboard');
+      if (stockmarketLeaderboard === 'true' && tournamentId) {
+        const { data: allEntries } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, user_id, current_value, start_value')
+          .eq('tournament_id', tournamentId).eq('squad_locked', true)
+          .order('current_value', { ascending: false });
+
+        const userIds = (allEntries || []).map(e => e.user_id);
+        const { data: users } = userIds.length > 0
+          ? await supabaseAdmin.from('users').select('id, email').in('id', userIds)
+          : { data: [] };
+        const emailByUserId = {};
+        (users || []).forEach(u => { emailByUserId[u.id] = u.email; });
+
+        const leaderboard = (allEntries || []).map((e, i) => ({
+          rank: i + 1,
+          user_email: emailByUserId[e.user_id] || 'Unknown',
+          current_value: e.current_value,
+          gain_loss: (e.current_value || 0) - (e.start_value || 0)
+        }));
+
+        return res.status(200).json({ leaderboard });
+      }
+
       const stockmarketHistory = params.get('stockmarket_history');
       if (stockmarketHistory === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
