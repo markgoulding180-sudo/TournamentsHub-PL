@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player History - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#040812; --bg-panel:#070d1a; --bg-card:#0a101f;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .navbar .logo{ display:flex; align-items:center; gap:10px; }
+    .navbar .logo-icon{ width:38px; height:38px; border-radius:9px; background:linear-gradient(145deg,var(--accent),#1d4ed8); display:flex; align-items:center; justify-content:center; }
+    .navbar .logo-text{ font-family:var(--font-display); font-size:18px; letter-spacing:.5px; }
+    .navbar .logo-sub{ font-family:var(--font-head); font-size:10px; color:var(--accent-2); letter-spacing:2px; }
+    .back-link{ font-family:var(--font-head); font-size:13px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+    .back-link:hover{ color:var(--accent-2); }
+
+    main{ max-width:900px; margin:0 auto; padding:32px 20px 60px; }
+    h1{ font-family:var(--font-display); font-size:32px; letter-spacing:.5px; margin-bottom:6px; word-break:break-word; }
+    .subhead{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
+    .relegated-note{ display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:var(--red); background:rgba(239,68,68,0.12); padding:4px 10px; border-radius:20px; margin-bottom:20px; }
+
+    .toolbar{ display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
+    .btn{ font-family:var(--font-head); font-weight:700; font-size:13px; padding:10px 18px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); display:inline-flex; align-items:center; gap:8px; }
+    .btn:hover{ border-color:var(--border-hover); }
+    .btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+    .week-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:16px; overflow:hidden; }
+    .week-header{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; cursor:pointer; }
+    .week-header:hover{ background:var(--bg-card); }
+    .week-title{ font-family:var(--font-head); font-weight:700; font-size:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .week-badge{ font-size:10px; font-weight:800; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:.4px; }
+    .week-badge.win{ background:rgba(34,197,94,0.15); color:var(--green); }
+    .week-badge.loss{ background:rgba(239,68,68,0.15); color:var(--red); }
+    .week-badge.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
+    .week-badge.bye{ background:var(--bg-card); color:var(--text-faint); }
+    .week-badge.pending{ background:rgba(96,165,250,0.15); color:var(--accent-2); }
+    .week-opponent{ font-size:12.5px; color:var(--text-dim); font-weight:500; }
+    .week-gap{ font-family:var(--font-head); font-weight:700; font-size:14px; }
+    .chevron{ color:var(--text-faint); transition:transform .2s; }
+    .week-card.open .chevron{ transform:rotate(180deg); }
+
+    .week-body{ display:none; padding:0 20px 20px; overflow-x:auto; }
+    .week-card.open .week-body{ display:block; }
+
+    table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:640px; }
+    th{ text-align:left; padding:8px 6px; color:var(--text-faint); font-weight:600; text-transform:uppercase; font-size:10px; letter-spacing:.3px; border-bottom:1px solid var(--border); }
+    td{ padding:8px 6px; border-bottom:1px solid var(--border); }
+    tr:last-child td{ border-bottom:none; }
+    .num{ text-align:right; font-family:var(--font-head); font-weight:600; }
+    .pos{ color:var(--text-faint); text-transform:uppercase; font-size:10px; }
+    .up{ color:var(--green); }
+    .down{ color:var(--red); }
+    .benched-row{ opacity:0.5; }
+
+    .empty{ text-align:center; padding:60px 20px; color:var(--text-faint); }
+    .loading{ text-align:center; padding:60px 20px; color:var(--text-faint); }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">
+      <div class="logo-icon"><i class="fas fa-trophy" style="color:#fff;"></i></div>
+      <div><div class="logo-text">GB TOURNAMENTS</div><div class="logo-sub">PLAYER HISTORY</div></div>
+    </div>
+    <a href="/stock-market" class="back-link"><i class="fas fa-arrow-left"></i> Back to Stock Market</a>
+  </nav>
+
+  <main>
+    <h1 id="playerTitle">Player History</h1>
+    <p class="subhead">Full week-by-week breakdown for this entrant — every player, every action, every head-to-head result.</p>
+    <div id="relegatedNote"></div>
+
+    <div class="toolbar">
+      <button class="btn primary" onclick="downloadCsv()"><i class="fas fa-download"></i> Download CSV</button>
+      <button class="btn" onclick="loadHistory()"><i class="fas fa-rotate"></i> Refresh</button>
+    </div>
+
+    <div id="weeksContainer"><div class="loading">Loading…</div></div>
+  </main>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let tournamentId = urlParams.get('tournament_id');
+    let entryId = urlParams.get('entry_id');
+    let historyData = null;
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : str;
+      return div.innerHTML;
+    }
+    function money(pence) { return `£${((pence||0)/100).toFixed(2)}`; }
+    function posDisplay(position) {
+      const map = { 1:'GK',2:'DEF',3:'MID',4:'FWD', gk:'GK', def:'DEF', mid:'MID', fwd:'FWD' };
+      return map[position] || position || '';
+    }
+
+    async function ensureTournamentId() {
+      if (tournamentId) return;
+      for (const status of ['live', 'finished', 'upcoming']) {
+        const res = await fetch(`/api/tournaments?status=${status}&tournament_type=stockmarket`);
+        const data = await res.json();
+        if (data.tournaments && data.tournaments.length > 0) {
+          tournamentId = data.tournaments[0].id;
+          return;
+        }
+      }
+    }
+
+    async function loadHistory() {
+      if (!entryId) {
+        document.getElementById('weeksContainer').innerHTML = '<div class="empty">No player specified — go back to the leaderboard and click a name.</div>';
+        return;
+      }
+      document.getElementById('weeksContainer').innerHTML = '<div class="loading">Loading…</div>';
+      await ensureTournamentId();
+      if (!tournamentId) {
+        document.getElementById('weeksContainer').innerHTML = '<div class="empty">No Stock Market tournament found.</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/tournaments?stockmarket_history=true&tournament_id=${tournamentId}&entry_id=${entryId}`);
+        const data = await res.json();
+        if (!data.entry) {
+          document.getElementById('weeksContainer').innerHTML = '<div class="empty">Couldn\'t find this entrant.</div>';
+          return;
+        }
+
+        document.getElementById('playerTitle').textContent = data.user_email || 'Player History';
+        if (data.entry.relegated) {
+          document.getElementById('relegatedNote').innerHTML = `<div class="relegated-note"><i class="fas fa-arrow-trend-down"></i> Relegated Gameweek ${data.entry.relegated_at_gameweek || '?'}</div>`;
+        }
+
+        const weeks = data.weeks || [];
+        historyData = { ...data, weeks };
+        renderWeeks(weeks);
+      } catch (e) {
+        console.error('loadHistory failed:', e);
+        document.getElementById('weeksContainer').innerHTML = '<div class="empty">Couldn\'t load history right now.</div>';
+      }
+    }
+
+    function renderWeeks(weeks) {
+      const container = document.getElementById('weeksContainer');
+      if (weeks.length === 0) {
+        container.innerHTML = '<div class="empty">No gameweeks processed yet.</div>';
+        return;
+      }
+
+      container.innerHTML = weeks.map((w) => {
+        let badgeClass, badgeText;
+        if (w.bye) { badgeClass = 'bye'; badgeText = 'Bye'; }
+        else if (!w.settled) { badgeClass = 'pending'; badgeText = 'Pending'; }
+        else if (w.gap === 0) { badgeClass = 'draw'; badgeText = 'Draw'; }
+        else if (w.won) { badgeClass = 'win'; badgeText = 'Won'; }
+        else { badgeClass = 'loss'; badgeText = 'Lost'; }
+
+        const playerRows = w.players.map((p, pIdx) => {
+          const change = (p.ending_value || 0) - (p.starting_value || 0);
+          const s = p.stats || {};
+          const statTok = (label, val, positive) => {
+            const color = val > 0 ? (positive ? 'var(--green)' : 'var(--red)') : 'var(--text-faint)';
+            return `<span style="color:${color};">${label} ${val}</span>`;
+          };
+          const statText = p.benched ? '<span style="color:var(--text-faint);">Benched</span>' :
+            [
+              statTok('GL', s.goals||0, true), statTok('AS', s.assists||0, true),
+              statTok('YC', s.yellow_cards||0, false), statTok('RC', s.red_cards||0, false),
+              statTok('CS', s.clean_sheets||0, true), statTok('GC', s.goals_conceded||0, false),
+              statTok('SV', s.saves||0, true)
+            ].join(' ');
+
+          const whyId = `why-${w.gameweek}-${pIdx}`;
+          const whyLines = [];
+          if (p.benched) {
+            whyLines.push('Benched — excluded from scoring entirely.');
+          } else {
+            if ((s.goals||0) > 0) whyLines.push(`${s.goals} goal(s)`);
+            if ((s.assists||0) > 0) whyLines.push(`${s.assists} assist(s)`);
+            if ((s.yellow_cards||0) > 0) whyLines.push(`Yellow card`);
+            if ((s.red_cards||0) > 0) whyLines.push(`Red card`);
+            if ((s.clean_sheets||0) > 0) whyLines.push(`Clean sheet`);
+            if ((s.saves||0) > 0) whyLines.push(`${s.saves} save(s)`);
+            if ((s.goals_conceded||0) > 0) whyLines.push(`Conceded ${s.goals_conceded}`);
+            if (whyLines.length === 0) whyLines.push('No events this week.');
+            if (p.win_bonus > 0) whyLines.push(`Received: +${money(p.win_bonus)}`);
+            if (p.penalty_paid > 0) whyLines.push(`Paid: -${money(p.penalty_paid)}`);
+          }
+
+          return `
+          <tr class="${p.benched ? 'benched-row' : ''}">
+            <td>${escapeHtml(p.name)}</td>
+            <td class="pos">${posDisplay(p.position)}</td>
+            <td>${escapeHtml(p.team || '')}</td>
+            <td style="font-size:11px;">${statText}</td>
+            <td class="num">${money(p.starting_value)}</td>
+            <td class="num">${money(p.win_bonus)}</td>
+            <td class="num">${p.penalty_paid > 0 ? '-' + money(p.penalty_paid) : money(0)}</td>
+            <td class="num">${money(p.ending_value)}</td>
+            <td class="num ${change > 0 ? 'up' : change < 0 ? 'down' : ''}">${change >= 0 ? '+' : ''}${money(change)}</td>
+            <td><button class="btn" style="padding:4px 8px; font-size:10px;" onclick="document.getElementById('${whyId}').style.display = document.getElementById('${whyId}').style.display === 'none' ? 'table-row' : 'none';">Why?</button></td>
+          </tr>
+          <tr id="${whyId}" style="display:none;">
+            <td colspan="10" style="background:var(--bg-card); font-size:11px; color:var(--text-dim); padding:10px;">
+              ${whyLines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('')}
+            </td>
+          </tr>`;
+        }).join('');
+
+        const weekStart = w.players.reduce((sum, p) => sum + (p.starting_value || 0), 0);
+        const weekEnd = w.players.reduce((sum, p) => sum + (p.ending_value || 0), 0);
+        const gapColor = w.bye || !w.settled ? 'var(--text-dim)' : (w.gap === 0 ? 'var(--gold)' : (w.won ? 'var(--green)' : 'var(--red)'));
+
+        return `
+        <div class="week-card" id="week-${w.gameweek}">
+          <div class="week-header" onclick="document.getElementById('week-${w.gameweek}').classList.toggle('open')">
+            <div class="week-title">
+              GW${w.gameweek}
+              <span class="week-badge ${badgeClass}">${badgeText}</span>
+              ${w.opponent_name ? `<span class="week-opponent">vs ${escapeHtml(w.opponent_name)}</span>` : ''}
+              ${w.players.length > 0 ? `<span class="week-opponent">${money(weekStart)} → ${money(weekEnd)}</span>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              ${w.settled && !w.bye ? `<span class="week-gap" style="color:${gapColor};">${(weekEnd-weekStart) >= 0 ? '+' : ''}${money(weekEnd-weekStart)}</span>` : ''}
+              <i class="fas fa-chevron-down chevron"></i>
+            </div>
+          </div>
+          <div class="week-body">
+            <table>
+              <tr><th>Player</th><th>Pos</th><th>Team</th><th>Stats</th><th>Start</th><th>Won</th><th>Paid</th><th>End</th><th>Change</th><th></th></tr>
+              ${playerRows || '<tr><td colspan="10" style="color:var(--text-faint); text-align:center; padding:16px;">No player data for this week.</td></tr>'}
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+
+      const last = weeks[weeks.length - 1];
+      if (last) {
+        const el = document.getElementById(`week-${last.gameweek}`);
+        if (el) el.classList.add('open');
+      }
+    }
+
+    function downloadCsv() {
+      if (!historyData || !historyData.weeks || historyData.weeks.length === 0) {
+        alert('Nothing to download yet.');
+        return;
+      }
+      const rows = [['Gameweek', 'Opponent', 'Result', 'Gap', 'Player', 'Position', 'Team', 'Benched', 'Goals', 'Assists', 'Yellow', 'Red', 'CleanSheets', 'GoalsConceded', 'Saves', 'StartValue', 'WinBonus', 'PenaltyPaid', 'EndValue', 'Change']];
+      historyData.weeks.forEach(w => {
+        const result = w.bye ? 'Bye' : !w.settled ? 'Pending' : w.gap === 0 ? 'Draw' : (w.won ? 'Won' : 'Lost');
+        w.players.forEach(p => {
+          const s = p.stats || {};
+          const change = (p.ending_value || 0) - (p.starting_value || 0);
+          rows.push([
+            w.gameweek, w.opponent_name || '', result, ((w.gap||0)/100).toFixed(2),
+            p.name, posDisplay(p.position), p.team || '', p.benched ? 'Yes' : 'No',
+            s.goals||0, s.assists||0, s.yellow_cards||0, s.red_cards||0, s.clean_sheets||0, s.goals_conceded||0, s.saves||0,
+            ((p.starting_value||0)/100).toFixed(2), ((p.win_bonus||0)/100).toFixed(2), ((p.penalty_paid||0)/100).toFixed(2),
+            ((p.ending_value||0)/100).toFixed(2), (change/100).toFixed(2)
+          ]);
+        });
+      });
+      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `player-history-gw${historyData.weeks[0].gameweek}-${historyData.weeks[historyData.weeks.length-1].gameweek}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadHistory);
+  </script>
+</body>
+</html>

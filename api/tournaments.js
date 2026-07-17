@@ -168,6 +168,7 @@ module.exports = async (req, res) => {
 
         const leaderboard = activeEntries.map((e, i) => ({
           rank: i + 1,
+          entry_id: e.id,
           user_email: emailByUserId[e.user_id] || 'Unknown',
           current_value: e.current_value,
           gain_loss: (e.current_value || 0) - (e.start_value || 0),
@@ -175,6 +176,7 @@ module.exports = async (req, res) => {
         }));
 
         const relegated = relegatedEntries.map(e => ({
+          entry_id: e.id,
           user_email: emailByUserId[e.user_id] || 'Unknown',
           current_value: e.current_value,
           gain_loss: (e.current_value || 0) - (e.start_value || 0),
@@ -190,16 +192,36 @@ module.exports = async (req, res) => {
 
       const stockmarketHistory = params.get('stockmarket_history');
       if (stockmarketHistory === 'true' && tournamentId) {
-        const authHeader = req.headers.authorization;
-        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
-        const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
-        if (!user) return res.status(401).json({ error: 'Invalid token' });
+        const publicEntryId = params.get('entry_id');
+        let myEntry = null;
+        let viewedUserEmail = null;
 
-        const { data: myEntry } = await supabaseAdmin
-          .schema('stockmarket').from('tournament_entries')
-          .select('id, current_value, start_value').eq('tournament_id', tournamentId).eq('user_id', user.id).maybeSingle();
-        if (!myEntry) return res.status(200).json({ entry: null });
+        if (publicEntryId) {
+          // Public per-player history view — clicking a name on the
+          // leaderboard, no login required. Same underlying data anyone
+          // can already see week-by-week via the live matchup/leaderboard
+          // screens, just laid out for one specific entrant.
+          const { data: viewedEntry } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, user_id, current_value, start_value, relegated, relegated_at_gameweek')
+            .eq('id', publicEntryId).eq('tournament_id', tournamentId).maybeSingle();
+          if (!viewedEntry) return res.status(200).json({ entry: null });
+          myEntry = viewedEntry;
+          const { data: viewedUser } = await supabaseAdmin.from('users').select('email').eq('id', viewedEntry.user_id).maybeSingle();
+          viewedUserEmail = viewedUser ? viewedUser.email : null;
+        } else {
+          const authHeader = req.headers.authorization;
+          if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+          if (!user) return res.status(401).json({ error: 'Invalid token' });
+
+          const { data: ownEntry } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, current_value, start_value').eq('tournament_id', tournamentId).eq('user_id', user.id).maybeSingle();
+          if (!ownEntry) return res.status(200).json({ entry: null });
+          myEntry = ownEntry;
+        }
 
         const { data: historyRows } = await supabaseAdmin
           .schema('stockmarket').from('player_gw_history')
@@ -246,7 +268,7 @@ module.exports = async (req, res) => {
         });
 
         const weeks = Object.values(byGameweek).sort((a, b) => a.gameweek - b.gameweek);
-        return res.status(200).json({ entry: myEntry, weeks });
+        return res.status(200).json({ entry: myEntry, weeks, user_email: viewedUserEmail });
       }
 
       const stockmarketMatchup = params.get('stockmarket_matchup');
