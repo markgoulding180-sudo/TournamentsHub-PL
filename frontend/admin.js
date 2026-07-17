@@ -420,28 +420,26 @@ async function loadAuditHistory() {
     const data = await response.json();
     if (!response.ok) { results.innerHTML = `Failed: ${data.error}`; return; }
 
-    const rows = data.audit || [];
-    if (rows.length === 0) { results.innerHTML = 'No gameweeks processed yet for this tournament.'; return; }
+    const rows = data.audit;
+    if (!rows) { results.innerHTML = 'No data returned.'; return; }
 
     const money = p => `£${((p || 0) / 100).toFixed(2)}`;
+    const statusColor = rows.ok ? 'var(--accent-green)' : 'var(--accent-red)';
     results.innerHTML = `
-      <table style="width:100%; border-collapse:collapse;">
-        <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
-          <th style="padding:6px 4px;">GW</th>
-          <th style="padding:6px 4px;">Expected</th>
-          <th style="padding:6px 4px;">Actual</th>
-          <th style="padding:6px 4px;">Drift</th>
-        </tr>
-        ${rows.map(r => `
-          <tr style="border-bottom:1px solid var(--border-color);">
-            <td style="padding:6px 4px;">${r.gameweek}</td>
-            <td style="padding:6px 4px;">${money(r.expected_pot)}</td>
-            <td style="padding:6px 4px;">${money(r.actual_total)}</td>
-            <td style="padding:6px 4px; color:${Math.abs(r.drift) > 20 ? 'var(--accent-red)' : Math.abs(r.drift) > 5 ? 'var(--accent-amber)' : 'var(--accent-green)'};">
-              ${r.drift > 0 ? '+' : ''}${money(r.drift)}
-            </td>
-          </tr>`).join('')}
-      </table>`;
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
+        <div>Total entries (ever locked): <strong>${rows.total_entries}</strong></div>
+        <div>Active now: <strong>${rows.active_entries}</strong></div>
+        <div>Relegated: <strong>${rows.relegated_entries}</strong></div>
+        <div>Cost multiplier: <strong>${rows.cost_multiplier}x</strong></div>
+        <div>Expected pot: <strong>${money(rows.expected_pot)}</strong></div>
+        <div>Actual active total: <strong>${money(rows.actual_active_total)}</strong></div>
+      </div>
+      <div style="padding:0.6rem; border-radius:0.5rem; background:rgba(0,0,0,0.2); color:${statusColor}; font-weight:700;">
+        ${rows.ok ? '✓ Zero-sum holds' : '⚠ DRIFT DETECTED'} — drift ${money(rows.drift)}
+      </div>
+      <p class="text-muted" style="font-size:0.75rem; margin-top:0.6rem;">
+        Relegated players' frozen historical total (not part of the live pot): ${money(rows.relegated_frozen_total_informational)}
+      </p>`;
   } catch (error) {
     results.innerHTML = `Error: ${error.message}`;
   }
@@ -452,20 +450,28 @@ let currentStagesData = [];
 
 async function loadStockMarketTournamentList() {
   const select = document.getElementById('stagesTournamentSelect');
-  if (!select) return;
+  const auditSelect = document.getElementById('auditTournamentSelect');
   try {
     const response = await fetch('/api/tournaments?tournament_type=stockmarket');
     const data = await response.json();
     const tournaments = data.tournaments || [];
-    if (tournaments.length === 0) {
-      select.innerHTML = '<option value="">No Stock Market tournaments found</option>';
-      return;
-    }
-    select.innerHTML = '<option value="">-- choose a tournament --</option>' +
-      tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status} (GW${t.gameweek ?? '?'})</option>`).join('');
+    const optionsHtml = tournaments.length === 0
+      ? '<option value="">No Stock Market tournaments found</option>'
+      : '<option value="">-- choose a tournament --</option>' +
+        tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status} (GW${t.gameweek ?? '?'})</option>`).join('');
+    if (select) select.innerHTML = optionsHtml;
+    if (auditSelect) auditSelect.innerHTML = optionsHtml;
   } catch (error) {
-    select.innerHTML = '<option value="">Failed to load tournament list</option>';
+    if (select) select.innerHTML = '<option value="">Failed to load tournament list</option>';
+    if (auditSelect) auditSelect.innerHTML = '<option value="">Failed to load tournament list</option>';
   }
+}
+
+function onAuditTournamentSelected() {
+  const select = document.getElementById('auditTournamentSelect');
+  if (!select.value) return;
+  document.getElementById('auditTournamentId').value = select.value;
+  loadAuditHistory();
 }
 
 function escapeHtmlAdmin(str) {

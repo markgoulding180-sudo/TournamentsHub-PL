@@ -191,10 +191,17 @@
     <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
       <h3><i class="fas fa-scale-balanced"></i> Stock Market Zero-Sum Audit</h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Every gameweek automatically logs the actual total portfolio value across every entrant against what the pot should be. Any non-trivial drift here means value is leaking or being created somewhere in the redistribution math.
+        Checks, on demand, whether every still-active entry's total value adds up to exactly what it should (entry fee × total entrants) — the core promise of the head-to-head + relegation model. Relegated players' frozen values are reported separately since that money already left the live pot.
       </p>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Select tournament</label>
+        <select id="auditTournamentSelect" onchange="onAuditTournamentSelected()"
+          style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="">Loading tournaments…</option>
+        </select>
+      </div>
       <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
-        <input type="text" id="auditTournamentId" placeholder="Tournament ID"
+        <input type="text" id="auditTournamentId" placeholder="...or paste a Tournament ID directly"
           style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
         <button class="btn btn-primary" onclick="loadAuditHistory()"><i class="fas fa-magnifying-glass"></i> Check</button>
       </div>

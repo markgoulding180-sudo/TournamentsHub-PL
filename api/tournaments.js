@@ -401,11 +401,18 @@ module.exports = async (req, res) => {
         return res.status(200).json(status);
       }
 
-      // Public market board — every distinct player's current shared price.
-      // Zero-sum audit history — admin only. Shows every processed
-      // gameweek's actual total portfolio value against what the pot
-      // should be, so drift is visible immediately rather than needing
-      // a manual CSV check each time.
+      // Live pot reconciliation — admin only. The old audit_log table was
+      // written only by the legacy shared-market settlement path and is
+      // never touched by the current head-to-head engine, so it always
+      // reads empty/stale. This instead checks the real invariant for the
+      // current model directly, on demand: every relegation stage moves a
+      // relegated entry's ENTIRE value into the survivors, 1-for-1, so the
+      // sum of every still-active entry's current_value should always
+      // equal (entry_fee x total entries that ever locked a squad),
+      // regardless of how many relegation stages have fired. Relegated
+      // entries' displayed values are a frozen historical record only —
+      // that money already left the live pot the moment they were cut, so
+      // it's reported separately rather than added back into the total.
       const stockmarketAudit = params.get('stockmarket_audit');
       if (stockmarketAudit === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
@@ -417,14 +424,39 @@ module.exports = async (req, res) => {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
-        const { data: auditRows, error: auditError } = await supabaseAdmin
-          .schema('stockmarket').from('audit_log')
-          .select('*')
-          .eq('tournament_id', tournamentId)
-          .order('gameweek', { ascending: true });
+        const { data: tournamentRow, error: tErr } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments')
+          .select('entry_fee, cost_multiplier').eq('id', tournamentId).maybeSingle();
+        if (tErr || !tournamentRow) return res.status(404).json({ error: 'Tournament not found' });
 
-        if (auditError) return res.status(500).json({ error: 'Failed to fetch audit log', details: auditError.message });
-        return res.status(200).json({ audit: auditRows || [] });
+        const { data: allEntries, error: eErr } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('current_value, relegated').eq('tournament_id', tournamentId).eq('squad_locked', true);
+        if (eErr) return res.status(500).json({ error: 'Failed to fetch entries', details: eErr.message });
+
+        const totalEntries = (allEntries || []).length;
+        const activeEntries = (allEntries || []).filter(e => !e.relegated);
+        const relegatedEntries = (allEntries || []).filter(e => e.relegated);
+
+        const expectedPot = (tournamentRow.entry_fee || 0) * totalEntries;
+        const actualActiveTotal = activeEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+        const relegatedFrozenTotal = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+        const drift = actualActiveTotal - expectedPot;
+
+        return res.status(200).json({
+          audit: {
+            total_entries: totalEntries,
+            active_entries: activeEntries.length,
+            relegated_entries: relegatedEntries.length,
+            entry_fee: tournamentRow.entry_fee || 0,
+            expected_pot: expectedPot,
+            actual_active_total: actualActiveTotal,
+            drift,
+            relegated_frozen_total_informational: relegatedFrozenTotal,
+            cost_multiplier: tournamentRow.cost_multiplier || 1,
+            ok: Math.abs(drift) <= 1 // 1p tolerance for rounding
+          }
+        });
       }
 
       const stockmarketPrices = params.get('stockmarket_prices');
