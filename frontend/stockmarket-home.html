@@ -336,8 +336,15 @@
           t = (upData.tournaments || [])[0];
         }
         if (!t) {
+          const finRes = await fetch('/api/tournaments?status=finished&tournament_type=stockmarket');
+          const finData = await finRes.json();
+          const finished = (finData.tournaments || [])[0];
           document.getElementById('enterGate').style.display = 'block';
-          document.getElementById('enterDesc').textContent = 'No Stock Market tournament is open right now — check back soon.';
+          if (finished) {
+            document.getElementById('enterDesc').innerHTML = 'This Stock Market tournament has finished. <a href="/stock-market-history" style="color:var(--accent-2);">View the full gameweek history →</a>';
+          } else {
+            document.getElementById('enterDesc').textContent = 'No Stock Market tournament is open right now — check back soon.';
+          }
           document.getElementById('enterBtn').style.display = 'none';
           return;
         }
