@@ -117,9 +117,11 @@
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
     @media (max-width:480px){ .portfolio-grid{ grid-template-columns:1fr; } }
     .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; }
-    .portfolio-card .p-photo-wrap{ height:90px; background:linear-gradient(180deg, rgba(34,197,94,0.12), transparent); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+    .portfolio-card.mine{ background:linear-gradient(165deg, rgba(59,130,246,0.09), var(--bg-card) 65%); border-color:var(--accent-dim); }
+    .portfolio-card.opp{ background:linear-gradient(165deg, rgba(21,128,61,0.22), var(--bg-card) 65%); border-color:#166534; }
+    .portfolio-card .p-photo-wrap{ height:90px; background:linear-gradient(180deg, rgba(255,255,255,0.06), transparent); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
     .portfolio-card .p-photo-wrap img{ height:100%; object-fit:contain; filter:drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
-    .portfolio-card .p-photo-wrap .no-photo{ font-size:34px; color:var(--text-faint); margin-bottom:8px; }
+    .portfolio-card .p-photo-wrap .no-photo{ font-size:34px; color:var(--text-faint); margin-bottom:8px; display:flex; align-items:center; justify-content:center; }
     .portfolio-card .p-body{ padding:10px 12px 14px; }
     .portfolio-card .p-name{ font-weight:700; font-size:14px; margin-bottom:2px; }
     .portfolio-card .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px; }
@@ -129,16 +131,10 @@
     .portfolio-card .p-delta.up{ color:var(--green); }
     .portfolio-card .p-delta.down{ color:var(--red); }
     .portfolio-card .p-delta.flat{ color:var(--text-faint); }
-    .portfolio-card .p-stats-row{ display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
-    .stat-pill{ display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700; padding:3px 7px; border-radius:20px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
+    .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; margin-top:10px; }
+    .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:10px; font-weight:700; padding:4px 4px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
     .stat-pill.active{ color:var(--text); }
-    .stat-pill.GL.active{ border-color:var(--green); color:var(--green); }
-    .stat-pill.AS.active{ border-color:var(--accent-2); color:var(--accent-2); }
-    .stat-pill.YC.active{ border-color:var(--gold); color:var(--gold); }
-    .stat-pill.RC.active{ border-color:var(--red); color:var(--red); }
-    .stat-pill.CS.active{ border-color:var(--green); color:var(--green); }
-    .stat-pill.SV.active{ border-color:var(--accent-2); color:var(--accent-2); }
-    .stat-pill.GC.active-bad{ border-color:var(--red); color:var(--red); background:rgba(239,68,68,0.08); }
+    .stat-pill.active{ border-color:var(--green); color:var(--green); background:rgba(34,197,94,0.08); }
     .stat-pill.active-bad{ border-color:var(--red); color:var(--red); background:rgba(239,68,68,0.08); }
 
     .pack-fill-btn{ background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:5px 9px; font-size:10.5px; font-weight:700; color:var(--text-dim); }
@@ -187,10 +183,6 @@
     .market-row .m-value{ font-family:var(--font-head); font-weight:700; text-align:right; min-width:64px; flex:none; }
     .market-row .m-owned{ font-size:10px; color:var(--text-faint); min-width:50px; text-align:right; flex:none; }
 
-    .quick-nav{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:20px; }
-    .quick-nav a{ display:flex; align-items:center; justify-content:center; gap:7px; font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:.3px; color:var(--text-dim); background:var(--bg-card); border:1px solid var(--border); padding:11px 8px; border-radius:20px; text-align:center; transition:border-color .2s, color .2s; }
-    .quick-nav a:hover{ border-color:var(--border-hover); color:var(--text); }
-    .quick-nav a i{ flex:none; }
 
     /* Row-based leaderboard — wraps instead of ever needing horizontal
        scroll, since nothing here has a fixed min-width wider than a
@@ -241,9 +233,6 @@
       .stat-link i{ font-size:13px; }
       .stat .value{ font-size:16px; }
       .card{ padding:16px; }
-      .quick-nav{ gap:6px; }
-      .quick-nav a{ font-size:10.5px; padding:9px 4px; gap:4px; }
-      .quick-nav a i{ font-size:12px; }
     }
 
     .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
@@ -338,12 +327,6 @@
         </div>
         <div class="stat-row" id="opponentStatRow"></div>
       </section>
-
-      <nav class="quick-nav">
-        <a href="#your-squad-section"><i class="fas fa-briefcase"></i> Your Squad</a>
-        <a href="#opponent-squad-section"><i class="fas fa-swords"></i> Opponent Squad</a>
-        <a href="#leaderboard-section"><i class="fas fa-trophy"></i> Leaderboard</a>
-      </nav>
 
       <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
         <p style="font-size:15px; color:var(--text-dim); margin-bottom:16px;" id="draftPromptText">You haven't drafted your squad yet.</p>
@@ -560,10 +543,8 @@
               <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Gold')">Gold</button>
             </div>
             <div id="transfer-pool-${p ? p.position : ''}"></div>` : '';
-          return `<div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
+          return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
         }
-        const bestHtml = (p.best_elsewhere !== null && p.best_elsewhere !== undefined && p.best_elsewhere > (p.value || 0))
-          ? `<div class="p-est" style="color:var(--accent-2); margin-top:4px;">Best elsewhere: ${money(p.best_elsewhere)}</div>` : '';
         const benchedHtml = p.is_sub ? `<div class="weeks-badge sub">Benched — excluded this week</div>` : '';
         const actions = isMine ? `
           <div class="card-actions">
@@ -580,66 +561,62 @@
         let statsRow = '', breakdownHtml = '';
         if (bd && bd.stats) {
           const s = bd.stats;
-          const payout = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
-          const payoutPill = bd.benched
-            ? `<span class="stat-pill" title="Benched — excluded from the squad's result">FROZEN</span>`
-            : payout > 0
-              ? `<span class="stat-pill active" style="border-color:var(--green); color:var(--green);" title="Received from the squad's head-to-head win">PAY +${money(payout)}</span>`
-              : payout < 0
-                ? `<span class="stat-pill active-bad" title="Contributed to the squad's head-to-head loss">PAY -${money(Math.abs(payout))}</span>`
-                : `<span class="stat-pill" title="No head-to-head payout this week">PAY £0.00</span>`;
           statsRow = `
             <div class="p-stats-row">
-              <span class="stat-pill GL ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
-              <span class="stat-pill AS ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
-              <span class="stat-pill YC ${s.yellow_cards > 0 ? 'active' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
-              <span class="stat-pill RC ${s.red_cards > 0 ? 'active' : ''}" title="Red Cards">RC ${s.red_cards}</span>
-              ${showCS ? `<span class="stat-pill CS ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
-              ${showGC ? `<span class="stat-pill GC ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
-              ${showSV ? `<span class="stat-pill SV ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
-              ${payoutPill}
+              <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
+              <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
+              <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
+              <span class="stat-pill ${s.red_cards > 0 ? 'active-bad' : ''}" title="Red Cards">RC ${s.red_cards}</span>
+              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
+              ${showGC ? `<span class="stat-pill ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
+              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
             </div>`;
 
           const lines = [];
           if (bd.benched) {
-            lines.push('Benched this gameweek — excluded from scoring entirely.');
+            lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
           } else {
             const st = bd.stats || {};
-            const eventLines = [];
-            if (st.goals > 0) eventLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''}: +${money(st.goals * 75)}`);
-            if (st.assists > 0) eventLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''}: +${money(st.assists * 45)}`);
-            if (st.yellow_cards > 0) eventLines.push(`${st.yellow_cards} yellow card: -${money(30)}`);
-            if (st.red_cards > 0) eventLines.push(`Red card: -${money(100)}`);
-            if (showCS && st.clean_sheets > 0) eventLines.push(`Clean sheet: +${money(60)}`);
-            if (showSV && st.saves > 0) eventLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''}: +${money(Math.min(st.saves, 5) * 10)}`);
+            const positiveLines = [], negativeLines = [];
+            if (st.goals > 0) positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''}: +${money(st.goals * 75)}`);
+            if (st.assists > 0) positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''}: +${money(st.assists * 45)}`);
+            if (showCS && st.clean_sheets > 0) positiveLines.push(`Clean sheet: +${money(60)}`);
+            if (showSV && st.saves > 0) positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''}: +${money(Math.min(st.saves, 5) * 10)}`);
+            if (st.yellow_cards > 0) negativeLines.push(`${st.yellow_cards} yellow card: -${money(30)}`);
+            if (st.red_cards > 0) negativeLines.push(`Red card: -${money(100)}`);
             if (showGC && st.goals_conceded > 0) {
               const rate = posKey === 'gk' ? 40 : 10;
               const capped = posKey === 'gk' ? Math.min(st.goals_conceded, 4) : st.goals_conceded;
-              eventLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''}: -${money(capped * rate)}`);
+              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''}: -${money(capped * rate)}`);
             }
-            if (eventLines.length === 0) eventLines.push('No goals, assists, cards, or clean sheet/conceded events this week.');
-            lines.push(...eventLines);
+            positiveLines.forEach(l => lines.push({ text: l, tone: 'up' }));
+            negativeLines.forEach(l => lines.push({ text: l, tone: 'down' }));
+            if (positiveLines.length === 0 && negativeLines.length === 0) {
+              lines.push({ text: 'No goals, assists, cards, or clean sheet/conceded events this week.', tone: 'flat' });
+            }
+
             const ownNet = bd.own_event_net || 0;
             const totalNet = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
             const fromOpponentActivity = totalNet - ownNet;
-            if (ownNet !== 0) lines.push(`This player's own events directly ${ownNet > 0 ? 'gained' : 'cost'} ${money(Math.abs(ownNet))}.`);
-            if (fromOpponentActivity !== 0) {
-              lines.push(`${money(Math.abs(fromOpponentActivity))} more came from being one of this squad's 6 players when the opponent's own events needed funding, split evenly — not from anything this player personally did.`);
+            if (fromOpponentActivity > 0) {
+              lines.push({ text: `${money(fromOpponentActivity)} was this player's share of the squad's net win this gameweek.`, tone: 'up' });
+            } else if (fromOpponentActivity < 0) {
+              lines.push({ text: `${money(Math.abs(fromOpponentActivity))} was this player's share of the squad's net loss this gameweek.`, tone: 'down' });
             }
-            lines.push(`Total change this week: ${totalNet >= 0 ? '+' : ''}${money(totalNet)}.`);
-            if (bd.win_bonus === 0 && bd.penalty_paid === 0 && !bd.short_by) lines.push('No change this week.');
-            if (bd.short_by > 0) lines.push(`⚠ Fell ${money(bd.short_by)} short of the full amount — the opponent's squad didn't have enough left to cover it in full. Goals are always paid first, then assists, then saves, then clean sheets — whatever category runs short is the last one funded.`);
-            lines.push(bd.is_live
-              ? `Live and provisional — GW${bd.gameweek} hasn't finished yet. This is exactly how the real, final settlement works too, once the gameweek actually finishes.`
-              : `Final — this is the real, permanent result for GW${bd.gameweek}.`);
+            lines.push({ text: `How it works: this player's own actions move their value directly — any extra gain or cost then gets shared evenly across all 6 players in the squad, win or lose together.`, tone: 'flat' });
+            if (bd.short_by > 0) {
+              lines.push({ text: `⚠ Fell ${money(bd.short_by)} short of the full amount — the opponent's squad didn't have enough left to cover it in full.`, tone: 'flat' });
+            }
+            lines.push({ text: bd.is_live ? `Live and provisional — GW${bd.gameweek} hasn't finished yet.` : `Final result for GW${bd.gameweek}.`, tone: 'flat' });
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
+          const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
           breakdownHtml = `
             <button class="mini-btn" style="margin-top:6px; width:100%;" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'block' : 'none';">
               <i class="fas fa-circle-info"></i> Why?
             </button>
-            <div id="${detailId}" style="display:none; text-align:left; font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.5;">
-              ${lines.map(l => `<div>• ${escapeHtml(l)}</div>`).join('')}
+            <div id="${detailId}" style="display:none; text-align:left; font-size:11px; margin-top:6px; line-height:1.6;">
+              ${lines.map(l => `<div style="color:${lineColor(l.tone)};">• ${escapeHtml(l.text)}</div>`).join('')}
             </div>`;
         }
 
@@ -652,25 +629,28 @@
           const fromOpponent = total - own;
 
           const ownLine = own !== 0
-            ? `<div class="p-delta ${own > 0 ? 'up' : 'down'}">${own > 0 ? '▲' : '▼'} ${money(Math.abs(own))} own actions</div>`
-            : `<div class="p-delta flat">— £0.00 own actions</div>`;
+            ? `<div class="p-delta ${own > 0 ? 'up' : 'down'}">${own > 0 ? '▲' : '▼'} ${money(Math.abs(own))} this week's earnings</div>`
+            : `<div class="p-delta flat">— £0.00 this week's earnings</div>`;
           const oppLine = fromOpponent !== 0
-            ? `<div class="p-delta ${fromOpponent > 0 ? 'up' : 'down'}" style="margin-top:1px;">${fromOpponent > 0 ? '▲' : '▼'} ${money(Math.abs(fromOpponent))} from opponent's events</div>`
-            : `<div class="p-delta flat" style="margin-top:1px;">— £0.00 from opponent's events</div>`;
+            ? `<div class="p-delta ${fromOpponent > 0 ? 'up' : 'down'}" style="margin-top:1px;">${fromOpponent > 0 ? '▲' : '▼'} ${money(Math.abs(fromOpponent))} opponent's losses</div>`
+            : `<div class="p-delta flat" style="margin-top:1px;">— £0.00 opponent's losses</div>`;
           const totalLine = `<div class="p-delta ${total > 0 ? 'up' : total < 0 ? 'down' : 'flat'}" style="margin-top:1px; font-weight:800; border-top:1px solid var(--border); padding-top:3px;">${total > 0 ? '▲' : total < 0 ? '▼' : '—'} ${money(Math.abs(total))} total this week</div>`;
 
           deltaHtml = ownLine + oppLine + totalLine;
         }
 
+        const photoHtml = p.photo
+          ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
+          : `<div class="no-photo"><i class="fas fa-user"></i></div>`;
+
         return `
-        <div class="portfolio-card">
-          <div class="p-photo-wrap"><div class="no-photo"><i class="fas fa-user"></i></div></div>
+        <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
+          <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-body">
             <div class="p-name">${escapeHtml(p.name)}</div>
             <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
             <div class="p-value">${money(p.value)}</div>
             ${deltaHtml}
-            ${bestHtml}
             ${benchedHtml}
             ${statsRow}
             ${breakdownHtml}

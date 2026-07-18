@@ -309,30 +309,27 @@ module.exports = async (req, res) => {
           }
         }
 
-        // Best value elsewhere for each of my own players
-        const { data: allEntries } = await supabaseAdmin
-          .schema('stockmarket').from('tournament_entries')
-          .select('id, squad_players').eq('tournament_id', tournamentId).eq('squad_locked', true).neq('id', myEntry.id);
-
-        const bestValueByPid = {};
-        (allEntries || []).forEach(e => {
-          (e.squad_players || []).forEach(s => {
-            if (s.empty) return;
-            if (!bestValueByPid[s.player_id] || s.value > bestValueByPid[s.player_id]) {
-              bestValueByPid[s.player_id] = s.value;
-            }
-          });
-        });
-
-        const mySquadWithComparison = (myEntry.squad_players || []).map(s => {
-          if (s.empty) return s;
-          return { ...s, best_elsewhere: bestValueByPid[s.player_id] || null };
-        });
-
         const { data: tForMult } = await supabaseAdmin
           .schema('stockmarket').from('tournaments')
           .select('cost_multiplier').eq('id', tournamentId).maybeSingle();
         const costMultiplier = (tForMult && tForMult.cost_multiplier) || 1;
+
+        // Player photos for both squads — same FPL resource pattern used
+        // for the pre-lock draft preview.
+        const myIds = (myEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id);
+        const oppIds = opponentEntry ? (opponentEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id) : [];
+        const photoIds = [...new Set([...myIds, ...oppIds])];
+        const { data: photoRows } = photoIds.length > 0
+          ? await masterDb.from('players').select('id, photo').in('id', photoIds)
+          : { data: [] };
+        const photoByPid = {};
+        (photoRows || []).forEach(p => {
+          photoByPid[p.id] = p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null;
+        });
+        const withPhotos = (squad) => (squad || []).map(s => s.empty ? s : { ...s, photo: photoByPid[s.player_id] || null });
+
+        const mySquadWithComparison = withPhotos(myEntry.squad_players);
+        if (opponentEntry) opponentEntry.squad_players = withPhotos(opponentEntry.squad_players);
 
         // If this week's matchup exists but hasn't been finally settled
         // yet, compute a LIVE, provisional view — every event funds
