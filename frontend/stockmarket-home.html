@@ -23,7 +23,7 @@
     *{margin:0;padding:0;box-sizing:border-box;}
     html{scroll-behavior:smooth;}
     html{ overflow-x:hidden; }
-    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; overflow-x:hidden; width:100%; }
     a{color:inherit;text-decoration:none;}
     button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
     .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
@@ -39,6 +39,9 @@
     .nav-links a:hover{color:var(--text);}
     .nav-links a.active{color:var(--text);}
     .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .back-to-hub{ display:inline-flex !important; align-items:center; gap:6px; font-size:12px !important; font-weight:600; text-transform:none !important; letter-spacing:normal !important; color:var(--text-faint) !important; padding-bottom:0 !important; }
+    .back-to-hub:hover{ color:var(--accent-2) !important; }
+    .back-to-hub i{ font-size:11px; }
     .nav-right{display:flex;align-items:center;gap:14px;}
     .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
     .icon-btn i{font-size:15px;color:var(--text-dim);}
@@ -177,14 +180,22 @@
     .market-row .m-value{ font-family:var(--font-head); font-weight:700; text-align:right; min-width:64px; flex:none; }
     .market-row .m-owned{ font-size:10px; color:var(--text-faint); min-width:50px; text-align:right; flex:none; }
 
+    .quick-nav{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+    .quick-nav a{ font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:.3px; color:var(--text-dim); background:var(--bg-card); border:1px solid var(--border); padding:9px 16px; border-radius:20px; transition:border-color .2s, color .2s; }
+    .quick-nav a:hover{ border-color:var(--border-hover); color:var(--text); }
+    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; }
+    .table-scroll table{ min-width:480px; }
+
     /* ================= MOBILE ================= */
     @media (max-width:640px){
-      .navbar{ padding:12px 16px; flex-wrap:wrap; gap:10px; }
-      .nav-left{ gap:18px; }
+      .navbar{ padding:12px 16px; position:relative; align-items:flex-start; }
+      .nav-left{ flex-direction:column; align-items:flex-start; gap:4px; max-width:60%; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
       .nav-links{ gap:16px; }
-      .nav-links a{ font-size:12px; padding-bottom:12px; }
+      .nav-links a{ font-size:12px; padding-bottom:0; }
+      .nav-right{ position:absolute; top:12px; right:16px; gap:6px; }
+      .nav-right #navAuthLabel{ font-size:11px; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       main{ padding:20px 14px 80px; }
       .hero{ padding:28px 22px; min-height:auto; }
       .hero h1{ font-size:42px; }
@@ -195,6 +206,8 @@
       .stat{ min-width:100px; padding:10px 12px; }
       .stat .value{ font-size:16px; }
       .card{ padding:16px; }
+      .quick-nav{ gap:8px; }
+      .quick-nav a{ font-size:12px; padding:8px 12px; }
     }
 
     .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
@@ -211,7 +224,7 @@
         <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
       </a>
       <nav class="nav-links">
-        <a href="/">GB Hub</a>
+        <a href="/" class="back-to-hub"><i class="fas fa-arrow-left"></i> Your Hub</a>
       </nav>
     </div>
     <div class="nav-right">
@@ -298,6 +311,12 @@
 
       <div class="stat-row" id="statRow"></div>
 
+      <nav class="quick-nav">
+        <a href="#your-squad-section"><i class="fas fa-briefcase"></i> Your Squad</a>
+        <a href="#opponent-squad-section"><i class="fas fa-swords"></i> Opponent Squad</a>
+        <a href="#leaderboard-section"><i class="fas fa-trophy"></i> Leaderboard</a>
+      </nav>
+
       <a href="/stock-market-history" class="btn-primary" style="display:inline-flex; margin-bottom:20px;">
         <i class="fas fa-clock-rotate-left"></i> View Full Gameweek History
       </a>
@@ -307,22 +326,22 @@
         <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
       </div>
 
-      <section class="card" style="margin-bottom:16px;">
-        <div class="card-title"><i class="fas fa-trophy" style="color:var(--gold);"></i> Leaderboard</div>
-        <div id="leaderboardBody"><div class="loading">Loading…</div></div>
-      </section>
-
       <div class="cards-grid">
-        <section class="card">
+        <section class="card" id="your-squad-section">
           <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Squad</div>
           <div id="portfolioBody"><div class="loading">Loading…</div></div>
         </section>
 
-        <section class="card">
+        <section class="card" id="opponent-squad-section">
           <div class="card-title"><i class="fas fa-swords" style="color:var(--accent-2);"></i> This Week's Opponent</div>
           <div id="marketBody"><div class="loading">Loading…</div></div>
         </section>
       </div>
+
+      <section class="card" id="leaderboard-section" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fas fa-trophy" style="color:var(--gold);"></i> Leaderboard</div>
+        <div id="leaderboardBody"><div class="loading">Loading…</div></div>
+      </section>
     </div>
   </main>
 
@@ -867,18 +886,18 @@
         const relegatedSection = relegatedRows.length > 0 ? `
           <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--red); margin-bottom:6px;">Relegated — No Payout (${relegatedRows.length})</div>
-            <table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
+            <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
               ${relegatedRows.map(r => `
                 <tr style="border-top:1px solid var(--border);">
                   <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
-                  <td style="padding:6px;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
-                  <td style="padding:6px; text-align:right;">${money(r.current_value)} (not paid)</td>
+                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
+                  <td style="padding:6px; text-align:right; white-space:nowrap;">${money(r.current_value)} (not paid)</td>
                 </tr>`).join('')}
-            </table>
+            </table></div>
           </div>` : '';
 
         bodyEl.innerHTML = `
-          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px;">
             <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
               <th style="text-align:left; padding:6px;">Rank</th>
               <th style="text-align:left; padding:6px;">Player</th>
@@ -888,11 +907,11 @@
             ${rows.map(r => `
               <tr style="border-top:1px solid var(--border);">
                 <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
-                <td style="padding:8px 6px;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
-                <td style="padding:8px 6px; text-align:right;">${money(r.current_value)}</td>
-                <td style="padding:8px 6px; text-align:right; font-weight:700; color:var(--green);">${money(r.current_value)}</td>
+                <td style="padding:8px 6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
+                <td style="padding:8px 6px; text-align:right; white-space:nowrap;">${money(r.current_value)}</td>
+                <td style="padding:8px 6px; text-align:right; font-weight:700; color:var(--green); white-space:nowrap;">${money(r.current_value)}</td>
               </tr>`).join('')}
-          </table>
+          </table></div>
           ${relegatedSection}`;
       } catch (e) {
         console.error('loadFinalResults failed:', e);
@@ -920,19 +939,19 @@
         const relegatedSection = relegatedRows.length > 0 ? `
           <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--red); margin-bottom:6px;">Relegated (${relegatedRows.length})</div>
-            <table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
+            <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
               ${relegatedRows.map(r => `
                 <tr style="border-top:1px solid var(--border);">
                   <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
-                  <td style="padding:6px;"><a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
-                  <td style="padding:6px; text-align:right; font-weight:700;">${money(r.current_value)}</td>
-                  <td style="padding:6px; text-align:right; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
+                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
+                  <td style="padding:6px; text-align:right; font-weight:700; white-space:nowrap;">${money(r.current_value)}</td>
+                  <td style="padding:6px; text-align:right; white-space:nowrap; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
                 </tr>`).join('')}
-            </table>
+            </table></div>
           </div>` : '';
         document.getElementById('leaderboardBody').innerHTML = `
           ${stageNote}
-          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px;">
             <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
               <th style="text-align:left; padding:6px;">Rank</th>
               <th style="text-align:left; padding:6px;">Player</th>
@@ -942,14 +961,14 @@
             ${rows.map(r => `
               <tr style="border-top:1px solid var(--border); ${r.in_relegation_zone ? 'background:rgba(239,68,68,0.12);' : ''}">
                 <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
-                <td style="padding:8px 6px;">
+                <td style="padding:8px 6px; word-break:break-word;">
                   <a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a>
                   ${r.in_relegation_zone ? '<span style="margin-left:6px; font-size:10px; text-transform:uppercase; color:var(--red);">Relegation zone</span>' : ''}
                 </td>
-                <td style="padding:8px 6px; text-align:right; font-weight:700;">${money(r.current_value)}</td>
-                <td style="padding:8px 6px; text-align:right; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
+                <td style="padding:8px 6px; text-align:right; font-weight:700; white-space:nowrap;">${money(r.current_value)}</td>
+                <td style="padding:8px 6px; text-align:right; white-space:nowrap; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
               </tr>`).join('')}
-          </table>
+          </table></div>
           ${relegatedSection}`;
       } catch (e) {
         console.error('loadLeaderboard failed:', e);
