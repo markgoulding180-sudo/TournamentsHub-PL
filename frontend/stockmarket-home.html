@@ -99,6 +99,9 @@
     .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
     .stat .value.up{ color:var(--green); }
     .stat .value.down{ color:var(--red); }
+    .stat-wrap{ display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; }
+    .stat-wrap .stat-row{ flex:1 1 220px; min-width:220px; margin:0; }
+    .stat-links-row{ display:flex; gap:8px; flex:none; }
     .stat-link{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:none; width:96px; background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:12px 10px; font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:.2px; color:var(--accent-2); text-align:center; transition:background .2s, border-color .2s; }
     .stat-link:hover{ background:rgba(59,130,246,0.16); border-color:var(--accent-2); }
     .stat-link i{ font-size:16px; }
@@ -231,7 +234,9 @@
       .how-list{ gap:10px; }
       .stat-row{ gap:10px; }
       .stat{ min-width:100px; padding:10px 12px; }
-      .stat-row{ width:100%; }
+      .stat-wrap{ flex-direction:column; gap:12px; }
+      .stat-wrap .stat-row{ min-width:0; width:100%; }
+      .stat-links-row{ width:100%; }
       .stat-link{ flex:1 1 0; width:auto; min-width:0; flex-direction:row; padding:9px 6px; font-size:11px; gap:5px; }
       .stat-link i{ font-size:13px; }
       .stat .value{ font-size:16px; }
@@ -313,11 +318,13 @@
     <div id="mainContent" style="display:none;">
       <section class="card" style="margin-bottom:20px;">
         <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</div>
-        <div style="display:flex; align-items:stretch; gap:10px; flex-wrap:wrap;">
-          <div class="stat-row" id="statRow" style="flex:1; margin:0; min-width:0;"></div>
-          <a href="#your-squad-section" class="stat-link"><i class="fas fa-briefcase"></i> Your Squad</a>
-          <a href="#leaderboard-section" class="stat-link"><i class="fas fa-trophy"></i> Leaderboard</a>
-          <a href="/stock-market-history" class="stat-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
+        <div class="stat-wrap">
+          <div class="stat-row" id="statRow"></div>
+          <div class="stat-links-row">
+            <a href="#your-squad-section" class="stat-link"><i class="fas fa-briefcase"></i> Your Squad</a>
+            <a href="#leaderboard-section" class="stat-link"><i class="fas fa-trophy"></i> Leaderboard</a>
+            <a href="/stock-market-history" class="stat-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
+          </div>
         </div>
       </section>
 
