@@ -80,7 +80,9 @@
     .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:0; max-width:460px; line-height:1.55;}
 
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
-    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; flex-wrap:wrap; row-gap:8px; }
+    .history-link{ display:inline-flex; align-items:center; gap:6px; font-family:var(--font-head); font-size:11.5px; font-weight:700; letter-spacing:.2px; text-transform:none; color:var(--accent-2); background:rgba(59,130,246,0.1); border:1px solid var(--accent-dim); padding:6px 12px; border-radius:20px; transition:background .2s, border-color .2s; }
+    .history-link:hover{ background:rgba(59,130,246,0.2); border-color:var(--accent-2); }
 
     .status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1.1rem; border-radius:2rem; font-size:.85rem; font-weight:600; background:rgba(34,197,94,0.08); border:1.5px solid var(--green); color:var(--green); white-space:nowrap;}
     .status-badge.pending{background:rgba(242,185,61,0.1); border-color:var(--gold); color:var(--gold);}
@@ -178,9 +180,10 @@
     .market-row .m-value{ font-family:var(--font-head); font-weight:700; text-align:right; min-width:64px; flex:none; }
     .market-row .m-owned{ font-size:10px; color:var(--text-faint); min-width:50px; text-align:right; flex:none; }
 
-    .quick-nav{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
-    .quick-nav a{ font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:.3px; color:var(--text-dim); background:var(--bg-card); border:1px solid var(--border); padding:9px 16px; border-radius:20px; transition:border-color .2s, color .2s; }
+    .quick-nav{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:20px; }
+    .quick-nav a{ display:flex; align-items:center; justify-content:center; gap:7px; font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:.3px; color:var(--text-dim); background:var(--bg-card); border:1px solid var(--border); padding:11px 8px; border-radius:20px; text-align:center; transition:border-color .2s, color .2s; }
     .quick-nav a:hover{ border-color:var(--border-hover); color:var(--text); }
+    .quick-nav a i{ flex:none; }
 
     /* Row-based leaderboard — wraps instead of ever needing horizontal
        scroll, since nothing here has a fixed min-width wider than a
@@ -226,9 +229,9 @@
       .stat{ min-width:100px; padding:10px 12px; }
       .stat .value{ font-size:16px; }
       .card{ padding:16px; }
-      .quick-nav{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
-      .quick-nav a{ font-size:11px; padding:8px 4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .quick-nav a i{ display:block; margin-bottom:2px; }
+      .quick-nav{ gap:6px; }
+      .quick-nav a{ font-size:10.5px; padding:9px 4px; gap:4px; }
+      .quick-nav a i{ font-size:12px; }
     }
 
     .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
@@ -332,10 +335,6 @@
         <a href="#leaderboard-section"><i class="fas fa-trophy"></i> Leaderboard</a>
       </nav>
 
-      <a href="/stock-market-history" class="btn-primary" style="display:inline-flex; margin-bottom:20px;">
-        <i class="fas fa-clock-rotate-left"></i> View Full Gameweek History
-      </a>
-
       <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
         <p style="font-size:15px; color:var(--text-dim); margin-bottom:16px;" id="draftPromptText">You haven't drafted your squad yet.</p>
         <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
@@ -343,7 +342,10 @@
 
       <div class="cards-grid">
         <section class="card" id="your-squad-section">
-          <div class="card-title"><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Squad</div>
+          <div class="card-title" style="justify-content:space-between;">
+            <span><i class="fas fa-briefcase" style="color:var(--green);"></i> Your Squad</span>
+            <a href="/stock-market-history" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
+          </div>
           <div id="portfolioBody"><div class="loading">Loading…</div></div>
         </section>
 
