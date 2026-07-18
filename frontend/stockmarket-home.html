@@ -99,6 +99,9 @@
     .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
     .stat .value.up{ color:var(--green); }
     .stat .value.down{ color:var(--red); }
+    .stat-link{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:none; width:96px; background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:12px 10px; font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:.2px; color:var(--accent-2); text-align:center; transition:background .2s, border-color .2s; }
+    .stat-link:hover{ background:rgba(59,130,246,0.16); border-color:var(--accent-2); }
+    .stat-link i{ font-size:16px; }
 
     .how-list{ display:flex; flex-direction:column; gap:14px; }
     .how-item{ display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.5; }
@@ -228,6 +231,7 @@
       .how-list{ gap:10px; }
       .stat-row{ gap:10px; }
       .stat{ min-width:100px; padding:10px 12px; }
+      .stat-link{ width:100%; flex-direction:row; padding:10px 12px; }
       .stat .value{ font-size:16px; }
       .card{ padding:16px; }
       .quick-nav{ gap:6px; }
@@ -307,13 +311,19 @@
     <div id="mainContent" style="display:none;">
       <section class="card" style="margin-bottom:20px;">
         <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</div>
-        <div class="stat-row" id="statRow"></div>
+        <div style="display:flex; align-items:stretch; gap:10px; flex-wrap:wrap;">
+          <div class="stat-row" id="statRow" style="flex:1; margin:0; min-width:0;"></div>
+          <a href="#leaderboard-section" class="stat-link"><i class="fas fa-trophy"></i> Leaderboard</a>
+        </div>
       </section>
 
       <section class="card" id="opponentSummaryCard" style="display:none; margin-bottom:20px;">
         <div class="card-title" style="justify-content:space-between;">
           <span><i class="fas fa-swords" style="color:var(--accent-2);"></i> <span id="opponentSummaryTitle">This Week's Opponent</span></span>
-          <a href="#" id="opponentSummaryLink" class="history-link"><i class="fas fa-arrow-up-right-from-square"></i> View Squad</a>
+          <span style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="#opponent-squad-section" class="history-link"><i class="fas fa-people-group"></i> View Squad</a>
+            <a href="#" id="opponentSummaryHistoryLink" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
+          </span>
         </div>
         <div class="stat-row" id="opponentStatRow"></div>
       </section>
@@ -713,7 +723,7 @@
 
         document.getElementById('opponentSummaryCard').style.display = 'block';
         document.getElementById('opponentSummaryTitle').textContent = `Your opponent is ${data.opponent_name || 'Opponent'}`;
-        document.getElementById('opponentSummaryLink').href = `/stock-market-player?tournament_id=${tournamentId}&entry_id=${opp.id}`;
+        document.getElementById('opponentSummaryHistoryLink').href = `/stock-market-player?tournament_id=${tournamentId}&entry_id=${opp.id}`;
         document.getElementById('opponentStatRow').innerHTML = `
           <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(oppEnd)}</div></div>
           <div class="stat"><div class="label">Earned</div><div class="value up">+${money(oppTotalReceived)}</div></div>
