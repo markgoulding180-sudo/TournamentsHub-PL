@@ -97,12 +97,10 @@
     .stat .value.up{ color:var(--green); }
     .stat .value.down{ color:var(--red); }
 
-    .how-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-bottom:24px; }
-    @media (max-width:800px){ .how-grid{ grid-template-columns:1fr; } }
-    .how-step{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 20px; }
-    .how-step .num{ width:32px;height:32px;border-radius:50%; background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); font-family:var(--font-head); font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:12px; font-size:14px; }
-    .how-step h3{ font-family:var(--font-head); font-size:15px; margin-bottom:6px; }
-    .how-step p{ font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+    .how-list{ display:flex; flex-direction:column; gap:14px; }
+    .how-item{ display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+    .how-item strong{ color:var(--text); }
+    .how-num{ flex:none; width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); font-family:var(--font-head); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
 
     .cards-grid{ display:grid; grid-template-columns:1fr 1.2fr; gap:18px; margin-bottom:24px; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
@@ -183,8 +181,30 @@
     .quick-nav{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
     .quick-nav a{ font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:.3px; color:var(--text-dim); background:var(--bg-card); border:1px solid var(--border); padding:9px 16px; border-radius:20px; transition:border-color .2s, color .2s; }
     .quick-nav a:hover{ border-color:var(--border-hover); color:var(--text); }
-    .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; }
-    .table-scroll table{ min-width:480px; }
+
+    /* Row-based leaderboard — wraps instead of ever needing horizontal
+       scroll, since nothing here has a fixed min-width wider than a
+       narrow phone screen. */
+    .lb-header{ display:flex; align-items:center; gap:8px; padding:0 6px 6px; color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px; }
+    .lb-header .lb-rank{ width:22px; flex:none; }
+    .lb-header .lb-name{ flex:1; }
+    .lb-header .lb-value{ flex:none; width:72px; text-align:right; }
+    .lb-header .lb-gain{ flex:none; width:66px; text-align:right; }
+    .lb-row{ display:flex; align-items:center; gap:8px; padding:9px 6px; border-top:1px solid var(--border); flex-wrap:wrap; }
+    .lb-row.zone{ background:rgba(239,68,68,0.12); border-radius:8px; }
+    .lb-row .lb-rank{ width:22px; flex:none; font-weight:700; }
+    .lb-row .lb-name{ flex:1 1 140px; min-width:0; overflow-wrap:anywhere; }
+    .lb-row .lb-name a{ text-decoration:underline dotted; }
+    .lb-row .lb-tag{ display:block; font-size:10px; text-transform:uppercase; color:var(--red); font-weight:700; margin-top:1px; }
+    .lb-row .lb-value{ flex:none; width:72px; text-align:right; font-weight:700; white-space:nowrap; }
+    .lb-row .lb-gain{ flex:none; width:66px; text-align:right; white-space:nowrap; }
+    .lb-row .lb-gain.up{ color:var(--green); }
+    .lb-row .lb-gain.down{ color:var(--red); }
+    .lb-row.faded{ opacity:0.55; }
+    @media (max-width:400px){
+      .lb-header .lb-value, .lb-row .lb-value{ width:60px; }
+      .lb-header .lb-gain, .lb-row .lb-gain{ width:56px; }
+    }
 
     /* ================= MOBILE ================= */
     @media (max-width:640px){
@@ -201,13 +221,14 @@
       .hero h1{ font-size:42px; }
       .hero-sub{ font-size:16px; }
       .hero-desc{ font-size:13.5px; }
-      .how-grid{ gap:12px; }
+      .how-list{ gap:10px; }
       .stat-row{ gap:10px; }
       .stat{ min-width:100px; padding:10px 12px; }
       .stat .value{ font-size:16px; }
       .card{ padding:16px; }
-      .quick-nav{ gap:8px; }
-      .quick-nav a{ font-size:12px; padding:8px 12px; }
+      .quick-nav{ display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+      .quick-nav a{ font-size:11px; padding:8px 4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .quick-nav a i{ display:block; margin-bottom:2px; }
     }
 
     .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
@@ -246,21 +267,12 @@
       </div>
     </section>
 
-    <div class="how-grid">
-      <div class="how-step">
-        <div class="num">1</div>
-        <h3>Draft your 6</h3>
-        <p>1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 2 free picks either way.</p>
-      </div>
-      <div class="how-step">
-        <div class="num">2</div>
-        <h3>Values move with real events</h3>
-        <p>Goals, assists and saves push a player's value up. Yellow cards knock it down. A red card wipes it to zero.</p>
-      </div>
-      <div class="how-step">
-        <div class="num">3</div>
-        <h3>Zero-sum, always</h3>
-        <p>The total pot never grows or shrinks — it only moves between players. Pick well, profit off the market.</p>
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-title"><i class="fas fa-circle-info" style="color:var(--accent-2);"></i> How It Works</div>
+      <div class="how-list">
+        <div class="how-item"><span class="how-num">1</span><div><strong>Draft your 6.</strong> 1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 2 free picks either way.</div></div>
+        <div class="how-item"><span class="how-num">2</span><div><strong>Values move with real events.</strong> Goals, assists and saves push a player's value up. Yellow cards knock it down. A red card wipes it to zero.</div></div>
+        <div class="how-item"><span class="how-num">3</span><div><strong>Zero-sum, always.</strong> The total pot never grows or shrinks — it only moves between players. Pick well, profit off the market.</div></div>
       </div>
     </div>
 
@@ -309,7 +321,10 @@
         <div id="seedResults" style="margin-top:10px; font-size:12.5px; color:var(--text-faint);"></div>
       </div>
 
-      <div class="stat-row" id="statRow"></div>
+      <section class="card" style="margin-bottom:20px;">
+        <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</div>
+        <div class="stat-row" id="statRow"></div>
+      </section>
 
       <nav class="quick-nav">
         <a href="#your-squad-section"><i class="fas fa-briefcase"></i> Your Squad</a>
@@ -496,10 +511,12 @@
       const mySquadArr = entry.squad_players || [];
       const myTotalPaid = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
       const myTotalReceived = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
+      const myNet = myTotalReceived - myTotalPaid;
       document.getElementById('statRow').innerHTML = `
         <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(displayValue)}</div></div>
         <div class="stat"><div class="label">Earned</div><div class="value up">+${money(myTotalReceived)}</div></div>
         <div class="stat"><div class="label">Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
+        <div class="stat"><div class="label">Net This Gameweek</div><div class="value ${myNet >= 0 ? 'up' : 'down'}">${myNet >= 0 ? '+' : ''}${money(myNet)}</div></div>
       `;
 
       const renderPlayerCard = (p, isMine) => {
@@ -886,32 +903,26 @@
         const relegatedSection = relegatedRows.length > 0 ? `
           <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--red); margin-bottom:6px;">Relegated — No Payout (${relegatedRows.length})</div>
-            <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
-              ${relegatedRows.map(r => `
-                <tr style="border-top:1px solid var(--border);">
-                  <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
-                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a></td>
-                  <td style="padding:6px; text-align:right; white-space:nowrap;">${money(r.current_value)} (not paid)</td>
-                </tr>`).join('')}
-            </table></div>
+            ${relegatedRows.map(r => `
+              <div class="lb-row faded">
+                <div class="lb-name">
+                  <a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}">${escapeHtml(r.player_name)}</a>
+                  <span class="lb-tag">Cut GW${r.relegated_at_gameweek}</span>
+                </div>
+                <div class="lb-value">${money(r.current_value)}</div>
+                <div class="lb-gain" style="width:auto; font-size:11px; color:var(--text-faint);">not paid</div>
+              </div>`).join('')}
           </div>` : '';
 
         bodyEl.innerHTML = `
-          <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px;">
-            <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
-              <th style="text-align:left; padding:6px;">Rank</th>
-              <th style="text-align:left; padding:6px;">Player</th>
-              <th style="text-align:right; padding:6px;">Final Value</th>
-              <th style="text-align:right; padding:6px;">Amount Owed</th>
-            </tr>
-            ${rows.map(r => `
-              <tr style="border-top:1px solid var(--border);">
-                <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
-                <td style="padding:8px 6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a></td>
-                <td style="padding:8px 6px; text-align:right; white-space:nowrap;">${money(r.current_value)}</td>
-                <td style="padding:8px 6px; text-align:right; font-weight:700; color:var(--green); white-space:nowrap;">${money(r.current_value)}</td>
-              </tr>`).join('')}
-          </table></div>
+          <div class="lb-header"><div class="lb-rank"></div><div class="lb-name">Player</div><div class="lb-value">Value</div><div class="lb-gain">Owed</div></div>
+          ${rows.map(r => `
+            <div class="lb-row">
+              <div class="lb-rank">${medal(r.rank)}</div>
+              <div class="lb-name"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}">${escapeHtml(r.player_name)}</a></div>
+              <div class="lb-value">${money(r.current_value)}</div>
+              <div class="lb-gain up">${money(r.current_value)}</div>
+            </div>`).join('')}
           ${relegatedSection}`;
       } catch (e) {
         console.error('loadFinalResults failed:', e);
@@ -939,36 +950,29 @@
         const relegatedSection = relegatedRows.length > 0 ? `
           <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
             <div style="font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--red); margin-bottom:6px;">Relegated (${relegatedRows.length})</div>
-            <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px; opacity:0.6;">
-              ${relegatedRows.map(r => `
-                <tr style="border-top:1px solid var(--border);">
-                  <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
-                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a></td>
-                  <td style="padding:6px; text-align:right; font-weight:700; white-space:nowrap;">${money(r.current_value)}</td>
-                  <td style="padding:6px; text-align:right; white-space:nowrap; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
-                </tr>`).join('')}
-            </table></div>
+            ${relegatedRows.map(r => `
+              <div class="lb-row faded">
+                <div class="lb-name">
+                  <a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}">${escapeHtml(r.player_name)}</a>
+                  <span class="lb-tag">Cut GW${r.relegated_at_gameweek}</span>
+                </div>
+                <div class="lb-value">${money(r.current_value)}</div>
+                <div class="lb-gain ${r.gain_loss >= 0 ? 'up' : 'down'}">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</div>
+              </div>`).join('')}
           </div>` : '';
         document.getElementById('leaderboardBody').innerHTML = `
           ${stageNote}
-          <div class="table-scroll"><table style="width:100%; border-collapse:collapse; font-size:13px;">
-            <tr style="color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px;">
-              <th style="text-align:left; padding:6px;">Rank</th>
-              <th style="text-align:left; padding:6px;">Player</th>
-              <th style="text-align:right; padding:6px;">Value</th>
-              <th style="text-align:right; padding:6px;">Gain/Loss</th>
-            </tr>
-            ${rows.map(r => `
-              <tr style="border-top:1px solid var(--border); ${r.in_relegation_zone ? 'background:rgba(239,68,68,0.12);' : ''}">
-                <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
-                <td style="padding:8px 6px; word-break:break-word;">
-                  <a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a>
-                  ${r.in_relegation_zone ? '<span style="margin-left:6px; font-size:10px; text-transform:uppercase; color:var(--red);">Relegation zone</span>' : ''}
-                </td>
-                <td style="padding:8px 6px; text-align:right; font-weight:700; white-space:nowrap;">${money(r.current_value)}</td>
-                <td style="padding:8px 6px; text-align:right; white-space:nowrap; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
-              </tr>`).join('')}
-          </table></div>
+          <div class="lb-header"><div class="lb-rank"></div><div class="lb-name">Player</div><div class="lb-value">Value</div><div class="lb-gain">Gain/Loss</div></div>
+          ${rows.map(r => `
+            <div class="lb-row ${r.in_relegation_zone ? 'zone' : ''}">
+              <div class="lb-rank">${medal(r.rank)}</div>
+              <div class="lb-name">
+                <a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}">${escapeHtml(r.player_name)}</a>
+                ${r.in_relegation_zone ? '<span class="lb-tag">Relegation zone</span>' : ''}
+              </div>
+              <div class="lb-value">${money(r.current_value)}</div>
+              <div class="lb-gain ${r.gain_loss >= 0 ? 'up' : 'down'}">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</div>
+            </div>`).join('')}
           ${relegatedSection}`;
       } catch (e) {
         console.error('loadLeaderboard failed:', e);
