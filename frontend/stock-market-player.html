@@ -145,7 +145,7 @@
           return;
         }
 
-        document.getElementById('playerTitle').textContent = data.user_email || 'Player History';
+        document.getElementById('playerTitle').textContent = data.player_name || 'Player History';
         if (data.entry.relegated) {
           document.getElementById('relegatedNote').innerHTML = `<div class="relegated-note"><i class="fas fa-arrow-trend-down"></i> Relegated Gameweek ${data.entry.relegated_at_gameweek || '?'}</div>`;
         }

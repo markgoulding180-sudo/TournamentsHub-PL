@@ -138,10 +138,10 @@ module.exports = async (req, res) => {
 
         const userIds = (allEntries || []).map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, email').in('id', userIds)
+          ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds)
           : { data: [] };
-        const emailByUserId = {};
-        (users || []).forEach(u => { emailByUserId[u.id] = u.email; });
+        const nameByUserId = {};
+        (users || []).forEach(u => { nameByUserId[u.id] = pickDisplayName(u); });
 
         // Next unapplied stage tells us how many of the currently-active
         // bottom entries are in the relegation zone right now.
@@ -169,7 +169,7 @@ module.exports = async (req, res) => {
         const leaderboard = activeEntries.map((e, i) => ({
           rank: i + 1,
           entry_id: e.id,
-          user_email: emailByUserId[e.user_id] || 'Unknown',
+          player_name: nameByUserId[e.user_id] || 'Player',
           current_value: e.current_value,
           gain_loss: (e.current_value || 0) - (e.start_value || 0),
           in_relegation_zone: zoneIds.has(e.id)
@@ -177,7 +177,7 @@ module.exports = async (req, res) => {
 
         const relegated = relegatedEntries.map(e => ({
           entry_id: e.id,
-          user_email: emailByUserId[e.user_id] || 'Unknown',
+          player_name: nameByUserId[e.user_id] || 'Player',
           current_value: e.current_value,
           gain_loss: (e.current_value || 0) - (e.start_value || 0),
           relegated_at_gameweek: e.relegated_at_gameweek || null
@@ -194,7 +194,7 @@ module.exports = async (req, res) => {
       if (stockmarketHistory === 'true' && tournamentId) {
         const publicEntryId = params.get('entry_id');
         let myEntry = null;
-        let viewedUserEmail = null;
+        let viewedPlayerName = null;
 
         if (publicEntryId) {
           // Public per-player history view — clicking a name on the
@@ -207,8 +207,8 @@ module.exports = async (req, res) => {
             .eq('id', publicEntryId).eq('tournament_id', tournamentId).maybeSingle();
           if (!viewedEntry) return res.status(200).json({ entry: null });
           myEntry = viewedEntry;
-          const { data: viewedUser } = await supabaseAdmin.from('users').select('email').eq('id', viewedEntry.user_id).maybeSingle();
-          viewedUserEmail = viewedUser ? viewedUser.email : null;
+          const { data: viewedUser } = await supabaseAdmin.from('users').select('username, display_name').eq('id', viewedEntry.user_id).maybeSingle();
+          viewedPlayerName = pickDisplayName(viewedUser);
         } else {
           const authHeader = req.headers.authorization;
           if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
@@ -244,11 +244,11 @@ module.exports = async (req, res) => {
             .select('id, user_id').in('id', opponentEntryIds);
           const oppUserIds = (oppEntries || []).map(e => e.user_id);
           const { data: oppUsers } = oppUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, email').in('id', oppUserIds)
+            ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', oppUserIds)
             : { data: [] };
-          const emailByUserId = {};
-          (oppUsers || []).forEach(u => { emailByUserId[u.id] = u.email; });
-          (oppEntries || []).forEach(e => { opponentNameByEntryId[e.id] = emailByUserId[e.user_id] || 'Unknown'; });
+          const nameByUserId = {};
+          (oppUsers || []).forEach(u => { nameByUserId[u.id] = pickDisplayName(u); });
+          (oppEntries || []).forEach(e => { opponentNameByEntryId[e.id] = nameByUserId[e.user_id] || 'Player'; });
         }
 
         // Group everything by gameweek for easy display
@@ -268,7 +268,7 @@ module.exports = async (req, res) => {
         });
 
         const weeks = Object.values(byGameweek).sort((a, b) => a.gameweek - b.gameweek);
-        return res.status(200).json({ entry: myEntry, weeks, user_email: viewedUserEmail });
+        return res.status(200).json({ entry: myEntry, weeks, player_name: viewedPlayerName });
       }
 
       const stockmarketMatchup = params.get('stockmarket_matchup');
@@ -303,8 +303,8 @@ module.exports = async (req, res) => {
               .select('id, user_id, squad_players, current_value, last_week_value, start_value').eq('id', opponentId).maybeSingle();
             opponentEntry = oppData;
             if (opponentEntry) {
-              const { data: oppUser } = await supabaseAdmin.from('users').select('email').eq('id', opponentEntry.user_id).maybeSingle();
-              opponentName = oppUser ? oppUser.email : null;
+              const { data: oppUser } = await supabaseAdmin.from('users').select('username, display_name').eq('id', opponentEntry.user_id).maybeSingle();
+              opponentName = pickDisplayName(oppUser);
             }
           }
         }
@@ -2670,6 +2670,15 @@ const STARTER_PACK_MATRIX = {
   Silver: { gk: 1, def: 2, mid: 2, fwd: 1 },
   Gold: { gk: 0, def: 1, mid: 1, fwd: 1 }
 };
+
+// Public-facing pages (leaderboard, opponent view, player history) show
+// this instead of raw email addresses — data protection. Admin-only
+// exports still use real email, since that's needed to actually pay
+// people.
+function pickDisplayName(u) {
+  if (!u) return 'Player';
+  return u.display_name || u.username || 'Player';
+}
 
 const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 

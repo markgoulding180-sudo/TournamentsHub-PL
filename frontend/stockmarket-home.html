@@ -890,7 +890,7 @@
               ${relegatedRows.map(r => `
                 <tr style="border-top:1px solid var(--border);">
                   <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
-                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
+                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a></td>
                   <td style="padding:6px; text-align:right; white-space:nowrap;">${money(r.current_value)} (not paid)</td>
                 </tr>`).join('')}
             </table></div>
@@ -907,7 +907,7 @@
             ${rows.map(r => `
               <tr style="border-top:1px solid var(--border);">
                 <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
-                <td style="padding:8px 6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
+                <td style="padding:8px 6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a></td>
                 <td style="padding:8px 6px; text-align:right; white-space:nowrap;">${money(r.current_value)}</td>
                 <td style="padding:8px 6px; text-align:right; font-weight:700; color:var(--green); white-space:nowrap;">${money(r.current_value)}</td>
               </tr>`).join('')}
@@ -943,7 +943,7 @@
               ${relegatedRows.map(r => `
                 <tr style="border-top:1px solid var(--border);">
                   <td style="padding:6px; width:1%; white-space:nowrap; font-size:10px; color:var(--text-faint);">GW${r.relegated_at_gameweek}</td>
-                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a></td>
+                  <td style="padding:6px; word-break:break-word;"><a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a></td>
                   <td style="padding:6px; text-align:right; font-weight:700; white-space:nowrap;">${money(r.current_value)}</td>
                   <td style="padding:6px; text-align:right; white-space:nowrap; color:${r.gain_loss >= 0 ? 'var(--green)' : 'var(--red)'};">${r.gain_loss >= 0 ? '+' : ''}${money(r.gain_loss)}</td>
                 </tr>`).join('')}
@@ -962,7 +962,7 @@
               <tr style="border-top:1px solid var(--border); ${r.in_relegation_zone ? 'background:rgba(239,68,68,0.12);' : ''}">
                 <td style="padding:8px 6px; font-weight:700;">${medal(r.rank)}</td>
                 <td style="padding:8px 6px; word-break:break-word;">
-                  <a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.user_email)}</a>
+                  <a href="/stock-market-player?tournament_id=${tournamentId}&entry_id=${r.entry_id}" style="color:inherit; text-decoration:underline dotted;">${escapeHtml(r.player_name)}</a>
                   ${r.in_relegation_zone ? '<span style="margin-left:6px; font-size:10px; text-transform:uppercase; color:var(--red);">Relegation zone</span>' : ''}
                 </td>
                 <td style="padding:8px 6px; text-align:right; font-weight:700; white-space:nowrap;">${money(r.current_value)}</td>
