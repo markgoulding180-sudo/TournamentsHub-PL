@@ -231,7 +231,9 @@
       .how-list{ gap:10px; }
       .stat-row{ gap:10px; }
       .stat{ min-width:100px; padding:10px 12px; }
-      .stat-link{ width:100%; flex-direction:row; padding:10px 12px; }
+      .stat-row{ width:100%; }
+      .stat-link{ flex:1 1 0; width:auto; min-width:0; flex-direction:row; padding:9px 6px; font-size:11px; gap:5px; }
+      .stat-link i{ font-size:13px; }
       .stat .value{ font-size:16px; }
       .card{ padding:16px; }
       .quick-nav{ gap:6px; }
@@ -313,7 +315,9 @@
         <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</div>
         <div style="display:flex; align-items:stretch; gap:10px; flex-wrap:wrap;">
           <div class="stat-row" id="statRow" style="flex:1; margin:0; min-width:0;"></div>
+          <a href="#your-squad-section" class="stat-link"><i class="fas fa-briefcase"></i> Your Squad</a>
           <a href="#leaderboard-section" class="stat-link"><i class="fas fa-trophy"></i> Leaderboard</a>
+          <a href="/stock-market-history" class="stat-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
         </div>
       </section>
 
@@ -537,7 +541,7 @@
         <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(displayValue)}</div></div>
         <div class="stat"><div class="label">Earned</div><div class="value up">+${money(myTotalReceived)}</div></div>
         <div class="stat"><div class="label">Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
-        <div class="stat"><div class="label">Net This Gameweek</div><div class="value ${myNet >= 0 ? 'up' : 'down'}">${myNet >= 0 ? '+' : ''}${money(myNet)}</div></div>
+        <div class="stat"><div class="label">Net This Gameweek (GW${data.gameweek ?? '?'})</div><div class="value ${myNet >= 0 ? 'up' : 'down'}">${myNet >= 0 ? '+' : ''}${money(myNet)}</div></div>
       `;
 
       const renderPlayerCard = (p, isMine) => {
