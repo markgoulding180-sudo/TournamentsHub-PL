@@ -111,7 +111,7 @@
     .how-item strong{ color:var(--text); }
     .how-num{ flex:none; width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); font-family:var(--font-head); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
 
-    .cards-grid{ display:grid; grid-template-columns:1fr 1.2fr; gap:18px; margin-bottom:24px; }
+    .cards-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
@@ -167,7 +167,7 @@
     .notice-card .notice-detail{ font-size:10.5px; color:var(--text-faint); margin-top:2px; }
     .weeks-badge.warn{ color:var(--gold); font-weight:700; }
     .weeks-badge.sub{ color:var(--accent-2); font-weight:700; }
-    .card-actions{ display:flex; gap:6px; justify-content:center; margin-top:10px; }
+    .card-actions{ display:flex; gap:6px; justify-content:center; margin-top:10px; min-height:26px; }
     .mini-btn{ font-size:10.5px; font-weight:700; padding:5px 10px; border-radius:6px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
     .mini-btn:hover{ border-color:var(--border-hover); color:var(--text); }
     .mini-btn.danger:hover{ border-color:var(--red); color:#fca5a5; }
@@ -546,11 +546,11 @@
           return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
         }
         const benchedHtml = p.is_sub ? `<div class="weeks-badge sub">Benched — excluded this week</div>` : '';
-        const actions = isMine ? `
+        const actions = `
           <div class="card-actions">
-            <button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
-            <button class="mini-btn danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</button>
-          </div>` : '';
+            ${isMine ? `<button class="mini-btn" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</button>
+            <button class="mini-btn danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</button>` : ''}
+          </div>`;
 
         const bd = p.last_gw_breakdown;
         const posKey = (p.position || '').toLowerCase();
