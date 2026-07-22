@@ -131,15 +131,8 @@
     .portfolio-card .p-delta.up{ color:var(--green); }
     .portfolio-card .p-delta.down{ color:var(--red); }
     .portfolio-card .p-delta.flat{ color:var(--text-faint); }
-    .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; }
-    .portfolio-card .p-section{ margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
-    .portfolio-card .p-section:first-of-type{ border-top:none; margin-top:8px; padding-top:0; }
-    .portfolio-card .p-section-label{ font-size:14px; font-weight:700; }
-    .portfolio-card .p-section-label.up{ color:var(--green); }
-    .portfolio-card .p-section-label.down{ color:var(--red); }
-    .portfolio-card .p-section .p-stats-row{ margin-top:6px; }
-    .portfolio-card .p-bonus{ font-size:13.5px; font-weight:600; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
-    .portfolio-card .p-total{ font-size:21px; font-weight:800; margin-top:10px; padding:10px 6px; border-radius:8px; background:var(--bg-panel); text-align:center; }
+    .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; margin-top:10px; }
+    .portfolio-card .p-total{ font-size:21px; font-weight:800; margin-top:8px; padding:10px 6px; border-radius:8px; background:var(--bg-panel); text-align:center; }
     .portfolio-card .p-total.up{ color:var(--green); }
     .portfolio-card .p-total.down{ color:var(--red); }
     .portfolio-card .p-total.flat{ color:var(--text-dim); }
@@ -570,28 +563,23 @@
         const showGC = posKey === 'gk' || posKey === 'def' || posKey === 'mid' || posKey === 'fwd';
 
         let breakdownHtml = '';
-        let earningsHtml = '', negativeHtml = '', bonusHtml = '', totalHtml = '';
+        let pillsHtml = '', totalHtml = '';
         if (bd && bd.stats) {
           const s = bd.stats;
-          const positivePills = `
+          pillsHtml = `
             <div class="p-stats-row">
               <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
               <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
-              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
-              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
-            </div>`;
-          const negativePills = `
-            <div class="p-stats-row">
               <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
               <span class="stat-pill ${s.red_cards > 0 ? 'active-bad' : ''}" title="Red Cards">RC ${s.red_cards}</span>
+              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
               ${showGC ? `<span class="stat-pill ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
+              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
             </div>`;
 
           const lines = [];
           if (bd.benched) {
             lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
-            earningsHtml = `<div class="p-section"><div class="p-section-label flat">— £0.00 earnings</div>${positivePills}</div>`;
-            negativeHtml = `<div class="p-section"><div class="p-section-label flat">— £0.00 negative actions</div>${negativePills}</div>`;
             totalHtml = `<div class="p-total flat">— frozen, benched</div>`;
           } else {
             const st = bd.stats || {};
@@ -620,11 +608,12 @@
               negativeTotal += amt;
               negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''} (capped at 4) × -${money(concededRate)} = -${money(amt)}`);
             }
-            positiveLines.forEach(l => lines.push({ text: l, tone: 'up' }));
-            negativeLines.forEach(l => lines.push({ text: l, tone: 'down' }));
-            if (positiveLines.length === 0 && negativeLines.length === 0) {
-              lines.push({ text: 'No goals, assists, cards, or clean sheet/conceded events this week.', tone: 'flat' });
-            }
+            lines.push({ text: `${money(earningsTotal)} earnings from this player's own actions:`, tone: 'up', header: true });
+            positiveLines.forEach(l => lines.push({ text: l, tone: 'up', indent: true }));
+            if (positiveLines.length === 0) lines.push({ text: 'Nothing this week.', tone: 'flat', indent: true });
+            lines.push({ text: `${money(negativeTotal)} negative actions from this player:`, tone: 'down', header: true });
+            negativeLines.forEach(l => lines.push({ text: l, tone: 'down', indent: true }));
+            if (negativeLines.length === 0) lines.push({ text: 'Nothing this week.', tone: 'flat', indent: true });
 
             const ownNet = bd.own_event_net || 0;
             const rawOwnTotal = earningsTotal - negativeTotal;
@@ -648,11 +637,6 @@
             }
             lines.push({ text: bd.is_live ? `This is still live — Week ${bd.gameweek} isn't finished yet, so it could change.` : `This is the final score for Week ${bd.gameweek}.`, tone: 'flat' });
 
-            earningsHtml = `<div class="p-section"><div class="p-section-label up">▲ ${money(earningsTotal)} earnings</div>${positivePills}</div>`;
-            negativeHtml = `<div class="p-section"><div class="p-section-label down">▼ ${money(negativeTotal)} negative actions</div>${negativePills}</div>`;
-            bonusHtml = fromOpponentActivity !== 0
-              ? `<div class="p-bonus" style="color:${fromOpponentActivity > 0 ? 'var(--green)' : 'var(--red)'};">${fromOpponentActivity > 0 ? '▲' : '▼'} ${money(Math.abs(fromOpponentActivity))} bonus from opponent</div>`
-              : `<div class="p-bonus" style="color:var(--text-faint);">— £0.00 bonus from opponent</div>`;
             const totalTone = totalNet > 0 ? 'up' : totalNet < 0 ? 'down' : 'flat';
             totalHtml = `<div class="p-total ${totalTone}">${totalNet > 0 ? '▲' : totalNet < 0 ? '▼' : '—'} ${money(Math.abs(totalNet))} total this week</div>`;
           }
@@ -663,7 +647,7 @@
               <i class="fas fa-circle-info"></i> Why?
             </button>
             <div id="${detailId}" style="display:none; text-align:left; font-size:13.5px; margin-top:6px; line-height:1.7;">
-              ${lines.map(l => `<div style="color:${lineColor(l.tone)};">• ${escapeHtml(l.text)}</div>`).join('')}
+              ${lines.map(l => `<div style="color:${lineColor(l.tone)}; ${l.indent ? 'padding-left:16px; font-size:12.5px; opacity:0.9;' : ''} ${l.header ? 'font-weight:700; margin-top:6px;' : ''}">${l.indent ? '– ' : (l.header ? '▶ ' : '• ')}${escapeHtml(l.text)}</div>`).join('')}
             </div>`;
         }
 
@@ -678,10 +662,8 @@
             <div class="p-name">${escapeHtml(p.name)}</div>
             <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
             <div class="p-value">${money(p.value)}</div>
-            ${earningsHtml}
-            ${negativeHtml}
-            ${bonusHtml}
             ${totalHtml}
+            ${pillsHtml}
             ${benchedHtml}
             ${breakdownHtml}
             ${actions}
