@@ -581,18 +581,26 @@
             // Same reward table as the live server (FLAT_REWARDS), scaled
             // by this gameweek's actual multiplier — kept in sync here so
             // the explanation always matches the real numbers above it.
-            const goalRate = posKey === 'fwd' ? 360 : 300;
-            const assistRate = posKey === 'fwd' ? 180 : 150;
+            // Each line shows the per-action rate actually in effect this
+            // gameweek (base rate × this gameweek's multiplier), not just
+            // the total, so it's checkable at a glance.
+            const goalRate = Math.round((posKey === 'fwd' ? 360 : 300) * mult);
+            const assistRate = Math.round((posKey === 'fwd' ? 180 : 150) * mult);
+            const saveRate = Math.round(30 * mult);
+            const csRate = Math.round(125 * mult);
+            const yellowRate = Math.round(150 * mult);
+            const redRate = Math.round(300 * mult);
+            const concededRate = Math.round(75 * mult);
             const positiveLines = [], negativeLines = [];
-            if (st.goals > 0) positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''}: +${money(Math.round(st.goals * goalRate * mult))}`);
-            if (st.assists > 0) positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''}: +${money(Math.round(st.assists * assistRate * mult))}`);
-            if (showCS && st.clean_sheets > 0) positiveLines.push(`Clean sheet: +${money(Math.round(125 * mult))}`);
-            if (showSV && st.saves > 0) positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''}: +${money(Math.round(Math.min(st.saves, 5) * 30 * mult))}`);
-            if (st.yellow_cards > 0) negativeLines.push(`${st.yellow_cards} yellow card: -${money(Math.round(150 * mult))}`);
-            if (st.red_cards > 0) negativeLines.push(`Red card: -${money(Math.round(300 * mult))}`);
+            if (st.goals > 0) positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''} × ${money(goalRate)} = +${money(st.goals * goalRate)}`);
+            if (st.assists > 0) positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''} × ${money(assistRate)} = +${money(st.assists * assistRate)}`);
+            if (showCS && st.clean_sheets > 0) positiveLines.push(`Clean sheet (${money(csRate)} this gameweek) = +${money(csRate)}`);
+            if (showSV && st.saves > 0) positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''} × ${money(saveRate)} = +${money(Math.min(st.saves, 5) * saveRate)}`);
+            if (st.yellow_cards > 0) negativeLines.push(`${st.yellow_cards} yellow card × -${money(yellowRate)} = -${money(st.yellow_cards * yellowRate)}`);
+            if (st.red_cards > 0) negativeLines.push(`Red card (-${money(redRate)} this gameweek) = -${money(redRate)}`);
             if (showGC && st.goals_conceded > 0) {
               const capped = Math.min(st.goals_conceded, 4);
-              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''}: -${money(Math.round(capped * 75 * mult))}`);
+              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''} (capped at 4) × -${money(concededRate)} = -${money(capped * concededRate)}`);
             }
             positiveLines.forEach(l => lines.push({ text: l, tone: 'up' }));
             negativeLines.forEach(l => lines.push({ text: l, tone: 'down' }));
@@ -608,7 +616,8 @@
             } else if (fromOpponentActivity < 0) {
               lines.push({ text: `${money(Math.abs(fromOpponentActivity))} was this player's share of the squad's net loss this gameweek.`, tone: 'down' });
             }
-            lines.push({ text: `How it works: this player's own actions move their value directly — any extra gain or cost then gets shared evenly across all 6 players in the squad, win or lose together.`, tone: 'flat' });
+            const multNote = mult !== 1 ? ` Rates this gameweek are ${mult}× the base rate.` : '';
+            lines.push({ text: `How it works: this player's own actions move their value directly — any extra gain or cost then gets shared evenly across all 6 players in the squad, win or lose together.${multNote}`, tone: 'flat' });
             if (bd.short_by > 0) {
               lines.push({ text: `⚠ Fell ${money(bd.short_by)} short of the full amount — the opponent's squad didn't have enough left to cover it in full.`, tone: 'flat' });
             }
