@@ -119,9 +119,9 @@
     .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; }
     .portfolio-card.mine{ background:linear-gradient(165deg, rgba(59,130,246,0.09), var(--bg-card) 65%); border-color:var(--accent-dim); }
     .portfolio-card.opp{ background:linear-gradient(165deg, rgba(21,128,61,0.22), var(--bg-card) 65%); border-color:#166534; }
-    .portfolio-card .p-photo-wrap{ height:90px; background:linear-gradient(180deg, rgba(255,255,255,0.06), transparent); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
-    .portfolio-card .p-photo-wrap img{ height:100%; object-fit:contain; filter:drop-shadow(0 6px 10px rgba(0,0,0,0.5)); }
-    .portfolio-card .p-photo-wrap .no-photo{ font-size:34px; color:var(--text-faint); margin-bottom:8px; display:flex; align-items:center; justify-content:center; }
+    .portfolio-card .p-photo-wrap{ height:150px; width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.08), transparent); overflow:hidden; position:relative; }
+    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
+    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:52px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .portfolio-card .p-body{ padding:10px 12px 14px; }
     .portfolio-card .p-name{ font-weight:700; font-size:14px; margin-bottom:2px; }
     .portfolio-card .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px; }
@@ -131,7 +131,18 @@
     .portfolio-card .p-delta.up{ color:var(--green); }
     .portfolio-card .p-delta.down{ color:var(--red); }
     .portfolio-card .p-delta.flat{ color:var(--text-faint); }
-    .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; margin-top:10px; }
+    .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; }
+    .portfolio-card .p-section{ margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+    .portfolio-card .p-section:first-of-type{ border-top:none; margin-top:8px; padding-top:0; }
+    .portfolio-card .p-section-label{ font-size:12px; font-weight:700; }
+    .portfolio-card .p-section-label.up{ color:var(--green); }
+    .portfolio-card .p-section-label.down{ color:var(--red); }
+    .portfolio-card .p-section .p-stats-row{ margin-top:6px; }
+    .portfolio-card .p-bonus{ font-size:11.5px; font-weight:600; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+    .portfolio-card .p-total{ font-size:18px; font-weight:800; margin-top:10px; padding:8px 6px; border-radius:8px; background:var(--bg-panel); text-align:center; }
+    .portfolio-card .p-total.up{ color:var(--green); }
+    .portfolio-card .p-total.down{ color:var(--red); }
+    .portfolio-card .p-total.flat{ color:var(--text-dim); }
     .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:10px; font-weight:700; padding:4px 4px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--text-dim); }
     .stat-pill.active{ color:var(--text); }
     .stat-pill.active{ border-color:var(--green); color:var(--green); background:rgba(34,197,94,0.08); }
@@ -558,32 +569,36 @@
         const showSV = posKey === 'gk';
         const showGC = posKey === 'gk' || posKey === 'def' || posKey === 'mid' || posKey === 'fwd';
 
-        let statsRow = '', breakdownHtml = '';
+        let breakdownHtml = '';
+        let earningsHtml = '', negativeHtml = '', bonusHtml = '', totalHtml = '';
         if (bd && bd.stats) {
           const s = bd.stats;
-          statsRow = `
+          const positivePills = `
             <div class="p-stats-row">
               <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
               <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
+              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
+              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
+            </div>`;
+          const negativePills = `
+            <div class="p-stats-row">
               <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
               <span class="stat-pill ${s.red_cards > 0 ? 'active-bad' : ''}" title="Red Cards">RC ${s.red_cards}</span>
-              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
               ${showGC ? `<span class="stat-pill ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
-              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
             </div>`;
 
           const lines = [];
           if (bd.benched) {
             lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
+            earningsHtml = `<div class="p-section"><div class="p-section-label flat">— £0.00 earnings</div>${positivePills}</div>`;
+            negativeHtml = `<div class="p-section"><div class="p-section-label flat">— £0.00 negative actions</div>${negativePills}</div>`;
+            totalHtml = `<div class="p-total flat">— frozen, benched</div>`;
           } else {
             const st = bd.stats || {};
             const mult = costMultiplier || 1;
             // Same reward table as the live server (FLAT_REWARDS), scaled
             // by this gameweek's actual multiplier — kept in sync here so
             // the explanation always matches the real numbers above it.
-            // Each line shows the per-action rate actually in effect this
-            // gameweek (base rate × this gameweek's multiplier), not just
-            // the total, so it's checkable at a glance.
             const goalRate = Math.round((posKey === 'fwd' ? 360 : 300) * mult);
             const assistRate = Math.round((posKey === 'fwd' ? 180 : 150) * mult);
             const saveRate = Math.round(30 * mult);
@@ -592,17 +607,17 @@
             const redRate = Math.round(300 * mult);
             const concededRate = Math.round(75 * mult);
             const positiveLines = [], negativeLines = [];
-            let rawOwnTotal = 0;
-            if (st.goals > 0) { const amt = st.goals * goalRate; rawOwnTotal += amt; positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''} × ${money(goalRate)} = +${money(amt)}`); }
-            if (st.assists > 0) { const amt = st.assists * assistRate; rawOwnTotal += amt; positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''} × ${money(assistRate)} = +${money(amt)}`); }
-            if (showCS && st.clean_sheets > 0) { rawOwnTotal += csRate; positiveLines.push(`Clean sheet (${money(csRate)} this gameweek) = +${money(csRate)}`); }
-            if (showSV && st.saves > 0) { const amt = Math.min(st.saves, 5) * saveRate; rawOwnTotal += amt; positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''} × ${money(saveRate)} = +${money(amt)}`); }
-            if (st.yellow_cards > 0) { const amt = st.yellow_cards * yellowRate; rawOwnTotal -= amt; negativeLines.push(`${st.yellow_cards} yellow card × -${money(yellowRate)} = -${money(amt)}`); }
-            if (st.red_cards > 0) { rawOwnTotal -= redRate; negativeLines.push(`Red card (-${money(redRate)} this gameweek) = -${money(redRate)}`); }
+            let earningsTotal = 0, negativeTotal = 0;
+            if (st.goals > 0) { const amt = st.goals * goalRate; earningsTotal += amt; positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''} × ${money(goalRate)} = +${money(amt)}`); }
+            if (st.assists > 0) { const amt = st.assists * assistRate; earningsTotal += amt; positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''} × ${money(assistRate)} = +${money(amt)}`); }
+            if (showCS && st.clean_sheets > 0) { earningsTotal += csRate; positiveLines.push(`Clean sheet (${money(csRate)} this gameweek) = +${money(csRate)}`); }
+            if (showSV && st.saves > 0) { const amt = Math.min(st.saves, 5) * saveRate; earningsTotal += amt; positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''} × ${money(saveRate)} = +${money(amt)}`); }
+            if (st.yellow_cards > 0) { const amt = st.yellow_cards * yellowRate; negativeTotal += amt; negativeLines.push(`${st.yellow_cards} yellow card × -${money(yellowRate)} = -${money(amt)}`); }
+            if (st.red_cards > 0) { negativeTotal += redRate; negativeLines.push(`Red card (-${money(redRate)} this gameweek) = -${money(redRate)}`); }
             if (showGC && st.goals_conceded > 0) {
               const capped = Math.min(st.goals_conceded, 4);
               const amt = capped * concededRate;
-              rawOwnTotal -= amt;
+              negativeTotal += amt;
               negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''} (capped at 4) × -${money(concededRate)} = -${money(amt)}`);
             }
             positiveLines.forEach(l => lines.push({ text: l, tone: 'up' }));
@@ -612,12 +627,13 @@
             }
 
             const ownNet = bd.own_event_net || 0;
+            const rawOwnTotal = earningsTotal - negativeTotal;
             // If this player didn't have enough value left to pay the full
             // cost of their own actions, the real amount taken is smaller
             // than the numbers listed above — explain that plainly rather
             // than leaving the two figures looking like they don't add up.
             if (rawOwnTotal < 0 && ownNet > rawOwnTotal + 1) {
-              lines.push({ text: `This player didn't have enough value left to pay the full ${money(Math.abs(rawOwnTotal))} — so only ${money(Math.abs(ownNet))} was actually taken.`, tone: 'flat' });
+              lines.push({ text: `This player didn't have enough value left to pay the full ${money(negativeTotal)} — so only ${money(Math.abs(ownNet))} was actually taken.`, tone: 'flat' });
             }
             const totalNet = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
             const fromOpponentActivity = totalNet - ownNet;
@@ -631,6 +647,14 @@
               lines.push({ text: `⚠ This player was short ${money(bd.short_by)} — the other team didn't have enough left to pay it all.`, tone: 'flat' });
             }
             lines.push({ text: bd.is_live ? `This is still live — Week ${bd.gameweek} isn't finished yet, so it could change.` : `This is the final score for Week ${bd.gameweek}.`, tone: 'flat' });
+
+            earningsHtml = `<div class="p-section"><div class="p-section-label up">▲ ${money(earningsTotal)} earnings</div>${positivePills}</div>`;
+            negativeHtml = `<div class="p-section"><div class="p-section-label down">▼ ${money(negativeTotal)} negative actions</div>${negativePills}</div>`;
+            bonusHtml = fromOpponentActivity !== 0
+              ? `<div class="p-bonus" style="color:${fromOpponentActivity > 0 ? 'var(--green)' : 'var(--red)'};">${fromOpponentActivity > 0 ? '▲' : '▼'} ${money(Math.abs(fromOpponentActivity))} bonus from opponent</div>`
+              : `<div class="p-bonus" style="color:var(--text-faint);">— £0.00 bonus from opponent</div>`;
+            const totalTone = totalNet > 0 ? 'up' : totalNet < 0 ? 'down' : 'flat';
+            totalHtml = `<div class="p-total ${totalTone}">${totalNet > 0 ? '▲' : totalNet < 0 ? '▼' : '—'} ${money(Math.abs(totalNet))} total this week</div>`;
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
@@ -641,25 +665,6 @@
             <div id="${detailId}" style="display:none; text-align:left; font-size:11px; margin-top:6px; line-height:1.6;">
               ${lines.map(l => `<div style="color:${lineColor(l.tone)};">• ${escapeHtml(l.text)}</div>`).join('')}
             </div>`;
-        }
-
-        let deltaHtml = '';
-        if (bd && bd.benched) {
-          deltaHtml = `<div class="p-delta flat">— benched, frozen</div>`;
-        } else if (bd) {
-          const own = bd.own_event_net || 0;
-          const total = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
-          const fromOpponent = total - own;
-
-          const ownLine = own !== 0
-            ? `<div class="p-delta ${own > 0 ? 'up' : 'down'}">${own > 0 ? '▲' : '▼'} ${money(Math.abs(own))} this week's earnings</div>`
-            : `<div class="p-delta flat">— £0.00 this week's earnings</div>`;
-          const oppLine = fromOpponent !== 0
-            ? `<div class="p-delta ${fromOpponent > 0 ? 'up' : 'down'}" style="margin-top:1px;">${fromOpponent > 0 ? '▲' : '▼'} ${money(Math.abs(fromOpponent))} opponent's losses</div>`
-            : `<div class="p-delta flat" style="margin-top:1px;">— £0.00 opponent's losses</div>`;
-          const totalLine = `<div class="p-delta ${total > 0 ? 'up' : total < 0 ? 'down' : 'flat'}" style="margin-top:1px; font-weight:800; border-top:1px solid var(--border); padding-top:3px;">${total > 0 ? '▲' : total < 0 ? '▼' : '—'} ${money(Math.abs(total))} total this week</div>`;
-
-          deltaHtml = ownLine + oppLine + totalLine;
         }
 
         const photoHtml = p.photo
@@ -673,9 +678,11 @@
             <div class="p-name">${escapeHtml(p.name)}</div>
             <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
             <div class="p-value">${money(p.value)}</div>
-            ${deltaHtml}
+            ${earningsHtml}
+            ${negativeHtml}
+            ${bonusHtml}
+            ${totalHtml}
             ${benchedHtml}
-            ${statsRow}
             ${breakdownHtml}
             ${actions}
           </div>
