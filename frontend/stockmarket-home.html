@@ -685,10 +685,10 @@
       });
 
       const myCards = withLive(entry.squad_players, liveByPidMine).map(p => renderPlayerCard(p, true)).join('');
-      document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
 
       if (!data.opponent) {
         document.getElementById('opponentSummaryCard').style.display = 'none';
+        document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
         document.getElementById('marketBody').innerHTML = '<div class="empty">No matchup this week — you had a bye.</div>';
       } else {
         const opp = data.opponent;
@@ -699,11 +699,19 @@
         const liveBanner = isLive
           ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);"><i class="fas fa-bolt"></i> LIVE vs ${escapeHtml(data.opponent_name || 'your opponent')}</div>`
           : '';
+        // Shown identically above BOTH squads — it's the same shared
+        // result either way, and keeping the two grids' starting height
+        // identical is what keeps every row lined up card-for-card.
         const resultBanner = !m ? '' : !m.settled
           ? liveBanner || `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--accent-2);">This week's matchup — results in once GW${data.gameweek} finishes</div>`
           : isDraw
             ? `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:var(--gold);">Draw this week</div>`
             : `<div class="p-est" style="margin-bottom:10px; font-weight:700; color:${iWon ? 'var(--green)' : 'var(--red)'};">${iWon ? 'You won this week' : 'You lost this week'}</div>`;
+
+        document.getElementById('portfolioBody').innerHTML = `
+          ${resultBanner}
+          <div class="portfolio-grid">${myCards}</div>`;
+
         const oppSquadWithLive = withLive(opp.squad_players, liveByPidOpp);
         const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false)).join('');
 
