@@ -451,8 +451,31 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
           const concededByTeam = await getTeamGoalsConcededMap(masterDb, debugGameweek);
 
-          const provA = prepSquadForSettlement(entryA.squad_players || [], statsByPid, concededByTeam, costMultiplier);
-          const provB = prepSquadForSettlement(entryB.squad_players || [], statsByPid, concededByTeam, costMultiplier);
+          // Use each player's ACTUAL starting value for this specific
+          // gameweek (from the permanent per-gameweek record), not their
+          // current value — current value reflects everything that's
+          // happened SINCE this gameweek (later settlements, relegation
+          // bonuses, transfers), which would make a historical replay
+          // wildly wrong. This is what makes verifying a past gameweek
+          // apples-to-apples with what was actually recorded.
+          const { data: historicalRows } = await supabaseAdmin
+            .schema('stockmarket').from('player_gw_history')
+            .select('entry_id, player_id, starting_value')
+            .in('entry_id', [debugEntryId, otherEntryId]).eq('gameweek', debugGameweek);
+          const startingValueByEntryPid = {};
+          (historicalRows || []).forEach(h => { startingValueByEntryPid[`${h.entry_id}:${h.player_id}`] = h.starting_value; });
+          const applyHistoricalStart = (squad, eId) => (squad || []).map(s => {
+            if (s.empty) return s;
+            const key = `${eId}:${s.player_id}`;
+            return startingValueByEntryPid[key] !== undefined ? { ...s, value: startingValueByEntryPid[key] } : s;
+          });
+          const squadAHistorical = applyHistoricalStart(entryA.squad_players, debugEntryId);
+          const squadBHistorical = applyHistoricalStart(entryB.squad_players, otherEntryId);
+          const missingHistory = squadAHistorical.some(s => !s.empty && startingValueByEntryPid[`${debugEntryId}:${s.player_id}`] === undefined)
+            || squadBHistorical.some(s => !s.empty && startingValueByEntryPid[`${otherEntryId}:${s.player_id}`] === undefined);
+
+          const provA = prepSquadForSettlement(squadAHistorical, statsByPid, concededByTeam, costMultiplier);
+          const provB = prepSquadForSettlement(squadBHistorical, statsByPid, concededByTeam, costMultiplier);
 
           // Deep-clone the pre-settlement state (events + starting
           // liveValue) before settleUnified mutates provA/provB in place.
@@ -473,6 +496,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             entry_a_id: debugEntryId, entry_b_id: otherEntryId,
             starting_capacity_a: before.entry_a.reduce((s, p) => s + p.liveValue, 0),
             starting_capacity_b: before.entry_b.reduce((s, p) => s + p.liveValue, 0),
+            used_historical_starting_values: !missingHistory,
+            warning: missingHistory ? 'Some players had no historical starting_value record for this gameweek — their CURRENT value was used instead, which may not match what actually happened.' : null,
             before, after
           });
         } catch (err) {
