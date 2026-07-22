@@ -116,9 +116,9 @@
 
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
     @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; } }
-    .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; }
-    .portfolio-card.mine{ background:linear-gradient(165deg, rgba(59,130,246,0.09), var(--bg-card) 65%); border-color:var(--accent-dim); }
-    .portfolio-card.opp{ background:linear-gradient(165deg, rgba(21,128,61,0.22), var(--bg-card) 65%); border-color:#166534; }
+    .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; position:relative; }
+    .portfolio-card.mine{ background:linear-gradient(165deg, rgba(59,130,246,0.22), rgba(4,8,18,0.88) 60%), url('stockmarket-card-bg.jpg') center/cover; border-color:var(--accent-dim); }
+    .portfolio-card.opp{ background:linear-gradient(165deg, rgba(21,128,61,0.32), rgba(4,8,18,0.88) 60%), url('stockmarket-card-bg.jpg') center/cover; border-color:#166534; }
     .portfolio-card .p-photo-wrap{ height:220px; width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.08), transparent); overflow:hidden; position:relative; }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:64px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
@@ -171,8 +171,9 @@
     .notice-card .notice-detail{ font-size:10.5px; color:var(--text-faint); margin-top:2px; }
     .weeks-badge.warn{ color:var(--gold); font-weight:700; }
     .weeks-badge.sub{ color:var(--accent-2); font-weight:700; }
-    .card-actions{ display:flex; gap:6px; justify-content:center; margin-top:10px; min-height:26px; }
-    .mini-btn{ font-size:13px; font-weight:700; padding:7px 10px; border-radius:6px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
+    .card-actions{ display:flex; gap:8px; justify-content:center; margin-top:12px; min-height:38px; }
+    .mini-btn{ font-size:14px; font-weight:700; padding:10px 18px; border-radius:8px; background:var(--bg-panel); border:2px solid #fff; color:var(--text); flex:1; }
+    .mini-btn.danger{ color:#ff8080; }
     .mini-btn:hover{ border-color:var(--border-hover); color:var(--text); }
     .mini-btn.danger:hover{ border-color:var(--red); color:#fca5a5; }
     .transfer-pool-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--bg-panel); border-radius:6px; margin-top:4px; font-size:11px; }
@@ -646,8 +647,8 @@
             <button class="mini-btn" style="margin-top:6px; width:100%;" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'block' : 'none';">
               <i class="fas fa-circle-info"></i> Why?
             </button>
-            <div id="${detailId}" style="display:none; text-align:left; font-size:13.5px; margin-top:6px; line-height:1.7;">
-              ${lines.map(l => `<div style="color:${lineColor(l.tone)}; ${l.indent ? 'padding-left:16px; font-size:12.5px; opacity:0.9;' : ''} ${l.header ? 'font-weight:700; margin-top:6px;' : ''}">${l.indent ? '– ' : (l.header ? '▶ ' : '• ')}${escapeHtml(l.text)}</div>`).join('')}
+            <div id="${detailId}" style="display:none; text-align:center; font-size:13.5px; margin-top:6px; line-height:1.7;">
+              ${lines.map(l => `<div style="color:${lineColor(l.tone)}; ${l.indent ? 'font-size:12.5px; opacity:0.9;' : ''} ${l.header ? 'font-weight:700; margin-top:6px;' : ''}">${escapeHtml(l.text)}</div>`).join('')}
             </div>`;
         }
 
