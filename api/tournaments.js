@@ -410,6 +410,78 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // entrant's per-gameweek player breakdown plus every logged
       // sell/buy transaction, each row tagged with which user it belongs
       // to. The frontend turns this into a two-sheet Excel file.
+      // TEMPORARY DEBUG TOOL — DELETE BEFORE REAL LAUNCH. Dumps the exact
+      // mid-settlement state for one matchup: every player's computed
+      // event amounts (before settlement) and their final received/paid
+      // (after settlement), so the real math can be checked precisely
+      // instead of reverse-engineered from an export. Admin only.
+      const stockmarketDebugSettlement = params.get('stockmarket_debug_settlement');
+      if (stockmarketDebugSettlement === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: debugUser }, error: debugAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (debugAuthError || !debugUser) return res.status(401).json({ error: 'Invalid token' });
+        const { data: debugCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', debugUser.id).maybeSingle();
+        if (!debugCaller || !debugCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const debugEntryId = params.get('entry_id');
+        const debugGameweek = parseInt(params.get('gameweek'));
+        if (!debugEntryId || !debugGameweek) return res.status(400).json({ error: 'entry_id and gameweek are required' });
+
+        try {
+          const { data: matchup } = await supabaseAdmin
+            .schema('stockmarket').from('matchups')
+            .select('*').eq('tournament_id', tournamentId).eq('gameweek', debugGameweek)
+            .or(`entry_id_1.eq.${debugEntryId},entry_id_2.eq.${debugEntryId}`).maybeSingle();
+          if (!matchup) return res.status(404).json({ error: 'No matchup found for that entry/gameweek' });
+
+          const otherEntryId = matchup.entry_id_1 === debugEntryId ? matchup.entry_id_2 : matchup.entry_id_1;
+          const { data: entryA } = await supabaseAdmin.schema('stockmarket').from('tournament_entries').select('*').eq('id', debugEntryId).maybeSingle();
+          const { data: entryB } = await supabaseAdmin.schema('stockmarket').from('tournament_entries').select('*').eq('id', otherEntryId).maybeSingle();
+
+          const { data: tRow } = await supabaseAdmin.schema('stockmarket').from('tournaments').select('cost_multiplier').eq('id', tournamentId).maybeSingle();
+          const costMultiplier = (tRow && tRow.cost_multiplier) || 1;
+
+          const allPlayerIds = [...new Set([...(entryA.squad_players||[]), ...(entryB.squad_players||[])].filter(s => !s.empty).map(s => s.player_id))];
+          const { data: statRows } = allPlayerIds.length > 0
+            ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', debugGameweek).in('player_id', allPlayerIds)
+            : { data: [] };
+          const statsByPid = {};
+          (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
+          const concededByTeam = await getTeamGoalsConcededMap(masterDb, debugGameweek);
+
+          const provA = prepSquadForSettlement(entryA.squad_players || [], statsByPid, concededByTeam, costMultiplier);
+          const provB = prepSquadForSettlement(entryB.squad_players || [], statsByPid, concededByTeam, costMultiplier);
+
+          // Deep-clone the pre-settlement state (events + starting
+          // liveValue) before settleUnified mutates provA/provB in place.
+          const before = {
+            entry_a: provA.map(p => ({ name: p.name, position: p.position, liveValue: p.liveValue, events: p.events })),
+            entry_b: provB.map(p => ({ name: p.name, position: p.position, liveValue: p.liveValue, events: p.events }))
+          };
+
+          settleUnified(provA, provB);
+
+          const after = {
+            entry_a: provA.map(p => ({ name: p.name, liveValue: p.liveValue, received: p.received || 0, paid: p.paid || 0, shortBy: p.shortBy || 0 })),
+            entry_b: provB.map(p => ({ name: p.name, liveValue: p.liveValue, received: p.received || 0, paid: p.paid || 0, shortBy: p.shortBy || 0 }))
+          };
+
+          return res.status(200).json({
+            tournament_id: tournamentId, gameweek: debugGameweek, cost_multiplier: costMultiplier,
+            entry_a_id: debugEntryId, entry_b_id: otherEntryId,
+            starting_capacity_a: before.entry_a.reduce((s, p) => s + p.liveValue, 0),
+            starting_capacity_b: before.entry_b.reduce((s, p) => s + p.liveValue, 0),
+            before, after
+          });
+        } catch (err) {
+          console.error('stockmarket_debug_settlement error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+
       const stockmarketFullExport = params.get('stockmarket_full_export');
       if (stockmarketFullExport === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
