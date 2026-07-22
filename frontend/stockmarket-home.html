@@ -534,7 +534,7 @@
         <div class="stat"><div class="label">Net This Gameweek (GW${data.gameweek ?? '?'})</div><div class="value ${myNet >= 0 ? 'up' : 'down'}">${myNet >= 0 ? '+' : ''}${money(myNet)}</div></div>
       `;
 
-      const renderPlayerCard = (p, isMine) => {
+      const renderPlayerCard = (p, isMine, costMultiplier) => {
         if (!p || p.empty) {
           const packButtons = isMine ? `
             <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
@@ -577,17 +577,22 @@
             lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
           } else {
             const st = bd.stats || {};
+            const mult = costMultiplier || 1;
+            // Same reward table as the live server (FLAT_REWARDS), scaled
+            // by this gameweek's actual multiplier — kept in sync here so
+            // the explanation always matches the real numbers above it.
+            const goalRate = posKey === 'fwd' ? 360 : 300;
+            const assistRate = posKey === 'fwd' ? 180 : 150;
             const positiveLines = [], negativeLines = [];
-            if (st.goals > 0) positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''}: +${money(st.goals * 75)}`);
-            if (st.assists > 0) positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''}: +${money(st.assists * 45)}`);
-            if (showCS && st.clean_sheets > 0) positiveLines.push(`Clean sheet: +${money(60)}`);
-            if (showSV && st.saves > 0) positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''}: +${money(Math.min(st.saves, 5) * 10)}`);
-            if (st.yellow_cards > 0) negativeLines.push(`${st.yellow_cards} yellow card: -${money(30)}`);
-            if (st.red_cards > 0) negativeLines.push(`Red card: -${money(100)}`);
+            if (st.goals > 0) positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''}: +${money(Math.round(st.goals * goalRate * mult))}`);
+            if (st.assists > 0) positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''}: +${money(Math.round(st.assists * assistRate * mult))}`);
+            if (showCS && st.clean_sheets > 0) positiveLines.push(`Clean sheet: +${money(Math.round(125 * mult))}`);
+            if (showSV && st.saves > 0) positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''}: +${money(Math.round(Math.min(st.saves, 5) * 30 * mult))}`);
+            if (st.yellow_cards > 0) negativeLines.push(`${st.yellow_cards} yellow card: -${money(Math.round(150 * mult))}`);
+            if (st.red_cards > 0) negativeLines.push(`Red card: -${money(Math.round(300 * mult))}`);
             if (showGC && st.goals_conceded > 0) {
-              const rate = posKey === 'gk' ? 40 : 10;
-              const capped = posKey === 'gk' ? Math.min(st.goals_conceded, 4) : st.goals_conceded;
-              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''}: -${money(capped * rate)}`);
+              const capped = Math.min(st.goals_conceded, 4);
+              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''}: -${money(Math.round(capped * 75 * mult))}`);
             }
             positiveLines.forEach(l => lines.push({ text: l, tone: 'up' }));
             negativeLines.forEach(l => lines.push({ text: l, tone: 'down' }));
@@ -684,7 +689,7 @@
         };
       });
 
-      const myCards = withLive(entry.squad_players, liveByPidMine).map(p => renderPlayerCard(p, true)).join('');
+      const myCards = withLive(entry.squad_players, liveByPidMine).map(p => renderPlayerCard(p, true, data.cost_multiplier || 1)).join('');
 
       if (!data.opponent) {
         document.getElementById('opponentSummaryCard').style.display = 'none';
@@ -713,7 +718,7 @@
           <div class="portfolio-grid">${myCards}</div>`;
 
         const oppSquadWithLive = withLive(opp.squad_players, liveByPidOpp);
-        const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false)).join('');
+        const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false, data.cost_multiplier || 1)).join('');
 
         const oppEnd = isLive ? liveTotalOpp : opp.current_value;
         const oppTotalPaid = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
