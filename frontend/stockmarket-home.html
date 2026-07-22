@@ -117,7 +117,7 @@
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); grid-auto-rows:minmax(520px, auto); gap:10px; align-items:start; }
     .portfolio-grid .portfolio-card{ height:100%; display:flex; flex-direction:column; }
     .portfolio-grid .portfolio-card .p-body{ flex:1; display:flex; flex-direction:column; }
-    .portfolio-grid .portfolio-card .card-actions{ margin-top:auto; }
+    .portfolio-grid .portfolio-card .p-bottom-cluster{ margin-top:auto; }
     @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; grid-auto-rows:auto; } }
     .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; position:relative; }
     .portfolio-card.mine{ border-color:#fff; }
@@ -145,12 +145,12 @@
     .portfolio-card .p-delta.up{ color:var(--green); }
     .portfolio-card .p-delta.down{ color:var(--red); }
     .portfolio-card .p-delta.flat{ color:var(--text-faint); }
-    .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; margin-top:10px; }
+    .portfolio-card .p-stats-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin-top:10px; }
     .portfolio-card .p-total{ font-size:21px; font-weight:800; margin-top:8px; padding:10px 6px; border-radius:8px; background:var(--bg-panel); text-align:center; }
     .portfolio-card .p-total.up{ color:var(--green); }
     .portfolio-card .p-total.down{ color:var(--red); }
     .portfolio-card .p-total.flat{ color:var(--text-dim); }
-    .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:12px; font-weight:700; padding:5px 4px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--text-dim); }
+    .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:12px; font-weight:700; padding:5px 8px; min-width:44px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--text-dim); }
     .stat-pill.active{ color:var(--text); }
     .stat-pill.active{ border-color:var(--green); color:var(--green); background:rgba(34,197,94,0.08); }
     .stat-pill.active-bad{ border-color:var(--red); color:var(--red); background:rgba(239,68,68,0.08); }
@@ -185,7 +185,7 @@
     .notice-card .notice-detail{ font-size:10.5px; color:var(--text-faint); margin-top:2px; }
     .weeks-badge.warn{ color:var(--gold); font-weight:700; }
     .weeks-badge.sub{ color:var(--accent-2); font-weight:700; }
-    .card-actions{ display:flex; gap:8px; justify-content:center; margin-top:12px; min-height:38px; }
+    .card-actions{ display:flex; gap:10px; justify-content:center; margin-top:12px; min-height:38px; }
     .mini-btn{ font-size:14px; font-weight:700; padding:10px 18px; border-radius:8px; background:var(--bg-panel); border:2px solid #fff; color:var(--text); flex:1; }
     .mini-btn.danger{ color:#ff8080; }
     .mini-btn:hover{ border-color:var(--border-hover); color:var(--text); }
@@ -582,7 +582,32 @@
 
         let breakdownHtml = '';
         let pillsHtml = '', totalHtml = '';
-        if (bd && bd.stats) {
+        const zeroPills = `
+          <div class="p-stats-row">
+            <span class="stat-pill" title="Goals">GL 0</span>
+            <span class="stat-pill" title="Assists">AS 0</span>
+            <span class="stat-pill" title="Yellow Cards">YC 0</span>
+            <span class="stat-pill" title="Red Cards">RC 0</span>
+            ${showCS ? `<span class="stat-pill" title="Clean Sheets">CS 0</span>` : ''}
+            ${showGC ? `<span class="stat-pill" title="Goals Conceded (team)">GC 0</span>` : ''}
+            ${showSV ? `<span class="stat-pill" title="Saves">SV 0</span>` : ''}
+          </div>`;
+        if (!bd || !bd.stats) {
+          // New signing / not yet part of any settled or live gameweek —
+          // show the same consistent card shape as everyone else instead
+          // of leaving a blank gap, with a Why that explains why there's
+          // nothing to show yet.
+          totalHtml = `<div class="p-total flat">— £0.00 total this week</div>`;
+          pillsHtml = zeroPills;
+          const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
+          breakdownHtml = `
+            <button class="mini-btn" style="margin-top:8px; width:100%;" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'block' : 'none';">
+              <i class="fas fa-circle-info"></i> Why?
+            </button>
+            <div id="${detailId}" style="display:none; text-align:center; font-size:13.5px; margin-top:6px; line-height:1.7; color:var(--text-dim);">
+              Just brought into the team — no gameweek data yet.
+            </div>`;
+        } else if (bd && bd.stats) {
           const s = bd.stats;
           pillsHtml = `
             <div class="p-stats-row">
@@ -683,8 +708,10 @@
             ${totalHtml}
             ${pillsHtml}
             ${benchedHtml}
-            ${breakdownHtml}
-            ${actions}
+            <div class="p-bottom-cluster">
+              ${actions}
+              ${breakdownHtml}
+            </div>
           </div>
         </div>`;
       };
