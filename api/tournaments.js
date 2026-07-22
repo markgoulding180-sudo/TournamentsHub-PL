@@ -2089,7 +2089,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // however many entrants or players it's split across.
           const { data: otherEntries } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
-            .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true);
+            .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true).eq('relegated', false);
 
           let feeRecipients = 0;
           if (otherEntries && otherEntries.length > 0 && packFee > 0) {
