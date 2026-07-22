@@ -99,9 +99,9 @@
     .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
     .stat .value.up{ color:var(--green); }
     .stat .value.down{ color:var(--red); }
-    .stat-wrap{ display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; }
-    .stat-wrap .stat-row{ flex:1 1 220px; min-width:220px; margin:0; }
-    .stat-links-row{ display:flex; gap:8px; flex:none; }
+    .vs-divider{ text-align:center; margin:6px 0 20px; }
+    .vs-caption{ font-size:12px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+    .vs-big{ font-family:var(--font-head); font-weight:800; font-size:32px; color:var(--accent-2); letter-spacing:2px; text-shadow:0 0 16px var(--accent-glow); }
     .stat-link{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:none; width:96px; background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:12px 10px; font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:.2px; color:var(--accent-2); text-align:center; transition:background .2s, border-color .2s; }
     .stat-link:hover{ background:rgba(59,130,246,0.16); border-color:var(--accent-2); }
     .stat-link i{ font-size:16px; }
@@ -114,11 +114,14 @@
     .cards-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
-    .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
-    @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; } }
+    .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); grid-auto-rows:minmax(520px, auto); gap:10px; align-items:start; }
+    .portfolio-grid .portfolio-card{ height:100%; display:flex; flex-direction:column; }
+    .portfolio-grid .portfolio-card .p-body{ flex:1; display:flex; flex-direction:column; }
+    .portfolio-grid .portfolio-card .card-actions{ margin-top:auto; }
+    @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; grid-auto-rows:auto; } }
     .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; position:relative; }
-    .portfolio-card.mine{ border-color:var(--accent-dim); }
-    .portfolio-card.opp{ border-color:#166534; }
+    .portfolio-card.mine{ border-color:#fff; }
+    .portfolio-card.opp{ border-color:#fff; }
     .portfolio-card .p-photo-wrap{
       height:220px; width:100%; overflow:hidden; position:relative;
       border-bottom:2px solid var(--accent-dim);
@@ -242,9 +245,7 @@
       .how-list{ gap:10px; }
       .stat-row{ gap:10px; }
       .stat{ min-width:100px; padding:10px 12px; }
-      .stat-wrap{ flex-direction:column; gap:12px; }
-      .stat-wrap .stat-row{ min-width:0; width:100%; }
-      .stat-links-row{ width:100%; }
+      .vs-big{ font-size:24px; }
       .stat-link{ flex:1 1 0; width:auto; min-width:0; flex-direction:row; padding:9px 6px; font-size:11px; gap:5px; }
       .stat-link i{ font-size:13px; }
       .stat .value{ font-size:16px; }
@@ -322,16 +323,21 @@
 
     <div id="mainContent" style="display:none;">
       <section class="card" style="margin-bottom:20px;">
-        <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</div>
-        <div class="stat-wrap">
-          <div class="stat-row" id="statRow"></div>
-          <div class="stat-links-row">
-            <a href="#your-squad-section" class="stat-link"><i class="fas fa-briefcase"></i> Your Squad</a>
-            <a href="#leaderboard-section" class="stat-link"><i class="fas fa-trophy"></i> Leaderboard</a>
-            <a href="/stock-market-history" class="stat-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
-          </div>
+        <div class="card-title" style="justify-content:space-between;">
+          <span><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</span>
+          <span style="display:flex; gap:8px; flex-wrap:wrap;">
+            <a href="#your-squad-section" class="history-link"><i class="fas fa-briefcase"></i> Your Squad</a>
+            <a href="#leaderboard-section" class="history-link"><i class="fas fa-trophy"></i> Leaderboard</a>
+            <a href="/stock-market-history" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
+          </span>
         </div>
+        <div class="stat-row" id="statRow"></div>
       </section>
+
+      <div class="vs-divider">
+        <div class="vs-caption">Below is your opponent this week</div>
+        <div class="vs-big">VS</div>
+      </div>
 
       <section class="card" id="opponentSummaryCard" style="display:none; margin-bottom:20px;">
         <div class="card-title" style="justify-content:space-between;">
