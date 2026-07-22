@@ -115,17 +115,17 @@
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
-    @media (max-width:480px){ .portfolio-grid{ grid-template-columns:1fr; } }
+    @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; } }
     .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; }
     .portfolio-card.mine{ background:linear-gradient(165deg, rgba(59,130,246,0.09), var(--bg-card) 65%); border-color:var(--accent-dim); }
     .portfolio-card.opp{ background:linear-gradient(165deg, rgba(21,128,61,0.22), var(--bg-card) 65%); border-color:#166534; }
-    .portfolio-card .p-photo-wrap{ height:150px; width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.08), transparent); overflow:hidden; position:relative; }
+    .portfolio-card .p-photo-wrap{ height:220px; width:100%; background:linear-gradient(180deg, rgba(255,255,255,0.08), transparent); overflow:hidden; position:relative; }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
-    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:52px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:64px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .portfolio-card .p-body{ padding:10px 12px 14px; }
-    .portfolio-card .p-name{ font-weight:700; font-size:14px; margin-bottom:2px; }
-    .portfolio-card .p-pos{ font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px; }
-    .portfolio-card .p-value{ font-family:var(--font-head); font-weight:700; font-size:20px; text-align:center; }
+    .portfolio-card .p-name{ font-weight:700; font-size:17px; margin-bottom:2px; }
+    .portfolio-card .p-pos{ font-size:12px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px; }
+    .portfolio-card .p-value{ font-family:var(--font-head); font-weight:700; font-size:24px; text-align:center; }
     .portfolio-card .p-est{ color:var(--text-faint); font-size:10px; font-weight:500; }
     .portfolio-card .p-delta{ font-size:11px; font-weight:700; margin-top:2px; }
     .portfolio-card .p-delta.up{ color:var(--green); }
@@ -134,16 +134,16 @@
     .portfolio-card .p-stats-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(38px, 1fr)); gap:5px; }
     .portfolio-card .p-section{ margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
     .portfolio-card .p-section:first-of-type{ border-top:none; margin-top:8px; padding-top:0; }
-    .portfolio-card .p-section-label{ font-size:12px; font-weight:700; }
+    .portfolio-card .p-section-label{ font-size:14px; font-weight:700; }
     .portfolio-card .p-section-label.up{ color:var(--green); }
     .portfolio-card .p-section-label.down{ color:var(--red); }
     .portfolio-card .p-section .p-stats-row{ margin-top:6px; }
-    .portfolio-card .p-bonus{ font-size:11.5px; font-weight:600; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
-    .portfolio-card .p-total{ font-size:18px; font-weight:800; margin-top:10px; padding:8px 6px; border-radius:8px; background:var(--bg-panel); text-align:center; }
+    .portfolio-card .p-bonus{ font-size:13.5px; font-weight:600; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+    .portfolio-card .p-total{ font-size:21px; font-weight:800; margin-top:10px; padding:10px 6px; border-radius:8px; background:var(--bg-panel); text-align:center; }
     .portfolio-card .p-total.up{ color:var(--green); }
     .portfolio-card .p-total.down{ color:var(--red); }
     .portfolio-card .p-total.flat{ color:var(--text-dim); }
-    .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:10px; font-weight:700; padding:4px 4px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--text-dim); }
+    .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:12px; font-weight:700; padding:5px 4px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--text-dim); }
     .stat-pill.active{ color:var(--text); }
     .stat-pill.active{ border-color:var(--green); color:var(--green); background:rgba(34,197,94,0.08); }
     .stat-pill.active-bad{ border-color:var(--red); color:var(--red); background:rgba(239,68,68,0.08); }
@@ -179,7 +179,7 @@
     .weeks-badge.warn{ color:var(--gold); font-weight:700; }
     .weeks-badge.sub{ color:var(--accent-2); font-weight:700; }
     .card-actions{ display:flex; gap:6px; justify-content:center; margin-top:10px; min-height:26px; }
-    .mini-btn{ font-size:10.5px; font-weight:700; padding:5px 10px; border-radius:6px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
+    .mini-btn{ font-size:13px; font-weight:700; padding:7px 10px; border-radius:6px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); }
     .mini-btn:hover{ border-color:var(--border-hover); color:var(--text); }
     .mini-btn.danger:hover{ border-color:var(--red); color:#fca5a5; }
     .transfer-pool-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--bg-panel); border-radius:6px; margin-top:4px; font-size:11px; }
@@ -662,7 +662,7 @@
             <button class="mini-btn" style="margin-top:6px; width:100%;" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'block' : 'none';">
               <i class="fas fa-circle-info"></i> Why?
             </button>
-            <div id="${detailId}" style="display:none; text-align:left; font-size:11px; margin-top:6px; line-height:1.6;">
+            <div id="${detailId}" style="display:none; text-align:left; font-size:13.5px; margin-top:6px; line-height:1.7;">
               ${lines.map(l => `<div style="color:${lineColor(l.tone)};">• ${escapeHtml(l.text)}</div>`).join('')}
             </div>`;
         }
