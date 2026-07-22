@@ -483,13 +483,21 @@ async function loadStockMarketTournamentList() {
   const select = document.getElementById('stagesTournamentSelect');
   const auditSelect = document.getElementById('auditTournamentSelect');
   try {
-    const response = await fetch('/api/tournaments?tournament_type=stockmarket');
-    const data = await response.json();
+    const [listResponse, gwResponse] = await Promise.all([
+      fetch('/api/tournaments?tournament_type=stockmarket'),
+      fetch('/api/tournaments?stockmarket_current_gameweek=true')
+    ]);
+    const data = await listResponse.json();
+    const gwData = await gwResponse.json();
+    const liveGw = gwData.current_gameweek ?? '?';
     const tournaments = data.tournaments || [];
     const optionsHtml = tournaments.length === 0
       ? '<option value="">No Stock Market tournaments found</option>'
       : '<option value="">-- choose a tournament --</option>' +
-        tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status} (GW${t.gameweek ?? '?'})</option>`).join('');
+        // Shows the real, live shared gameweek (not the tournament's own
+        // `gameweek` column, which only ever holds its creation-time
+        // value and is never updated again as play progresses).
+        tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status} (currently GW${liveGw})</option>`).join('');
     if (select) select.innerHTML = optionsHtml;
     if (auditSelect) auditSelect.innerHTML = optionsHtml;
   } catch (error) {

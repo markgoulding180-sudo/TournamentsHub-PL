@@ -415,6 +415,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // event amounts (before settlement) and their final received/paid
       // (after settlement), so the real math can be checked precisely
       // instead of reverse-engineered from an export. Admin only.
+      // The tournament's own `gameweek` column is set once at creation
+      // and never updated again — actual progress is tracked entirely via
+      // the shared master_clock. This gives the admin UI (and anywhere
+      // else) the real current gameweek instead of that stale value.
+      const stockmarketCurrentGameweek = params.get('stockmarket_current_gameweek');
+      if (stockmarketCurrentGameweek === 'true') {
+        const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        return res.status(200).json({ current_gameweek: clock ? clock.current_gameweek : null });
+      }
+
       const stockmarketDebugSettlement = params.get('stockmarket_debug_settlement');
       if (stockmarketDebugSettlement === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
