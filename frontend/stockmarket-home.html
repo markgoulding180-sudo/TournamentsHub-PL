@@ -612,16 +612,15 @@
             const totalNet = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
             const fromOpponentActivity = totalNet - ownNet;
             if (fromOpponentActivity > 0) {
-              lines.push({ text: `${money(fromOpponentActivity)} was this player's share of the squad's net win this gameweek.`, tone: 'up' });
+              lines.push({ text: `+${money(fromOpponentActivity)} bonus — the other team had a bad week, so some of that came to you.`, tone: 'up' });
             } else if (fromOpponentActivity < 0) {
-              lines.push({ text: `${money(Math.abs(fromOpponentActivity))} was this player's share of the squad's net loss this gameweek.`, tone: 'down' });
+              lines.push({ text: `-${money(Math.abs(fromOpponentActivity))} taken — the other team had a good week, so some value went to them.`, tone: 'down' });
             }
-            const multNote = mult !== 1 ? ` Rates this gameweek are ${mult}× the base rate.` : '';
-            lines.push({ text: `How it works: this player's own actions move their value directly — any extra gain or cost then gets shared evenly across all 6 players in the squad, win or lose together.${multNote}`, tone: 'flat' });
+            lines.push({ text: `Each week your 6 players go head-to-head against your opponent's 6 — a good week wins you money, a bad week costs you.`, tone: 'flat' });
             if (bd.short_by > 0) {
-              lines.push({ text: `⚠ Fell ${money(bd.short_by)} short of the full amount — the opponent's squad didn't have enough left to cover it in full.`, tone: 'flat' });
+              lines.push({ text: `⚠ This player was short ${money(bd.short_by)} — the other team didn't have enough left to pay it all.`, tone: 'flat' });
             }
-            lines.push({ text: bd.is_live ? `Live and provisional — GW${bd.gameweek} hasn't finished yet.` : `Final result for GW${bd.gameweek}.`, tone: 'flat' });
+            lines.push({ text: bd.is_live ? `This is still live — Week ${bd.gameweek} isn't finished yet, so it could change.` : `This is the final score for Week ${bd.gameweek}.`, tone: 'flat' });
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
