@@ -365,7 +365,10 @@
         </section>
 
         <section class="card" id="opponent-squad-section">
-          <div class="card-title"><i class="fas fa-swords" style="color:var(--accent-2);"></i> This Week's Opponent</div>
+          <div class="card-title" style="justify-content:space-between;">
+            <span><i class="fas fa-swords" style="color:var(--accent-2);"></i> This Week's Opponent</span>
+            <a href="#" id="opponentSquadHistoryLink" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
+          </div>
           <div id="marketBody"><div class="loading">Loading…</div></div>
         </section>
       </div>
@@ -780,6 +783,7 @@
         document.getElementById('opponentSummaryCard').style.display = 'block';
         document.getElementById('opponentSummaryTitle').textContent = `Your opponent is ${data.opponent_name || 'Opponent'}`;
         document.getElementById('opponentSummaryHistoryLink').href = `/stock-market-player?tournament_id=${tournamentId}&entry_id=${opp.id}`;
+        document.getElementById('opponentSquadHistoryLink').href = `/stock-market-player?tournament_id=${tournamentId}&entry_id=${opp.id}`;
         document.getElementById('opponentStatRow').innerHTML = `
           <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(oppEnd)}</div></div>
           <div class="stat"><div class="label">Earned</div><div class="value up">+${money(oppTotalReceived)}</div></div>
