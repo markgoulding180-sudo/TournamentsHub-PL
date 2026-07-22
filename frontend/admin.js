@@ -421,10 +421,40 @@ async function loadAuditHistory() {
     if (!response.ok) { results.innerHTML = `Failed: ${data.error}`; return; }
 
     const rows = data.audit;
+    const actionAudit = data.action_audit;
     if (!rows) { results.innerHTML = 'No data returned.'; return; }
 
     const money = p => `£${((p || 0) / 100).toFixed(2)}`;
     const statusColor = rows.ok ? 'var(--accent-green)' : 'var(--accent-red)';
+
+    let actionHtml = '';
+    if (actionAudit) {
+      const actionColor = actionAudit.ok ? 'var(--accent-green)' : 'var(--accent-red)';
+      const mismatchRows = (actionAudit.mismatches || []).map(m => `
+        <tr style="border-bottom:1px solid var(--border-color);">
+          <td style="padding:4px 6px;">GW${m.gameweek}</td>
+          <td style="padding:4px 6px;">${m.player}</td>
+          <td style="padding:4px 6px;">expected ${money(m.expected_won)} / actual ${money(m.actual_won)}</td>
+          <td style="padding:4px 6px;">expected ${money(m.expected_paid)} / actual ${money(m.actual_paid)}</td>
+        </tr>`).join('');
+      actionHtml = `
+        <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-color);">
+          <div style="font-weight:700; margin-bottom:0.4rem;">Per-Player Action Check</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
+            <div>Matchups checked: <strong>${actionAudit.matchups_checked}</strong></div>
+            <div>Player-gameweek rows checked: <strong>${actionAudit.player_rows_checked}</strong></div>
+          </div>
+          <div style="padding:0.6rem; border-radius:0.5rem; background:rgba(0,0,0,0.2); color:${actionColor}; font-weight:700;">
+            ${actionAudit.ok ? `✓ Every player got exactly what their actions should pay — ${actionAudit.player_rows_checked} rows, 0 mismatches` : `⚠ ${actionAudit.mismatches_found} MISMATCH(ES) FOUND`}
+          </div>
+          ${mismatchRows ? `<table style="width:100%; border-collapse:collapse; font-size:0.8rem; margin-top:0.6rem;">
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);"><th style="padding:4px 6px;">GW</th><th style="padding:4px 6px;">Player</th><th style="padding:4px 6px;">Won</th><th style="padding:4px 6px;">Paid</th></tr>
+            ${mismatchRows}
+          </table>` : ''}
+          <p class="text-muted" style="font-size:0.7rem; margin-top:0.6rem;">${actionAudit.note}</p>
+        </div>`;
+    }
+
     results.innerHTML = `
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
         <div>Total entries (ever locked): <strong>${rows.total_entries}</strong></div>
@@ -439,7 +469,8 @@ async function loadAuditHistory() {
       </div>
       <p class="text-muted" style="font-size:0.75rem; margin-top:0.6rem;">
         Relegated players' frozen historical total (not part of the live pot): ${money(rows.relegated_frozen_total_informational)}
-      </p>`;
+      </p>
+      ${actionHtml}`;
   } catch (error) {
     results.innerHTML = `Error: ${error.message}`;
   }

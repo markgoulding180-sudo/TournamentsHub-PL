@@ -648,6 +648,78 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const relegatedFrozenTotal = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
         const drift = actualActiveTotal - expectedPot;
 
+        // Deep check: replay every settled matchup, every gameweek, using
+        // TODAY's live reward values, and compare every player's real
+        // recorded Won/Paid against what their actual recorded actions
+        // should produce. Only meaningful for gameweeks settled entirely
+        // under the current reward values — if FLAT_REWARDS gets tuned
+        // again later, older gameweeks would need re-checking against
+        // whatever was live when they actually settled.
+        const { data: settledMatchups } = await supabaseAdmin
+          .schema('stockmarket').from('matchups')
+          .select('gameweek, entry_id_1, entry_id_2').eq('tournament_id', tournamentId).eq('settled', true);
+
+        const { data: stageRows } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_stages')
+          .select('trigger_gameweek, cost_multiplier').eq('tournament_id', tournamentId).eq('applied', true)
+          .order('stage_number', { ascending: true });
+        const multiplierAtGameweek = (gw) => {
+          let m = 1;
+          (stageRows || []).forEach(s => { if (s.trigger_gameweek <= gw) m = s.cost_multiplier; });
+          return m;
+        };
+
+        const allHistoryForAudit = await fetchAllRows(() =>
+          supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*').eq('tournament_id', tournamentId)
+        );
+        const historyByEntryGw = {};
+        (allHistoryForAudit || []).forEach(r => {
+          const key = `${r.entry_id}:${r.gameweek}`;
+          if (!historyByEntryGw[key]) historyByEntryGw[key] = [];
+          historyByEntryGw[key].push(r);
+        });
+
+        const buildProvFromHistory = (rows, mult) => rows.map(r => {
+          const st = r.stats || {};
+          const events = r.benched
+            ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
+            : computePlayerEventBreakdown(r.position, {
+                goals_scored: st.goals || 0, assists: st.assists || 0, yellow_cards: st.yellow_cards || 0,
+                red_cards: st.red_cards || 0, clean_sheets: st.clean_sheets || 0, saves: st.saves || 0,
+                goals_conceded: st.goals_conceded || 0, team_goals_conceded: st.goals_conceded || 0
+              }, mult);
+          return { player_id: r.player_id, name: r.name, liveValue: Math.round(r.starting_value || 0), events, received: 0, paid: 0, shortBy: 0 };
+        });
+
+        const mismatches = [];
+        let playerRowsChecked = 0;
+        for (const m of (settledMatchups || [])) {
+          const rowsA = historyByEntryGw[`${m.entry_id_1}:${m.gameweek}`] || [];
+          const rowsB = historyByEntryGw[`${m.entry_id_2}:${m.gameweek}`] || [];
+          if (rowsA.length === 0 || rowsB.length === 0) continue;
+          const mult = multiplierAtGameweek(m.gameweek);
+          const provA = buildProvFromHistory(rowsA, mult);
+          const provB = buildProvFromHistory(rowsB, mult);
+          settleUnified(provA, provB);
+
+          [[provA, rowsA, m.entry_id_1], [provB, rowsB, m.entry_id_2]].forEach(([prov, rows, entryId]) => {
+            prov.forEach(p => {
+              playerRowsChecked++;
+              const real = rows.find(r => r.player_id === p.player_id);
+              if (!real) return;
+              const wonDiff = Math.abs((real.win_bonus || 0) - p.received);
+              const paidDiff = Math.abs((real.penalty_paid || 0) - p.paid);
+              if (wonDiff > 1 || paidDiff > 1) {
+                mismatches.push({
+                  gameweek: m.gameweek, entry_id: entryId, player: p.name,
+                  expected_won: p.received, actual_won: real.win_bonus || 0,
+                  expected_paid: p.paid, actual_paid: real.penalty_paid || 0
+                });
+              }
+            });
+          });
+        }
+
         return res.status(200).json({
           audit: {
             total_entries: totalEntries,
@@ -660,6 +732,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             relegated_frozen_total_informational: relegatedFrozenTotal,
             cost_multiplier: tournamentRow.cost_multiplier || 1,
             ok: Math.abs(drift) <= 1 // 1p tolerance for rounding
+          },
+          action_audit: {
+            matchups_checked: (settledMatchups || []).length,
+            player_rows_checked: playerRowsChecked,
+            mismatches_found: mismatches.length,
+            ok: mismatches.length === 0,
+            mismatches: mismatches.slice(0, 50),
+            note: 'Checks every settled matchup against TODAY\'s live reward values. Only fully reliable for gameweeks settled entirely under the current FLAT_REWARDS — if those values get tuned again later, run this again right after on a fresh tournament to re-validate.'
           }
         });
       }
@@ -2830,26 +2910,27 @@ function computePlayerRawChange(position, stats, currentValue) {
 // settlement can process them in strict priority order (goals, then
 // assists, then saves, then clean sheets) when the funding squad doesn't
 // have enough to cover everything.
-function computePlayerEventBreakdown(position, stats, costMultiplier) {
+function computePlayerEventBreakdown(position, stats, costMultiplier, rewardsOverride) {
+  const R = rewardsOverride || FLAT_REWARDS;
   const mult = costMultiplier || 1;
   const goals = Math.min(stats.goals_scored || 0, 99);
   const assists = Math.min(stats.assists || 0, 99);
-  const goalRate = position === 'fwd' ? FLAT_REWARDS.fwd_goal : FLAT_REWARDS.goal;
-  const assistRate = position === 'fwd' ? FLAT_REWARDS.fwd_assist : FLAT_REWARDS.assist;
+  const goalRate = position === 'fwd' ? R.fwd_goal : R.goal;
+  const assistRate = position === 'fwd' ? R.fwd_assist : R.assist;
   const goalAmt = Math.round(goals * goalRate * mult);
   const assistAmt = Math.round(assists * assistRate * mult);
-  const yellowAmt = Math.round((stats.yellow_cards || 0) * FLAT_REWARDS.yellow_card * mult);
-  const redAmt = Math.round((stats.red_cards || 0) * FLAT_REWARDS.red_card * mult);
+  const yellowAmt = Math.round((stats.yellow_cards || 0) * R.yellow_card * mult);
+  const redAmt = Math.round((stats.red_cards || 0) * R.red_card * mult);
   let cleanSheetAmt = 0, saveAmt = 0, concededAmt = 0;
   if (position === 'gk') {
-    if ((stats.clean_sheets || 0) > 0) cleanSheetAmt = Math.round(FLAT_REWARDS.clean_sheet * mult);
-    const cappedSaves = Math.min(stats.saves || 0, FLAT_REWARDS.save_cap);
-    saveAmt = Math.round(cappedSaves * FLAT_REWARDS.save * mult);
-    const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
-    concededAmt = Math.round(cappedConceded * FLAT_REWARDS.gk_goal_conceded * mult);
+    if ((stats.clean_sheets || 0) > 0) cleanSheetAmt = Math.round(R.clean_sheet * mult);
+    const cappedSaves = Math.min(stats.saves || 0, R.save_cap);
+    saveAmt = Math.round(cappedSaves * R.save * mult);
+    const cappedConceded = Math.min(stats.goals_conceded || 0, R.gk_goal_conceded_cap);
+    concededAmt = Math.round(cappedConceded * R.gk_goal_conceded * mult);
   } else {
-    const cappedTeamConceded = Math.min(stats.team_goals_conceded || 0, FLAT_REWARDS.outfield_goal_conceded_cap);
-    concededAmt = Math.round(cappedTeamConceded * FLAT_REWARDS.outfield_goal_conceded * mult);
+    const cappedTeamConceded = Math.min(stats.team_goals_conceded || 0, R.outfield_goal_conceded_cap);
+    concededAmt = Math.round(cappedTeamConceded * R.outfield_goal_conceded * mult);
   }
   return { goalAmt, assistAmt, saveAmt, cleanSheetAmt, yellowAmt, redAmt, concededAmt };
 }
@@ -2863,7 +2944,7 @@ function computePlayerEventBreakdown(position, stats, costMultiplier) {
 // conceded) apply directly too, floored at the player's own value, and
 // credit the other squad. Provably zero-sum for the pair, event by
 // event, by construction.
-function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier) {
+function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier, rewardsOverride) {
   return squad.filter(s => !s.empty).map(s => {
     const stats = statsByPid[s.player_id] || {};
     // Prefer the team snapshotted at the moment these stats were synced
@@ -2873,7 +2954,7 @@ function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplie
     const teamConceded = concededByTeam[effectiveTeam] || 0;
     const events = s.is_sub
       ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
-      : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded }, costMultiplier);
+      : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded }, costMultiplier, rewardsOverride);
     return {
       ...s, liveValue: Math.round(s.value || 0), events,
       gwStats: {
