@@ -592,15 +592,18 @@
             const redRate = Math.round(300 * mult);
             const concededRate = Math.round(75 * mult);
             const positiveLines = [], negativeLines = [];
-            if (st.goals > 0) positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''} × ${money(goalRate)} = +${money(st.goals * goalRate)}`);
-            if (st.assists > 0) positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''} × ${money(assistRate)} = +${money(st.assists * assistRate)}`);
-            if (showCS && st.clean_sheets > 0) positiveLines.push(`Clean sheet (${money(csRate)} this gameweek) = +${money(csRate)}`);
-            if (showSV && st.saves > 0) positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''} × ${money(saveRate)} = +${money(Math.min(st.saves, 5) * saveRate)}`);
-            if (st.yellow_cards > 0) negativeLines.push(`${st.yellow_cards} yellow card × -${money(yellowRate)} = -${money(st.yellow_cards * yellowRate)}`);
-            if (st.red_cards > 0) negativeLines.push(`Red card (-${money(redRate)} this gameweek) = -${money(redRate)}`);
+            let rawOwnTotal = 0;
+            if (st.goals > 0) { const amt = st.goals * goalRate; rawOwnTotal += amt; positiveLines.push(`${st.goals} goal${st.goals > 1 ? 's' : ''} × ${money(goalRate)} = +${money(amt)}`); }
+            if (st.assists > 0) { const amt = st.assists * assistRate; rawOwnTotal += amt; positiveLines.push(`${st.assists} assist${st.assists > 1 ? 's' : ''} × ${money(assistRate)} = +${money(amt)}`); }
+            if (showCS && st.clean_sheets > 0) { rawOwnTotal += csRate; positiveLines.push(`Clean sheet (${money(csRate)} this gameweek) = +${money(csRate)}`); }
+            if (showSV && st.saves > 0) { const amt = Math.min(st.saves, 5) * saveRate; rawOwnTotal += amt; positiveLines.push(`${st.saves} save${st.saves > 1 ? 's' : ''} × ${money(saveRate)} = +${money(amt)}`); }
+            if (st.yellow_cards > 0) { const amt = st.yellow_cards * yellowRate; rawOwnTotal -= amt; negativeLines.push(`${st.yellow_cards} yellow card × -${money(yellowRate)} = -${money(amt)}`); }
+            if (st.red_cards > 0) { rawOwnTotal -= redRate; negativeLines.push(`Red card (-${money(redRate)} this gameweek) = -${money(redRate)}`); }
             if (showGC && st.goals_conceded > 0) {
               const capped = Math.min(st.goals_conceded, 4);
-              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''} (capped at 4) × -${money(concededRate)} = -${money(capped * concededRate)}`);
+              const amt = capped * concededRate;
+              rawOwnTotal -= amt;
+              negativeLines.push(`Team conceded ${st.goals_conceded} goal${st.goals_conceded > 1 ? 's' : ''} (capped at 4) × -${money(concededRate)} = -${money(amt)}`);
             }
             positiveLines.forEach(l => lines.push({ text: l, tone: 'up' }));
             negativeLines.forEach(l => lines.push({ text: l, tone: 'down' }));
@@ -609,6 +612,13 @@
             }
 
             const ownNet = bd.own_event_net || 0;
+            // If this player didn't have enough value left to pay the full
+            // cost of their own actions, the real amount taken is smaller
+            // than the numbers listed above — explain that plainly rather
+            // than leaving the two figures looking like they don't add up.
+            if (rawOwnTotal < 0 && ownNet > rawOwnTotal + 1) {
+              lines.push({ text: `This player didn't have enough value left to pay the full ${money(Math.abs(rawOwnTotal))} — so only ${money(Math.abs(ownNet))} was actually taken.`, tone: 'flat' });
+            }
             const totalNet = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
             const fromOpponentActivity = totalNet - ownNet;
             if (fromOpponentActivity > 0) {
