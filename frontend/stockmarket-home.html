@@ -142,13 +142,15 @@
       /* Measured directly from the source art: blank safe zone is 62%-86%,
          chevron decoration begins sharply at 87%. Kept inside 61%-85% for
          a clean 1-2% buffer on both sides — verified, not guessed. */
-      position:absolute; left:7%; right:7%; top:61%; bottom:15%; z-index:6;
+      position:absolute; left:7%; right:7%; top:61%; bottom:19%; z-index:6;
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
       color:#fff;
     }
-    .portfolio-card .p-card-text .p-stats-row, .portfolio-card .p-card-text .p-total{ pointer-events:auto; }
-    .portfolio-card .p-card-text .p-total{ font-size:12.5px; padding:3px 4px; margin-top:2px; }
-    .portfolio-card .p-card-text .p-stats-row{ margin-top:2px; gap:3px; }
+    .portfolio-card .p-total-pills-row{ display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:4px; margin-top:3px; pointer-events:auto; }
+    .p-total-inline{ font-weight:800; font-size:12px; padding:2px 6px; border-radius:6px; background:var(--bg-panel); }
+    .p-total-inline.up{ color:var(--green); }
+    .p-total-inline.down{ color:var(--red); }
+    .p-total-inline.flat{ color:var(--text-dim); }
     .portfolio-card .p-card-text .stat-pill{ font-size:9px; padding:2px 4px; min-width:27px; }
     .portfolio-card .p-name{ font-weight:700; font-size:14px; margin-bottom:0; color:#fff; }
     .portfolio-card .p-pos{ font-size:10px; color:#fff; opacity:0.85; text-transform:uppercase; margin-bottom:1px; }
@@ -599,21 +601,19 @@
         let breakdownHtml = '';
         let pillsHtml = '', totalHtml = '';
         const zeroPills = `
-          <div class="p-stats-row">
             <span class="stat-pill" title="Goals">GL 0</span>
             <span class="stat-pill" title="Assists">AS 0</span>
             <span class="stat-pill" title="Yellow Cards">YC 0</span>
             <span class="stat-pill" title="Red Cards">RC 0</span>
             ${showCS ? `<span class="stat-pill" title="Clean Sheets">CS 0</span>` : ''}
             ${showGC ? `<span class="stat-pill" title="Goals Conceded (team)">GC 0</span>` : ''}
-            ${showSV ? `<span class="stat-pill" title="Saves">SV 0</span>` : ''}
-          </div>`;
+            ${showSV ? `<span class="stat-pill" title="Saves">SV 0</span>` : ''}`;
         if (!bd || !bd.stats) {
           // New signing / not yet part of any settled or live gameweek —
           // show the same consistent card shape as everyone else instead
           // of leaving a blank gap, with a Why that explains why there's
           // nothing to show yet.
-          totalHtml = `<div class="p-total flat">— £0.00 total this week</div>`;
+          totalHtml = `<span class="p-total-inline flat">— £0.00</span>`;
           pillsHtml = zeroPills;
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           breakdownHtml = `
@@ -626,20 +626,18 @@
         } else if (bd && bd.stats) {
           const s = bd.stats;
           pillsHtml = `
-            <div class="p-stats-row">
               <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
               <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
               <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
               <span class="stat-pill ${s.red_cards > 0 ? 'active-bad' : ''}" title="Red Cards">RC ${s.red_cards}</span>
               ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
               ${showGC ? `<span class="stat-pill ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
-              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
-            </div>`;
+              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}`;
 
           const lines = [];
           if (bd.benched) {
             lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
-            totalHtml = `<div class="p-total flat">— frozen, benched</div>`;
+            totalHtml = `<span class="p-total-inline flat">— frozen</span>`;
           } else {
             const st = bd.stats || {};
             const mult = costMultiplier || 1;
@@ -697,7 +695,7 @@
             lines.push({ text: bd.is_live ? `This is still live — Week ${bd.gameweek} isn't finished yet, so it could change.` : `This is the final score for Week ${bd.gameweek}.`, tone: 'flat' });
 
             const totalTone = totalNet > 0 ? 'up' : totalNet < 0 ? 'down' : 'flat';
-            totalHtml = `<div class="p-total ${totalTone}">${totalNet > 0 ? '▲' : totalNet < 0 ? '▼' : '—'} ${money(Math.abs(totalNet))} total this week</div>`;
+            totalHtml = `<span class="p-total-inline ${totalTone}">${totalNet > 0 ? '▲' : totalNet < 0 ? '▼' : '—'} ${money(Math.abs(totalNet))}</span>`;
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
@@ -723,8 +721,10 @@
                 <div class="p-name">${escapeHtml(p.name)}</div>
                 <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
                 <div class="p-value">${money(p.value)}</div>
-                ${totalHtml}
-                ${pillsHtml}
+                <div class="p-total-pills-row">
+                  ${totalHtml}
+                  ${pillsHtml}
+                </div>
               </div>
             </div>
           </div>
