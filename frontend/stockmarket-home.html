@@ -116,20 +116,30 @@
 
     .portfolio-grid{ display:grid; grid-template-columns:repeat(2, 1fr); grid-auto-rows:minmax(520px, auto); gap:10px; align-items:start; }
     .portfolio-grid .portfolio-card{ height:100%; display:flex; flex-direction:column; }
+    .portfolio-grid .portfolio-card .p-lower-shield{ flex:1; display:flex; flex-direction:column; }
     .portfolio-grid .portfolio-card .p-body{ flex:1; display:flex; flex-direction:column; }
     .portfolio-grid .portfolio-card .p-bottom-cluster{ margin-top:auto; }
     @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; grid-auto-rows:auto; } }
     .portfolio-card{
-      background:#05070d url('card-shield-bg.jpg') center/100% 100% no-repeat;
       border:none; border-radius:14px; overflow:hidden; text-align:center; position:relative;
+      background:#05070d;
     }
-    .portfolio-card::after{
+    .portfolio-card .p-photo-wrap{
+      width:100%; height:190px; position:relative;
+      background:#05070d url('card-bg-top.jpg') center/100% 100% no-repeat;
+    }
+    .portfolio-card .p-photo-wrap::after{
       content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
-      /* Bottom stays fixed (position unchanged); height reduced 20%,
-         so the reduction comes entirely from the top edge moving down. */
-      background:url('card-frame.png') center bottom / 100% 80% no-repeat;
+      background:url('card-frame-top.png') center/100% 100% no-repeat;
     }
-    .portfolio-card .p-photo-wrap{ width:100%; height:190px; position:relative; }
+    .portfolio-card .p-lower-shield{
+      position:relative;
+      background:#05070d url('card-bg-bottom.jpg') center/100% 100% no-repeat;
+    }
+    .portfolio-card .p-lower-shield::after{
+      content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
+      background:url('card-frame-bottom.png') center/100% 100% no-repeat;
+    }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; padding:10% 12% 0 12%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; padding:10% 12% 0 12%; box-sizing:border-box; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .portfolio-card .p-card-text{
@@ -719,22 +729,24 @@
           <div class="p-photo-wrap">
             ${photoHtml}
           </div>
-          <div class="p-card-text">
-            <div class="p-name">${escapeHtml(p.name)}</div>
-            <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
-            <div class="p-value">${money(p.value)}</div>
-            ${totalHtml}
-          </div>
-          <div class="p-quick-stats">
-            <div class="p-total-pills-row">
-              ${pillsHtml}
+          <div class="p-lower-shield">
+            <div class="p-card-text">
+              <div class="p-name">${escapeHtml(p.name)}</div>
+              <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
+              <div class="p-value">${money(p.value)}</div>
+              ${totalHtml}
             </div>
-          </div>
-          <div class="p-body">
-            ${benchedHtml}
-            <div class="p-bottom-cluster">
-              ${actions}
-              ${breakdownHtml}
+            <div class="p-quick-stats">
+              <div class="p-total-pills-row">
+                ${pillsHtml}
+              </div>
+            </div>
+            <div class="p-body">
+              ${benchedHtml}
+              <div class="p-bottom-cluster">
+                ${actions}
+                ${breakdownHtml}
+              </div>
             </div>
           </div>
         </div>`;
