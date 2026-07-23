@@ -119,24 +119,24 @@
     .portfolio-grid .portfolio-card .p-body{ flex:1; display:flex; flex-direction:column; }
     .portfolio-grid .portfolio-card .p-bottom-cluster{ margin-top:auto; }
     @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; grid-auto-rows:auto; } }
-    .portfolio-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-align:center; position:relative; }
-    .portfolio-card.mine{ border-color:#fff; }
-    .portfolio-card.opp{ border-color:#fff; }
-    .portfolio-card .p-photo-wrap{
-      height:220px; width:100%; overflow:hidden; position:relative;
-      border-bottom:2px solid var(--accent-dim);
-      background:
-        radial-gradient(circle at 28% 22%, rgba(59,130,246,0.38), transparent 42%),
-        radial-gradient(circle at 72% 58%, rgba(37,99,235,0.32), transparent 46%),
-        radial-gradient(circle at 45% 88%, rgba(29,78,216,0.28), transparent 50%),
-        radial-gradient(ellipse at center, rgba(15,25,45,0.15), rgba(2,4,10,0.92) 92%),
-        #050a18;
+    .portfolio-card{
+      background:#05070d url('card-shield-bg.jpg') center/cover no-repeat;
+      border:none; border-radius:14px; overflow:hidden; text-align:center; position:relative;
     }
-    .portfolio-card .p-body{ padding:10px 12px 14px; }
-    .portfolio-card.mine .p-body{ background:linear-gradient(165deg, rgba(59,130,246,0.09), var(--bg-card) 65%); }
-    .portfolio-card.opp .p-body{ background:linear-gradient(165deg, rgba(21,128,61,0.16), var(--bg-card) 65%); }
-    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
-    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:64px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .portfolio-card::after{
+      content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
+      background:url('card-frame.png') center/100% 100% no-repeat;
+    }
+    .portfolio-card .p-photo-wrap{
+      height:190px; width:100%; overflow:visible; position:relative; background:transparent;
+      padding:14px 20px 0; box-sizing:border-box;
+    }
+    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; border-radius:10px; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
+    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; border-radius:10px; background:rgba(0,0,0,0.35); }
+    .portfolio-card .p-body{
+      position:relative; padding:12px 14px 16px;
+      background:linear-gradient(180deg, transparent, rgba(2,4,10,0.55) 22%, rgba(2,4,10,0.88) 45%, rgba(2,4,10,0.94));
+    }
     .portfolio-card .p-name{ font-weight:700; font-size:17px; margin-bottom:2px; }
     .portfolio-card .p-pos{ font-size:12px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px; }
     .portfolio-card .p-value{ font-family:var(--font-head); font-weight:700; font-size:24px; text-align:center; }
