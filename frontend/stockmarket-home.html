@@ -126,17 +126,19 @@
     .portfolio-card.opp{ border-color:#166534; }
     .portfolio-card .p-photo-wrap{ width:100%; position:relative; background:#05070d; }
     .portfolio-card .p-shield-art{
-      width:100%; aspect-ratio:1054/1641; overflow:hidden; position:relative;
+      /* Container extended from 20 to 22 "lines" so the vector can grow
+         2 lines taller (11 lines instead of 9) without overflowing. */
+      width:100%; aspect-ratio:1054/1805; overflow:hidden; position:relative;
       background:#05070d url('card-shield-bg.jpg') center/100% 100% no-repeat;
     }
     .portfolio-card .p-shield-art::after{
       content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
-      /* Vector spans exactly card-lines 9-18 (top:45%, bottom:90% of the
-         20-line reference), calculated precisely: size 45% height,
-         position-y 81.8% to land the bottom edge exactly at line 18. */
-      background:url('card-frame.png') center 81.8% / 100% 45% no-repeat;
+      /* Vector now spans lines 11-22 of the new 22-line scale (11 lines
+         tall, +2 from before, shifted down 2 lines) — bottom-anchored so
+         it lines up exactly with the container's own bottom edge. */
+      background:url('card-frame.png') center bottom / 100% 50% no-repeat;
     }
-    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; padding:6% 16% 43% 16%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
+    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:contain; object-position:top center; padding:6% 18% 46% 18%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .portfolio-card .p-quick-stats{ padding:10px 14px 14px; background:#05070d; }
     .portfolio-card .p-body{
