@@ -138,8 +138,8 @@
          it lines up exactly with the container's own bottom edge. */
       background:url('card-frame.png') center bottom / 100% 50% no-repeat;
     }
-    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:contain; object-position:top center; padding:6% 18% 46% 18%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
-    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; padding:6% 10% 50% 10%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
+    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; padding:6% 10% 50% 10%; box-sizing:border-box; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .portfolio-card .p-quick-stats{ padding:10px 14px 14px; background:#05070d; }
     .portfolio-card .p-body{
       position:relative; padding:12px 14px 16px; background:var(--bg-card);
@@ -723,11 +723,11 @@
                 <div class="p-name">${escapeHtml(p.name)}</div>
                 <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
                 <div class="p-value">${money(p.value)}</div>
+                ${totalHtml}
               </div>
             </div>
             <div class="p-quick-stats">
               <div class="p-total-pills-row">
-                ${totalHtml}
                 ${pillsHtml}
               </div>
             </div>
