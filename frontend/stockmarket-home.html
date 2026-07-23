@@ -124,16 +124,18 @@
       overflow:hidden; text-align:center; position:relative;
     }
     .portfolio-card.opp{ border-color:#166534; }
-    .portfolio-card .p-photo-wrap{
+    .portfolio-card .p-photo-wrap{ width:100%; position:relative; background:#05070d; }
+    .portfolio-card .p-shield-art{
       width:100%; aspect-ratio:1054/1492; overflow:hidden; position:relative;
       background:#05070d url('card-shield-bg.jpg') center/cover no-repeat;
     }
-    .portfolio-card .p-photo-wrap::after{
+    .portfolio-card .p-shield-art::after{
       content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
       background:url('card-frame.png') center bottom / 100% 50% no-repeat;
     }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; padding:6% 16% 43% 16%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .portfolio-card .p-quick-stats{ padding:10px 14px 14px; background:#05070d; }
     .portfolio-card .p-body{
       position:relative; padding:12px 14px 16px; background:var(--bg-card);
     }
@@ -709,16 +711,20 @@
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
           <div class="p-photo-wrap">
-            ${photoHtml}
-            <div class="p-card-text">
-              <div class="p-name">${escapeHtml(p.name)}</div>
-              <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
-              <div class="p-value">${money(p.value)}</div>
+            <div class="p-shield-art">
+              ${photoHtml}
+              <div class="p-card-text">
+                <div class="p-name">${escapeHtml(p.name)}</div>
+                <div class="p-pos">${posDisplay(p.position)} · ${escapeHtml(p.team || '')}</div>
+                <div class="p-value">${money(p.value)}</div>
+              </div>
+            </div>
+            <div class="p-quick-stats">
+              ${totalHtml}
+              ${pillsHtml}
             </div>
           </div>
           <div class="p-body">
-            ${totalHtml}
-            ${pillsHtml}
             ${benchedHtml}
             <div class="p-bottom-cluster">
               ${actions}
