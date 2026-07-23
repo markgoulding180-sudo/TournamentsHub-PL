@@ -131,7 +131,10 @@
     }
     .portfolio-card .p-shield-art::after{
       content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
-      background:url('card-frame.png') center/100% 100% no-repeat;
+      /* Vector spans exactly card-lines 9-18 (top:45%, bottom:90% of the
+         20-line reference), calculated precisely: size 45% height,
+         position-y 81.8% to land the bottom edge exactly at line 18. */
+      background:url('card-frame.png') center 81.8% / 100% 45% no-repeat;
     }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; padding:6% 16% 43% 16%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
