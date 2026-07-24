@@ -405,7 +405,53 @@ async function clearGameweekStatsCache() {
   }
 }
 
-// ================= ZERO-SUM AUDIT =================
+// ================= PLAYER PHOTO VERIFICATION =================
+let lastPhotoVerifyMissing = [];
+
+function buildMissingByTeamHtml(missing) {
+  const byTeam = {};
+  missing.forEach(m => {
+    if (!byTeam[m.team]) byTeam[m.team] = [];
+    byTeam[m.team].push(m.web_name);
+  });
+  const teams = Object.keys(byTeam).sort();
+  if (teams.length === 0) return '';
+  return `<div style="margin-top:0.5rem; max-height:260px; overflow-y:auto; font-size:0.8rem;">
+    ${teams.map(t => `<div style="margin-bottom:0.4rem;"><strong>${t}</strong> (${byTeam[t].length}): ${byTeam[t].join(', ')}</div>`).join('')}
+  </div>`;
+}
+
+function missingToCsv(missing) {
+  const rows = [['Team', 'Player'], ...missing.map(m => [m.team, m.web_name])];
+  return rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+}
+
+function downloadPhotoVerifyCsv() {
+  if (!lastPhotoVerifyMissing.length) return;
+  const csv = missingToCsv(lastPhotoVerifyMissing);
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'missing-player-photos.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function copyPhotoVerifyCsv() {
+  if (!lastPhotoVerifyMissing.length) return;
+  const csv = missingToCsv(lastPhotoVerifyMissing);
+  try {
+    await navigator.clipboard.writeText(csv);
+    const btn = document.getElementById('photoVerifyCopyBtn');
+    if (btn) { const old = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check"></i> Copied!'; setTimeout(() => btn.innerHTML = old, 1500); }
+  } catch (e) {
+    alert('Could not copy — your browser may be blocking clipboard access. Use Download CSV instead.');
+  }
+}
+
 async function runPhotoVerification() {
   const btn = document.getElementById('photoVerifyBtn');
   const resultsEl = document.getElementById('photoVerifyResults');
@@ -430,16 +476,21 @@ async function runPhotoVerification() {
 
       total = data.total;
       allMissing.push(...(data.missing_this_batch || []));
+      lastPhotoVerifyMissing = allMissing;
       resultsEl.innerHTML = `
         Checked ${Math.min(data.next_offset, total)} of ${total}…<br>
         <span style="color:var(--accent-red,#ef4444);">${allMissing.length} confirmed missing so far</span>
-        ${allMissing.length ? `<div style="margin-top:0.5rem; max-height:200px; overflow-y:auto; font-size:0.8rem;">${allMissing.join(', ')}</div>` : ''}`;
+        ${buildMissingByTeamHtml(allMissing)}`;
 
       if (data.done) {
         resultsEl.innerHTML = `
           <strong>✓ Done — checked ${total} players.</strong><br>
           <span style="color:var(--accent-red,#ef4444);">${allMissing.length} confirmed missing a real photo (now excluded from packs going forward).</span>
-          ${allMissing.length ? `<div style="margin-top:0.5rem; max-height:200px; overflow-y:auto; font-size:0.8rem;">${allMissing.join(', ')}</div>` : ''}`;
+          ${buildMissingByTeamHtml(allMissing)}
+          ${allMissing.length ? `<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">
+            <button class="btn btn-primary" onclick="downloadPhotoVerifyCsv()"><i class="fas fa-download"></i> Download CSV</button>
+            <button class="btn btn-primary" id="photoVerifyCopyBtn" onclick="copyPhotoVerifyCsv()"><i class="fas fa-copy"></i> Copy CSV</button>
+          </div>` : ''}`;
         break;
       }
       offset = data.next_offset;

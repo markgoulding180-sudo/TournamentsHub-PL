@@ -445,17 +445,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const batchSize = Math.min(parseInt(params.get('batch_size') || '25', 10), 50);
 
         const { count: totalCount } = await masterDb.from('players').select('id', { count: 'exact', head: true });
+        const { data: teamRows } = await masterDb.from('teams').select('id, name');
+        const teamNameById = {};
+        (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+
         const { data: batchPlayers, error: batchErr } = await masterDb
-          .from('players').select('id, web_name, photo')
+          .from('players').select('id, web_name, team, photo')
           .order('id', { ascending: true })
           .range(offset, offset + batchSize - 1);
         if (batchErr) return res.status(500).json({ error: 'Failed to load players', detail: batchErr.message });
 
         const results = [];
         for (const p of (batchPlayers || [])) {
+          const teamName = teamNameById[p.team] || 'Unknown';
           if (!p.photo) {
             await masterDb.from('players').update({ photo_verified: false }).eq('id', p.id);
-            results.push({ id: p.id, web_name: p.web_name, verified: false, reason: 'no photo code stored' });
+            results.push({ id: p.id, web_name: p.web_name, team: teamName, verified: false, reason: 'no photo code stored' });
             continue;
           }
           const url = `${FPL_PHOTO_URL}${p.photo.replace('.jpg', '')}.png`;
@@ -467,7 +472,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             ok = false;
           }
           await masterDb.from('players').update({ photo_verified: ok }).eq('id', p.id);
-          results.push({ id: p.id, web_name: p.web_name, verified: ok });
+          results.push({ id: p.id, web_name: p.web_name, team: teamName, verified: ok });
         }
 
         const nextOffset = offset + batchSize;
@@ -475,7 +480,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({
           processed: results.length,
           offset, next_offset: nextOffset, total: totalCount || 0, done,
-          missing_this_batch: results.filter(r => !r.verified).map(r => r.web_name),
+          missing_this_batch: results.filter(r => !r.verified).map(r => ({ web_name: r.web_name, team: r.team })),
           results
         });
       }
