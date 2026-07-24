@@ -122,23 +122,8 @@
     @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; grid-auto-rows:auto; } }
     .portfolio-card{
       border:none; border-radius:14px; overflow:hidden; text-align:center; position:relative;
-      background:#05070d;
-    }
-    .portfolio-card .p-photo-wrap{
-      width:100%; height:190px; position:relative;
-      background:#05070d url('card-bg-top.jpg') center/100% 100% no-repeat;
-    }
-    .portfolio-card .p-photo-wrap::after{
-      content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
-      background:url('card-frame-top.png') center/100% 100% no-repeat;
-    }
-    .portfolio-card .p-lower-shield{
-      position:relative; width:100%; height:130px;
-      background:#05070d url('card-bg-bottom.jpg') center/100% 100% no-repeat;
-    }
-    .portfolio-card .p-lower-shield::after{
-      content:''; position:absolute; inset:0; z-index:5; pointer-events:none;
-      background:url('card-frame-bottom.png') center/100% 100% no-repeat;
+      width:100%; aspect-ratio:1054/1492;
+      background:#05070d url('card-shield-bg.jpg') center/cover no-repeat;
     }
     .p-name-overlay{
       position:absolute; top:0; left:0; right:0; z-index:6;
@@ -740,10 +725,7 @@
 
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
-          <div class="p-photo-wrap">
-            <div class="p-name-overlay">${escapeHtml(p.name)}</div>
-          </div>
-          <div class="p-lower-shield"></div>
+          <div class="p-name-overlay">${escapeHtml(p.name)}</div>
         </div>`;
       };
 
