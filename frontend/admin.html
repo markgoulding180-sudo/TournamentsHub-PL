@@ -206,10 +206,13 @@
       </p>
       <div style="margin-bottom:0.75rem;">
         <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Player missing a photo</label>
-        <select id="photoUploadPlayerSelect"
-          style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-          <option value="">Loading list…</option>
-        </select>
+        <div style="display:flex; gap:0.5rem;">
+          <select id="photoUploadPlayerSelect"
+            style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+            <option value="">Loading list…</option>
+          </select>
+          <button class="btn btn-primary" onclick="loadMissingPhotoPlayers()" title="Refresh list"><i class="fas fa-rotate"></i></button>
+        </div>
       </div>
       <button class="btn btn-primary" onclick="searchGoogleImagesForSelected()" style="margin-bottom:0.75rem;">
         <i class="fas fa-magnifying-glass"></i> Search Google Images
