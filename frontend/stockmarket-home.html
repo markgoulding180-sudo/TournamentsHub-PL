@@ -630,7 +630,7 @@
           // show the same consistent card shape as everyone else instead
           // of leaving a blank gap, with a Why that explains why there's
           // nothing to show yet.
-          totalHtml = `<span class="p-total-inline flat">— £0.00</span>`;
+          totalHtml = `<span class="p-total-inline flat">No change £0.00</span>`;
           pillsHtml = zeroPills;
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           breakdownHtml = `<span class="stat-pill why-pill" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'flex' : 'none';">?</span>`;
@@ -658,7 +658,7 @@
           const lines = [];
           if (bd.benched) {
             lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
-            totalHtml = `<span class="p-total-inline flat">— frozen</span>`;
+            totalHtml = `<span class="p-total-inline flat">Frozen (benched)</span>`;
           } else {
             const st = bd.stats || {};
             const mult = costMultiplier || 1;
@@ -716,7 +716,8 @@
             lines.push({ text: bd.is_live ? `This is still live — Week ${bd.gameweek} isn't finished yet, so it could change.` : `This is the final score for Week ${bd.gameweek}.`, tone: 'flat' });
 
             const totalTone = totalNet > 0 ? 'up' : totalNet < 0 ? 'down' : 'flat';
-            totalHtml = `<span class="p-total-inline ${totalTone}">${totalNet > 0 ? '▲' : totalNet < 0 ? '▼' : '—'} ${money(Math.abs(totalNet))}</span>`;
+            const totalLabel = totalNet > 0 ? 'Gained' : totalNet < 0 ? 'Lost' : 'No change';
+            totalHtml = `<span class="p-total-inline ${totalTone}">${totalLabel} ${money(Math.abs(totalNet))}</span>`;
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
