@@ -125,13 +125,17 @@
       width:100%; aspect-ratio:1054/1492;
       background:#05070d url('card-shield-bg.jpg') center/cover no-repeat;
     }
-    .p-name-overlay{
-      position:absolute; top:0; left:0; right:0; z-index:6;
-      text-align:center; padding:10px 8px 0;
-      font-weight:700; font-size:18px; color:#fff;
+    .portfolio-card .p-photo-wrap{
+      position:absolute; top:0; left:10%; right:10%; height:50%; z-index:2; overflow:hidden;
     }
-    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; padding:10% 12% 0 12%; box-sizing:border-box; filter:drop-shadow(0 8px 14px rgba(0,0,0,0.65)); }
-    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; padding:10% 12% 0 12%; box-sizing:border-box; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
+    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .p-name-overlay{
+      position:absolute; top:50%; left:8%; right:8%; transform:translateY(-50%); z-index:6;
+      text-align:center; padding:10px 8px;
+      font-weight:700; font-size:18px; color:#fff;
+      background:#0a1428; border-radius:8px;
+    }
     .portfolio-card .p-card-text{
       position:relative; z-index:6; padding:18px 14px 2px;
       display:flex; flex-direction:column; align-items:center; gap:0;
@@ -723,8 +727,13 @@
             </div>`;
         }
 
+        const photoHtml = p.photo
+          ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
+          : `<div class="no-photo"><i class="fas fa-user"></i></div>`;
+
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
+          <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-name-overlay">${escapeHtml(p.name)}</div>
         </div>`;
       };
