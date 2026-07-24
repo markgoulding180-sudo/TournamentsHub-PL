@@ -139,6 +139,8 @@
     .p-name-overlay .p-name-line{ font-weight:700; font-size:18px; color:#fff; }
     .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:17px; color:#fff; }
     .p-name-overlay .p-total-inline{ font-size:14px; }
+    .p-name-overlay .stat-pill{ font-size:10px; padding:3px 5px; min-width:30px; }
+    .p-name-overlay .why-pill{ min-width:24px; width:24px; height:24px; }
     .portfolio-card .p-card-text{
       position:relative; z-index:6; padding:18px 14px 2px;
       display:flex; flex-direction:column; align-items:center; gap:0;
@@ -617,14 +619,14 @@
             <div class="p-stats-row">
               <span class="stat-pill" title="Goals">GL 0</span>
               <span class="stat-pill" title="Assists">AS 0</span>
+              ${showCS ? `<span class="stat-pill" title="Clean Sheets">CS 0</span>` : ''}
+              ${showSV ? `<span class="stat-pill" title="Saves">SV 0</span>` : ''}
+            </div>
+            <div class="p-stats-row" style="margin-top:4px;">
               <span class="stat-pill" title="Yellow Cards">YC 0</span>
               <span class="stat-pill" title="Red Cards">RC 0</span>
-            </div>
-            ${(showCS || showGC || showSV) ? `<div class="p-stats-row" style="margin-top:4px;">
-              ${showCS ? `<span class="stat-pill" title="Clean Sheets">CS 0</span>` : ''}
               ${showGC ? `<span class="stat-pill" title="Goals Conceded (team)">GC 0</span>` : ''}
-              ${showSV ? `<span class="stat-pill" title="Saves">SV 0</span>` : ''}
-            </div>` : ''}`;
+            </div>`;
         if (!bd || !bd.stats) {
           // New signing / not yet part of any settled or live gameweek —
           // show the same consistent card shape as everyone else instead
@@ -646,14 +648,14 @@
             <div class="p-stats-row">
               <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
               <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
+              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
+              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
+            </div>
+            <div class="p-stats-row" style="margin-top:4px;">
               <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
               <span class="stat-pill ${s.red_cards > 0 ? 'active-bad' : ''}" title="Red Cards">RC ${s.red_cards}</span>
-            </div>
-            ${(showCS || showGC || showSV) ? `<div class="p-stats-row" style="margin-top:4px;">
-              ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
               ${showGC ? `<span class="stat-pill ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
-              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
-            </div>` : ''}`;
+            </div>`;
 
           const lines = [];
           if (bd.benched) {
@@ -742,7 +744,10 @@
             <div class="p-name-line">${escapeHtml(p.name)}</div>
             <div class="p-value-line">${money(p.value)}</div>
             ${totalHtml}
+            <div class="p-total-pills-row">${breakdownHtml}</div>
+            ${pillsHtml}
           </div>
+          ${detailPanelHtml}
         </div>`;
       };
 
