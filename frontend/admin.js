@@ -536,8 +536,11 @@ function searchGoogleImagesForSelected() {
   if (!playerId) { alert('Choose a player first.'); return; }
   const player = missingPhotoPlayersList.find(p => String(p.id) === String(playerId));
   if (!player) return;
-  const query = encodeURIComponent(`${player.web_name} ${player.team} premier league`);
-  window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+  // "transparent png" biases results toward cutout-style images, and
+  // tbs=ift:png restricts Google's file-type filter to PNGs specifically —
+  // between the two, far fewer plain background photos show up.
+  const query = encodeURIComponent(`${player.web_name} ${player.team} premier league transparent png`);
+  window.open(`https://www.google.com/search?q=${query}&tbm=isch&tbs=ift:png`, '_blank');
 }
 
 function uploadSelectedPlayerPhoto() {
