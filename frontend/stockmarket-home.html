@@ -564,11 +564,25 @@
           <div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div></div></div>
         ` : `
           <div class="portfolio-card">
-            <div class="p-photo-wrap">${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}">` : ''}<div class="no-photo"><i class="fas fa-user"></i></div></div>
-            <div class="p-body">
-              <div class="p-name">${escapeHtml(p.name)}</div>
+            <div class="p-photo-wrap">${p.photo
+              ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
+              : `<div class="no-photo"><i class="fas fa-user"></i></div>`}</div>
+            <div class="p-name-overlay">
+              <div class="p-name-line">${escapeHtml(p.name)}</div>
               <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}</div>
-              <div class="p-value">${money(p.preview_value)}</div><div class="p-est">est.</div>
+              <div class="p-value-line">${money(p.preview_value)} <span style="font-size:11px; color:var(--text-faint); font-weight:500;">(est.)</span></div>
+              <div class="p-total-pills-row">
+                <span class="stat-pill">GL –</span>
+                <span class="stat-pill">AS –</span>
+                <span class="stat-pill">YC –</span>
+                <span class="stat-pill">RC –</span>
+              </div>
+              <div class="p-total-pills-row" style="margin-top:4px;">
+                <span class="stat-pill">CS –</span>
+                <span class="stat-pill">GC –</span>
+                <span class="stat-pill">SV –</span>
+              </div>
+              <div style="font-size:10.5px; color:var(--text-faint); margin-top:4px;">No gameweek data yet — drafting phase</div>
             </div>
           </div>`).join('');
         document.getElementById('portfolioBody').innerHTML = portfolio.length ? `<div class="portfolio-grid">${cards}</div>` : '<div class="empty">No squad drafted yet.</div>';
@@ -747,9 +761,15 @@
             </div>`;
         }
 
-        const photoHtml = p.photo
-          ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
-          : `<div class="no-photo"><i class="fas fa-user"></i></div>`;
+        // Tries a manually-added local photo first (drop a file named
+        // {player_id}.png into frontend/player-photos/ and it's picked up
+        // automatically, no other changes needed), then FPL's CDN, then
+        // the fallback icon if neither exists.
+        const localPhotoUrl = `/player-photos/${p.player_id}.png`;
+        const fplPhotoUrl = p.photo || '';
+        const photoHtml = `<img src="${localPhotoUrl}" alt="${escapeHtml(p.name)}"
+            onerror="this.onerror=(function(){ this.src='${fplPhotoUrl}'; this.onerror=function(){ this.style.display='none'; this.nextElementSibling.style.display='flex'; }; }).bind(this); ${fplPhotoUrl ? '' : "this.style.display='none'; this.nextElementSibling.style.display='flex';"}">
+          <div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`;
 
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
