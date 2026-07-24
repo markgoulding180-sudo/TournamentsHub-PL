@@ -130,15 +130,24 @@
     }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:40px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
-    .p-name-overlay{
+    .p-overlay-stack{
       position:absolute; z-index:6; top:42%; left:9%; right:9%;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .p-name-overlay{
       text-align:center; padding:5px 6px;
       background:#0a1428; border-radius:6px;
       display:flex; flex-direction:column; align-items:center; gap:1px;
     }
-    .p-name-overlay .p-name-line{ font-weight:700; font-size:12px; color:#fff; }
-    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:11px; color:#fff; }
-    .p-name-overlay .p-total-inline{ font-size:9px; }
+    .p-action-pill{
+      background:rgba(59,130,246,0.15); border:1px solid #3b82f6; border-radius:6px;
+      padding:6px; display:flex; gap:8px; justify-content:center; align-items:center;
+    }
+    .p-action-pill .action-pill{ background:transparent; border:none; color:#7ab8ff; font-size:13px; }
+    .p-action-pill .action-pill.danger{ color:#ff8080; }
+    .p-name-overlay .p-name-line{ font-weight:700; font-size:17px; color:#fff; }
+    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:15px; color:#fff; }
+    .p-name-overlay .p-total-inline{ font-size:13px; }
     .p-name-overlay .stat-pill{ font-size:14px; padding:2px 6px; min-width:40px; }
     .p-name-overlay .why-pill{ min-width:32px; width:32px; height:32px; }
     .p-name-overlay .p-total-pills-row{ margin-top:1px; gap:2px; }
@@ -741,12 +750,15 @@
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
           <div class="p-photo-wrap">${photoHtml}</div>
-          <div class="p-name-overlay">
-            <div class="p-name-line">${escapeHtml(p.name)}</div>
-            <div class="p-value-line">${money(p.value)}</div>
-            ${totalHtml}
-            <div class="p-total-pills-row">${breakdownHtml}</div>
-            ${pillsHtml}
+          <div class="p-overlay-stack">
+            <div class="p-name-overlay">
+              <div class="p-name-line">${escapeHtml(p.name)}</div>
+              <div class="p-value-line">${money(p.value)}</div>
+              ${totalHtml}
+              <div class="p-total-pills-row">${breakdownHtml}</div>
+              ${pillsHtml}
+            </div>
+            ${isMine ? `<div class="p-action-pill">${actions}</div>` : ''}
           </div>
           ${detailPanelHtml}
         </div>`;
