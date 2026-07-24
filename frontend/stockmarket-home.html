@@ -187,7 +187,9 @@
       background:rgba(10,15,30,0.97);
       align-items:center; justify-content:center; padding:20px;
     }
+    .p-why-overlay.open{ display:flex; }
     .p-why-overlay-inner{ max-height:100%; overflow-y:auto; font-size:13.5px; line-height:1.7; color:#fff; text-align:center; }
+    .p-why-player-name{ font-weight:700; font-size:16px; color:#fff; margin-bottom:8px; }
     .p-why-close{
       position:absolute; top:10px; right:10px; z-index:21;
       width:28px; height:28px; border-radius:50%; border:1px solid #fff; background:var(--bg-panel);
@@ -645,10 +647,11 @@
           totalHtml = `<span class="p-total-inline flat">No change £0.00</span>`;
           pillsHtml = zeroPills;
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
-          breakdownHtml = `<span class="stat-pill why-pill" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'flex' : 'none';">?</span>`;
+          breakdownHtml = `<span class="stat-pill why-pill" onclick="document.getElementById('${detailId}').classList.toggle('open');">?</span>`;
           detailPanelHtml = `
             <div id="${detailId}" class="p-why-overlay">
               <div class="p-why-overlay-inner">
+                <div class="p-why-player-name">${escapeHtml(p.name)}</div>
                 <span style="color:var(--text-dim);">Just brought into the team — no gameweek data yet.</span>
               </div>
             </div>`;
@@ -733,11 +736,12 @@
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
-          breakdownHtml = `<span class="stat-pill why-pill" onclick="document.getElementById('${detailId}').style.display = document.getElementById('${detailId}').style.display === 'none' ? 'flex' : 'none';">?</span>`;
+          breakdownHtml = `<span class="stat-pill why-pill" onclick="document.getElementById('${detailId}').classList.toggle('open');">?</span>`;
           detailPanelHtml = `
             <div id="${detailId}" class="p-why-overlay">
-              <button class="p-why-close" onclick="document.getElementById('${detailId}').style.display='none';">✕</button>
+              <button class="p-why-close" onclick="document.getElementById('${detailId}').classList.remove('open');">✕</button>
               <div class="p-why-overlay-inner">
+                <div class="p-why-player-name">${escapeHtml(p.name)}</div>
                 ${lines.map(l => `<div style="color:${lineColor(l.tone)}; ${l.indent ? 'font-size:12.5px; opacity:0.9;' : ''} ${l.header ? 'font-weight:700; margin-top:6px;' : ''}">${escapeHtml(l.text)}</div>`).join('')}
               </div>
             </div>`;
@@ -797,12 +801,11 @@
       // do nothing, or needs a second tap on the fresh element. Capture
       // which overlays were open before any of the swaps below, then
       // reopen the same ones (by id, stable per player) once done.
-      const openOverlayIds = Array.from(document.querySelectorAll('.p-why-overlay'))
-        .filter(el => el.style.display === 'flex')
+      const openOverlayIds = Array.from(document.querySelectorAll('.p-why-overlay.open'))
         .map(el => el.id);
       const restoreOpenOverlays = () => openOverlayIds.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.style.display = 'flex';
+        if (el) el.classList.add('open');
       });
 
       if (!data.opponent) {
