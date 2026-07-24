@@ -133,9 +133,12 @@
     .p-name-overlay{
       position:absolute; top:50%; left:8%; right:8%; transform:translateY(-50%); z-index:6;
       text-align:center; padding:10px 8px;
-      font-weight:700; font-size:18px; color:#fff;
       background:#0a1428; border-radius:8px;
+      display:flex; flex-direction:column; align-items:center; gap:3px;
     }
+    .p-name-overlay .p-name-line{ font-weight:700; font-size:18px; color:#fff; }
+    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:17px; color:#fff; }
+    .p-name-overlay .p-total-inline{ font-size:14px; }
     .portfolio-card .p-card-text{
       position:relative; z-index:6; padding:18px 14px 2px;
       display:flex; flex-direction:column; align-items:center; gap:0;
@@ -734,7 +737,11 @@
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
           <div class="p-photo-wrap">${photoHtml}</div>
-          <div class="p-name-overlay">${escapeHtml(p.name)}</div>
+          <div class="p-name-overlay">
+            <div class="p-name-line">${escapeHtml(p.name)}</div>
+            <div class="p-value-line">${money(p.value)}</div>
+            ${totalHtml}
+          </div>
         </div>`;
       };
 
