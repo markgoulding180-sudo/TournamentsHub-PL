@@ -406,6 +406,52 @@ async function clearGameweekStatsCache() {
 }
 
 // ================= ZERO-SUM AUDIT =================
+async function runPhotoVerification() {
+  const btn = document.getElementById('photoVerifyBtn');
+  const resultsEl = document.getElementById('photoVerifyResults');
+  const token = localStorage.getItem('gbf_token');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running…';
+
+  let offset = 0;
+  let total = null;
+  const allMissing = [];
+
+  try {
+    while (true) {
+      const response = await fetch(`/api/tournaments?verify_player_photos=true&offset=${offset}&batch_size=25`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        resultsEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Failed: ${data.error || 'unknown error'}</span>`;
+        break;
+      }
+
+      total = data.total;
+      allMissing.push(...(data.missing_this_batch || []));
+      resultsEl.innerHTML = `
+        Checked ${Math.min(data.next_offset, total)} of ${total}…<br>
+        <span style="color:var(--accent-red,#ef4444);">${allMissing.length} confirmed missing so far</span>
+        ${allMissing.length ? `<div style="margin-top:0.5rem; max-height:200px; overflow-y:auto; font-size:0.8rem;">${allMissing.join(', ')}</div>` : ''}`;
+
+      if (data.done) {
+        resultsEl.innerHTML = `
+          <strong>✓ Done — checked ${total} players.</strong><br>
+          <span style="color:var(--accent-red,#ef4444);">${allMissing.length} confirmed missing a real photo (now excluded from packs going forward).</span>
+          ${allMissing.length ? `<div style="margin-top:0.5rem; max-height:200px; overflow-y:auto; font-size:0.8rem;">${allMissing.join(', ')}</div>` : ''}`;
+        break;
+      }
+      offset = data.next_offset;
+    }
+  } catch (e) {
+    resultsEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Error: ${e.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-play"></i> Run Verification';
+}
+
 async function loadAuditHistory() {
   const tournamentId = document.getElementById('auditTournamentId').value.trim();
   const results = document.getElementById('auditResults');

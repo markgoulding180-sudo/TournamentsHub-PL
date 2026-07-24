@@ -188,6 +188,16 @@
       </button>
     </div>
 
+    <!-- Player Photo Verification -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-image"></i> Player Photo Verification</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Checks each player's actual photo URL against FPL's CDN (a real request, not just whether a code is stored in the DB) and records the result. Players confirmed to have no working photo are automatically excluded from Bronze/Silver/Gold pack pools going forward — anyone not yet checked still shows up as normal, so this is safe to run at any time. Runs in batches; leave the tab open until it says Done.
+      </p>
+      <button class="btn btn-primary" onclick="runPhotoVerification()" id="photoVerifyBtn"><i class="fas fa-play"></i> Run Verification</button>
+      <div id="photoVerifyResults" style="font-size:0.85rem; margin-top:0.75rem;"></div>
+    </div>
+
     <!-- Stock Market Zero-Sum Audit -->
     <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
       <h3><i class="fas fa-scale-balanced"></i> Stock Market Zero-Sum Audit</h3>

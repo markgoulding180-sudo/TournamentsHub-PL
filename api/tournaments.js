@@ -425,6 +425,61 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ current_gameweek: clock ? clock.current_gameweek : null });
       }
 
+      // Checks each player's actual photo URL against FPL's CDN (a real
+      // network request, not just "does the DB have a code stored") and
+      // records true/false on players.photo_verified. Paginated via
+      // offset/batch_size — the admin UI calls this repeatedly until
+      // `done` comes back true, since checking all ~840 players in one
+      // request would risk hitting the serverless function's time limit.
+      const verifyPlayerPhotos = params.get('verify_player_photos');
+      if (verifyPlayerPhotos === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: verifyUser }, error: verifyAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (verifyAuthError || !verifyUser) return res.status(401).json({ error: 'Invalid token' });
+        const { data: verifyCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', verifyUser.id).maybeSingle();
+        if (!verifyCaller || !verifyCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const offset = parseInt(params.get('offset') || '0', 10);
+        const batchSize = Math.min(parseInt(params.get('batch_size') || '25', 10), 50);
+
+        const { count: totalCount } = await masterDb.from('players').select('id', { count: 'exact', head: true });
+        const { data: batchPlayers, error: batchErr } = await masterDb
+          .from('players').select('id, web_name, photo')
+          .order('id', { ascending: true })
+          .range(offset, offset + batchSize - 1);
+        if (batchErr) return res.status(500).json({ error: 'Failed to load players', detail: batchErr.message });
+
+        const results = [];
+        for (const p of (batchPlayers || [])) {
+          if (!p.photo) {
+            await masterDb.from('players').update({ photo_verified: false }).eq('id', p.id);
+            results.push({ id: p.id, web_name: p.web_name, verified: false, reason: 'no photo code stored' });
+            continue;
+          }
+          const url = `${FPL_PHOTO_URL}${p.photo.replace('.jpg', '')}.png`;
+          let ok = false;
+          try {
+            const resp = await fetch(url);
+            ok = resp.ok;
+          } catch (e) {
+            ok = false;
+          }
+          await masterDb.from('players').update({ photo_verified: ok }).eq('id', p.id);
+          results.push({ id: p.id, web_name: p.web_name, verified: ok });
+        }
+
+        const nextOffset = offset + batchSize;
+        const done = nextOffset >= (totalCount || 0);
+        return res.status(200).json({
+          processed: results.length,
+          offset, next_offset: nextOffset, total: totalCount || 0, done,
+          missing_this_batch: results.filter(r => !r.verified).map(r => r.web_name),
+          results
+        });
+      }
+
       const stockmarketDebugSettlement = params.get('stockmarket_debug_settlement');
       if (stockmarketDebugSettlement === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
@@ -3377,10 +3432,15 @@ async function fetchRarityPool(masterDb, rarity, positionKey) {
   const elementType = POSITION_ELEMENT_TYPE[positionKey];
   const { data, error } = await masterDb
     .from('players')
-    .select('id, web_name, element_type, team, total_points, now_cost, photo')
+    .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified')
     .eq('element_type', elementType)
     .gte('total_points', threshold.min)
     .lte('total_points', threshold.max)
+    // Only exclude players CONFIRMED (by the photo verification tool) to
+    // have no real photo on FPL's CDN. Anyone not yet checked (NULL) still
+    // shows up as normal — this can never accidentally empty the pool just
+    // because verification hasn't been run yet.
+    .or('photo_verified.is.null,photo_verified.eq.true')
     .order('total_points', { ascending: false })
     .limit(200);
   if (error) { console.error('fetchRarityPool error:', error); return []; }
