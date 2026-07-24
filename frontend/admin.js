@@ -20,6 +20,7 @@ async function checkAdminAccess() {
     // PIN already verified, load admin panel
     refreshStatus();
     loadStockMarketTournamentList();
+    loadMissingPhotoPlayers();
     return;
   }
   
