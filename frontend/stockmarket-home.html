@@ -122,26 +122,26 @@
     @media (max-width:640px){ .portfolio-grid{ grid-template-columns:1fr; grid-auto-rows:auto; } }
     .portfolio-card{
       border:none; border-radius:14px; overflow:hidden; text-align:center; position:relative;
-      width:100%;
-      background:#05070d url('card-shield-bg.jpg') center/100% 100% no-repeat;
+      width:100%; aspect-ratio:1054/1492;
+      background:#05070d url('card-shield-bg.jpg') center/cover no-repeat;
     }
     .portfolio-card .p-photo-wrap{
-      position:absolute; top:0; left:10%; right:10%; height:220px; z-index:2; overflow:hidden;
+      position:absolute; top:0; left:10%; right:10%; height:42%; z-index:2; overflow:hidden;
     }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
-    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:56px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
+    .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:40px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .p-name-overlay{
-      position:relative; z-index:6; margin-top:110px;
-      left:8%; width:84%;
-      text-align:center; padding:10px 8px;
-      background:#0a1428; border-radius:8px;
-      display:flex; flex-direction:column; align-items:center; gap:3px;
+      position:absolute; z-index:6; top:42%; left:6%; right:6%;
+      text-align:center; padding:5px 6px;
+      background:#0a1428; border-radius:6px;
+      display:flex; flex-direction:column; align-items:center; gap:1px;
     }
-    .p-name-overlay .p-name-line{ font-weight:700; font-size:18px; color:#fff; }
-    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:17px; color:#fff; }
-    .p-name-overlay .p-total-inline{ font-size:14px; }
-    .p-name-overlay .stat-pill{ font-size:10px; padding:3px 5px; min-width:30px; }
-    .p-name-overlay .why-pill{ min-width:24px; width:24px; height:24px; }
+    .p-name-overlay .p-name-line{ font-weight:700; font-size:12px; color:#fff; }
+    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:11px; color:#fff; }
+    .p-name-overlay .p-total-inline{ font-size:9px; }
+    .p-name-overlay .stat-pill{ font-size:7px; padding:1px 3px; min-width:20px; }
+    .p-name-overlay .why-pill{ min-width:16px; width:16px; height:16px; }
+    .p-name-overlay .p-total-pills-row{ margin-top:1px; gap:2px; }
     .portfolio-card .p-card-text{
       position:relative; z-index:6; padding:18px 14px 2px;
       display:flex; flex-direction:column; align-items:center; gap:0;
