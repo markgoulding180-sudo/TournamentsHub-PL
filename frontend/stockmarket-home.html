@@ -750,15 +750,13 @@
             </div>`;
         }
 
-        // Tries a manually-added local photo first (drop a file named
-        // {player_id}.png into frontend/player-photos/ and it's picked up
-        // automatically, no other changes needed), then FPL's CDN, then
-        // the fallback icon if neither exists.
-        const localPhotoUrl = `/player-photos/${p.player_id}.png`;
-        const fplPhotoUrl = p.photo || '';
-        const photoHtml = `<img src="${localPhotoUrl}" alt="${escapeHtml(p.name)}"
-            onerror="this.onerror=(function(){ this.src='${fplPhotoUrl}'; this.onerror=function(){ this.style.display='none'; this.nextElementSibling.style.display='flex'; }; }).bind(this); ${fplPhotoUrl ? '' : "this.style.display='none'; this.nextElementSibling.style.display='flex';"}">
-          <div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`;
+        // p.photo already resolves to the custom uploaded photo if one
+        // exists, otherwise FPL's CDN URL, otherwise null — that logic
+        // lives server-side (photoByPid), so there's nothing extra to
+        // check here. Single fallback to the icon if it fails to load.
+        const photoHtml = p.photo
+          ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
+          : `<div class="no-photo"><i class="fas fa-user"></i></div>`;
 
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
