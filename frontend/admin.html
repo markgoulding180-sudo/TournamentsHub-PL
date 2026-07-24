@@ -198,6 +198,31 @@
       <div id="photoVerifyResults" style="font-size:0.85rem; margin-top:0.75rem;"></div>
     </div>
 
+    <!-- Upload Player Photo -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-upload"></i> Upload Player Photo</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Fixes one player at a time. Pick a player below (list comes from the last Photo Verification run), click Search to open Google Images for them in a new tab, download whichever photo you want, then upload it here — it goes straight to storage and is live immediately, no redeploy needed.
+      </p>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Player missing a photo</label>
+        <select id="photoUploadPlayerSelect"
+          style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="">Loading list…</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="searchGoogleImagesForSelected()" style="margin-bottom:0.75rem;">
+        <i class="fas fa-magnifying-glass"></i> Search Google Images
+      </button>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Downloaded photo file</label>
+        <input type="file" id="photoUploadFile" accept="image/*"
+          style="width:100%; padding:0.5rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+      </div>
+      <button class="btn btn-primary" onclick="uploadSelectedPlayerPhoto()" id="photoUploadBtn"><i class="fas fa-cloud-arrow-up"></i> Upload</button>
+      <div id="photoUploadResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
+    </div>
+
     <!-- Stock Market Zero-Sum Audit -->
     <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
       <h3><i class="fas fa-scale-balanced"></i> Stock Market Zero-Sum Audit</h3>

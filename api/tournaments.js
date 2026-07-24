@@ -320,11 +320,11 @@ module.exports = async (req, res) => {
         const oppIds = opponentEntry ? (opponentEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id) : [];
         const photoIds = [...new Set([...myIds, ...oppIds])];
         const { data: photoRows } = photoIds.length > 0
-          ? await masterDb.from('players').select('id, photo').in('id', photoIds)
+          ? await masterDb.from('players').select('id, photo, custom_photo_url').in('id', photoIds)
           : { data: [] };
         const photoByPid = {};
         (photoRows || []).forEach(p => {
-          photoByPid[p.id] = p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null;
+          photoByPid[p.id] = p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null);
         });
         const withPhotos = (squad) => (squad || []).map(s => s.empty ? s : { ...s, photo: photoByPid[s.player_id] || null });
 
@@ -482,6 +482,33 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           offset, next_offset: nextOffset, total: totalCount || 0, done,
           missing_this_batch: results.filter(r => !r.verified).map(r => ({ web_name: r.web_name, team: r.team })),
           results
+        });
+      }
+
+      // Feeds the "Upload Player Photo" dropdown — everyone currently
+      // confirmed missing a working photo (run Player Photo Verification
+      // first if this looks stale/incomplete).
+      const missingPhotoPlayers = params.get('missing_photo_players');
+      if (missingPhotoPlayers === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: mpUser }, error: mpAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (mpAuthError || !mpUser) return res.status(401).json({ error: 'Invalid token' });
+        const { data: mpCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', mpUser.id).maybeSingle();
+        if (!mpCaller || !mpCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: teamRows } = await masterDb.from('teams').select('id, name');
+        const teamNameById = {};
+        (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+
+        const { data: missing } = await masterDb
+          .from('players').select('id, web_name, team')
+          .eq('photo_verified', false)
+          .order('web_name', { ascending: true });
+
+        return res.status(200).json({
+          players: (missing || []).map(p => ({ id: p.id, web_name: p.web_name, team: teamNameById[p.team] || 'Unknown' }))
         });
       }
 
@@ -870,11 +897,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           const filledIds = squad.filter(s => !s.empty).map(s => s.player_id);
           const { data: photoRows } = filledIds.length > 0
-            ? await masterDb.from('players').select('id, photo').in('id', filledIds)
+            ? await masterDb.from('players').select('id, photo, custom_photo_url').in('id', filledIds)
             : { data: [] };
           const photoByPid = {};
           (photoRows || []).forEach(p => {
-            photoByPid[p.id] = p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null;
+            photoByPid[p.id] = p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null);
           });
 
           // If the real market hasn't initialized yet (still drafting),
@@ -2023,6 +2050,56 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         } catch (err) {
           console.error('stockmarket_open_pack error:', err);
           return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Admin: upload a manually-sourced photo for a player whose FPL
+      // photo is confirmed missing. Uploads to Supabase Storage (so it's
+      // live immediately, no git commit/redeploy needed) and points that
+      // player's photo at it from then on, everywhere in the app.
+      if (action === 'upload_player_photo') {
+        try {
+          const authHeader = req.headers.authorization;
+          if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user: upUser }, error: upAuthError } = await supabaseAdmin.auth.getUser(token);
+          if (upAuthError || !upUser) return res.status(401).json({ error: 'Invalid token' });
+          const { data: upCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', upUser.id).maybeSingle();
+          if (!upCaller || !upCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+          const { player_id: uploadPlayerId, image_base64, file_ext } = req.body;
+          if (!uploadPlayerId || !image_base64) {
+            return res.status(400).json({ error: 'player_id and image_base64 are required' });
+          }
+          const ext = (file_ext || 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
+          const path = `${uploadPlayerId}.${ext}`;
+          const buffer = Buffer.from(image_base64, 'base64');
+          if (buffer.length > 5 * 1024 * 1024) {
+            return res.status(400).json({ error: 'Image too large (5MB max)' });
+          }
+
+          const { error: uploadError } = await masterDb.storage
+            .from('player-photos')
+            .upload(path, buffer, { contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`, upsert: true });
+          if (uploadError) {
+            return res.status(500).json({ error: 'Upload failed', detail: uploadError.message });
+          }
+
+          const { data: publicUrlData } = masterDb.storage.from('player-photos').getPublicUrl(path);
+          const publicUrl = publicUrlData.publicUrl;
+
+          const { error: dbError } = await masterDb
+            .from('players')
+            .update({ custom_photo_url: publicUrl, photo_verified: true })
+            .eq('id', uploadPlayerId);
+          if (dbError) {
+            return res.status(500).json({ error: 'Uploaded but failed to save to player record', detail: dbError.message });
+          }
+
+          return res.status(200).json({ ok: true, photo_url: publicUrl });
+        } catch (err) {
+          console.error('upload_player_photo error:', err);
+          return res.status(500).json({ error: 'Failed to upload photo', detail: err.message });
         }
       }
 
@@ -3437,7 +3514,7 @@ async function fetchRarityPool(masterDb, rarity, positionKey) {
   const elementType = POSITION_ELEMENT_TYPE[positionKey];
   const { data, error } = await masterDb
     .from('players')
-    .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified')
+    .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified, custom_photo_url')
     .eq('element_type', elementType)
     .gte('total_points', threshold.min)
     .lte('total_points', threshold.max)
@@ -3459,7 +3536,7 @@ function candidateCard(p, teamNameById, rarity, position) {
     team: teamNameById[p.team] || '',
     total_points: p.total_points,
     cost: p.now_cost ? (p.now_cost / 10).toFixed(1) : null,
-    photo: p.photo ? `${FPL_PHOTO_URL}${p.photo.replace('.jpg', '')}.png` : null,
+    photo: p.custom_photo_url || (p.photo ? `${FPL_PHOTO_URL}${p.photo.replace('.jpg', '')}.png` : null),
     rarity,
     position
   };

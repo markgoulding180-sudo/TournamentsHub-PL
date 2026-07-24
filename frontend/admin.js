@@ -123,6 +123,7 @@ function verifyPin() {
     document.getElementById('pin-modal').style.display = 'none';
     refreshStatus();
     loadStockMarketTournamentList();
+    loadMissingPhotoPlayers();
   } else {
     // PIN incorrect
     document.getElementById('pin-error').style.display = 'block';
@@ -501,6 +502,84 @@ async function runPhotoVerification() {
 
   btn.disabled = false;
   btn.innerHTML = '<i class="fas fa-play"></i> Run Verification';
+}
+
+let missingPhotoPlayersList = [];
+
+async function loadMissingPhotoPlayers() {
+  const select = document.getElementById('photoUploadPlayerSelect');
+  if (!select) return;
+  const token = localStorage.getItem('gbf_token');
+  try {
+    const response = await fetch('/api/tournaments?missing_photo_players=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      select.innerHTML = `<option value="">Failed to load: ${data.error || 'unknown error'}</option>`;
+      return;
+    }
+    missingPhotoPlayersList = data.players || [];
+    select.innerHTML = missingPhotoPlayersList.length === 0
+      ? '<option value="">No missing photos — run Photo Verification first, or none are missing</option>'
+      : '<option value="">-- choose a player --</option>' +
+        missingPhotoPlayersList.map(p => `<option value="${p.id}">${escapeHtmlAdmin(p.web_name)} — ${escapeHtmlAdmin(p.team)}</option>`).join('');
+  } catch (e) {
+    select.innerHTML = `<option value="">Error: ${e.message}</option>`;
+  }
+}
+
+function searchGoogleImagesForSelected() {
+  const select = document.getElementById('photoUploadPlayerSelect');
+  const playerId = select.value;
+  if (!playerId) { alert('Choose a player first.'); return; }
+  const player = missingPhotoPlayersList.find(p => String(p.id) === String(playerId));
+  if (!player) return;
+  const query = encodeURIComponent(`${player.web_name} ${player.team} premier league`);
+  window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
+}
+
+function uploadSelectedPlayerPhoto() {
+  const select = document.getElementById('photoUploadPlayerSelect');
+  const fileInput = document.getElementById('photoUploadFile');
+  const resultEl = document.getElementById('photoUploadResult');
+  const btn = document.getElementById('photoUploadBtn');
+  const playerId = select.value;
+
+  if (!playerId) { alert('Choose a player first.'); return; }
+  if (!fileInput.files || !fileInput.files[0]) { alert('Choose a downloaded photo file first.'); return; }
+
+  const file = fileInput.files[0];
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const reader = new FileReader();
+
+  reader.onload = async () => {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading…';
+    resultEl.innerHTML = '';
+    try {
+      const base64 = reader.result.split(',')[1]; // strip the data:...;base64, prefix
+      const token = localStorage.getItem('gbf_token');
+      const response = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'upload_player_photo', player_id: parseInt(playerId, 10), image_base64: base64, file_ext: ext })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Failed: ${data.error || 'unknown error'}${data.detail ? ' — ' + data.detail : ''}</span>`;
+      } else {
+        resultEl.innerHTML = `<span style="color:var(--accent-green,#22c55e);">✓ Uploaded and live now.</span> <a href="${data.photo_url}" target="_blank" style="color:var(--accent-blue,#3b82f6);">View photo</a>`;
+        fileInput.value = '';
+        loadMissingPhotoPlayers(); // drop them from the list since they're fixed now
+      }
+    } catch (e) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Error: ${e.message}</span>`;
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Upload';
+  };
+  reader.readAsDataURL(file);
 }
 
 async function loadAuditHistory() {
