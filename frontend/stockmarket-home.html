@@ -136,18 +136,18 @@
     }
     .p-name-overlay{
       text-align:center; padding:5px 6px;
-      background:#0a1428; border-radius:6px;
+      background:#0a1428; border-radius:6px; border:1px solid #d4af37;
       display:flex; flex-direction:column; align-items:center; gap:1px;
     }
     .p-action-pill{
       background:rgba(59,130,246,0.15); border:1px solid #3b82f6; border-radius:6px;
       padding:6px; display:flex; gap:8px; justify-content:center; align-items:center;
     }
-    .p-action-pill .action-pill{ background:transparent; border:none; color:#7ab8ff; font-size:13px; }
+    .p-action-pill .action-pill{ background:transparent; border:none; color:#7ab8ff; font-size:16px; }
     .p-action-pill .action-pill.danger{ color:#ff8080; }
     .p-name-overlay .p-name-line{ font-weight:700; font-size:17px; color:#fff; }
-    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:15px; color:#fff; }
-    .p-name-overlay .p-total-inline{ font-size:13px; }
+    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:19px; color:#fff; }
+    .p-name-overlay .p-total-inline{ font-size:16px; }
     .p-name-overlay .stat-pill{ font-size:14px; padding:2px 6px; min-width:40px; }
     .p-name-overlay .why-pill{ min-width:32px; width:32px; height:32px; }
     .p-name-overlay .p-total-pills-row{ margin-top:1px; gap:2px; }
@@ -791,10 +791,25 @@
 
       const myCards = withLive(entry.squad_players, liveByPidMine).map(p => renderPlayerCard(p, true, data.cost_multiplier || 1)).join('');
 
+      // A background poll (every 2 min) can trigger this whole render
+      // mid-interaction — e.g. right as someone taps "?". Without this,
+      // the open overlay's DOM node gets replaced and the tap appears to
+      // do nothing, or needs a second tap on the fresh element. Capture
+      // which overlays were open before any of the swaps below, then
+      // reopen the same ones (by id, stable per player) once done.
+      const openOverlayIds = Array.from(document.querySelectorAll('.p-why-overlay'))
+        .filter(el => el.style.display === 'flex')
+        .map(el => el.id);
+      const restoreOpenOverlays = () => openOverlayIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'flex';
+      });
+
       if (!data.opponent) {
         document.getElementById('opponentSummaryCard').style.display = 'none';
         document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
         document.getElementById('marketBody').innerHTML = '<div class="empty">No matchup this week — you had a bye.</div>';
+        restoreOpenOverlays();
       } else {
         const opp = data.opponent;
         const m = data.matchup;
@@ -839,6 +854,7 @@
         document.getElementById('marketBody').innerHTML = `
           ${resultBanner}
           <div class="portfolio-grid">${oppCards}</div>`;
+        restoreOpenOverlays();
       }
     }
 
