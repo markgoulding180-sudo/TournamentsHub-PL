@@ -567,22 +567,13 @@
             <div class="p-photo-wrap">${p.photo
               ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
               : `<div class="no-photo"><i class="fas fa-user"></i></div>`}</div>
-            <div class="p-name-overlay">
-              <div class="p-name-line">${escapeHtml(p.name)}</div>
-              <div class="p-pos">${escapeHtml(p.position)} · ${escapeHtml(p.team)}</div>
-              <div class="p-value-line">${money(p.preview_value)} <span style="font-size:11px; color:var(--text-faint); font-weight:500;">(est.)</span></div>
-              <div class="p-total-pills-row">
-                <span class="stat-pill">GL –</span>
-                <span class="stat-pill">AS –</span>
-                <span class="stat-pill">YC –</span>
-                <span class="stat-pill">RC –</span>
+            <div class="p-overlay-stack">
+              <div class="p-name-overlay">
+                <div class="p-name-line">${escapeHtml(p.name)}</div>
+                <div class="p-value-line">${money(p.preview_value)} <span style="font-size:11px; color:var(--text-faint); font-weight:500;">(est.)</span></div>
               </div>
-              <div class="p-total-pills-row" style="margin-top:4px;">
-                <span class="stat-pill">CS –</span>
-                <span class="stat-pill">GC –</span>
-                <span class="stat-pill">SV –</span>
-              </div>
-              <div style="font-size:10.5px; color:var(--text-faint); margin-top:4px;">No gameweek data yet — drafting phase</div>
+            </div>
+          </div>`).join('');
             </div>
           </div>`).join('');
         document.getElementById('portfolioBody').innerHTML = portfolio.length ? `<div class="portfolio-grid">${cards}</div>` : '<div class="empty">No squad drafted yet.</div>';
