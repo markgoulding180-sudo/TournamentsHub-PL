@@ -477,11 +477,25 @@
           banner.style.display = 'none';
           return;
         }
-        const deadlineDate = new Date(data.deadline_epoch * 1000);
+        const deadlineMs = data.deadline_epoch * 1000;
+        const deadlineDate = new Date(deadlineMs);
         const formatted = deadlineDate.toLocaleString('en-GB', {
           weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
         });
-        banner.innerHTML = `<i class="fas fa-clock"></i> Transfers open — closes when Gameweek ${data.next_gameweek} kicks off: <strong>${formatted}</strong>`;
+
+        if (Date.now() >= deadlineMs) {
+          // Matches what enforcement actually does — this happens with
+          // historical/test data (the "next kickoff" is naturally in the
+          // past), or in a real season if admin hasn't advanced the clock
+          // yet even though the next gameweek has genuinely started.
+          banner.innerHTML = `<i class="fas fa-lock"></i> Transfer window closed — Gameweek ${data.next_gameweek} kicked off <strong>${formatted}</strong>`;
+          banner.style.background = 'rgba(239,68,68,0.12)';
+          banner.style.borderColor = 'var(--red)';
+        } else {
+          banner.innerHTML = `<i class="fas fa-clock"></i> Transfers open — closes when Gameweek ${data.next_gameweek} kicks off: <strong>${formatted}</strong>`;
+          banner.style.background = 'rgba(59,130,246,0.12)';
+          banner.style.borderColor = 'var(--accent-2)';
+        }
         banner.style.display = 'block';
       } catch (e) {
         banner.style.display = 'none';
