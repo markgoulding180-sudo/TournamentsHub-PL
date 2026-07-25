@@ -146,6 +146,7 @@
     .p-action-pill .action-pill{ background:transparent; border:none; color:#7ab8ff; font-size:16px; }
     .p-action-pill .action-pill.danger{ color:#ff8080; }
     .p-name-overlay .p-name-line{ font-weight:700; font-size:17px; color:#fff; }
+    .p-name-overlay .p-club-line{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:2px; }
     .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:19px; color:#fff; }
     .p-name-overlay .p-total-inline{ font-size:16px; }
     .p-name-overlay .stat-pill{ font-size:14px; padding:2px 6px; min-width:40px; }
@@ -764,12 +765,12 @@
           <div class="p-overlay-stack">
             <div class="p-name-overlay">
               <div class="p-name-line">${escapeHtml(p.name)}</div>
+              <div class="p-club-line">${escapeHtml(p.team || '')}</div>
               <div class="p-value-line">${money(p.value)}</div>
               ${totalHtml}
-              <div class="p-total-pills-row">${breakdownHtml}</div>
               ${pillsHtml}
             </div>
-            ${isMine ? `<div class="p-action-pill">${actions}</div>` : ''}
+            ${isMine ? `<div class="p-action-pill">${actions}${breakdownHtml}</div>` : `<div class="p-action-pill">${breakdownHtml}</div>`}
           </div>
           ${detailPanelHtml}
         </div>`;
