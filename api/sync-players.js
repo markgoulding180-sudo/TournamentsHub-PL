@@ -231,6 +231,20 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Debounce: if this ran within the last 90 seconds (from any user's
+    // poll), skip straight to a no-op response instead of hitting FPL
+    // again. Without this, N concurrent users polling every 2 minutes
+    // means N near-simultaneous fetches of the same data.
+    const { data: lastSync } = await supabase
+      .from('sync_debounce').select('last_synced_at').eq('sync_name', 'sync_players').maybeSingle();
+    if (lastSync && lastSync.last_synced_at) {
+      const ageMs = Date.now() - new Date(lastSync.last_synced_at).getTime();
+      if (ageMs < 90000) {
+        return res.status(200).json({ skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) });
+      }
+    }
+    await supabase.from('sync_debounce').upsert({ sync_name: 'sync_players', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
+
     // Fetch from FPL API
     const response = await fetch(FPL_BOOTSTRAP_URL);
     const data = await response.json();

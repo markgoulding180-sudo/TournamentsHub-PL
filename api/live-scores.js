@@ -45,6 +45,18 @@ module.exports = async (req, res) => {
       return res.status(200).json({ message: 'Master clock not set — admin must set the current gameweek first' });
     }
 
+    // Debounce: same protection as sync-players — skip if any user's poll
+    // already triggered this within the last 90 seconds.
+    const { data: lastSync } = await masterDb
+      .from('sync_debounce').select('last_synced_at').eq('sync_name', 'live_scores').maybeSingle();
+    if (lastSync && lastSync.last_synced_at) {
+      const ageMs = Date.now() - new Date(lastSync.last_synced_at).getTime();
+      if (ageMs < 90000) {
+        return res.status(200).json({ skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) });
+      }
+    }
+    await masterDb.from('sync_debounce').upsert({ sync_name: 'live_scores', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
+
     // Still need FPL's bootstrap for team-name mapping and fixture data
     const bootstrapResponse = await fetch(FPL_BOOTSTRAP_URL);
     const bootstrapData = await bootstrapResponse.json();
