@@ -425,6 +425,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ current_gameweek: clock ? clock.current_gameweek : null });
       }
 
+      // Real transfer deadline for the "Transfers open until..." banner —
+      // the next gameweek's actual first kickoff, same source of truth
+      // the sell/buy enforcement below checks against.
+      const stockmarketTransferDeadline = params.get('stockmarket_transfer_deadline');
+      if (stockmarketTransferDeadline === 'true') {
+        const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        const currentGW = clock ? clock.current_gameweek : null;
+        if (!currentGW) return res.status(200).json({ deadline_epoch: null });
+        const { deadlineEpoch } = await getNextGameweekDeadline(masterDb, currentGW);
+        return res.status(200).json({ current_gameweek: currentGW, next_gameweek: currentGW + 1, deadline_epoch: deadlineEpoch });
+      }
+
       // Checks each player's actual photo URL against FPL's CDN (a real
       // network request, not just "does the DB have a code stored") and
       // records true/false on players.photo_verified. Paginated via
@@ -2098,6 +2110,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(403).json({ error: 'You can only make 1 transfer per gameweek' });
           }
 
+          // Real deadline enforcement — independent of whether admin has
+          // clicked Advance Gameweek yet. Once the next gameweek's first
+          // match has actually kicked off, transfers stop, full stop.
+          if (currentGW) {
+            const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGW);
+            if (deadlineMs !== null && Date.now() >= deadlineMs) {
+              return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
+            }
+          }
+
           const squad = entry.squad_players || [];
           const sellIdx = squad.findIndex(s => s.player_id === player_id);
           if (sellIdx === -1) return res.status(404).json({ error: 'That player is not in your squad' });
@@ -2146,6 +2168,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             .schema('stockmarket').from('tournament_entries')
             .select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
           if (entryError || !entry) return res.status(404).json({ error: 'Entry not found' });
+
+          // Same real deadline enforcement as sell — independent of
+          // whether admin has advanced the clock yet.
+          const { data: clockForDeadline } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+          const currentGWForDeadline = clockForDeadline ? clockForDeadline.current_gameweek : null;
+          if (currentGWForDeadline) {
+            const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGWForDeadline);
+            if (deadlineMs !== null && Date.now() >= deadlineMs) {
+              return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
+            }
+          }
 
           const squad = entry.squad_players || [];
           const emptyIdx = squad.findIndex(s => s.empty && s.position === position);
@@ -3487,6 +3520,28 @@ const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/
 // FPL fetches for the exact same data. The admin's manual "sync now"
 // button always forces a real fetch, since that's a deliberate one-off
 // action, not a background tick.
+// The real transfer deadline: the first kickoff of the gameweek AFTER
+// currentGW. Shared by the popup endpoint and both sell/buy enforcement
+// checks below, so there's exactly one source of truth for this time —
+// no risk of the displayed deadline and the enforced one ever disagreeing.
+async function getNextGameweekDeadline(masterDb, currentGW) {
+  const { data: nextMatches } = await masterDb
+    .from('matches')
+    .select('kickoff_time')
+    .eq('gameweek', currentGW + 1);
+
+  if (!nextMatches || nextMatches.length === 0) {
+    return { deadlineMs: null, deadlineEpoch: null };
+  }
+
+  const earliestMs = nextMatches.reduce((min, m) => {
+    const t = new Date(m.kickoff_time).getTime();
+    return (min === null || t < min) ? t : min;
+  }, null);
+
+  return { deadlineMs: earliestMs, deadlineEpoch: earliestMs !== null ? Math.floor(earliestMs / 1000) : null };
+}
+
 async function syncGameweekStatsFromFPL(masterDb, gameweek, allowDebounce) {
   if (allowDebounce) {
     const { data: recent } = await masterDb
