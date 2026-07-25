@@ -1499,53 +1499,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const syncGw = req.body.gameweek;
         if (!syncGw) return res.status(400).json({ error: 'gameweek is required' });
 
-        try {
-          const liveRes = await fetch(`https://fantasy.premierleague.com/api/event/${syncGw}/live/`);
-          if (!liveRes.ok) {
-            return res.status(502).json({ error: `FPL API returned ${liveRes.status} for GW${syncGw}` });
-          }
-          const liveData = await liveRes.json();
-          const elements = liveData.elements || [];
+        const result = await syncGameweekStatsFromFPL(masterDb, syncGw, false);
+        return res.status(result.status).json(result.body);
+      }
 
-          if (elements.length === 0) {
-            return res.status(404).json({ error: `No data returned for GW${syncGw} — it may not have been played yet` });
-          }
+      // Same sync as above, but safe for ANY logged-in user (no admin
+      // check) and figures out which gameweek to sync itself from
+      // master_clock — this is what live-poll.js calls automatically
+      // every 2 minutes, the same way it already calls /api/sync-players.
+      // FPL's own "not played yet" response is harmless here; it just
+      // means there's nothing new yet, same as any other poll tick.
+      if (action === 'sync_current_gameweek_stats') {
+        const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        const currentGw = clock ? clock.current_gameweek : null;
+        if (!currentGw) return res.status(200).json({ skipped: true, reason: 'master clock not set' });
 
-          // Snapshot each player's team RIGHT NOW, at sync time — this is
-          // what protects this gameweek's team-conceded calculation from
-          // ever being silently corrupted by a LATER transfer. Without
-          // this, a player's team lookup always reflects whatever club
-          // they're on today, even when re-processing an old gameweek.
-          const { data: playerRows } = await masterDb.from('players').select('id, team');
-          const { data: teamRows } = await masterDb.from('teams').select('id, name');
-          const teamNameById = {};
-          (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
-          const teamByPlayerId = {};
-          (playerRows || []).forEach(p => { teamByPlayerId[p.id] = teamNameById[p.team] || null; });
-
-          const statRows = elements.map(el => ({
-            gameweek: syncGw, player_id: el.id,
-            team: teamByPlayerId[el.id] || null,
-            goals_scored: el.stats?.goals_scored || 0,
-            assists: el.stats?.assists || 0,
-            yellow_cards: el.stats?.yellow_cards || 0,
-            red_cards: el.stats?.red_cards || 0,
-            clean_sheets: el.stats?.clean_sheets || 0,
-            goals_conceded: el.stats?.goals_conceded || 0,
-            saves: el.stats?.saves || 0,
-            minutes: el.stats?.minutes || 0
-          }));
-
-          const CHUNK = 200;
-          for (let i = 0; i < statRows.length; i += CHUNK) {
-            await masterDb.from('player_gameweek_stats').upsert(statRows.slice(i, i + CHUNK), { onConflict: 'gameweek,player_id' });
-          }
-
-          return res.status(200).json({ success: true, gameweek: syncGw, players_synced: statRows.length });
-        } catch (err) {
-          console.error('sync_historical_gameweek_stats error:', err);
-          return res.status(500).json({ error: err.message });
-        }
+        const result = await syncGameweekStatsFromFPL(masterDb, currentGw, true);
+        return res.status(result.status).json(result.body);
       }
 
       // ADMIN: force a re-sync next time this gameweek is processed, by
@@ -3508,6 +3478,83 @@ async function getMaxCopiesAllowed(supabaseAdmin, tournamentId, config) {
 }
 
 const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/players/250x250/p';
+
+// Shared by both the admin-triggered and poll-triggered sync actions.
+// `allowDebounce` is only true for the poll path — if this gameweek was
+// already synced in the last 90 seconds, skip re-fetching from FPL
+// entirely. Without this, every user with a page open polls independently
+// every 2 minutes, so 20 concurrent users could mean 20 near-simultaneous
+// FPL fetches for the exact same data. The admin's manual "sync now"
+// button always forces a real fetch, since that's a deliberate one-off
+// action, not a background tick.
+async function syncGameweekStatsFromFPL(masterDb, gameweek, allowDebounce) {
+  if (allowDebounce) {
+    const { data: recent } = await masterDb
+      .from('player_gameweek_stats')
+      .select('synced_at')
+      .eq('gameweek', gameweek)
+      .not('synced_at', 'is', null)
+      .order('synced_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recent && recent.synced_at) {
+      const ageMs = Date.now() - new Date(recent.synced_at).getTime();
+      if (ageMs < 90000) {
+        return { status: 200, body: { skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) } };
+      }
+    }
+  }
+
+  try {
+    const liveRes = await fetch(`https://fantasy.premierleague.com/api/event/${gameweek}/live/`);
+    if (!liveRes.ok) {
+      return { status: 502, body: { error: `FPL API returned ${liveRes.status} for GW${gameweek}` } };
+    }
+    const liveData = await liveRes.json();
+    const elements = liveData.elements || [];
+
+    if (elements.length === 0) {
+      return { status: 404, body: { error: `No data returned for GW${gameweek} — it may not have been played yet` } };
+    }
+
+    // Snapshot each player's team RIGHT NOW, at sync time — this is what
+    // protects this gameweek's team-conceded calculation from ever being
+    // silently corrupted by a LATER transfer. Without this, a player's
+    // team lookup always reflects whatever club they're on today, even
+    // when re-processing an old gameweek.
+    const { data: playerRows } = await masterDb.from('players').select('id, team');
+    const { data: teamRows } = await masterDb.from('teams').select('id, name');
+    const teamNameById = {};
+    (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
+    const teamByPlayerId = {};
+    (playerRows || []).forEach(p => { teamByPlayerId[p.id] = teamNameById[p.team] || null; });
+
+    const syncedAt = new Date().toISOString();
+    const statRows = elements.map(el => ({
+      gameweek, player_id: el.id,
+      team: teamByPlayerId[el.id] || null,
+      goals_scored: el.stats?.goals_scored || 0,
+      assists: el.stats?.assists || 0,
+      yellow_cards: el.stats?.yellow_cards || 0,
+      red_cards: el.stats?.red_cards || 0,
+      clean_sheets: el.stats?.clean_sheets || 0,
+      goals_conceded: el.stats?.goals_conceded || 0,
+      saves: el.stats?.saves || 0,
+      minutes: el.stats?.minutes || 0,
+      synced_at: syncedAt
+    }));
+
+    const CHUNK = 200;
+    for (let i = 0; i < statRows.length; i += CHUNK) {
+      await masterDb.from('player_gameweek_stats').upsert(statRows.slice(i, i + CHUNK), { onConflict: 'gameweek,player_id' });
+    }
+
+    return { status: 200, body: { success: true, gameweek, players_synced: statRows.length } };
+  } catch (err) {
+    console.error('syncGameweekStatsFromFPL error:', err);
+    return { status: 500, body: { error: err.message } };
+  }
+}
 
 async function fetchRarityPool(masterDb, rarity, positionKey) {
   const threshold = RARITY_THRESHOLDS[rarity];

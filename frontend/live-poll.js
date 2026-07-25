@@ -7,8 +7,14 @@
 // 1. Data refresh, every 2 minutes:
 //   - /api/live-scores   -> match scores/status, recalculates prediction points
 //   - /api/sync-players  -> player points (season total + this gameweek)
-//   Both write to the shared master data, so ANY user with ANY of these
-//   pages open keeps things fresh for EVERYONE, not just themselves.
+//   - /api/tournaments (action: sync_current_gameweek_stats) -> Stock
+//     Market's per-gameweek player stats (goals/assists/cards THIS
+//     gameweek specifically). Server-side debounces this to once per ~90
+//     seconds regardless of how many users are polling at once, so many
+//     concurrent visitors don't each independently hammer FPL's API for
+//     the same data.
+//   All three write to the shared master data, so ANY user with ANY of
+//   these pages open keeps things fresh for EVERYONE, not just themselves.
 //
 // 2. Session refresh, every 10 minutes:
 //   Supabase login tokens expire (usually after ~1 hour). Previously only
@@ -75,6 +81,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       await fetch('/api/sync-players');
     } catch (e) {
       console.error('[live-poll] player sync failed:', e);
+    }
+
+    try {
+      const token = localStorage.getItem('gbf_token');
+      await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'sync_current_gameweek_stats' })
+      });
+    } catch (e) {
+      console.error('[live-poll] Stock Market gameweek stats sync failed:', e);
     }
 
     console.log('[live-poll] Refreshed shared PL data');
