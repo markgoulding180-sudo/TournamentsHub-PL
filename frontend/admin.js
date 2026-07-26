@@ -752,6 +752,32 @@ function onStagesTournamentSelected() {
   loadRelegationStages();
 }
 
+async function saveEndGameweek() {
+  const tournamentId = document.getElementById('stagesTournamentId').value.trim();
+  const newEndGw = document.getElementById('editEndGameweek').value;
+  const resultEl = document.getElementById('editEndGameweekResult');
+  if (!tournamentId) { alert('Load a tournament first.'); return; }
+  if (!newEndGw) { alert('Enter an end gameweek.'); return; }
+
+  const token = localStorage.getItem('gbf_token');
+  resultEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  try {
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_edit_end_gameweek', tournament_id: tournamentId, end_gameweek: parseInt(newEndGw) })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">${data.error}</span>`;
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--accent-green,#22c55e);">✓ Saved</span>`;
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">${e.message}</span>`;
+  }
+}
+
 async function loadRelegationStages() {
   const tournamentId = document.getElementById('stagesTournamentId').value.trim();
   const wrap = document.getElementById('stagesTableWrap');

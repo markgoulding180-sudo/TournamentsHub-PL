@@ -190,6 +190,62 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Final results for a FINISHED tournament — separate from the live
+      // leaderboard above since it reads the locked final_value snapshot,
+      // not current_value. Survivors and relegated entries both included,
+      // survivors ranked by final value, relegated grouped by which stage
+      // they went out in.
+      const stockmarketResults = params.get('stockmarket_results');
+      if (stockmarketResults === 'true' && tournamentId) {
+        const { data: tourn } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments')
+          .select('id, name, status, end_gameweek').eq('id', tournamentId).maybeSingle();
+        if (!tourn) return res.status(404).json({ error: 'Tournament not found' });
+        if (tourn.status !== 'finished') {
+          return res.status(200).json({ finished: false });
+        }
+
+        const { data: allEntriesFinal } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, user_id, final_value, start_value, relegated, relegated_at_gameweek')
+          .eq('tournament_id', tournamentId).eq('squad_locked', true);
+
+        const userIdsFinal = (allEntriesFinal || []).map(e => e.user_id);
+        const { data: usersFinal } = userIdsFinal.length > 0
+          ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIdsFinal)
+          : { data: [] };
+        const nameByUserIdFinal = {};
+        (usersFinal || []).forEach(u => { nameByUserIdFinal[u.id] = pickDisplayName(u); });
+
+        const survivorsFinal = (allEntriesFinal || [])
+          .filter(e => !e.relegated)
+          .sort((a, b) => (b.final_value || 0) - (a.final_value || 0))
+          .map((e, i) => ({
+            rank: i + 1,
+            player_name: nameByUserIdFinal[e.user_id] || 'Player',
+            final_value: e.final_value,
+            gain_loss: (e.final_value || 0) - (e.start_value || 0)
+          }));
+
+        const relegatedFinal = (allEntriesFinal || [])
+          .filter(e => e.relegated)
+          .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || (b.final_value || 0) - (a.final_value || 0))
+          .map(e => ({
+            player_name: nameByUserIdFinal[e.user_id] || 'Player',
+            final_value: e.final_value,
+            gain_loss: (e.final_value || 0) - (e.start_value || 0),
+            relegated_at_gameweek: e.relegated_at_gameweek || null
+          }));
+
+        return res.status(200).json({
+          finished: true,
+          tournament_name: tourn.name,
+          end_gameweek: tourn.end_gameweek,
+          survivors: survivorsFinal,
+          relegated: relegatedFinal
+        });
+      }
+
       const stockmarketHistory = params.get('stockmarket_history');
       if (stockmarketHistory === 'true' && tournamentId) {
         const publicEntryId = params.get('entry_id');
@@ -1652,6 +1708,35 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           console.error('stockmarket_save_stages error:', err);
           return res.status(500).json({ error: err.message });
         }
+      }
+
+      // Admin: change how long a tournament runs after it's already live —
+      // e.g. shortening or extending it. Only blocked once the tournament
+      // has actually finished, since that point is meant to be permanent.
+      if (action === 'stockmarket_edit_end_gameweek') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: editTournamentId, end_gameweek: newEndGameweek } = req.body;
+        if (!editTournamentId || !newEndGameweek) {
+          return res.status(400).json({ error: 'tournament_id and end_gameweek are required' });
+        }
+
+        const { data: editTourn } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments')
+          .select('status').eq('id', editTournamentId).maybeSingle();
+        if (!editTourn) return res.status(404).json({ error: 'Tournament not found' });
+        if (editTourn.status === 'finished') {
+          return res.status(400).json({ error: 'Tournament has already finished — end_gameweek is locked' });
+        }
+
+        const { error: editError } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments')
+          .update({ end_gameweek: parseInt(newEndGameweek) })
+          .eq('id', editTournamentId);
+        if (editError) return res.status(500).json({ error: editError.message });
+
+        return res.status(200).json({ success: true, end_gameweek: parseInt(newEndGameweek) });
       }
 
       // One-click version of the manual SQL reset used for testing —
@@ -3391,6 +3476,20 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 
   if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {
     await supabaseAdmin.schema('stockmarket').from('tournaments').update({ status: 'finished' }).eq('id', tournamentId);
+
+    // Lock in the result permanently — every entry's current_value at this
+    // exact moment becomes their final_value, regardless of what happens
+    // to current_value afterward (there shouldn't be anything, since the
+    // tournament is now finished, but this makes the final result an
+    // explicit, unambiguous fact rather than "whatever current_value
+    // happens to still say if anyone looks later").
+    const { data: allFinalEntries } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries')
+      .select('id, current_value').eq('tournament_id', tournamentId);
+    for (const e of (allFinalEntries || [])) {
+      await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+        .update({ final_value: e.current_value }).eq('id', e.id);
+    }
   }
 
   return { ok: true, pairs: (matchupRowsExisting || []).filter(r => r.entry_id_2).length };
@@ -4118,6 +4217,14 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
       await supabaseAdmin.schema('stockmarket').from('tournaments')
         .update({ status: 'finished' })
         .eq('id', tournamentId);
+
+      const { data: allFinalEntries2 } = await supabaseAdmin
+        .schema('stockmarket').from('tournament_entries')
+        .select('id, current_value').eq('tournament_id', tournamentId);
+      for (const e of (allFinalEntries2 || [])) {
+        await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+          .update({ final_value: e.current_value }).eq('id', e.id);
+      }
     }
 
     const selectedWithLiveData = liveElements.filter(el => prices[String(el.id)]).length;

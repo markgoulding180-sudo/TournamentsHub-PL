@@ -1075,9 +1075,14 @@
       const bodyEl = document.getElementById('finalResultsBody');
       const summaryEl = document.getElementById('finalResultsSummary');
       try {
-        const res = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${finishedTournamentId}`);
+        const res = await fetch(`/api/tournaments?stockmarket_results=true&tournament_id=${finishedTournamentId}`);
         const data = await res.json();
-        const rows = data.leaderboard || [];
+        if (!data.finished) {
+          bodyEl.innerHTML = '<div class="empty">This tournament hasn\'t finished yet.</div>';
+          summaryEl.textContent = '';
+          return;
+        }
+        const rows = data.survivors || [];
         const relegatedRows = data.relegated || [];
 
         if (rows.length === 0 && relegatedRows.length === 0) {
@@ -1086,7 +1091,7 @@
           return;
         }
 
-        const totalPayout = rows.reduce((s, r) => s + (r.current_value || 0), 0);
+        const totalPayout = rows.reduce((s, r) => s + (r.final_value || 0), 0);
         summaryEl.textContent = `${rows.length} finisher${rows.length === 1 ? '' : 's'} — total pot ${money(totalPayout)}. Each finisher's final value below is what they're owed. Relegated entrants (${relegatedRows.length}) are not owed anything — their value left the pot when they were cut.`;
 
         const medal = (rank) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
@@ -1096,10 +1101,10 @@
             ${relegatedRows.map(r => `
               <div class="lb-row faded">
                 <div class="lb-name">
-                  <a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}">${escapeHtml(r.player_name)}</a>
+                  ${escapeHtml(r.player_name)}
                   <span class="lb-tag">Cut GW${r.relegated_at_gameweek}</span>
                 </div>
-                <div class="lb-value">${money(r.current_value)}</div>
+                <div class="lb-value">${money(r.final_value)}</div>
                 <div class="lb-gain" style="width:auto; font-size:11px; color:var(--text-faint);">not paid</div>
               </div>`).join('')}
           </div>` : '';
@@ -1109,9 +1114,9 @@
           ${rows.map(r => `
             <div class="lb-row">
               <div class="lb-rank">${medal(r.rank)}</div>
-              <div class="lb-name"><a href="/stock-market-player?tournament_id=${finishedTournamentId}&entry_id=${r.entry_id}">${escapeHtml(r.player_name)}</a></div>
-              <div class="lb-value">${money(r.current_value)}</div>
-              <div class="lb-gain up">${money(r.current_value)}</div>
+              <div class="lb-name">${escapeHtml(r.player_name)}</div>
+              <div class="lb-value">${money(r.final_value)}</div>
+              <div class="lb-gain up">${money(r.final_value)}</div>
             </div>`).join('')}
           ${relegatedSection}`;
       } catch (e) {
