@@ -507,6 +507,36 @@ async function runPhotoVerification() {
 
 let missingPhotoPlayersList = [];
 
+async function loadPlayerIdChanges() {
+  const resultEl = document.getElementById('playerIdChangesResult');
+  const token = localStorage.getItem('gbf_token');
+  resultEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+  try {
+    const response = await fetch('/api/tournaments?player_id_changes=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Failed: ${data.error}</span>`;
+      return;
+    }
+    const changes = data.changes || [];
+    if (changes.length === 0) {
+      resultEl.innerHTML = '<span style="color:var(--accent-green,#22c55e);">✓ No ID reassignments detected.</span>';
+      return;
+    }
+    resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">${changes.length} reassignment(s) detected:</span>
+      <div style="margin-top:0.5rem; max-height:260px; overflow-y:auto; font-size:0.8rem;">
+        ${changes.map(c => `<div style="margin-bottom:0.4rem; padding:0.4rem; background:var(--bg-hover); border-radius:0.4rem;">
+          Player ID ${c.player_id}: "${c.old_web_name || '?'}" → "${c.new_web_name || '?'}"
+          <span class="text-muted">(detected ${new Date(c.detected_at).toLocaleString()})</span>
+        </div>`).join('')}
+      </div>`;
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Error: ${e.message}</span>`;
+  }
+}
+
 async function loadMissingPhotoPlayers() {
   const select = document.getElementById('photoUploadPlayerSelect');
   if (!select) return;

@@ -524,6 +524,25 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         });
       }
 
+      // Shows any player IDs FPL has reassigned to a different real
+      // player since we started watching — logged automatically by
+      // sync-players every time it runs.
+      const playerIdChanges = params.get('player_id_changes');
+      if (playerIdChanges === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: picUser }, error: picAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (picAuthError || !picUser) return res.status(401).json({ error: 'Invalid token' });
+        const { data: picCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', picUser.id).maybeSingle();
+        if (!picCaller || !picCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: changes, error: changesErr } = await masterDb
+          .from('player_id_change_log').select('*').order('detected_at', { ascending: false }).limit(100);
+        if (changesErr) return res.status(500).json({ error: changesErr.message });
+        return res.status(200).json({ changes: changes || [] });
+      }
+
       const stockmarketDebugSettlement = params.get('stockmarket_debug_settlement');
       if (stockmarketDebugSettlement === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
@@ -3572,32 +3591,45 @@ async function syncGameweekStatsFromFPL(masterDb, gameweek, allowDebounce) {
       return { status: 404, body: { error: `No data returned for GW${gameweek} — it may not have been played yet` } };
     }
 
-    // Snapshot each player's team RIGHT NOW, at sync time — this is what
-    // protects this gameweek's team-conceded calculation from ever being
-    // silently corrupted by a LATER transfer. Without this, a player's
-    // team lookup always reflects whatever club they're on today, even
-    // when re-processing an old gameweek.
-    const { data: playerRows } = await masterDb.from('players').select('id, team');
+    // Snapshot each player's team, name AND photo RIGHT NOW, at sync
+    // time — not just team. This is what makes the row immune to FPL
+    // ever reassigning this numeric ID to a different real player later.
+    // Without this, every field here always reflects whoever holds this
+    // ID *today*, even when displaying a gameweek from months ago — which
+    // is exactly how a past gameweek's real stats can end up silently
+    // displayed under a completely different, unrelated player's name.
+    const { data: playerRows } = await masterDb.from('players').select('id, team, web_name, photo, custom_photo_url');
     const { data: teamRows } = await masterDb.from('teams').select('id, name');
     const teamNameById = {};
     (teamRows || []).forEach(t => { teamNameById[t.id] = t.name; });
-    const teamByPlayerId = {};
-    (playerRows || []).forEach(p => { teamByPlayerId[p.id] = teamNameById[p.team] || null; });
+    const identityByPlayerId = {};
+    (playerRows || []).forEach(p => {
+      identityByPlayerId[p.id] = {
+        team: teamNameById[p.team] || null,
+        web_name: p.web_name || null,
+        photo: p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null)
+      };
+    });
 
     const syncedAt = new Date().toISOString();
-    const statRows = elements.map(el => ({
-      gameweek, player_id: el.id,
-      team: teamByPlayerId[el.id] || null,
-      goals_scored: el.stats?.goals_scored || 0,
-      assists: el.stats?.assists || 0,
-      yellow_cards: el.stats?.yellow_cards || 0,
-      red_cards: el.stats?.red_cards || 0,
-      clean_sheets: el.stats?.clean_sheets || 0,
-      goals_conceded: el.stats?.goals_conceded || 0,
-      saves: el.stats?.saves || 0,
-      minutes: el.stats?.minutes || 0,
-      synced_at: syncedAt
-    }));
+    const statRows = elements.map(el => {
+      const identity = identityByPlayerId[el.id] || {};
+      return {
+        gameweek, player_id: el.id,
+        team: identity.team || null,
+        web_name: identity.web_name || null,
+        photo: identity.photo || null,
+        goals_scored: el.stats?.goals_scored || 0,
+        assists: el.stats?.assists || 0,
+        yellow_cards: el.stats?.yellow_cards || 0,
+        red_cards: el.stats?.red_cards || 0,
+        clean_sheets: el.stats?.clean_sheets || 0,
+        goals_conceded: el.stats?.goals_conceded || 0,
+        saves: el.stats?.saves || 0,
+        minutes: el.stats?.minutes || 0,
+        synced_at: syncedAt
+      };
+    });
 
     const CHUNK = 200;
     for (let i = 0; i < statRows.length; i += CHUNK) {

@@ -340,6 +340,46 @@ module.exports = async (req, res) => {
       }
     }
 
+    // Player ID watchlist: compares each player's current name/team
+    // against what we last saw for that same numeric ID. If FPL ever
+    // reassigns an ID to a different real player, this catches it the
+    // very next sync and logs it — rather than the change happening
+    // silently and only being noticed months later by someone spotting
+    // an implausible stat line on a card, the way this got found before.
+    try {
+      const { data: watchRows } = await supabase.from('player_id_watch').select('player_id, last_known_web_name, last_known_team');
+      const watchByPid = {};
+      (watchRows || []).forEach(w => { watchByPid[w.player_id] = w; });
+
+      const changeLogRows = [];
+      const watchUpsertRows = [];
+      playerRows.forEach(p => {
+        const prev = watchByPid[p.id];
+        if (prev && (prev.last_known_web_name !== p.web_name || prev.last_known_team !== p.team)) {
+          changeLogRows.push({
+            player_id: p.id,
+            old_web_name: prev.last_known_web_name, new_web_name: p.web_name,
+            old_team: prev.last_known_team, new_team: p.team
+          });
+        }
+        watchUpsertRows.push({ player_id: p.id, last_known_web_name: p.web_name, last_known_team: p.team, last_checked_at: new Date().toISOString() });
+      });
+
+      if (changeLogRows.length > 0) {
+        await supabase.from('player_id_change_log').insert(changeLogRows);
+        console.warn(`[sync-players] ${changeLogRows.length} player ID(s) changed identity:`, changeLogRows);
+      }
+
+      const WATCH_CHUNK = 200;
+      for (let i = 0; i < watchUpsertRows.length; i += WATCH_CHUNK) {
+        await supabase.from('player_id_watch').upsert(watchUpsertRows.slice(i, i + WATCH_CHUNK), { onConflict: 'player_id' });
+      }
+
+      results.id_changes_detected = changeLogRows.length;
+    } catch (watchErr) {
+      console.error('[sync-players] watchlist check failed (non-fatal):', watchErr);
+    }
+
     return res.status(200).json({
       message: 'Players synced successfully',
       total: players.length,
