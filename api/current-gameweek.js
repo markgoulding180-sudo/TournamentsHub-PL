@@ -129,10 +129,11 @@ module.exports = async (req, res) => {
 
       const { action, gameweek, deadline, deadline_epoch } = req.body;
 
-      // Initialize master clock
+      // Initialize master clock. Same raised upper bound as 'set' below,
+      // for admin-generated test gameweeks.
       if (action === 'init') {
-        if (!gameweek || gameweek < 1 || gameweek > 38) {
-          return res.status(400).json({ error: 'Valid gameweek (1-38) required' });
+        if (!gameweek || gameweek < 1 || gameweek > 60) {
+          return res.status(400).json({ error: 'Valid gameweek (1-60) required' });
         }
 
         const { data, error } = await supabase
@@ -173,8 +174,8 @@ module.exports = async (req, res) => {
         }
 
         const newGW = current.current_gameweek + 1;
-        if (newGW > 38) {
-          return res.status(400).json({ error: 'Cannot advance past GW38' });
+        if (newGW > 60) {
+          return res.status(400).json({ error: 'Cannot advance past GW60' });
         }
 
         const { data, error } = await supabase
@@ -203,10 +204,14 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Manual set (for corrections)
+      // Manual set (for corrections). Real seasons only ever reach 38, but
+      // the upper bound is raised to 60 to allow admin-generated test
+      // gameweeks (e.g. 49-58, used to test transfer-deadline/settlement
+      // behavior against genuinely future-dated fake data) without
+      // touching real season numbering at all.
       if (action === 'set') {
-        if (!gameweek || gameweek < 1 || gameweek > 38) {
-          return res.status(400).json({ error: 'Valid gameweek (1-38) required' });
+        if (!gameweek || gameweek < 1 || gameweek > 60) {
+          return res.status(400).json({ error: 'Valid gameweek (1-60) required' });
         }
 
         const { data, error } = await supabase
