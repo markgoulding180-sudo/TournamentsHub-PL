@@ -628,6 +628,7 @@
       }
       document.getElementById('enterGate').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
+      checkTransferDeadline();
 
       const entry = data.entry;
       const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
