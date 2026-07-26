@@ -522,16 +522,32 @@ async function loadPlayerIdChanges() {
     }
     const changes = data.changes || [];
     if (changes.length === 0) {
-      resultEl.innerHTML = '<span style="color:var(--accent-green,#22c55e);">✓ No ID reassignments detected.</span>';
+      resultEl.innerHTML = '<span style="color:var(--accent-green,#22c55e);">✓ No changes detected.</span>';
       return;
     }
-    resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">${changes.length} reassignment(s) detected:</span>
-      <div style="margin-top:0.5rem; max-height:260px; overflow-y:auto; font-size:0.8rem;">
-        ${changes.map(c => `<div style="margin-bottom:0.4rem; padding:0.4rem; background:var(--bg-hover); border-radius:0.4rem;">
-          Player ID ${c.player_id}: "${c.old_web_name || '?'}" → "${c.new_web_name || '?'}"
-          <span class="text-muted">(detected ${new Date(c.detected_at).toLocaleString()})</span>
-        </div>`).join('')}
-      </div>`;
+    const suspicious = changes.filter(c => c.change_type === 'possible_id_reassignment');
+    const transfers = changes.filter(c => c.change_type !== 'possible_id_reassignment');
+
+    let html = '';
+    if (suspicious.length > 0) {
+      html += `<div style="color:var(--accent-red,#ef4444); font-weight:700;">⚠ ${suspicious.length} possible ID reassignment(s) — same number, different name:</div>
+        <div style="margin-top:0.4rem; margin-bottom:0.75rem; max-height:200px; overflow-y:auto; font-size:0.8rem;">
+          ${suspicious.map(c => `<div style="margin-bottom:0.4rem; padding:0.4rem; background:rgba(239,68,68,0.1); border-radius:0.4rem;">
+            Player ID ${c.player_id}: "${c.old_web_name || '?'}" → "${c.new_web_name || '?'}"
+            <span class="text-muted">(detected ${new Date(c.detected_at).toLocaleString()})</span>
+          </div>`).join('')}
+        </div>`;
+    } else {
+      html += '<div style="color:var(--accent-green,#22c55e);">✓ No suspicious ID reassignments.</div>';
+    }
+    if (transfers.length > 0) {
+      html += `<details style="margin-top:0.5rem;"><summary class="text-muted" style="cursor:pointer; font-size:0.8rem;">${transfers.length} routine transfer(s) (same name, new team) — informational only</summary>
+        <div style="margin-top:0.4rem; max-height:200px; overflow-y:auto; font-size:0.8rem;">
+          ${transfers.map(c => `<div style="margin-bottom:0.3rem;" class="text-muted">Player ID ${c.player_id} (${c.new_web_name}): team ${c.old_team} → ${c.new_team}</div>`).join('')}
+        </div>
+      </details>`;
+    }
+    resultEl.innerHTML = html;
   } catch (e) {
     resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Error: ${e.message}</span>`;
   }

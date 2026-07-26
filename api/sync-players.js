@@ -355,19 +355,31 @@ module.exports = async (req, res) => {
       const watchUpsertRows = [];
       playerRows.forEach(p => {
         const prev = watchByPid[p.id];
-        if (prev && (prev.last_known_web_name !== p.web_name || prev.last_known_team !== p.team)) {
-          changeLogRows.push({
-            player_id: p.id,
-            old_web_name: prev.last_known_web_name, new_web_name: p.web_name,
-            old_team: prev.last_known_team, new_team: p.team
-          });
+        if (prev) {
+          const nameChanged = prev.last_known_web_name !== p.web_name;
+          const teamChanged = prev.last_known_team !== p.team;
+          if (nameChanged || teamChanged) {
+            changeLogRows.push({
+              player_id: p.id,
+              old_web_name: prev.last_known_web_name, new_web_name: p.web_name,
+              old_team: prev.last_known_team, new_team: p.team,
+              // The name changing is the actually suspicious case — it
+              // means this numeric ID likely belongs to a different real
+              // person now. Team changing alone, with the same name, is
+              // just a normal transfer — expected, routine, not a bug.
+              change_type: nameChanged ? 'possible_id_reassignment' : 'transfer'
+            });
+          }
         }
         watchUpsertRows.push({ player_id: p.id, last_known_web_name: p.web_name, last_known_team: p.team, last_checked_at: new Date().toISOString() });
       });
 
+      const suspiciousCount = changeLogRows.filter(c => c.change_type === 'possible_id_reassignment').length;
       if (changeLogRows.length > 0) {
         await supabase.from('player_id_change_log').insert(changeLogRows);
-        console.warn(`[sync-players] ${changeLogRows.length} player ID(s) changed identity:`, changeLogRows);
+        if (suspiciousCount > 0) {
+          console.warn(`[sync-players] ${suspiciousCount} possible player ID reassignment(s) detected:`, changeLogRows.filter(c => c.change_type === 'possible_id_reassignment'));
+        }
       }
 
       const WATCH_CHUNK = 200;
