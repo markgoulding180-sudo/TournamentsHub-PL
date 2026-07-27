@@ -536,8 +536,15 @@ async function generateTestGameweekData() {
     const data = await response.json();
     if (!response.ok) {
       resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Failed: ${data.error}</span>`;
+    } else if (data.matches_updated < data.matches_attempted) {
+      // Some (or all) match updates genuinely failed — say so plainly
+      // instead of reporting a clean success that didn't actually happen.
+      resultEl.innerHTML = `
+        <span style="color:var(--accent-red,#ef4444);">⚠ Only ${data.matches_updated} of ${data.matches_attempted} matches actually updated — ${data.matches_attempted - data.matches_updated} failed.</span><br>
+        <span style="color:var(--accent-green,#22c55e);">${data.players_with_stats} player stat rows were written OK.</span>
+        ${data.match_update_errors ? `<div style="margin-top:0.5rem; font-size:0.8rem; max-height:200px; overflow-y:auto;">${data.match_update_errors.map(e => `Match ${e.match_id}: ${e.error}`).join('<br>')}</div>` : ''}`;
     } else {
-      resultEl.innerHTML = `<span style="color:var(--accent-green,#22c55e);">✓ Done — ${data.matches_updated} matches, ${data.players_with_stats} players. Set the master clock to GW${gw} and reload any tournament page to see it.</span>`;
+      resultEl.innerHTML = `<span style="color:var(--accent-green,#22c55e);">✓ Done — ${data.matches_updated} matches, ${data.players_with_stats} players${data.predictions_scored ? ', Predictions scored' : ''}. Set the master clock to GW${gw} and reload any tournament page to see it.</span>`;
     }
   } catch (e) {
     resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Error: ${e.message}</span>`;

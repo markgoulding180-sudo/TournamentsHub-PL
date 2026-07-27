@@ -3822,10 +3822,18 @@ async function generateTestGameweekData(masterDb, gameweek, localDb) {
       simulateTeam(awaySquad, m.away_team, awayScore, homeScore);
     }
 
+    let matchesUpdatedOk = 0;
+    const matchUpdateErrors = [];
     for (const mu of matchUpdates) {
-      await masterDb.from('matches').update({
+      const { error: matchUpdateErr } = await masterDb.from('matches').update({
         home_score: mu.home_score, away_score: mu.away_score, status: mu.status, result: mu.result
       }).eq('id', mu.id);
+      if (matchUpdateErr) {
+        console.error(`generateTestGameweekData: failed to update match ${mu.id}:`, matchUpdateErr.message);
+        matchUpdateErrors.push({ match_id: mu.id, error: matchUpdateErr.message });
+      } else {
+        matchesUpdatedOk++;
+      }
     }
 
     const statRows = Object.values(statByPlayerId);
@@ -3850,7 +3858,13 @@ async function generateTestGameweekData(masterDb, gameweek, localDb) {
 
     return {
       status: 200,
-      body: { success: true, gameweek, matches_updated: matchUpdates.length, players_with_stats: statRows.length, predictions_scored: predictionsScored }
+      body: {
+        success: true, gameweek,
+        matches_updated: matchesUpdatedOk,
+        matches_attempted: matchUpdates.length,
+        match_update_errors: matchUpdateErrors.length > 0 ? matchUpdateErrors : undefined,
+        players_with_stats: statRows.length, predictions_scored: predictionsScored
+      }
     };
   } catch (err) {
     console.error('generateTestGameweekData error:', err);
