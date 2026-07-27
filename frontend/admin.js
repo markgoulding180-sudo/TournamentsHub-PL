@@ -252,7 +252,7 @@ function escapeHtmlWallet(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function moneyWallet(pence) {
-  const pounds = (pence || 0) / 100;
+  const pounds = Math.abs(pence || 0) / 100;
   return `£${pounds.toFixed(2)}`;
 }
 
@@ -306,7 +306,9 @@ function renderWalletList() {
     return `
       <tr style="border-bottom:1px solid var(--border-color);">
         <td style="padding:0.5rem;">${escapeHtmlWallet(u.display_name || u.username || u.email || u.id)}</td>
-        <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : 'var(--green)'};">${moneyWallet(owed)}</td>
+        <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : owed < 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">
+          ${owed > 0 ? moneyWallet(owed) : owed < 0 ? `${moneyWallet(owed)} in credit` : '£0.00'}
+        </td>
         <td style="padding:0.5rem;">
           <select id="${selectId}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
             ${optionsHtml}

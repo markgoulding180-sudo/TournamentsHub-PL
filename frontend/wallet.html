@@ -140,6 +140,10 @@
           balanceEl.textContent = money(owed);
           balanceEl.className = 'balance-value owed';
           noteEl.textContent = "Entry fees are added automatically when you join a tournament — nothing's charged until you actually pay the admin.";
+        } else if (owed < 0) {
+          balanceEl.textContent = `${money(owed)} in credit`;
+          balanceEl.className = 'balance-value clear';
+          noteEl.textContent = "You've paid more than you currently owe — this credit will count toward your next entry fee.";
         } else {
           balanceEl.textContent = '£0.00';
           balanceEl.className = 'balance-value clear';
