@@ -1647,7 +1647,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'A real gameweek (1-38) is required' });
         }
 
-        const result = await generateTestGameweekData(masterDb, testGw);
+        const result = await generateTestGameweekData(masterDb, testGw, supabaseAdmin);
         return res.status(result.status).json(result.body);
       }
 
@@ -3714,7 +3714,7 @@ const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/
 // player's clean sheet / goals conceded always matches their own team's
 // fake scoreline for that same match — nothing here is independently
 // randomized in a way that could contradict itself).
-async function generateTestGameweekData(masterDb, gameweek) {
+async function generateTestGameweekData(masterDb, gameweek, localDb) {
   try {
     const { data: matches, error: matchesErr } = await masterDb
       .from('matches').select('id, home_team, away_team').eq('gameweek', gameweek);
@@ -3834,9 +3834,23 @@ async function generateTestGameweekData(masterDb, gameweek) {
       await masterDb.from('player_gameweek_stats').upsert(statRows.slice(i, i + CHUNK), { onConflict: 'gameweek,player_id' });
     }
 
+    // Also scores Predictions for this gameweek, using the exact same
+    // function live-scores.js will use for real in a few weeks — not a
+    // reimplementation, the literal same code, just called directly here
+    // since live-scores.js's own trigger (comparing against FPL's real
+    // feed) will never fire for admin-generated fake results.
+    let predictionsScored = false;
+    try {
+      const { calculatePointsForGameweek } = require('./live-scores.js');
+      await calculatePointsForGameweek(localDb, masterDb, gameweek);
+      predictionsScored = true;
+    } catch (predErr) {
+      console.error('generateTestGameweekData: Predictions scoring step failed (non-fatal):', predErr);
+    }
+
     return {
       status: 200,
-      body: { success: true, gameweek, matches_updated: matchUpdates.length, players_with_stats: statRows.length }
+      body: { success: true, gameweek, matches_updated: matchUpdates.length, players_with_stats: statRows.length, predictions_scored: predictionsScored }
     };
   } catch (err) {
     console.error('generateTestGameweekData error:', err);

@@ -445,3 +445,13 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   
   console.log(`\n=== POINTS CALCULATION COMPLETE ===`);
 }
+
+// Additional named export, alongside the default handler above (which
+// Vercel still uses exactly as before — this doesn't change or touch
+// that at all). Lets the Stock Market test-data generator call this
+// exact same, already-working points calculation directly, so a single
+// test action can also correctly score Predictions — without needing to
+// go through live-scores.js's own internal "did I just see FPL report a
+// new finish" detection, which will never fire for admin-generated fake
+// results in the first place.
+module.exports.calculatePointsForGameweek = calculatePointsForGameweek;
