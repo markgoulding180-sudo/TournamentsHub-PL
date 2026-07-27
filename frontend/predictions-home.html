@@ -170,6 +170,13 @@
 
     .cards-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:18px; }
     @media (max-width:800px){ .cards-grid{ grid-template-columns:1fr; } }
+
+    /* Sticky navbar sits on top of the page — without this, jumping to an
+       anchor (like the "Your Predictions" nav bar link) lands the target's
+       heading directly behind the navbar instead of visibly below it. */
+    #yourPredictionsCard{ scroll-margin-top: 90px; }
+    @media (max-width:640px){ #yourPredictionsCard{ scroll-margin-top: 110px; } }
+
     @media (max-width:640px){
       .navbar{ padding:12px 16px; flex-wrap:wrap; row-gap:12px; }
       .logo-text{ font-size:14px; }
