@@ -490,7 +490,32 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const currentGW = clock ? clock.current_gameweek : null;
         if (!currentGW) return res.status(200).json({ deadline_epoch: null });
         const { deadlineEpoch } = await getNextGameweekDeadline(masterDb, currentGW);
-        return res.status(200).json({ current_gameweek: currentGW, next_gameweek: currentGW + 1, deadline_epoch: deadlineEpoch });
+
+        // If a tournament_id is given and the caller is authenticated,
+        // also check whether THIS user has already used their one
+        // transfer for the current gameweek — the deadline being in the
+        // future doesn't mean THEY can do anything more with it.
+        let alreadyTransferred = false;
+        const tdTournamentId = params.get('tournament_id');
+        if (tdTournamentId) {
+          const authHeader = req.headers.authorization;
+          if (authHeader) {
+            const { data: { user: tdUser } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
+            if (tdUser) {
+              const { data: tdEntry } = await supabaseAdmin
+                .schema('stockmarket').from('tournament_entries')
+                .select('last_transfer_gameweek').eq('tournament_id', tdTournamentId).eq('user_id', tdUser.id).maybeSingle();
+              if (tdEntry && tdEntry.last_transfer_gameweek && tdEntry.last_transfer_gameweek >= currentGW) {
+                alreadyTransferred = true;
+              }
+            }
+          }
+        }
+
+        return res.status(200).json({
+          current_gameweek: currentGW, next_gameweek: currentGW + 1,
+          deadline_epoch: deadlineEpoch, already_transferred: alreadyTransferred
+        });
       }
 
       // Checks each player's actual photo URL against FPL's CDN (a real

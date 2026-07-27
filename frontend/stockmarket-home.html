@@ -471,7 +471,10 @@
       const banner = document.getElementById('transferDeadlineBanner');
       if (!banner) return;
       try {
-        const res = await fetch('/api/tournaments?stockmarket_transfer_deadline=true');
+        const url = tournamentId
+          ? `/api/tournaments?stockmarket_transfer_deadline=true&tournament_id=${tournamentId}`
+          : '/api/tournaments?stockmarket_transfer_deadline=true';
+        const res = await fetch(url, { headers: authHeaders() });
         const data = await res.json();
         if (!data.deadline_epoch) {
           banner.style.display = 'none';
@@ -491,6 +494,14 @@
           banner.innerHTML = `<i class="fas fa-lock"></i> Transfer window closed — Gameweek ${data.next_gameweek} kicked off <strong>${formatted}</strong>`;
           banner.style.background = 'rgba(239,68,68,0.12)';
           banner.style.borderColor = 'var(--red)';
+        } else if (data.already_transferred) {
+          // The window itself is still genuinely open, but THIS user has
+          // already used their one transfer for the current gameweek —
+          // showing "open" here would be misleading, since they can't
+          // actually do anything more until the next gameweek.
+          banner.innerHTML = `<i class="fas fa-check"></i> Transfer used for this gameweek — your next transfer window opens in Gameweek ${data.next_gameweek}`;
+          banner.style.background = 'rgba(148,163,184,0.12)';
+          banner.style.borderColor = 'var(--text-faint)';
         } else {
           banner.innerHTML = `<i class="fas fa-clock"></i> Transfers open — closes when Gameweek ${data.next_gameweek} kicks off: <strong>${formatted}</strong>`;
           banner.style.background = 'rgba(59,130,246,0.12)';
