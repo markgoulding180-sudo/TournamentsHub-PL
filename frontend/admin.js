@@ -21,6 +21,7 @@ async function checkAdminAccess() {
     refreshStatus();
     loadStockMarketTournamentList();
     loadMissingPhotoPlayers();
+    populateGenTestGwDropdown();
     return;
   }
   
@@ -125,6 +126,7 @@ function verifyPin() {
     refreshStatus();
     loadStockMarketTournamentList();
     loadMissingPhotoPlayers();
+    populateGenTestGwDropdown();
   } else {
     // PIN incorrect
     document.getElementById('pin-error').style.display = 'block';
@@ -506,6 +508,41 @@ async function runPhotoVerification() {
 }
 
 let missingPhotoPlayersList = [];
+
+function populateGenTestGwDropdown() {
+  const select = document.getElementById('genTestGwSelect');
+  if (!select || select.options.length > 1) return;
+  for (let gw = 1; gw <= 38; gw++) {
+    const opt = document.createElement('option');
+    opt.value = gw;
+    opt.textContent = `Gameweek ${gw}`;
+    select.appendChild(opt);
+  }
+}
+
+async function generateTestGameweekData() {
+  const gw = document.getElementById('genTestGwSelect').value;
+  const resultEl = document.getElementById('genTestGwResult');
+  if (!gw) { alert('Choose a gameweek first.'); return; }
+
+  const token = localStorage.getItem('gbf_token');
+  resultEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+  try {
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'generate_test_gameweek_data', gameweek: parseInt(gw) })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Failed: ${data.error}</span>`;
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--accent-green,#22c55e);">✓ Done — ${data.matches_updated} matches, ${data.players_with_stats} players. Set the master clock to GW${gw} and reload any tournament page to see it.</span>`;
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red,#ef4444);">Error: ${e.message}</span>`;
+  }
+}
 
 async function loadPlayerIdChanges() {
   const resultEl = document.getElementById('playerIdChangesResult');

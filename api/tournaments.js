@@ -1605,6 +1605,27 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(result.status).json(result.body);
       }
 
+      // ADMIN TEST TOOL: generates believable fake match results AND
+      // player stats for a real gameweek's real fixtures, in one action.
+      // Unlike the old approach (relabeling real historical data onto
+      // fake gameweek numbers), this uses the REAL fixtures already
+      // sitting in `matches` for whichever real gameweek is picked, and
+      // fabricates a result + stats consistent with each other — a
+      // player's clean_sheets/goals_conceded always matches what their
+      // own team's fake scoreline says, same as it would for real data.
+      if (action === 'generate_test_gameweek_data') {
+        const { data: genCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!genCaller || !genCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const testGw = parseInt(req.body.gameweek);
+        if (!testGw || testGw < 1 || testGw > 38) {
+          return res.status(400).json({ error: 'A real gameweek (1-38) is required' });
+        }
+
+        const result = await generateTestGameweekData(masterDb, testGw);
+        return res.status(result.status).json(result.body);
+      }
+
       // ADMIN: force a re-sync next time this gameweek is processed, by
       // clearing its cached row(s). Useful if FPL corrects a result after
       // the fact. Omit gameweek to clear the whole cache.
@@ -2217,10 +2238,19 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // Real deadline enforcement — independent of whether admin has
           // clicked Advance Gameweek yet. Once the next gameweek's first
           // match has actually kicked off, transfers stop, full stop.
+          // test_bypass_deadline is an explicit, visible, per-tournament
+          // opt-in for testing against historical data (where every real
+          // "next kickoff" is already in the past) — off by default, so
+          // it can never silently disable enforcement on a real tournament.
           if (currentGW) {
-            const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGW);
-            if (deadlineMs !== null && Date.now() >= deadlineMs) {
-              return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
+            const { data: bypassCheck } = await supabaseAdmin
+              .schema('stockmarket').from('tournaments')
+              .select('test_bypass_deadline').eq('id', tournament_id).maybeSingle();
+            if (!bypassCheck || !bypassCheck.test_bypass_deadline) {
+              const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGW);
+              if (deadlineMs !== null && Date.now() >= deadlineMs) {
+                return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
+              }
             }
           }
 
@@ -2274,13 +2304,19 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           if (entryError || !entry) return res.status(404).json({ error: 'Entry not found' });
 
           // Same real deadline enforcement as sell — independent of
-          // whether admin has advanced the clock yet.
+          // whether admin has advanced the clock yet. Same explicit,
+          // opt-in test bypass as sell — off by default.
           const { data: clockForDeadline } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
           const currentGWForDeadline = clockForDeadline ? clockForDeadline.current_gameweek : null;
           if (currentGWForDeadline) {
-            const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGWForDeadline);
-            if (deadlineMs !== null && Date.now() >= deadlineMs) {
-              return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
+            const { data: bypassCheckBuy } = await supabaseAdmin
+              .schema('stockmarket').from('tournaments')
+              .select('test_bypass_deadline').eq('id', tournament_id).maybeSingle();
+            if (!bypassCheckBuy || !bypassCheckBuy.test_bypass_deadline) {
+              const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGWForDeadline);
+              if (deadlineMs !== null && Date.now() >= deadlineMs) {
+                return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
+              }
             }
           }
 
@@ -3642,6 +3678,141 @@ const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/
 // currentGW. Shared by the popup endpoint and both sell/buy enforcement
 // checks below, so there's exactly one source of truth for this time —
 // no risk of the displayed deadline and the enforced one ever disagreeing.
+// Admin test tool: fabricates a believable result + player stats for a
+// real gameweek's real fixtures, all consistent with each other (a
+// player's clean sheet / goals conceded always matches their own team's
+// fake scoreline for that same match — nothing here is independently
+// randomized in a way that could contradict itself).
+async function generateTestGameweekData(masterDb, gameweek) {
+  try {
+    const { data: matches, error: matchesErr } = await masterDb
+      .from('matches').select('id, home_team, away_team').eq('gameweek', gameweek);
+    if (matchesErr) return { status: 500, body: { error: matchesErr.message } };
+    if (!matches || matches.length === 0) {
+      return { status: 404, body: { error: `No real fixtures found for GW${gameweek} — run sync-fixtures first` } };
+    }
+
+    const { data: teams } = await masterDb.from('teams').select('id, name');
+    const teamIdByName = {};
+    (teams || []).forEach(t => { teamIdByName[t.name] = t.id; });
+
+    const { data: allPlayers } = await masterDb
+      .from('players').select('id, web_name, team, element_type, photo, custom_photo_url');
+
+    const playersByTeamId = {};
+    (allPlayers || []).forEach(p => {
+      if (!playersByTeamId[p.team]) playersByTeamId[p.team] = [];
+      playersByTeamId[p.team].push(p);
+    });
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const randInt = (max) => Math.floor(Math.random() * (max + 1));
+    // Weighted toward realistic scorelines: 0,1,2 much more common than 3+
+    const randomScore = () => {
+      const r = Math.random();
+      if (r < 0.28) return 0;
+      if (r < 0.60) return 1;
+      if (r < 0.85) return 2;
+      if (r < 0.96) return 3;
+      return 4;
+    };
+
+    const statByPlayerId = {};
+    const ensureStat = (p) => {
+      if (!statByPlayerId[p.id]) {
+        statByPlayerId[p.id] = {
+          gameweek, player_id: p.id, team: null, web_name: p.web_name,
+          photo: p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null),
+          goals_scored: 0, assists: 0, yellow_cards: 0, red_cards: 0,
+          clean_sheets: 0, goals_conceded: 0, saves: 0, minutes: 0,
+          synced_at: new Date().toISOString()
+        };
+      }
+      return statByPlayerId[p.id];
+    };
+
+    const matchUpdates = [];
+
+    for (const m of matches) {
+      const homeScore = randomScore();
+      const awayScore = randomScore();
+      matchUpdates.push({
+        id: m.id, gameweek, home_team: m.home_team, away_team: m.away_team,
+        home_score: homeScore, away_score: awayScore, status: 'finished',
+        result: homeScore > awayScore ? 'H' : awayScore > homeScore ? 'A' : 'D'
+      });
+
+      const homeTeamId = teamIdByName[m.home_team];
+      const awayTeamId = teamIdByName[m.away_team];
+      const homeSquad = playersByTeamId[homeTeamId] || [];
+      const awaySquad = playersByTeamId[awayTeamId] || [];
+
+      const simulateTeam = (squad, teamName, goalsFor, goalsAgainst) => {
+        if (squad.length === 0) return;
+        const gks = squad.filter(p => p.element_type === 1);
+        const defs = squad.filter(p => p.element_type === 2);
+        const mids = squad.filter(p => p.element_type === 3);
+        const fwds = squad.filter(p => p.element_type === 4);
+
+        // ~14 of the squad "play" this match — realistic starters+subs mix
+        const shuffled = [...squad].sort(() => Math.random() - 0.5);
+        const playing = shuffled.slice(0, Math.min(14, squad.length));
+        playing.forEach(p => {
+          const s = ensureStat(p);
+          s.team = teamName;
+          s.minutes = Math.random() < 0.75 ? 90 : (30 + randInt(59));
+          s.goals_conceded = goalsAgainst;
+          if (goalsAgainst === 0 && (p.element_type === 1 || p.element_type === 2)) s.clean_sheets = 1;
+          if (Math.random() < 0.12) s.yellow_cards = 1;
+          if (Math.random() < 0.01) s.red_cards = 1;
+        });
+
+        const playingGk = playing.find(p => p.element_type === 1);
+        if (playingGk) {
+          const s = ensureStat(playingGk);
+          s.saves = goalsAgainst + randInt(4);
+        }
+
+        // Distribute this team's goals among players who actually played,
+        // weighted toward attackers — same for assists.
+        const attackers = playing.filter(p => fwds.includes(p) || mids.includes(p));
+        const scorerPool = attackers.length > 0 ? attackers : playing;
+        for (let i = 0; i < goalsFor; i++) {
+          const scorer = pick(scorerPool);
+          ensureStat(scorer).goals_scored += 1;
+          if (Math.random() < 0.65) {
+            const assistPool = playing.filter(p => p.id !== scorer.id && (mids.includes(p) || fwds.includes(p)));
+            if (assistPool.length > 0) ensureStat(pick(assistPool)).assists += 1;
+          }
+        }
+      };
+
+      simulateTeam(homeSquad, m.home_team, homeScore, awayScore);
+      simulateTeam(awaySquad, m.away_team, awayScore, homeScore);
+    }
+
+    for (const mu of matchUpdates) {
+      await masterDb.from('matches').update({
+        home_score: mu.home_score, away_score: mu.away_score, status: mu.status, result: mu.result
+      }).eq('id', mu.id);
+    }
+
+    const statRows = Object.values(statByPlayerId);
+    const CHUNK = 200;
+    for (let i = 0; i < statRows.length; i += CHUNK) {
+      await masterDb.from('player_gameweek_stats').upsert(statRows.slice(i, i + CHUNK), { onConflict: 'gameweek,player_id' });
+    }
+
+    return {
+      status: 200,
+      body: { success: true, gameweek, matches_updated: matchUpdates.length, players_with_stats: statRows.length }
+    };
+  } catch (err) {
+    console.error('generateTestGameweekData error:', err);
+    return { status: 500, body: { error: err.message } };
+  }
+}
+
 async function getNextGameweekDeadline(masterDb, currentGW) {
   const { data: nextMatches } = await masterDb
     .from('matches')
