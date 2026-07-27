@@ -230,12 +230,12 @@
     .hero-meta-item b{ color:var(--text); font-family:var(--font-head); }
 
     /* User nav bar — quick links to the elements a user actually uses to predict */
-    .predict-nav-bar{ display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+    .predict-nav-bar{ display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; padding-left:50px; padding-right:50px; }
     .predict-nav-btn{ display:inline-flex; align-items:center; gap:9px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; padding:12px 22px; border-radius:10px; transition:border-color .2s, background .2s; flex:1; justify-content:center; min-width:160px; }
     .predict-nav-btn:hover{ border-color:var(--accent); background:var(--bg-card); }
     .predict-nav-btn.primary{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); border:none; color:#fff; }
     .predict-nav-btn.primary:hover{ filter:brightness(1.1); }
-    @media (max-width:640px){ .predict-nav-bar{ flex-direction:column; } }
+    @media (max-width:640px){ .predict-nav-bar{ flex-direction:column; padding-left:22px; padding-right:22px; } }
 
     .lb-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
     .lb-row:last-child{ border-bottom:none; }
