@@ -9,10 +9,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#040812;
-    --bg-panel:#070d1a;
-    --bg-card:#0a101f;
-    --bg-card-2:#0d1526;
+    --bg:#060b1e;
+    --bg-panel:#0a1226;
+    --bg-card:#0d1730;
+    --bg-card-2:#101a38;
     --border:#131f35;
     --border-hover:#3b82f6;
     --accent:#3b82f6;
@@ -383,14 +383,14 @@
 
   /* ---- card media graphics wrappers ---- */
   .media-svg{width:100%; height:100%; display:block;}
-  .media-shield{background:radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.22), transparent 70%), linear-gradient(160deg,#0e1830,#070d1a);}
-  .media-fixture{background:linear-gradient(160deg,#101c34,#070d1a);}
-  .media-podium{background:linear-gradient(160deg,#0e1830,#070d1a);}
-  .media-champion{background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.28), transparent 65%), linear-gradient(160deg,#160f2c,#070d1a);}
-  .media-goal{background:linear-gradient(160deg,#0e1830,#070d1a);}
-  .media-assist{background:linear-gradient(160deg,#0e1830,#070d1a);}
-  .media-cleansheet{background:linear-gradient(160deg,#0e1830,#070d1a);}
-  .media-breakout{background:radial-gradient(ellipse at 50% 35%, rgba(242,185,61,0.18), transparent 65%), linear-gradient(160deg,#0e1830,#070d1a);}
+  .media-shield{background:radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.22), transparent 70%), linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-fixture{background:linear-gradient(160deg,#101c34,#0a1226);}
+  .media-podium{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-champion{background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.28), transparent 65%), linear-gradient(160deg,#160f2c,#0a1226);}
+  .media-goal{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-assist{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-cleansheet{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-breakout{background:radial-gradient(ellipse at 50% 35%, rgba(242,185,61,0.18), transparent 65%), linear-gradient(160deg,#0e1830,#0a1226);}
 
   /* ================= BOTTOM SPORT GRID ================= */
   .sport-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px;}
@@ -461,7 +461,7 @@
     .card-row, .card-row-3, .sport-grid{grid-template-columns:1fr;}
     .leaderboard-strip{flex-direction:column; gap:18px; text-align:center;}
     .lb-left{flex-direction:column; text-align:center;}
-    .navbar{padding:13px 16px; flex-wrap:wrap; row-gap:12px;}
+    .navbar{padding:13px 16px 10px; flex-wrap:wrap; row-gap:4px;}
     .hero-graphic{display:none;}
     #plLive{display:none;}
     .view-all{display:none;}
@@ -532,7 +532,7 @@
   <div class="nav-left">
     <div class="logo">
       <div class="logo-mark"><svg class="icon"><use href="#i-trophy"/></svg></div>
-      <div class="logo-text">GB TOURNAMENTS<span class="sub">COMPETE · PREDICT · WIN</span></div>
+      <div class="logo-text">GB TOURNAMENTS<span class="sub">PREDICT · WIN</span></div>
     </div>
     <nav class="nav-links">
       <a href="/" class="active">GB Hub</a>
@@ -772,7 +772,7 @@
                 <line x1="210" y1="100" x2="210" y2="50"/>
               </g>
               <circle cx="190" cy="30" r="8" fill="#93c5fd"/>
-              <path d="M186 26l4 4 6-8" stroke="#0a101f" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M186 26l4 4 6-8" stroke="#0d1730" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <div class="t-card-body">
@@ -967,7 +967,7 @@
 
         <!-- The Masters -->
         <div class="t-card">
-          <div class="t-card-media" style="background:linear-gradient(160deg,#0e2418,#070d1a);">
+          <div class="t-card-media" style="background:linear-gradient(160deg,#0e2418,#0a1226);">
             <svg class="media-svg" viewBox="0 0 300 132">
               <ellipse cx="150" cy="104" rx="110" ry="10" fill="#08170f" opacity="0.6"/>
               <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
@@ -989,7 +989,7 @@
 
         <!-- PGA Championship -->
         <div class="t-card">
-          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#070d1a);">
+          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#0a1226);">
             <svg class="media-svg" viewBox="0 0 300 132">
               <ellipse cx="150" cy="104" rx="110" ry="10" fill="#0a1120" opacity="0.6"/>
               <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
@@ -1011,7 +1011,7 @@
 
         <!-- U.S. Open -->
         <div class="t-card">
-          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#070d1a);">
+          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#0a1226);">
             <svg class="media-svg" viewBox="0 0 300 132">
               <ellipse cx="150" cy="104" rx="110" ry="10" fill="#0a1120" opacity="0.6"/>
               <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
@@ -1052,7 +1052,7 @@
             <div><h3>Horse Racing</h3><p>Major meetings and festivals. Predict the winners.</p></div>
           </div>
           <div class="sport-tile-media">
-            <svg class="media-svg" viewBox="0 0 300 112" style="background:linear-gradient(160deg,#0e1830,#070d1a)">
+            <svg class="media-svg" viewBox="0 0 300 112" style="background:linear-gradient(160deg,#0e1830,#0a1226)">
               <ellipse cx="150" cy="98" rx="110" ry="9" fill="#08120a" opacity="0.5"/>
               <path d="M60 90c20-6 40-6 60 0M140 84c20-6 40-6 60 0M220 78c14-4 28-4 40 0" stroke="#28466f" stroke-width="3" fill="none" stroke-linecap="round"/>
               <path d="M90 66c-6-14 4-26 16-24 4-10 18-10 20 2 10-2 16 8 10 16" fill="#132340" stroke="#93c5fd" stroke-width="2"/>
@@ -1072,14 +1072,14 @@
             <div><h3>Stock Market</h3><p>Predict real market moves. Outperform the rest.</p></div>
           </div>
           <div class="sport-tile-media">
-            <svg class="media-svg" viewBox="0 0 300 112" preserveAspectRatio="none" style="background:linear-gradient(160deg,#0e1830,#070d1a)">
+            <svg class="media-svg" viewBox="0 0 300 112" preserveAspectRatio="none" style="background:linear-gradient(160deg,#0e1830,#0a1226)">
               <g stroke="#1d4ed8" stroke-width="6" opacity="0.7">
                 <line x1="40" y1="95" x2="40" y2="75"/><line x1="65" y1="95" x2="65" y2="60"/>
                 <line x1="90" y1="95" x2="90" y2="50"/><line x1="115" y1="95" x2="115" y2="65"/>
                 <line x1="140" y1="95" x2="140" y2="40"/><line x1="165" y1="95" x2="165" y2="30"/>
               </g>
               <path d="M195 55 C205 40 215 65 225 45 235 25 245 50 260 20" fill="none" stroke="#f2b93d" stroke-width="2.5"/>
-              <path d="M198 32 c8-14 20-10 26 4 5 11 4 26-4 38-9 13-24 15-33 5" fill="#0d1526" stroke="#93c5fd" stroke-width="2"/>
+              <path d="M198 32 c8-14 20-10 26 4 5 11 4 26-4 38-9 13-24 15-33 5" fill="#101a38" stroke="#93c5fd" stroke-width="2"/>
               <path d="M198 32l-8-10M220 30l6-10" stroke="#93c5fd" stroke-width="2" fill="none" stroke-linecap="round"/>
             </svg>
           </div>
@@ -1096,7 +1096,7 @@
             <div><h3>Special Tournaments</h3><p>Unique formats. Big prizes. Limited time.</p></div>
           </div>
           <div class="sport-tile-media">
-            <svg class="media-svg" viewBox="0 0 300 112" style="background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.25), transparent 65%), linear-gradient(160deg,#0e1830,#070d1a)">
+            <svg class="media-svg" viewBox="0 0 300 112" style="background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.25), transparent 65%), linear-gradient(160deg,#0e1830,#0a1226)">
               <path d="M128 30h44v16a22 22 0 0 1-44 0V30z" fill="#1a1030" stroke="#c4b5fd" stroke-width="2"/>
               <path d="M128 33h-16a12 12 0 0 0 16 12" fill="none" stroke="#c4b5fd" stroke-width="2"/>
               <path d="M172 33h16a12 12 0 0 1-16 12" fill="none" stroke="#c4b5fd" stroke-width="2"/>
