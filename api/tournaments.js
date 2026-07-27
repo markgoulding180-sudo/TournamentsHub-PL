@@ -1178,6 +1178,33 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ users: list });
       }
 
+      // Admin — a single user's full transaction history, for the
+      // click-to-expand row in the Payments & Bookkeeping panel.
+      const adminWalletDetail = params.get('admin_wallet_detail');
+      if (adminWalletDetail === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const targetUserId = params.get('user_id');
+        if (!targetUserId) return res.status(400).json({ error: 'user_id is required' });
+
+        const { data: transactions, error: txError } = await supabaseAdmin
+          .from('wallet_transactions')
+          .select('*')
+          .eq('user_id', targetUserId)
+          .order('created_at', { ascending: false });
+
+        if (txError) return res.status(500).json({ error: 'Failed to load transactions', details: txError.message });
+
+        return res.status(200).json({ transactions: transactions || [] });
+      }
+
       // Notification bell: active admin broadcast messages, plus real
       // pending-action items computed from the user's actual state in
       // each tournament they're entered in (clears itself automatically

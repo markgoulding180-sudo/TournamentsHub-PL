@@ -302,10 +302,23 @@ function renderWalletList() {
   body.innerHTML = list.map(u => {
     const owed = u.owed || 0;
     const selectId = `walletAmount_${u.id}`;
+    const detailRowId = `walletDetail_${u.id}`;
+    const isExpanded = walletExpandedUserId === u.id;
     const optionsHtml = PAYMENT_AMOUNTS.map(p => `<option value="${p}">£${(p / 100).toFixed(0)}</option>`).join('');
+    const detailRowHtml = isExpanded ? `
+      <tr id="${detailRowId}" style="border-bottom:1px solid var(--border-color); background:var(--bg-hover);">
+        <td colspan="4" style="padding:0.75rem 0.5rem;">
+          <div id="walletDetailBody_${u.id}" style="font-size:0.85rem;">Loading…</div>
+        </td>
+      </tr>` : '';
     return `
       <tr style="border-bottom:1px solid var(--border-color);">
-        <td style="padding:0.5rem;">${escapeHtmlWallet(u.display_name || u.username || u.email || u.id)}</td>
+        <td style="padding:0.5rem;">
+          <button onclick="toggleWalletDetail('${u.id}')" style="background:none; border:none; cursor:pointer; color:inherit; font:inherit; text-align:left; display:flex; align-items:center; gap:0.4rem;">
+            <i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}" style="font-size:0.7rem; color:var(--text-muted, #8a97b0);"></i>
+            ${escapeHtmlWallet(u.display_name || u.username || u.email || u.id)}
+          </button>
+        </td>
         <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : owed < 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">
           ${owed > 0 ? moneyWallet(owed) : owed < 0 ? `${moneyWallet(owed)} in credit` : '£0.00'}
         </td>
@@ -319,8 +332,82 @@ function renderWalletList() {
             <i class="fas fa-check"></i> Paid
           </button>
         </td>
-      </tr>`;
+      </tr>${detailRowHtml}`;
   }).join('');
+
+  if (walletExpandedUserId) loadWalletDetail(walletExpandedUserId);
+}
+
+let walletExpandedUserId = null;
+const walletDetailCache = {};
+
+function toggleWalletDetail(userId) {
+  walletExpandedUserId = walletExpandedUserId === userId ? null : userId;
+  renderWalletList();
+}
+
+async function loadWalletDetail(userId) {
+  const el = document.getElementById(`walletDetailBody_${userId}`);
+  if (!el) return;
+
+  if (walletDetailCache[userId]) {
+    renderWalletDetail(userId, walletDetailCache[userId]);
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch(`/api/tournaments?admin_wallet_detail=true&user_id=${userId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      el.innerHTML = `<span class="text-muted">Failed to load: ${escapeHtmlWallet(data.error)}</span>`;
+      return;
+    }
+    walletDetailCache[userId] = data.transactions || [];
+    renderWalletDetail(userId, walletDetailCache[userId]);
+  } catch (error) {
+    console.error('loadWalletDetail error:', error);
+    el.innerHTML = '<span class="text-muted">Failed to load transaction history.</span>';
+  }
+}
+
+function renderWalletDetail(userId, transactions) {
+  const el = document.getElementById(`walletDetailBody_${userId}`);
+  if (!el) return;
+
+  if (transactions.length === 0) {
+    el.innerHTML = '<span class="text-muted">No transactions yet.</span>';
+    return;
+  }
+
+  el.innerHTML = `
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left; color:var(--text-muted, #8a97b0); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.03em;">
+          <th style="padding:0.3rem 0.5rem;">Date</th>
+          <th style="padding:0.3rem 0.5rem;">Type</th>
+          <th style="padding:0.3rem 0.5rem;">Description</th>
+          <th style="padding:0.3rem 0.5rem;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${transactions.map(t => {
+          const isDebit = t.amount > 0;
+          const dateStr = new Date(t.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+          return `
+            <tr style="border-top:1px solid var(--border-color);">
+              <td style="padding:0.4rem 0.5rem; white-space:nowrap;">${dateStr}</td>
+              <td style="padding:0.4rem 0.5rem; text-transform:capitalize;">${escapeHtmlWallet(t.type)}</td>
+              <td style="padding:0.4rem 0.5rem;">${escapeHtmlWallet(t.description || '')}</td>
+              <td style="padding:0.4rem 0.5rem; font-weight:700; color:${isDebit ? 'var(--red)' : 'var(--green)'}; white-space:nowrap;">
+                ${isDebit ? '+' : '−'}${moneyWallet(t.amount)}
+              </td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
 }
 
 async function recordWalletPayment(userId, selectId) {
@@ -341,6 +428,7 @@ async function recordWalletPayment(userId, selectId) {
       return;
     }
     log(`Payment of £${(amount / 100).toFixed(2)} recorded`, 'success');
+    delete walletDetailCache[userId];
     loadWalletList();
   } catch (error) {
     log(`Error recording payment: ${error.message}`, 'error');
