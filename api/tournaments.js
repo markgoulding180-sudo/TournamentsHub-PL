@@ -2988,11 +2988,6 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
       return { locked: false, drafting: false, marketLive: true, gameweek: tournament.gameweek, reason: `Market starts processing from Gameweek ${tournament.gameweek}.`, debug };
     }
 
-    // Apply any relegation stage whose trigger gameweek has arrived —
-    // must happen BEFORE pairing so newly-relegated entries never show
-    // up in this gameweek's matchups.
-    await applyDueStages(supabaseAdmin, tournamentId, currentGW);
-
     // Pair everyone up as soon as the gameweek begins — well before
     // results come in, so a user can see who they're facing this week
     // immediately, not just after the numbers already moved.
@@ -3009,6 +3004,17 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
     debug.push(`allFinished=${allFinished}`);
 
     if (allFinished) {
+      // Relegation now fires here, gated by the SAME "this gameweek's
+      // matches have actually finished" check settlement uses — not on
+      // the raw clock number alone. Previously this ran unconditionally
+      // the instant the clock reached a stage's trigger_gameweek, which
+      // meant advancing the clock could relegate people using the
+      // PREVIOUS gameweek's stale values, before anything about the
+      // current gameweek had actually happened. Must still run BEFORE
+      // settlement so newly-relegated entries never show up in this
+      // gameweek's processing.
+      await applyDueStages(supabaseAdmin, tournamentId, currentGW);
+
       debug.push(`last_processed_gameweek BEFORE claim attempt = ${tournament.last_processed_gameweek}`);
       console.log('[SM DEBUG]', debug.join(' | '));
       const processResult = await processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
