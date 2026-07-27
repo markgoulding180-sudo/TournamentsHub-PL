@@ -461,33 +461,41 @@
     .card-row, .card-row-3, .sport-grid{grid-template-columns:1fr;}
     .leaderboard-strip{flex-direction:column; gap:18px; text-align:center;}
     .lb-left{flex-direction:column; text-align:center;}
-    .navbar{padding:13px 16px 10px; flex-wrap:wrap; row-gap:4px;}
+    .navbar{padding:12px 16px; flex-wrap:nowrap;}
     .hero-graphic{display:none;}
     #plLive{display:none;}
     .view-all{display:none;}
     .section-icon{display:none;}
 
-    /* Two-row mobile header: logo+hamburger on row 1, bell+username on row 2 */
+    /* Single compact mobile header row: logo, then login/avatar right next
+       to it (no longer pushed off to a second row), then bell + hamburger
+       pinned to the right. My Tournaments moved into the category carousel
+       below (it's just a link to everything the user's entered, same as
+       any other category). Log Out stays reachable via the hamburger's
+       drawer (sidebar-menu-mobile), so the separate logout icon here is
+       redundant and hidden. */
     .nav-left{ display:contents; }
     .nav-right{ display:contents; }
     .nav-links{ display:none; }
-    .logo{ order:1; }
-    #logoutBtn{ order:2; margin-left:auto; margin-right:10px; }
-    #mobileMenuBtn{ order:3; }
-    .navbar-row-break{ order:4; flex-basis:100%; height:0; }
-    .avatar-btn{ order:5; }
-    .my-tournaments-btn{ order:6; padding:7px 10px; font-size:11.5px; }
-    .navbar .icon-btn[title="Notifications"]{ order:7; margin-left:auto; }
+    .logo{ order:1; gap:8px; }
+    .logo-mark{ width:32px; height:32px; }
+    .logo-text{ font-size:14px; }
+    .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+    .avatar-btn{ order:2; margin-left:10px; padding:2px; }
+    .avatar-btn.logged-in #navAuthLabel{ display:none; }
+    .avatar-btn.logged-in .chev{ display:none; }
+    .avatar-btn .avatar{ width:34px; height:34px; }
+    #logoutBtn{ display:none !important; }
+    .my-tournaments-btn{ display:none !important; }
+    .navbar-row-break{ display:none; }
+    .navbar .icon-btn[title="Notifications"]{ order:3; margin-left:auto; }
+    #mobileMenuBtn{ order:4; }
 
-    /* Sticky navbar (now 2 rows) + category strip together are much
-       taller here than the 90px scroll-margin tuned for desktop, so
-       anchor links were landing sections behind the sticky bars. */
-    .section, .sport-tile{ scroll-margin-top:176px; }
-
-    /* Navbar is now two rows here, so anything anchored to its height
-       needs a taller offset than the 69px used above 640px. */
-    .sidebar{ top:116px; height:calc(100vh - 116px); }
-    .mobile-cat-strip{ top:116px; }
+    /* Navbar is one compact row again here, so anchors/sidebar/carousel
+       need a shorter offset than before. */
+    .section, .sport-tile{ scroll-margin-top:118px; }
+    .sidebar{ top:66px; height:calc(100vh - 66px); }
+    .mobile-cat-strip{ top:66px; }
   }
 </style>
 </head>
@@ -571,6 +579,7 @@
 
 <!-- Mobile-only quick category strip (sidebar is hidden below 860px) -->
 <nav class="mobile-cat-strip" id="mobileCatStrip">
+  <a href="/my-tournaments" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span></a>
   <a href="#pl-predictions" class="mobile-cat-item active"><svg class="icon"><use href="#i-ball"/></svg><span>Football</span></a>
   <a href="#champions-league" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>Champions League</span></a>
   <a href="#darts" class="mobile-cat-item"><svg class="icon"><use href="#i-target"/></svg><span>Darts</span></a>
@@ -1328,6 +1337,7 @@
         label.style.display = 'inline';
         avatar.textContent = name.substring(0, 2).toUpperCase();
         avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.classList.add('logged-in');
         btn.href = '/profile';
         btn.title = 'View profile';
 
