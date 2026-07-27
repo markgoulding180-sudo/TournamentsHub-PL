@@ -670,7 +670,13 @@ function uploadSelectedPlayerPhoto() {
 }
 
 async function loadAuditHistory() {
-  const tournamentId = document.getElementById('auditTournamentId').value.trim();
+  const idField = document.getElementById('auditTournamentId');
+  const selectField = document.getElementById('auditTournamentSelect');
+  // Defensive fallback: if the text field is empty for any reason (stale
+  // deployed script, unexpected timing, etc.), fall back to reading the
+  // dropdown's own current selection directly rather than failing.
+  const tournamentId = idField.value.trim() || (selectField ? selectField.value : '');
+  if (tournamentId && !idField.value.trim()) idField.value = tournamentId;
   const results = document.getElementById('auditResults');
   if (!tournamentId) { results.innerHTML = 'Enter a tournament ID.'; return; }
 
