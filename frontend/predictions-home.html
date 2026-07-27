@@ -497,10 +497,16 @@
         document.getElementById('tournamentName').textContent = t.name;
 
         const fee = ((t.entry_fee || 0) / 100).toFixed(2);
-        let entryHtml = `<a href="/tournaments" class="entry-badge out"><i class="fas fa-right-to-bracket"></i> Enter — £${fee}</a>`;
+        // This USED to be a link to /tournaments, which just linked back to
+        // /predictions — a dead loop that never actually entered anyone.
+        // This is now a real button that calls the join action directly,
+        // same as every other tournament type's home page.
+        let entryHtml = `<button id="enterTournamentBtn" class="entry-badge out" style="border:none; cursor:pointer;"><i class="fas fa-right-to-bracket"></i> Enter — £${fee}</button>`;
 
         const token = localStorage.getItem('gbf_token');
-        if (token) {
+        if (!token) {
+          entryHtml = `<a href="/login?redirect=%2Fpredictions" class="entry-badge out"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
+        } else {
           try {
             const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: authHeaders() });
             const entryData = await entryRes.json();
@@ -517,9 +523,35 @@
           </div>
           ${entryHtml}
         `;
+
+        const enterBtn = document.getElementById('enterTournamentBtn');
+        if (enterBtn) enterBtn.onclick = () => enterPredictionsTournament(t);
       } catch (e) {
         console.error('Failed to load tournament:', e);
         body.innerHTML = '<div class="empty">Couldn\'t load tournament right now.</div>';
+      }
+    }
+
+    // The one real way to enter the Predictions tournament — calls the
+    // shared join action directly, same pattern as Stock Market/LMS/Fantasy.
+    // This is also where the entry fee gets charged to the user's wallet
+    // ledger server-side (a "promise to pay" — no real payment happens here).
+    async function enterPredictionsTournament(tournament) {
+      const btn = document.getElementById('enterTournamentBtn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…'; }
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'join', tournament_id: tournament.id, tournament_type: 'predictions' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to enter');
+        await loadTournament();
+      } catch (e) {
+        console.error(e);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now'; }
+        alert(e.message || "Couldn't enter right now.");
       }
     }
 

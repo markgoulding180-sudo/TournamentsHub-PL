@@ -150,6 +150,37 @@
       </button>
     </div>
 
+    <!-- Payments & Bookkeeping — the wallet ledger. No real payments are
+         taken anywhere in the app; joining a paid tournament just records
+         what a user owes. This is where you mark it paid once you've
+         actually received the money (cash, bank transfer, whatever) — a
+         book-keeping ledger, not a payment processor. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3><i class="fas fa-book"></i> Payments &amp; Bookkeeping</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Every registered user and what they currently owe across all tournaments (entry fees charged automatically when they join, minus payments you've recorded here). Nothing here moves real money — it's a ledger.
+      </p>
+      <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <input type="text" id="walletSearchInput" class="form-input" placeholder="Search by username…" style="flex:1; min-width:200px;" oninput="renderWalletList()">
+        <button class="btn btn-sm" onclick="loadWalletList()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;">User</th>
+              <th style="padding:0.5rem;">Owed</th>
+              <th style="padding:0.5rem;">Record a payment</th>
+              <th style="padding:0.5rem;"></th>
+            </tr>
+          </thead>
+          <tbody id="walletListBody">
+            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Message Center — broadcast an alert to every user's notification bell -->
     <div class="admin-card" style="border: 2px solid var(--accent-purple, #a855f7);">
       <h3><i class="fas fa-bullhorn"></i> Message Center</h3>

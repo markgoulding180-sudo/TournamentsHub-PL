@@ -1122,6 +1122,62 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ entry: entry || null });
       }
 
+      // Wallet: the logged-in user's own transaction history + running
+      // total owed. Read-only ledger view — nothing here charges or pays
+      // anything, it just shows what's already been recorded.
+      const wallet = params.get('wallet');
+      if (wallet === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: transactions, error: txError } = await supabaseAdmin
+          .from('wallet_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (txError) return res.status(500).json({ error: 'Failed to load wallet', details: txError.message });
+
+        const owed = (transactions || []).reduce((sum, t) => sum + t.amount, 0);
+        return res.status(200).json({ owed, transactions: transactions || [] });
+      }
+
+      // Admin — Payments & Bookkeeping: every registered user with their
+      // running total owed, computed fresh from the ledger every time
+      // (never a cached/stored balance that could drift out of sync).
+      const adminWalletList = params.get('admin_wallet_list');
+      if (adminWalletList === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: allUsers, error: usersError } = await supabaseAdmin
+          .from('users')
+          .select('id, username, display_name, email')
+          .order('username', { ascending: true });
+        if (usersError) return res.status(500).json({ error: 'Failed to load users', details: usersError.message });
+
+        const { data: allTx, error: txError } = await supabaseAdmin
+          .from('wallet_transactions')
+          .select('user_id, amount');
+        if (txError) return res.status(500).json({ error: 'Failed to load transactions', details: txError.message });
+
+        const owedByUser = {};
+        (allTx || []).forEach(t => { owedByUser[t.user_id] = (owedByUser[t.user_id] || 0) + t.amount; });
+
+        const list = (allUsers || []).map(u => ({ ...u, owed: owedByUser[u.id] || 0 }));
+
+        return res.status(200).json({ users: list });
+      }
+
       // Notification bell: active admin broadcast messages, plus real
       // pending-action items computed from the user's actual state in
       // each tournament they're entered in (clears itself automatically
@@ -1543,6 +1599,36 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       }
 
       // ADMIN: broadcast a message to every user (shows in the notification bell)
+      // Admin — Payments & Bookkeeping: record a real-world payment
+      // received from a user (cash, bank transfer, whatever — happens
+      // entirely outside this app). Just writes a negative ledger entry
+      // that reduces what they owe; never touches real money itself.
+      if (action === 'admin_record_payment') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { user_id: targetUserId, amount: paymentAmount } = req.body;
+        if (!targetUserId || !paymentAmount || paymentAmount <= 0) {
+          return res.status(400).json({ error: 'user_id and a positive amount (in pence) are required' });
+        }
+
+        const { data: txRow, error: txError } = await supabaseAdmin
+          .from('wallet_transactions')
+          .insert({
+            user_id: targetUserId,
+            type: 'payment',
+            amount: -Math.abs(paymentAmount),
+            description: `Payment received — £${(paymentAmount / 100).toFixed(2)}`,
+            created_by: user.id
+          })
+          .select()
+          .single();
+
+        if (txError) return res.status(500).json({ error: 'Failed to record payment', details: txError.message });
+
+        return res.status(200).json({ success: true, transaction: txRow });
+      }
+
       if (action === 'admin_broadcast') {
         const { data: caller, error: callerError } = await supabaseAdmin
           .from('users').select('is_admin').eq('id', user.id).maybeSingle();
@@ -2141,6 +2227,28 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema(schemaName).from('tournaments')
               .update({ current_entries: tournament.current_entries + 1 })
               .eq('id', tournament_id);
+
+            // Charge the entry fee to the user's wallet ledger — a "promise
+            // to pay" record, not a real payment. No money moves here; this
+            // just tracks what they now owe. Admin settles it later via the
+            // Payments & Bookkeeping panel in /admin. Only fires on a truly
+            // NEW entry (this branch), never when an existing entry is
+            // updated (e.g. editing a Fantasy squad, drafting Stock Market)
+            // — otherwise a user would be charged again every time they
+            // saved changes to something they'd already entered.
+            if (tournament.entry_fee && tournament.entry_fee > 0) {
+              const { error: walletError } = await supabaseAdmin
+                .from('wallet_transactions')
+                .insert({
+                  user_id: user.id,
+                  type: 'entry_fee',
+                  amount: tournament.entry_fee,
+                  tournament_type: schemaName,
+                  tournament_id: tournament_id,
+                  description: `Entry fee — ${tournament.name}`
+                });
+              if (walletError) console.error('Failed to record wallet entry_fee charge:', walletError);
+            }
           }
 
           console.log('Join/update result:', entry, 'Error:', entryError);

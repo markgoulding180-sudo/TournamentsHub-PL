@@ -145,6 +145,7 @@ function verifyPin() {
 async function refreshStatus() {
   try {
     loadBroadcastMessages();
+    loadWalletList();
     const response = await fetch('/api/admin-stats');
     const data = await response.json();
     
@@ -240,6 +241,107 @@ async function advanceGameweek() {
     refreshStatus();
   } catch (error) {
     log(`Error advancing gameweek: ${error.message}`, 'error');
+  }
+}
+
+// ================= PAYMENTS & BOOKKEEPING (WALLET) =================
+const PAYMENT_AMOUNTS = [1000, 2000, 3000, 4000, 5000, 6000]; // pence: £10..£60
+let walletListCache = [];
+
+function escapeHtmlWallet(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function moneyWallet(pence) {
+  const pounds = (pence || 0) / 100;
+  return `£${pounds.toFixed(2)}`;
+}
+
+async function loadWalletList() {
+  const body = document.getElementById('walletListBody');
+  if (!body) return; // panel not on this page
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?admin_wallet_list=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      body.innerHTML = `<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Failed to load: ${escapeHtmlWallet(data.error)}</td></tr>`;
+      return;
+    }
+    walletListCache = data.users || [];
+    renderWalletList();
+  } catch (error) {
+    console.error('loadWalletList error:', error);
+    body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Failed to load wallet list.</td></tr>';
+  }
+}
+
+function renderWalletList() {
+  const body = document.getElementById('walletListBody');
+  if (!body) return;
+  const searchInput = document.getElementById('walletSearchInput');
+  const search = (searchInput ? searchInput.value : '').trim().toLowerCase();
+
+  let list = walletListCache;
+  if (search) {
+    list = list.filter(u =>
+      (u.username || '').toLowerCase().includes(search) ||
+      (u.display_name || '').toLowerCase().includes(search)
+    );
+  }
+  // Owing users first, highest owed at the top — the people you're
+  // actually waiting to hear from, not buried alphabetically.
+  list = [...list].sort((a, b) => (b.owed || 0) - (a.owed || 0));
+
+  if (list.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">No users found.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = list.map(u => {
+    const owed = u.owed || 0;
+    const selectId = `walletAmount_${u.id}`;
+    const optionsHtml = PAYMENT_AMOUNTS.map(p => `<option value="${p}">£${(p / 100).toFixed(0)}</option>`).join('');
+    return `
+      <tr style="border-bottom:1px solid var(--border-color);">
+        <td style="padding:0.5rem;">${escapeHtmlWallet(u.display_name || u.username || u.email || u.id)}</td>
+        <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : 'var(--green)'};">${moneyWallet(owed)}</td>
+        <td style="padding:0.5rem;">
+          <select id="${selectId}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+            ${optionsHtml}
+          </select>
+        </td>
+        <td style="padding:0.5rem;">
+          <button class="btn btn-sm btn-green" onclick="recordWalletPayment('${u.id}', '${selectId}')">
+            <i class="fas fa-check"></i> Paid
+          </button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function recordWalletPayment(userId, selectId) {
+  const select = document.getElementById(selectId);
+  const amount = parseInt(select.value, 10);
+  if (!confirm(`Record a payment of £${(amount / 100).toFixed(2)} for this user? This reduces what they owe — only do this after you've actually received the money.`)) return;
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_record_payment', user_id: userId, amount })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      log(`Failed to record payment: ${data.error}`, 'error');
+      return;
+    }
+    log(`Payment of £${(amount / 100).toFixed(2)} recorded`, 'success');
+    loadWalletList();
+  } catch (error) {
+    log(`Error recording payment: ${error.message}`, 'error');
   }
 }
 
