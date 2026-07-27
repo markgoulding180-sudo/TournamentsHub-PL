@@ -209,6 +209,27 @@
     .entry-badge.in{ background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); }
     .entry-badge.out{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; cursor:pointer; border:none; }
 
+    /* Hero entry CTA + kickoff timer */
+    .hero-cta-row{ display:flex; align-items:center; gap:18px; margin-top:22px; flex-wrap:wrap; }
+    .hero-enter-btn{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:.4px; padding:13px 28px; border-radius:10px; border:none; cursor:pointer; transition:filter .2s, transform .2s; }
+    .hero-enter-btn:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+    .hero-enter-btn:disabled{ opacity:.6; cursor:not-allowed; transform:none; }
+    .hero-enter-btn.entered{ background:rgba(34,197,94,0.14); border:1.5px solid var(--green); color:var(--green); cursor:default; }
+    .hero-timer{ display:inline-flex; flex-direction:column; gap:2px; }
+    .hero-timer .label{ font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); }
+    .hero-timer .value{ font-family:var(--font-head); font-size:18px; font-weight:700; color:var(--accent-2); }
+    .hero-meta-row{ display:flex; gap:22px; margin-top:14px; flex-wrap:wrap; }
+    .hero-meta-item{ font-size:13px; color:var(--text-dim); }
+    .hero-meta-item b{ color:var(--text); font-family:var(--font-head); }
+
+    /* User nav bar — quick links to the elements a user actually uses to predict */
+    .predict-nav-bar{ display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+    .predict-nav-btn{ display:inline-flex; align-items:center; gap:9px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; padding:12px 22px; border-radius:10px; transition:border-color .2s, background .2s; flex:1; justify-content:center; min-width:160px; }
+    .predict-nav-btn:hover{ border-color:var(--accent); background:var(--bg-card); }
+    .predict-nav-btn.primary{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); border:none; color:#fff; }
+    .predict-nav-btn.primary:hover{ filter:brightness(1.1); }
+    @media (max-width:640px){ .predict-nav-bar{ flex-direction:column; } }
+
     .lb-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
     .lb-row:last-child{ border-bottom:none; }
     .lb-row .rank{ width:20px; font-family:var(--font-head); font-weight:700; color:var(--text-faint); }
@@ -314,18 +335,26 @@
         </svg>
       </div>
       <div class="hero-content">
-        <div class="hero-eyebrow"><span class="dot"></span>Gameweek Live Now</div>
+        <div class="hero-eyebrow"><span class="dot"></span><span id="heroTournamentName">Gameweek Live Now</span></div>
         <h1>Predictions</h1>
         <div class="hero-sub">Predict. Score. Win.</div>
         <p class="hero-desc">Predict every result and score. Climb the leaderboard. Win cash prizes.</p>
-        <a href="/predictions-stats" style="display:inline-flex; align-items:center; gap:9px; margin-top:22px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 24px; border-radius:10px;">
-          <i class="fas fa-chart-line"></i> My Predictions Stats
-        </a>
-        <a href="/predict" style="display:inline-flex; align-items:center; gap:9px; margin-top:12px; background:var(--bg-card); border:1.5px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:11px 24px; border-radius:10px;">
-          <i class="fas fa-futbol"></i> Predict Now
-        </a>
+
+        <div class="hero-cta-row" id="heroCtaRow">
+          <div class="loading" style="color:var(--text-dim); font-size:13px;">Loading tournament…</div>
+        </div>
+        <div class="hero-meta-row" id="heroMetaRow"></div>
       </div>
     </section>
+
+    <!-- Predict nav bar — quick access to the pages a user actually uses -->
+    <nav class="predict-nav-bar">
+      <a href="/predict" class="predict-nav-btn primary"><i class="fas fa-futbol"></i> Predict Now</a>
+      <a href="/predictions-stats" class="predict-nav-btn"><i class="fas fa-chart-line"></i> My Predictions Stats</a>
+      <a href="/leaderboard" class="predict-nav-btn"><i class="fas fa-ranking-star"></i> Leaderboard</a>
+      <a href="/table" class="predict-nav-btn"><i class="fas fa-table"></i> PL Table</a>
+      <a href="/injuries" class="predict-nav-btn"><i class="fas fa-notes-medical"></i> Injuries</a>
+    </nav>
 
     <!-- This Week's Games -->
     <section class="card week-card">
@@ -348,19 +377,13 @@
       <div id="yourPredictionsBody"><div class="loading">Loading…</div></div>
     </section>
 
+    <!-- Leaderboard — full width on desktop -->
+    <section class="card" style="margin-bottom:18px;">
+      <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Top 10 Leaderboard <a href="/leaderboard" class="view-all">View All →</a></div>
+      <div id="leaderboardBody"><div class="loading">Loading…</div></div>
+    </section>
+
     <div class="cards-grid">
-      <!-- Tournament card -->
-      <section class="card">
-        <div class="card-title"><i class="fas fa-trophy" style="color:var(--gold);"></i> <span id="tournamentName">Tournament</span></div>
-        <div id="tournamentBody"><div class="loading">Loading…</div></div>
-      </section>
-
-      <!-- Leaderboard snapshot -->
-      <section class="card">
-        <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Top 10 Leaderboard <a href="/leaderboard" class="view-all">View All →</a></div>
-        <div id="leaderboardBody"><div class="loading">Loading…</div></div>
-      </section>
-
       <!-- Injuries/News -->
       <section class="card">
         <div class="card-title"><i class="fas fa-notes-medical" style="color:var(--red);"></i> Injuries & News <a href="/injuries" class="view-all">View All →</a></div>
@@ -485,51 +508,112 @@
 
     // ---------- Tournament card ----------
     async function loadTournament() {
-      const body = document.getElementById('tournamentBody');
+      const ctaRow = document.getElementById('heroCtaRow');
+      const metaRow = document.getElementById('heroMetaRow');
       try {
         const res = await fetch('/api/tournaments?status=live');
         const data = await res.json();
         const t = (data.tournaments || [])[0];
         if (!t) {
-          body.innerHTML = '<div class="empty">No tournament set up yet.</div>';
+          ctaRow.innerHTML = '<div style="color:var(--text-dim); font-size:13px;">No tournament set up yet — check back soon.</div>';
+          metaRow.innerHTML = '';
           return;
         }
         tournamentId = t.id;
-        document.getElementById('tournamentName').textContent = t.name;
+        document.getElementById('heroTournamentName').textContent = t.name || 'Predictions';
 
         const fee = ((t.entry_fee || 0) / 100).toFixed(2);
         // This USED to be a link to /tournaments, which just linked back to
         // /predictions — a dead loop that never actually entered anyone.
         // This is now a real button that calls the join action directly,
-        // same as every other tournament type's home page.
-        let entryHtml = `<button id="enterTournamentBtn" class="entry-badge out" style="border:none; cursor:pointer;"><i class="fas fa-right-to-bracket"></i> Enter — £${fee}</button>`;
+        // same as every other tournament type's home page. Lives in the
+        // hero now instead of a separate Tournament card further down.
+        let entryHtml = `<button id="enterTournamentBtn" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Enter Tournament — £${fee}</button>`;
 
         const token = localStorage.getItem('gbf_token');
         if (!token) {
-          entryHtml = `<a href="/login?redirect=%2Fpredictions" class="entry-badge out"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
+          entryHtml = `<a href="/login?redirect=%2Fpredictions" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
         } else {
           try {
             const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: authHeaders() });
             const entryData = await entryRes.json();
             if (entryData.entry) {
-              entryHtml = `<span class="entry-badge in"><i class="fas fa-circle-check"></i> You're Entered</span>`;
+              entryHtml = `<button class="hero-enter-btn entered" disabled><i class="fas fa-circle-check"></i> You're Entered</button>`;
             }
           } catch (e) {}
         }
 
-        body.innerHTML = `
-          <div class="t-stat-row">
-            <div class="t-stat"><div class="label">Entries</div><div class="value">${t.current_entries ?? 0}</div></div>
-            <div class="t-stat"><div class="label">Prize Pool</div><div class="value">£${(t.prize_pool || 0).toLocaleString()}</div></div>
-          </div>
+        ctaRow.innerHTML = `
           ${entryHtml}
+          <div class="hero-timer" id="heroTimer" style="display:none;">
+            <div class="label">First Kickoff In</div>
+            <div class="value" id="heroTimerValue">--</div>
+          </div>
+        `;
+
+        metaRow.innerHTML = `
+          <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
+          <div class="hero-meta-item">Prize Pool <b>£${(t.prize_pool || 0).toLocaleString()}</b></div>
         `;
 
         const enterBtn = document.getElementById('enterTournamentBtn');
-        if (enterBtn) enterBtn.onclick = () => enterPredictionsTournament(t);
+        if (enterBtn && !enterBtn.disabled) enterBtn.onclick = () => enterPredictionsTournament(t);
+
+        // Countdown to the tournament's own start gameweek — not
+        // necessarily the same as "this week", since a tournament can be
+        // set up in admin to start on any gameweek.
+        if (t.gameweek) loadHeroKickoffTimer(t.gameweek);
       } catch (e) {
         console.error('Failed to load tournament:', e);
-        body.innerHTML = '<div class="empty">Couldn\'t load tournament right now.</div>';
+        ctaRow.innerHTML = '<div style="color:var(--text-dim); font-size:13px;">Couldn\'t load tournament right now.</div>';
+      }
+    }
+
+    let heroTickInterval = null;
+    async function loadHeroKickoffTimer(gameweek) {
+      try {
+        const res = await fetch(`/api/predictions?gameweek=${gameweek}`);
+        const data = await res.json();
+        const matches = data.matches || [];
+
+        const wrap = document.getElementById('heroTimer');
+        const valueEl = document.getElementById('heroTimerValue');
+        if (!wrap || !valueEl) return;
+
+        if (heroTickInterval) { clearInterval(heroTickInterval); heroTickInterval = null; }
+
+        const kickoffs = matches
+          .map(m => m.kickoff_time ? new Date(m.kickoff_time).getTime() : null)
+          .filter(ms => ms !== null);
+
+        if (kickoffs.length === 0) { wrap.style.display = 'none'; return; }
+
+        const earliestMs = Math.min(...kickoffs);
+        if (earliestMs <= Date.now()) { wrap.style.display = 'none'; return; }
+
+        wrap.style.display = 'inline-flex';
+
+        function tick() {
+          const remainingMs = earliestMs - Date.now();
+          if (remainingMs <= 0) {
+            valueEl.textContent = 'Kicking off…';
+            clearInterval(heroTickInterval);
+            heroTickInterval = null;
+            return;
+          }
+          const totalSeconds = Math.floor(remainingMs / 1000);
+          const days = Math.floor(totalSeconds / 86400);
+          const hours = Math.floor((totalSeconds % 86400) / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+          if (days > 0) valueEl.textContent = `${days}d ${hours}h ${minutes}m`;
+          else if (hours > 0) valueEl.textContent = `${hours}h ${minutes}m ${seconds}s`;
+          else valueEl.textContent = `${minutes}m ${seconds}s`;
+        }
+        tick();
+        heroTickInterval = setInterval(tick, 1000);
+      } catch (e) {
+        console.error('Failed to load kickoff timer:', e);
       }
     }
 
@@ -551,7 +635,7 @@
         await loadTournament();
       } catch (e) {
         console.error(e);
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Tournament'; }
         alert(e.message || "Couldn't enter right now.");
       }
     }
