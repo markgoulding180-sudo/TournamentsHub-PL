@@ -175,23 +175,28 @@
        anchor (like the "Your Predictions" nav bar link) lands the target's
        heading directly behind the navbar instead of visibly below it. */
     #yourPredictionsCard{ scroll-margin-top: 90px; }
-    @media (max-width:640px){ #yourPredictionsCard{ scroll-margin-top: 110px; } }
+    @media (max-width:640px){ #yourPredictionsCard{ scroll-margin-top: 90px; } }
 
     @media (max-width:640px){
-      .navbar{ padding:12px 16px 9px; flex-wrap:wrap; row-gap:4px; }
+      .navbar{ padding:12px 16px; flex-wrap:nowrap; }
+      .logo{ gap:8px; }
+      .logo-mark{ width:32px; height:32px; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
       main{ padding:20px 14px 60px; }
 
-      /* Two-row mobile header: logo+hamburger on row 1, bell+username on row 2 */
+      /* Single compact mobile header row, matching the Hub: logo, then
+         login/avatar right next to it, then bell + hamburger on the right. */
       .nav-left{ display:contents; }
       .nav-right{ display:contents; }
       .nav-links{ display:none; }
       .logo{ order:1; }
-      #mobileMenuBtn{ order:2; margin-left:auto; }
-      .navbar-row-break{ display:block; order:3; flex-basis:100%; height:0; }
-      .avatar-btn{ order:4; }
-      .navbar .icon-btn[title="Notifications"]{ order:5; margin-left:auto; }
+      .avatar-btn{ order:2; margin-left:10px; padding:2px; }
+      .avatar-btn.logged-in #navAuthLabel{ display:none; }
+      .avatar-btn .avatar{ width:34px; height:34px; }
+      .navbar .icon-btn[title="Notifications"]{ order:3; margin-left:auto; }
+      #mobileMenuBtn{ order:4; margin-left:0; }
+      .navbar-row-break{ display:none; }
 
       .hero{ padding:28px 22px; min-height:auto; }
       .hero h1{ font-size:42px; }
@@ -728,6 +733,7 @@
         label.style.display = 'inline';
         avatar.textContent = name.substring(0, 2).toUpperCase();
         avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+        btn.classList.add('logged-in');
         btn.href = '/profile';
         btn.title = 'View profile';
       } catch (e) {}
