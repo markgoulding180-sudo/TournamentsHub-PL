@@ -5,16 +5,21 @@
 // pages open:
 //
 // 1. Data refresh, every 2 minutes:
-//   - /api/live-scores   -> match scores/status, recalculates prediction points
-//   - /api/sync-players  -> player points (season total + this gameweek)
+//   - /api/live-scores    -> match scores/status, recalculates prediction points
+//   - /api/sync-players   -> player points (season total + this gameweek)
+//   - /api/sync-fixtures  -> fixture schedule itself (postponements, kickoff
+//     time changes) — FPL is the sole source of truth here, so whatever it
+//     corrects on its end now self-corrects on ours automatically too
 //   - /api/tournaments (action: sync_current_gameweek_stats) -> Stock
 //     Market's per-gameweek player stats (goals/assists/cards THIS
 //     gameweek specifically). Server-side debounces this to once per ~90
 //     seconds regardless of how many users are polling at once, so many
 //     concurrent visitors don't each independently hammer FPL's API for
 //     the same data.
-//   All three write to the shared master data, so ANY user with ANY of
+//   All four write to the shared master data, so ANY user with ANY of
 //   these pages open keeps things fresh for EVERYONE, not just themselves.
+//   None of this can ever touch predictions.predictions — an entirely
+//   separate database schema, structurally unreachable by anything here.
 //
 // 2. Session refresh, every 10 minutes:
 //   Supabase login tokens expire (usually after ~1 hour). Previously only
@@ -81,6 +86,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       await fetch('/api/sync-players');
     } catch (e) {
       console.error('[live-poll] player sync failed:', e);
+    }
+
+    try {
+      await fetch('/api/sync-fixtures?poll=true');
+    } catch (e) {
+      console.error('[live-poll] fixtures sync failed:', e);
     }
 
     try {

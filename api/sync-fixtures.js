@@ -36,6 +36,23 @@ module.exports = async (req, res) => {
       process.env.MASTER_SUPABASE_SERVICE_KEY
     );
 
+    // Debounce: only active when called from the poll (?poll=true), same
+    // protection as live-scores/sync-players — many concurrent users
+    // polling every 2 minutes shouldn't mean many concurrent FPL fetches.
+    // Manual admin syncs always force a real fetch, since those are
+    // deliberate one-off actions.
+    if (params.get('poll') === 'true') {
+      const { data: lastSync } = await masterDb
+        .from('sync_debounce').select('last_synced_at').eq('sync_name', 'sync_fixtures').maybeSingle();
+      if (lastSync && lastSync.last_synced_at) {
+        const ageMs = Date.now() - new Date(lastSync.last_synced_at).getTime();
+        if (ageMs < 90000) {
+          return res.status(200).json({ skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) });
+        }
+      }
+      await masterDb.from('sync_debounce').upsert({ sync_name: 'sync_fixtures', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
+    }
+
     // Fetch team data from FPL
     const teamsResponse = await fetch(FPL_BOOTSTRAP_URL);
     const bootstrapData = await teamsResponse.json();
