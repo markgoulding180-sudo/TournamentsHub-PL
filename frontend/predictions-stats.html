@@ -76,9 +76,16 @@
       border: 3px solid rgba(255,255,255,0.4);
       flex-shrink: 0;
     }
-    .profile-info h1 {
-      margin: 0 0 0.25rem 0;
-      font-size: 1.75rem;
+    .profile-info .page-title {
+      margin: 0 0 0.4rem 0;
+      font-size: 1.3rem;
+      color: var(--accent-2, #60a5fa);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    }
+    .profile-info .hero-username {
+      margin: 0 0 0.2rem 0;
+      font-size: 1.5rem;
+      font-weight: 700;
       color: #fff;
       text-shadow: 0 1px 4px rgba(0,0,0,0.6);
     }
@@ -493,8 +500,7 @@
     @media (max-width: 768px) {
       /* Profile header mobile layout */
       .profile-header {
-        min-height: 140px;
-        max-height: 160px;
+        min-height:auto;
       }
       .profile-header-content {
         flex-direction: row;
@@ -516,8 +522,13 @@
         justify-content: center;
         height: 60px;
       }
-      .profile-info h1 {
-        font-size: 1rem;
+      .profile-info .page-title {
+        font-size: 0.7rem;
+        margin: 0 0 0.15rem 0;
+        line-height: 1.2;
+      }
+      .profile-info .hero-username {
+        font-size: 0.95rem;
         margin: 0;
         line-height: 1.2;
       }
@@ -780,17 +791,20 @@
       <div class="profile-header-content">
         <div class="profile-avatar" id="profile-avatar">--</div>
         <div class="profile-info">
-          <h1 id="profile-name">Loading...</h1>
+          <h1 class="page-title">Detailed Predictions Stats</h1>
+          <div class="hero-username" id="profile-name">Loading...</div>
           <div class="username" id="profile-username">@username</div>
           <div class="member-since"><i class="fas fa-calendar" style="margin-right:4px;"></i>Member since <span id="join-date">--</span></div>
         </div>
       </div>
-    </div>
-
-    <!-- Tournament bar - MOVED UNDER HERO -->
-    <div class="profile-tournament-bar" id="profile-tournament-bar" style="position: relative; margin-bottom: 1rem; border-radius: 0.5rem;">
-      <div class="t-left">
-        <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">Loading tournament...</span>
+      <!-- Tournament bar — now nested inside the hero so it sits as the
+           bottom overlay bar (CSS already had a rule for this, just never
+           had the matching markup): tournament name, entered/not entered,
+           gameweek, and total points, all in the hero. -->
+      <div class="profile-tournament-bar" id="profile-tournament-bar">
+        <div class="t-left">
+          <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">Loading tournament...</span>
+        </div>
       </div>
     </div>
 
@@ -816,9 +830,25 @@
       <pre id="debug-output" style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #e2e8f0;"></pre>
     </div>
 
-    <!-- Tournament Sections (stats grid) - COMPACT -->
-    <div id="tournament-sections">
-      <p class="text-muted">Loading your tournaments...</p>
+    <!-- This Week Stats — moved above the tabs, shown first -->
+    <div class="dashboard-card mb-3">
+      <h3><i class="fas fa-chart-pie text-blue"></i> This Week Stats</h3>
+      <div id="this-week-insights" class="insights-grid">
+        <div class="empty-state" style="padding: 1rem;">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Loading stats...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tournament Stats — now with a proper section header; the per-tournament
+         name/status/entered/GW banner that used to repeat here has moved into
+         the hero above, so this is just the stat cards themselves. -->
+    <div class="dashboard-card mb-3">
+      <h3><i class="fas fa-trophy text-amber"></i> Tournament Stats</h3>
+      <div id="tournament-sections">
+        <p class="text-muted">Loading your tournaments...</p>
+      </div>
     </div>
 
     <!-- Tab Navigation -->
@@ -853,17 +883,6 @@
           <div class="empty-state">
             <i class="fas fa-spinner fa-spin"></i>
             <p>Loading predictions...</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- This Week Quick Stats -->
-      <div class="dashboard-card">
-        <h3><i class="fas fa-chart-pie text-blue"></i> This Week Stats</h3>
-        <div id="this-week-insights" class="insights-grid">
-          <div class="empty-state" style="padding: 1rem;">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading stats...</p>
           </div>
         </div>
       </div>

@@ -192,22 +192,6 @@ async function loadUserTournaments() {
       
       tournamentsHTML += `
         <div class="tournament-section mb-2">
-          <div class="card mb-2" style="background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-blue) 100%); color: white; padding: 0.5rem 0.75rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${tournament.name}</div>
-                <div style="margin-top: 0.15rem; font-size: 0.7rem; opacity: 0.9;">
-                  <span style="background: rgba(255,255,255,0.2); padding: 0.15rem 0.5rem; border-radius: 3px;">${tournament.status.toUpperCase()}</span>
-                  ${isEntered ? '<span style="margin-left: 0.4rem;"><i class="fas fa-check-circle"></i> ENTERED</span>' : ''}
-                </div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-size: 0.9rem; font-weight: 700;">GW${tournament.gameweek}</div>
-                <div style="font-size: 0.65rem; opacity: 0.8;">Gameweek</div>
-              </div>
-            </div>
-          </div>
-          
           <div class="profile-stats mb-3">
             <div class="profile-stat">
               <div class="profile-stat-value">${tournamentPoints}</div>
