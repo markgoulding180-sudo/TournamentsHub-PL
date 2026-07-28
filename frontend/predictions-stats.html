@@ -28,8 +28,8 @@
       border-radius: 20px;
       border: 1px solid var(--border);
       overflow: hidden;
-      margin-bottom: 2rem;
-      min-height: 260px;
+      margin-bottom: 34px;
+      min-height: 360px;
       background:
         radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
         linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
@@ -56,11 +56,11 @@
     .profile-header-content {
       position: relative;
       z-index: 2;
-      padding: 2rem 2rem;
+      padding: 58px 50px;
       display: flex;
       align-items: center;
       gap: 1.5rem;
-      min-height: 260px;
+      min-height: 360px;
     }
     .profile-avatar {
       width: 90px;
@@ -370,7 +370,7 @@
       margin-top: 0.25rem;
     }
     
-    /* Overview tab — this gameweek's picks as shirt + club name */
+    /* Picks grid — shirt + club name (used elsewhere if reintroduced) */
     .picks-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -537,9 +537,8 @@
         flex-direction: row;
         align-items: center;
         text-align: left;
-        padding: 0.75rem 1rem;
+        padding: 36px 24px;
         gap: 0.75rem;
-        min-height: 100px;
       }
       .profile-avatar {
         width: 60px;
@@ -551,7 +550,6 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        height: 60px;
       }
       .profile-info .page-title {
         font-size: 0.7rem;
@@ -881,10 +879,7 @@
     <!-- Tab Navigation -->
     <div class="profile-tabs-wrap">
       <div class="profile-tabs">
-        <button class="profile-tab active" onclick="switchProfileTab('overview')" data-tab="overview">
-          <i class="fas fa-chart-pie"></i> Overview
-        </button>
-        <button class="profile-tab" onclick="switchProfileTab('predictions-week')" data-tab="predictions-week">
+        <button class="profile-tab active" onclick="switchProfileTab('predictions-week')" data-tab="predictions-week">
           <i class="fas fa-futbol"></i> Predictions This Week
         </button>
         <button class="profile-tab" onclick="switchProfileTab('week-stats')" data-tab="week-stats">
@@ -906,48 +901,9 @@
       <div class="profile-tabs-scroll-hint"><i class="fas fa-chevron-right"></i></div>
     </div>
 
-    <!-- Tab 1: Overview — the basics at a glance: tournament name, total
-         points, this week's points, correct-team and correct-score counts,
-         and a grid of this gameweek's picks shown as shirt + club name. -->
-    <div id="tab-overview" class="profile-tab-content active">
-      <div class="dashboard-card mb-3">
-        <div class="insights-grid">
-          <div class="insight-card">
-            <div class="insight-label">Tournament</div>
-            <div class="insight-value" id="ov-tournament-name" style="font-size:1.1rem;">--</div>
-          </div>
-          <div class="insight-card">
-            <div class="insight-label">Total Points</div>
-            <div class="insight-value" id="ov-total-points">--</div>
-          </div>
-          <div class="insight-card">
-            <div class="insight-label">This Week's Points</div>
-            <div class="insight-value" id="ov-week-points">--</div>
-          </div>
-          <div class="insight-card">
-            <div class="insight-label">Correct Teams</div>
-            <div class="insight-value" id="ov-correct-teams">--</div>
-          </div>
-          <div class="insight-card">
-            <div class="insight-label">Correct Scores</div>
-            <div class="insight-value" id="ov-correct-scores">--</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dashboard-card">
-        <h3><i class="fas fa-shirt text-green"></i> This Gameweek's Picks</h3>
-        <div id="overview-picks-grid" class="picks-grid">
-          <div class="empty-state" style="padding: 1rem;">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading picks...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 2: Predictions This Week — the old Overview content, moved here -->
-    <div id="tab-predictions-week" class="profile-tab-content">
+    <!-- Predictions This Week — this data is the same as the main
+         Predictions page, and is now the default first tab. -->
+    <div id="tab-predictions-week" class="profile-tab-content active">
       <div class="dashboard-card mb-3">
         <h3><i class="fas fa-futbol text-green"></i> This Week's Predictions</h3>
         <!-- Live matches banner — shown only when matches are live -->

@@ -169,12 +169,6 @@ async function loadUserTournaments() {
             <span style="color:#22c55e;">${tournamentPoints}</span> <span style="font-size:0.7rem;color:rgba(255,255,255,0.6);">PTS</span>
           </div>
         `;
-
-        // Same data, feeding the Overview tab's summary cards
-        const ovName = document.getElementById('ov-tournament-name');
-        const ovTotal = document.getElementById('ov-total-points');
-        if (ovName) ovName.textContent = tournament.name;
-        if (ovTotal) ovTotal.textContent = tournamentPoints;
       }
       
       // Calculate result/score percentages if we have prediction data
@@ -438,11 +432,8 @@ async function loadUserPredictions() {
           </a>
         </div>
       `;
-      populateOverviewTab([], allMatches);
       return data;
     }
-    
-    populateOverviewTab(data.predictions, data.matches);
     
     let predictionsHTML = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
     data.predictions.forEach((pred, index) => {
@@ -514,63 +505,6 @@ async function loadUserPredictions() {
     container.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
     return null;
   }
-}
-
-// Overview tab — this week's points, correct-team/correct-score counts,
-// and a grid of picks shown as shirt + club name. A score only counts as
-// "correct" (points_earned === 20) when the result was also correct — that's
-// already how the scoring system works (20 points = 10 for the result plus
-// 10 more for the exact score), so a right score with the wrong result isn't
-// possible to represent here; it simply wouldn't have scored those points.
-function populateOverviewTab(predictions, matches) {
-  const weekPointsEl = document.getElementById('ov-week-points');
-  const correctTeamsEl = document.getElementById('ov-correct-teams');
-  const correctScoresEl = document.getElementById('ov-correct-scores');
-  const grid = document.getElementById('overview-picks-grid');
-
-  const total = predictions.length;
-  const weekPoints = predictions.reduce((sum, p) => sum + (p.points_earned || 0), 0);
-  const correctTeams = predictions.filter(p => (p.points_earned || 0) >= 10).length;
-  const correctScores = predictions.filter(p => (p.points_earned || 0) === 20).length;
-
-  if (weekPointsEl) weekPointsEl.textContent = weekPoints;
-  if (correctTeamsEl) correctTeamsEl.textContent = total > 0 ? `${correctTeams}/${total}` : '--';
-  if (correctScoresEl) correctScoresEl.textContent = total > 0 ? `${correctScores}/${total}` : '--';
-
-  if (!grid) return;
-
-  if (total === 0) {
-    grid.innerHTML = '<div class="empty-state" style="padding:1rem;"><p class="text-muted">No picks made for this gameweek yet.</p></div>';
-    return;
-  }
-
-  grid.innerHTML = predictions.map(pred => {
-    const match = matches.find(m => m.id === pred.match_id);
-    if (!match) return '';
-
-    const points = pred.points_earned || 0;
-    const cardClass = points === 20 ? 'correct-score' : points >= 10 ? 'correct-team' : '';
-
-    if (pred.predicted_result === 'X') {
-      // Draw pick — no single team shirt applies, show both club names instead
-      return `
-        <div class="pick-card draw-pick ${cardClass}">
-          <div style="font-size:1.5rem; margin-bottom:0.5rem;"><i class="fas fa-handshake" style="color:var(--accent-blue);"></i></div>
-          <div class="pick-club">Draw</div>
-          <div class="pick-fixture">${match.home_team} vs ${match.away_team}</div>
-        </div>`;
-    }
-
-    const pickedTeam = pred.predicted_result === '1' ? match.home_team : match.away_team;
-    const opponent = pred.predicted_result === '1' ? match.away_team : match.home_team;
-
-    return `
-      <div class="pick-card ${cardClass}">
-        <img src="${shirtSrc(pickedTeam)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
-        <div class="pick-club">${pickedTeam}</div>
-        <div class="pick-fixture">vs ${opponent}</div>
-      </div>`;
-  }).join('');
 }
 
 // Auto-refresh for live scores
@@ -1532,10 +1466,10 @@ function switchProfileTab(tabName) {
 
 // Initialize tabs on page load
 function initProfileTabs() {
-  // Always default to Overview tab on fresh load
-  // Remove any saved preference to ensure Overview is default
+  // Always default to Predictions This Week tab on fresh load
+  // Remove any saved preference to ensure that's the default
   localStorage.removeItem('profileActiveTab');
-  switchProfileTab('overview');
+  switchProfileTab('predictions-week');
 
   // Hide the "more tabs" scroll hint once the user has actually scrolled
   const tabsEl = document.querySelector('.profile-tabs');
@@ -1555,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   loadPredictionHistory();
   loadRecentActivity();         // load recent points earned
   loadAchievements();
-  loadThisWeekInsights();       // This Week stats (Overview tab)
+  loadThisWeekInsights();       // This Week stats (This Week Stats tab)
   loadSeasonInsights();         // Season stats (Performance tab)
   loadPerformanceGraph();
   loadUserTrends();             // load aggregate prediction trends
