@@ -2,711 +2,239 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Leaderboard - GB Fantasy</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    html{ overflow-x:hidden; }
-    /* Mobile-specific styles for leaderboard */
-    @media (max-width: 428px) {
-      body {
-        overflow-x: hidden;
-        min-width: 320px;
-      }
-      
-      /* Navbar fixes */
-      .navbar {
-        padding: 0 0.75rem;
-      }
-      
-      .nav-container {
-        padding: 0.5rem 0;
-        position: relative;
-      }
-      
-      .logo {
-        font-size: 1rem;
-        white-space: nowrap;
-      }
-      
-      .mobile-menu-btn {
-        position: absolute;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 44px;
-        height: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: none;
-        border: none;
-        color: var(--text-primary);
-        font-size: 1.25rem;
-        cursor: pointer;
-        z-index: 100;
-      }
-      
-      /* Podium - vertical stack, compact, horizontal layout */
-      .grid.grid-3.mb-3 {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0.5rem !important;
-      }
-      
-      .grid.grid-3.mb-3 .card {
-        order: unset !important;
-        transform: none !important;
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        padding: 0.5rem 0.75rem !important;
-        height: auto !important;
-        min-height: 60px;
-        gap: 0.75rem;
-        text-align: left !important;
-      }
-      
-      /* Medal icon */
-      .grid.grid-3.mb-3 .card > div:first-child {
-        font-size: 1.5rem !important;
-        margin: 0 !important;
-        flex-shrink: 0;
-        width: 32px;
-        text-align: center;
-      }
-      
-      /* Avatar */
-      .grid.grid-3.mb-3 .card .player-avatar {
-        width: 40px !important;
-        height: 40px !important;
-        font-size: 0.875rem !important;
-        margin: 0 !important;
-        flex-shrink: 0;
-      }
-      
-      /* Name and points container */
-      .grid.grid-3.mb-3 .card > div:nth-child(3),
-      .grid.grid-3.mb-3 .card > div:nth-child(4),
-      .grid.grid-3.mb-3 .card > div:nth-child(5),
-      .grid.grid-3.mb-3 .card > div:nth-child(6) {
-        margin: 0 !important;
-      }
-      
-      /* Player name */
-      .grid.grid-3.mb-3 .card > div:nth-child(3) {
-        font-size: 0.9rem !important;
-        font-weight: 600;
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      
-      /* Username - hide on mobile */
-      .grid.grid-3.mb-3 .card > div:nth-child(4) {
-        display: none !important;
-      }
-      
-      /* Points */
-      .grid.grid-3.mb-3 .card > div:nth-child(5) {
-        font-size: 1rem !important;
-        font-weight: 700;
-        color: var(--accent-green);
-        flex-shrink: 0;
-      }
-      
-      /* "Total Points" label - hide on mobile */
-      .grid.grid-3.mb-3 .card > div:nth-child(6) {
-        display: none !important;
-      }
-      
-      /* Header adjustments */
-      h1 {
-        font-size: 1.25rem;
-      }
-      
-      /* Tournament dropdown */
-      .gw-selector {
-        width: 100%;
-      }
-      
-      .gw-selector select {
-        width: 100%;
-        max-width: 100%;
-        font-size: 0.875rem;
-        padding: 0.5rem;
-        min-height: 44px;
-      }
-      
-      /* Table adjustments */
-      .leaderboard-table {
-        font-size: 0.8rem;
-      }
-      
-      .leaderboard-table th,
-      .leaderboard-table td {
-        padding: 0.5rem 0.25rem;
-      }
-      
-      .player-avatar {
-        width: 32px;
-        height: 32px;
-        font-size: 0.75rem;
-      }
-      
-      /* Hide some table columns on mobile */
-      .leaderboard-table th:nth-child(4),
-      .leaderboard-table td:nth-child(4),
-      .leaderboard-table th:nth-child(5),
-      .leaderboard-table td:nth-child(5) {
-        display: none;
-      }
-      
-      /* Card padding */
-      .card {
-        padding: 0.75rem;
-      }
-      
-      /* Button tap targets */
-      .btn {
-        min-height: 44px;
-        min-width: 44px;
-      }
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730; --bg-card-2:#101a38;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --silver:#c7cedb; --bronze:#d08a4f; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
-    
-    @media (max-width: 375px) {
-      .container {
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-      }
-      
-      .leaderboard-table {
-        font-size: 0.75rem;
-      }
-      
-      /* Hide more columns on smallest screens */
-      .leaderboard-table th:nth-child(6),
-      .leaderboard-table td:nth-child(6) {
-        display: none;
-      }
-    }
-    /* ===== Hub-style navbar (replaces the old sidebar+navbar) ===== */
-    .hub-navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border-color); }
-    .hub-nav-left{display:flex;align-items:center;gap:40px;}
-    .hub-logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
-    .hub-logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,#60a5fa,#1d4ed8); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px rgba(59,130,246,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
-    .hub-logo-text{font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
-    .hub-logo-text .sub{color:#60a5fa; display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
-    .hub-nav-links{display:flex; gap:30px;}
-    .hub-nav-links a{ font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-secondary); padding-bottom:19px; position:relative; transition:color .2s; text-decoration:none; }
-    .hub-nav-links a:hover{color:var(--text-primary);}
-    .hub-nav-links a.active{color:var(--text-primary);}
-    .hub-nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:#60a5fa; box-shadow:0 0 10px rgba(59,130,246,0.45); border-radius:2px; }
-    .hub-nav-right{display:flex;align-items:center;gap:14px;}
-    .hub-icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border-color); }
-    .hub-icon-btn i{font-size:15px;color:var(--text-secondary);}
-    .hub-avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s; text-decoration:none; color:inherit;}
-    .hub-avatar-btn:hover{border-color:var(--border-color);}
-    .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
-    .hub-menu-toggle{ display:none; }
-    .hub-tourney-home-link{ display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary); text-decoration:none; }
-    .hub-tourney-home-link{ order:1; }
-    .hub-avatar-btn{ order:2; }
-    .hub-wallet-link{ order:3; }
-    .hub-nav-right button.hub-icon-btn:not(.hub-menu-toggle){ order:4; }
-    .hub-menu-toggle{ order:6; }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth; overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
 
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); }
+    .nav-links a:hover{color:var(--text);}
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); text-decoration:none; }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+    .avatar-btn{ order:1; }
+    .wallet-icon-link{ order:2; }
+    .bell-btn{ order:3; }
+    #mobileMenuBtn{ order:5; }
+
+    main{ position:relative; z-index:1; max-width:760px; margin:0 auto; padding:32px 24px 70px; }
+
+    /* ============ HERO ============ */
+    .lb-hero{ text-align:center; margin-bottom:28px; }
+    .lb-hero-icon{
+      width:64px; height:64px; border-radius:50%; margin:0 auto 16px; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(circle, rgba(34,197,94,0.16) 0%, transparent 72%); border:1.5px dashed rgba(34,197,94,0.4);
+    }
+    .lb-hero-icon i{ font-size:26px; color:var(--green); filter:drop-shadow(0 0 12px rgba(34,197,94,0.45)); }
+    .lb-hero h1{ font-family:var(--font-display); font-size:clamp(30px,5vw,40px); font-weight:400; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+    .lb-hero p{ color:var(--text-dim); font-size:14px; }
+
+    .lb-filter-row{ display:flex; justify-content:center; margin-bottom:22px; }
+    .lb-filter{
+      background:var(--bg-card); border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-weight:600;
+      font-size:13.5px; padding:10px 16px; border-radius:10px; min-width:200px; text-align:center;
+    }
+
+    /* ============ LIST ============ */
+    .lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .lb-row{ display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border); }
+    .lb-row:last-child{ border-bottom:none; }
+    .lb-row.top1{ background:linear-gradient(90deg, rgba(242,185,61,0.08), transparent); }
+    .lb-row.top2{ background:linear-gradient(90deg, rgba(199,206,219,0.06), transparent); }
+    .lb-row.top3{ background:linear-gradient(90deg, rgba(208,138,79,0.07), transparent); }
+
+    .lb-rank{ flex-shrink:0; width:30px; text-align:center; font-family:var(--font-display); font-size:17px; color:var(--text-faint); }
+    .lb-rank.top1{ color:var(--gold); }
+    .lb-rank.top2{ color:var(--silver); }
+    .lb-rank.top3{ color:var(--bronze); }
+
+    .lb-avatar{
+      flex-shrink:0; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:var(--bg-card); border:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--accent-2);
+    }
+    .lb-row.top1 .lb-avatar{ border-color:var(--gold); color:var(--gold); }
+    .lb-row.top2 .lb-avatar{ border-color:var(--silver); color:var(--silver); }
+    .lb-row.top3 .lb-avatar{ border-color:var(--bronze); color:var(--bronze); }
+
+    .lb-name{ flex:1; min-width:0; font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lb-points{ flex-shrink:0; font-family:var(--font-display); font-size:19px; color:var(--text); }
+    .lb-points .unit{ font-family:var(--font-body); font-size:11px; font-weight:600; color:var(--text-faint); margin-left:4px; text-transform:uppercase; }
+
+    .empty, .loading{ text-align:center; color:var(--text-dim); padding:40px 20px; font-size:14px; }
+    .empty i{ display:block; font-size:26px; color:var(--text-faint); margin-bottom:10px; }
+
+    /* Mobile hamburger drawer — standard across every page */
+    .icon-btn.menu-toggle{ display:none; }
     .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
     .mobile-nav-overlay.open{ display:block; }
     .mobile-nav-drawer{
       display:none; position:fixed; top:0; right:0; bottom:0; z-index:199; width:78%; max-width:300px;
-      background:var(--bg-card); border-left:1px solid var(--border-color); padding:80px 24px 24px;
+      background:var(--bg-panel); border-left:1px solid var(--border); padding:80px 24px 24px;
       flex-direction:column; gap:4px; transform:translateX(100%); transition:transform .25s ease;
     }
     .mobile-nav-drawer.open{ display:flex; transform:translateX(0); }
-    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-weight:600; font-size:14px; color:var(--text-secondary); text-decoration:none; }
-    .mobile-nav-drawer a:hover, .mobile-nav-drawer a.active{ background:var(--bg-hover); color:var(--text-primary); }
+    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-family:var(--font-head); font-weight:600; font-size:14px; color:var(--text-dim); }
+    .mobile-nav-drawer a:hover{ background:var(--bg-card); color:var(--text); }
 
-    @media (max-width:900px){
-      .hub-navbar{ padding:12px 16px; }
-      .hub-logo-text{ font-size:14px; }
-      .hub-nav-links{ display:none; }
-      .hub-menu-toggle{ display:flex; }
-      .hub-nav-right{ gap:8px; }
-      .hub-avatar-btn.logged-in #navAuthLabel{ display:none !important; }
-      .hub-avatar-btn .hub-avatar{ width:34px; height:34px; }
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .nav-links{ display:none; }
+      .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
+      .avatar-btn .avatar{ width:34px; height:34px; }
+      .icon-btn.menu-toggle{ display:flex; }
+      main{ padding:22px 14px 50px; }
+      .lb-row{ padding:12px 14px; gap:10px; }
+      .lb-name{ font-size:13.5px; }
     }
   </style>
-
 </head>
 <body>
-  <!-- Sidebar Navigation (Desktop) -->
-  <header class="hub-navbar">
-    <div class="hub-nav-left">
-      <a href="/" class="hub-logo">
-        <div class="hub-logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
-        <div class="hub-logo-text">GB TOURNAMENTS<span class="sub">PREDICT · WIN</span></div>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">PREDICT · WIN</span></div>
       </a>
-      <nav class="hub-nav-links">
+      <nav class="nav-links">
         <a href="/">GB Hub</a>
-        <a href="/predictions">Predictions Hub</a>
-        <a href="/table">PL Table</a>
-        <a href="/injuries">Injuries</a>
-        <a href="/wallet">Wallet</a>
+        <a href="/predictions">Predictions Home</a>
       </nav>
     </div>
-    <div class="hub-nav-right">
-      <a href="/predictions" class="hub-tourney-home-link" title="Predictions Home"><i class="fas fa-house"></i></a>
-      <a href="/wallet" class="hub-icon-btn hub-wallet-link" title="Wallet"><i class="fas fa-wallet"></i></a>
-      <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
-      <a class="hub-avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fleaderboard" title="Log in">
-        <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>
-        <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Log In</span>
+    <div class="nav-right">
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fleaderboard" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
-      <button class="hub-icon-btn hub-menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
+      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet"></i></a>
+      <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
+      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
     </div>
   </header>
 
-  <!-- Mobile nav drawer -->
   <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <a href="/">GB Hub</a>
-    <a href="/predictions">Predictions Hub</a>
+    <a href="/predictions">Predictions Home</a>
     <a href="/table">PL Table</a>
     <a href="/injuries">Injuries</a>
     <a href="/wallet">Wallet</a>
   </div>
 
-  <!-- Main Content -->
-  <main class="container">
-    <!-- Page Header -->
-    <div class="flex flex-between items-center mb-3" style="flex-wrap: wrap; gap: 1rem;">
-      <h1><i class="fas fa-chart-line text-green"></i> Leaderboard</h1>
-      <div class="gw-selector" style="max-width: 100%; flex-shrink: 0;">
-        <label for="tournament-filter" class="text-muted">Tournament:</label>
-        <select id="tournament-filter" class="gw-select" style="max-width: 100%; width: auto; min-width: 150px;">
-          <option value="all">All Tournaments</option>
-        </select>
-      </div>
+  <main>
+    <section class="lb-hero">
+      <div class="lb-hero-icon"><i class="fas fa-ranking-star"></i></div>
+      <h1>Leaderboard</h1>
+      <p>Every player, ranked by total points.</p>
+    </section>
+
+    <div class="lb-filter-row">
+      <select id="tournament-filter" class="lb-filter">
+        <option value="all">All Tournaments</option>
+      </select>
     </div>
 
-    <!-- Top 3 Podium -->
-    <div class="grid grid-3 mb-3" style="text-align: center;">
-      <div class="card" style="order: 2; transform: scale(1.05);">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🥇</div>
-        <div class="player-avatar" style="margin: 0 auto 1rem; width: 64px; height: 64px; font-size: 1.5rem;">SR</div>
-        <div style="font-size: 1.25rem; font-weight: 700;">SuperRed</div>
-        <div class="text-muted mb-2">@superred</div>
-        <div style="font-size: 2rem; font-weight: 700; color: var(--accent-green);">2,840</div>
-        <div class="text-muted">Total Points</div>
-      </div>
-      <div class="card" style="order: 1;">
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🥈</div>
-        <div class="player-avatar" style="margin: 0 auto 1rem; width: 56px; height: 56px; font-size: 1.25rem; background-color: var(--accent-red);">FK</div>
-        <div style="font-size: 1.1rem; font-weight: 600;">FantasyKing</div>
-        <div class="text-muted mb-2">@fantasyking</div>
-        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary);">2,765</div>
-        <div class="text-muted">Total Points</div>
-      </div>
-      <div class="card" style="order: 3;">
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🥉</div>
-        <div class="player-avatar" style="margin: 0 auto 1rem; width: 56px; height: 56px; font-size: 1.25rem; background-color: var(--accent-amber);">PL</div>
-        <div style="font-size: 1.1rem; font-weight: 600;">PremierLegend</div>
-        <div class="text-muted mb-2">@premierlegend</div>
-        <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-primary);">2,720</div>
-        <div class="text-muted">Total Points</div>
-      </div>
-    </div>
-
-    <!-- Full Leaderboard -->
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title"><i class="fas fa-list-ol"></i> Full Rankings</h3>
-        <span class="text-muted">Showing 1-20 of 1,247 players</span>
-      </div>
-      <div style="overflow-x: auto;">
-        <table class="leaderboard-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th class="text-right">Total Points</th>
-              <th class="text-right">GW 34</th>
-              <th class="text-right">GW 33</th>
-              <th class="text-right">Correct Scores</th>
-              <th class="text-right">Streak</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="rank rank-1">1</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar">SR</div>
-                  <div>
-                    <div style="font-weight: 600;">SuperRed</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@superred</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,840</td>
-              <td class="text-right text-green">180</td>
-              <td class="text-right">165</td>
-              <td class="text-right">47</td>
-              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 5</span></td>
-            </tr>
-            <tr>
-              <td><span class="rank rank-2">2</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: var(--accent-red);">FK</div>
-                  <div>
-                    <div style="font-weight: 600;">FantasyKing</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@fantasyking</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,765</td>
-              <td class="text-right text-green">165</td>
-              <td class="text-right">170</td>
-              <td class="text-right">44</td>
-              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 3</span></td>
-            </tr>
-            <tr>
-              <td><span class="rank rank-3">3</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: var(--accent-amber);">PL</div>
-                  <div>
-                    <div style="font-weight: 600;">PremierLegend</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@premierlegend</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,720</td>
-              <td class="text-right text-green">155</td>
-              <td class="text-right">160</td>
-              <td class="text-right">42</td>
-              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 2</span></td>
-            </tr>
-            <tr>
-              <td><span class="rank">4</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #8b5cf6;">GP</div>
-                  <div>
-                    <div style="font-weight: 600;">GoalPredictor</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@goalpredictor</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,685</td>
-              <td class="text-right text-green">140</td>
-              <td class="text-right">145</td>
-              <td class="text-right">41</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">5</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #ec4899;">MS</div>
-                  <div>
-                    <div style="font-weight: 600;">MatchSage</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@matchsage</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,640</td>
-              <td class="text-right text-green">135</td>
-              <td class="text-right">150</td>
-              <td class="text-right">39</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">6</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #06b6d4;">FW</div>
-                  <div>
-                    <div style="font-weight: 600;">FootballWizard</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@footballwizard</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,615</td>
-              <td class="text-right text-green">130</td>
-              <td class="text-right">140</td>
-              <td class="text-right">38</td>
-              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 4</span></td>
-            </tr>
-            <tr>
-              <td><span class="rank">7</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #f97316;">PP</div>
-                  <div>
-                    <div style="font-weight: 600;">PremPro</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@prempro</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,590</td>
-              <td class="text-right text-green">125</td>
-              <td class="text-right">135</td>
-              <td class="text-right">37</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">8</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #84cc16;">SC</div>
-                  <div>
-                    <div style="font-weight: 600;">ScoreChaser</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@scorechaser</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,565</td>
-              <td class="text-right text-green">120</td>
-              <td class="text-right">130</td>
-              <td class="text-right">36</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">9</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #6366f1;">PM</div>
-                  <div>
-                    <div style="font-weight: 600;">PredictionMaster</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@predictionmaster</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,540</td>
-              <td class="text-right text-green">115</td>
-              <td class="text-right">125</td>
-              <td class="text-right">35</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">10</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #14b8a6;">LG</div>
-                  <div>
-                    <div style="font-weight: 600;">LeagueGuru</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@leagueguru</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,515</td>
-              <td class="text-right text-green">110</td>
-              <td class="text-right">120</td>
-              <td class="text-right">34</td>
-              <td class="text-right"><span style="color: var(--accent-green);"><i class="fas fa-fire"></i> 2</span></td>
-            </tr>
-            <tr>
-              <td><span class="rank">11</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #a855f7;">FP</div>
-                  <div>
-                    <div style="font-weight: 600;">FantasyPro</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@fantasypro</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,490</td>
-              <td class="text-right">105</td>
-              <td class="text-right">115</td>
-              <td class="text-right">33</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">12</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #ef4444;">SG</div>
-                  <div>
-                    <div style="font-weight: 600;">ScoreGenius</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@scoregenius</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,465</td>
-              <td class="text-right">100</td>
-              <td class="text-right">110</td>
-              <td class="text-right">32</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">13</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #3b82f6;">MP</div>
-                  <div>
-                    <div style="font-weight: 600;">MatchPredictor</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@matchpredictor</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,440</td>
-              <td class="text-right">95</td>
-              <td class="text-right">105</td>
-              <td class="text-right">31</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">14</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #22c55e;">PG</div>
-                  <div>
-                    <div style="font-weight: 600;">PremierGuru</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@premierguru</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,415</td>
-              <td class="text-right">90</td>
-              <td class="text-right">100</td>
-              <td class="text-right">30</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">15</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #f59e0b;">FC</div>
-                  <div>
-                    <div style="font-weight: 600;">FootballChamp</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@footballchamp</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,390</td>
-              <td class="text-right">85</td>
-              <td class="text-right">95</td>
-              <td class="text-right">29</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">16</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #ec4899;">GL</div>
-                  <div>
-                    <div style="font-weight: 600;">GoalLegend</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@goalleger</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,365</td>
-              <td class="text-right">80</td>
-              <td class="text-right">90</td>
-              <td class="text-right">28</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">17</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #8b5cf6;">PS</div>
-                  <div>
-                    <div style="font-weight: 600;">PredictStar</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@predictstar</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,340</td>
-              <td class="text-right">75</td>
-              <td class="text-right">85</td>
-              <td class="text-right">27</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">18</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #06b6d4;">FS</div>
-                  <div>
-                    <div style="font-weight: 600;">FantasyStar</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@fantasystar</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,315</td>
-              <td class="text-right">70</td>
-              <td class="text-right">80</td>
-              <td class="text-right">26</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">19</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #f97316;">ML</div>
-                  <div>
-                    <div style="font-weight: 600;">MatchLegend</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@matchlegend</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,290</td>
-              <td class="text-right">65</td>
-              <td class="text-right">75</td>
-              <td class="text-right">25</td>
-              <td class="text-right">-</td>
-            </tr>
-            <tr>
-              <td><span class="rank">20</span></td>
-              <td>
-                <div class="player-info">
-                  <div class="player-avatar" style="background-color: #84cc16;">SG</div>
-                  <div>
-                    <div style="font-weight: 600;">ScoreGuru</div>
-                    <div class="text-muted" style="font-size: 0.875rem;">@scoreguru</div>
-                  </div>
-                </div>
-              </td>
-              <td class="text-right points">2,265</td>
-              <td class="text-right">60</td>
-              <td class="text-right">70</td>
-              <td class="text-right">24</td>
-              <td class="text-right">-</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div style="text-align: center; margin-top: 1.5rem;">
-        <button class="btn btn-secondary">
-          <i class="fas fa-chevron-down"></i> Load More
-        </button>
-      </div>
+    <div class="lb-card">
+      <div id="lbList"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div></div>
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <p>&copy; 2026 GB Fantasy. Predict responsibly.</p>
-    </div>
-  </footer>
-
-  <script src="auth-gate.js"></script>
-  <script src="toast.js"></script>
-  <script src="app.js"></script>
-  <script src="leaderboard.js"></script>
   <script>
-    function initHubNavAuth() {
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function loadTournamentsDropdown() {
+      const dropdown = document.getElementById('tournament-filter');
+      if (!dropdown) return;
+      try {
+        const response = await fetch('/api/tournaments?status=live');
+        if (!response.ok) throw new Error('Failed to load tournaments');
+        const data = await response.json();
+        let options = '<option value="all">All Tournaments</option>';
+        if (data.tournaments && data.tournaments.length > 0) {
+          data.tournaments.forEach(t => {
+            options += `<option value="${t.id}">${escapeHtml(t.name)}</option>`;
+          });
+        }
+        dropdown.innerHTML = options;
+      } catch (error) {
+        console.error('Error loading tournaments:', error);
+      }
+    }
+
+    async function loadLeaderboard(tournament = 'all') {
+      const list = document.getElementById('lbList');
+      if (!list) return;
+      list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>';
+
+      try {
+        const token = localStorage.getItem('gbf_token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const response = await fetch(`/api/leaderboard?tournament=${tournament}&limit=50`, { headers });
+        if (!response.ok) throw new Error('Failed to load leaderboard');
+        const data = await response.json();
+
+        const entries = data.leaderboard || [];
+        if (entries.length === 0) {
+          list.innerHTML = '<div class="empty"><i class="fas fa-ranking-star"></i>No leaderboard data yet.</div>';
+          return;
+        }
+
+        list.innerHTML = entries.map((entry, index) => {
+          const rank = entry.rank || index + 1;
+          const topClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+          const name = entry.user?.display_name || entry.user?.username || 'Unknown';
+          const initials = entry.user?.avatar_initials || name.substring(0, 2).toUpperCase();
+          const points = (entry.total_points || 0).toLocaleString();
+
+          return `
+            <div class="lb-row ${topClass}">
+              <div class="lb-rank ${topClass}">${rank}</div>
+              <div class="lb-avatar">${escapeHtml(initials)}</div>
+              <div class="lb-name">${escapeHtml(name)}</div>
+              <div class="lb-points">${points}<span class="unit">pts</span></div>
+            </div>`;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        list.innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load the leaderboard right now.</div>';
+      }
+    }
+
+    function initAuthButton() {
       const token = localStorage.getItem('gbf_token');
       const userJson = localStorage.getItem('gbf_user');
       const btn = document.getElementById('navAuthBtn');
@@ -719,59 +247,28 @@
         label.textContent = name;
         label.style.display = 'inline';
         avatar.textContent = name.substring(0, 2).toUpperCase();
-        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-weight:700;color:#60a5fa;font-size:12px;';
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
         btn.classList.add('logged-in');
         btn.href = '/profile';
         btn.title = 'View profile';
       } catch (e) {}
     }
+
     function toggleMobileNav(open) {
       document.getElementById('mobileNavDrawer').classList.toggle('open', open);
       document.getElementById('mobileNavOverlay').classList.toggle('open', open);
     }
-    document.addEventListener('DOMContentLoaded', () => {
-      initHubNavAuth();
-      const menuBtn = document.getElementById('mobileMenuBtn');
-      if (menuBtn) menuBtn.addEventListener('click', () => toggleMobileNav(true));
-      const overlay = document.getElementById('mobileNavOverlay');
-      if (overlay) overlay.addEventListener('click', () => toggleMobileNav(false));
-    });
-  </script>
-  <script>
-    // Mobile nav drawer toggle
-    document.addEventListener('DOMContentLoaded', function() {
-      const menuBtn = document.getElementById('mobileMenuBtn');
-      const drawer = document.getElementById('mobileNavDrawer');
-      const overlay = document.getElementById('mobileNavOverlay');
-      if (menuBtn && drawer && overlay) {
-        const toggle = (open) => {
-          drawer.classList.toggle('open', open);
-          overlay.classList.toggle('open', open);
-        };
-        menuBtn.addEventListener('click', () => toggle(true));
-        overlay.addEventListener('click', () => toggle(false));
-      }
-    });
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
+    document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
 
-    // Sidebar user info only - mobile menu handled by auth-gate.js
-    document.addEventListener('DOMContentLoaded', function() {
-      const userJson = localStorage.getItem('gbf_user');
-      if (userJson) {
-        try {
-          const user = JSON.parse(userJson);
-          const name = user.display_name || user.username || 'Account';
-          const btn = document.getElementById('navAuthBtn');
-          const label = document.getElementById('navAuthLabel');
-          const avatar = document.getElementById('navAvatar');
-          if (btn && label && avatar) {
-            label.textContent = name;
-            label.style.display = 'inline';
-            avatar.textContent = name.substring(0, 2).toUpperCase();
-            avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#60a5fa;';
-            btn.href = '/profile';
-            btn.title = 'View profile';
-          }
-        } catch (e) {}
+    document.addEventListener('DOMContentLoaded', async () => {
+      initAuthButton();
+      await loadTournamentsDropdown();
+      await loadLeaderboard();
+
+      const filter = document.getElementById('tournament-filter');
+      if (filter) {
+        filter.addEventListener('change', () => loadLeaderboard(filter.value));
       }
     });
   </script>
