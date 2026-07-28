@@ -381,6 +381,42 @@
       margin-top: 0.25rem;
     }
     
+    /* Overview tab — this gameweek's picks as shirt + club name */
+    .picks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.85rem;
+    }
+    .pick-card {
+      background: var(--bg-hover);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.9rem 0.75rem;
+      text-align: center;
+    }
+    .pick-card img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      margin-bottom: 0.5rem;
+    }
+    .pick-card .pick-club {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pick-card .pick-fixture {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+    .pick-card.correct-score { border-color: var(--accent-green); }
+    .pick-card.correct-team { border-color: var(--accent-amber); }
+    .pick-card.draw-pick .pick-club { color: var(--accent-blue); }
+
     /* User Trends Styles */
     .trends-grid {
       display: grid;
@@ -830,31 +866,19 @@
       <pre id="debug-output" style="margin: 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary);"></pre>
     </div>
 
-    <!-- This Week Stats — moved above the tabs, shown first -->
-    <div class="dashboard-card mb-3">
-      <h3><i class="fas fa-chart-pie text-blue"></i> This Week Stats</h3>
-      <div id="this-week-insights" class="insights-grid">
-        <div class="empty-state" style="padding: 1rem;">
-          <i class="fas fa-spinner fa-spin"></i>
-          <p>Loading stats...</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tournament Stats — now with a proper section header; the per-tournament
-         name/status/entered/GW banner that used to repeat here has moved into
-         the hero above, so this is just the stat cards themselves. -->
-    <div class="dashboard-card mb-3">
-      <h3><i class="fas fa-trophy text-amber"></i> Tournament Stats</h3>
-      <div id="tournament-sections">
-        <p class="text-muted">Loading your tournaments...</p>
-      </div>
-    </div>
-
     <!-- Tab Navigation -->
     <div class="profile-tabs">
       <button class="profile-tab active" onclick="switchProfileTab('overview')" data-tab="overview">
         <i class="fas fa-chart-pie"></i> Overview
+      </button>
+      <button class="profile-tab" onclick="switchProfileTab('predictions-week')" data-tab="predictions-week">
+        <i class="fas fa-futbol"></i> Predictions This Week
+      </button>
+      <button class="profile-tab" onclick="switchProfileTab('week-stats')" data-tab="week-stats">
+        <i class="fas fa-chart-pie"></i> This Week Stats
+      </button>
+      <button class="profile-tab" onclick="switchProfileTab('tournament-stats')" data-tab="tournament-stats">
+        <i class="fas fa-trophy"></i> Tournament Stats
       </button>
       <button class="profile-tab" onclick="switchProfileTab('performance')" data-tab="performance">
         <i class="fas fa-chart-line"></i> Performance
@@ -867,9 +891,49 @@
       </button>
     </div>
 
-    <!-- Tab 1: Overview -->
+    <!-- Tab 1: Overview — the basics at a glance: tournament name, total
+         points, this week's points, correct-team and correct-score counts,
+         and a grid of this gameweek's picks shown as shirt + club name. -->
     <div id="tab-overview" class="profile-tab-content active">
-      <!-- This Week's Predictions -->
+      <div class="dashboard-card mb-3">
+        <h3><i class="fas fa-chart-pie text-blue"></i> Overview</h3>
+        <div class="insights-grid">
+          <div class="insight-card">
+            <div class="insight-label">Tournament</div>
+            <div class="insight-value" id="ov-tournament-name" style="font-size:1.1rem;">--</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">Total Points</div>
+            <div class="insight-value" id="ov-total-points">--</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">This Week's Points</div>
+            <div class="insight-value" id="ov-week-points">--</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">Correct Teams</div>
+            <div class="insight-value" id="ov-correct-teams">--</div>
+          </div>
+          <div class="insight-card">
+            <div class="insight-label">Correct Scores</div>
+            <div class="insight-value" id="ov-correct-scores">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dashboard-card">
+        <h3><i class="fas fa-shirt text-green"></i> This Gameweek's Picks</h3>
+        <div id="overview-picks-grid" class="picks-grid">
+          <div class="empty-state" style="padding: 1rem;">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading picks...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Predictions This Week — the old Overview content, moved here -->
+    <div id="tab-predictions-week" class="profile-tab-content">
       <div class="dashboard-card mb-3">
         <h3><i class="fas fa-futbol text-green"></i> This Week's Predictions</h3>
         <!-- Live matches banner — shown only when matches are live -->
@@ -888,7 +952,30 @@
       </div>
     </div>
 
-    <!-- Tab 2: Performance -->
+    <!-- Tab 3: This Week Stats -->
+    <div id="tab-week-stats" class="profile-tab-content">
+      <div class="dashboard-card mb-3">
+        <h3><i class="fas fa-chart-pie text-blue"></i> This Week Stats</h3>
+        <div id="this-week-insights" class="insights-grid">
+          <div class="empty-state" style="padding: 1rem;">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading stats...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Tournament Stats -->
+    <div id="tab-tournament-stats" class="profile-tab-content">
+      <div class="dashboard-card mb-3">
+        <h3><i class="fas fa-trophy text-amber"></i> Tournament Stats</h3>
+        <div id="tournament-sections">
+          <p class="text-muted">Loading your tournaments...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 5: Performance -->
     <div id="tab-performance" class="profile-tab-content">
       <!-- Performance Graph -->
       <div class="dashboard-card mb-3">
