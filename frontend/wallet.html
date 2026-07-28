@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root{
-      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730; --bg-card-2:#101a38;
       --border:#131f35; --border-hover:#3b82f6;
       --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
       --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
@@ -42,28 +42,70 @@
     .avatar-btn:hover{border-color:var(--border);}
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
 
-    main{ position:relative; z-index:1; max-width:840px; margin:0 auto; padding:32px 24px 60px; }
-    h1{ font-family:var(--font-display); font-size:36px; font-weight:400; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
-    .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:28px; max-width:560px; line-height:1.5; }
+    main{ position:relative; z-index:1; max-width:880px; margin:0 auto; padding:32px 24px 70px; }
 
-    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:20px; }
-    .balance-card{ text-align:center; padding:36px 22px; }
-    .balance-label{ font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-faint); margin-bottom:8px; }
-    .balance-value{ font-family:var(--font-display); font-size:52px; letter-spacing:0.5px; }
-    .balance-value.owed{ color:var(--red); }
-    .balance-value.clear{ color:var(--green); }
-    .balance-note{ color:var(--text-dim); font-size:13px; margin-top:10px; max-width:420px; margin-left:auto; margin-right:auto; line-height:1.5; }
+    /* ============ HERO ============ */
+    .wallet-hero{
+      position:relative; overflow:hidden; border-radius:20px; border:1px solid var(--border);
+      background:linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-card) 100%);
+      padding:40px 36px; margin-bottom:26px;
+      display:flex; align-items:center; gap:30px; flex-wrap:wrap;
+    }
+    .wallet-hero::before{
+      content:''; position:absolute; top:-90px; right:-90px; width:300px; height:300px; border-radius:50%;
+      background:radial-gradient(circle, rgba(242,185,61,0.16) 0%, transparent 70%); pointer-events:none;
+    }
+    .wallet-hero-icon{
+      flex-shrink:0; width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(circle, rgba(242,185,61,0.14) 0%, transparent 72%);
+      border:1.5px dashed rgba(242,185,61,0.4); position:relative; z-index:1;
+    }
+    .wallet-hero-icon i{ font-size:38px; color:var(--gold); filter:drop-shadow(0 0 16px rgba(242,185,61,0.5)); }
+    .wallet-hero-text{ position:relative; z-index:1; }
+    .wallet-hero-eyebrow{ font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
+    .wallet-hero h1{ font-family:var(--font-display); font-size:clamp(30px,5vw,40px); font-weight:400; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+    .wallet-hero p{ color:var(--text-dim); font-size:14px; max-width:480px; line-height:1.6; }
 
-    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; margin-bottom:16px; }
-    .tx-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+    /* ============ BALANCE ============ */
+    .balance-card{
+      text-align:center; padding:38px 22px; border-radius:var(--radius); border:1px solid var(--border);
+      background:var(--bg-panel); margin-bottom:18px; position:relative; overflow:hidden;
+    }
+    .balance-label{ font-family:var(--font-head); font-size:12px; text-transform:uppercase; letter-spacing:1.8px; color:var(--text-faint); margin-bottom:10px; }
+    .balance-value{ font-family:var(--font-display); font-size:56px; letter-spacing:0.5px; line-height:1; }
+    .balance-value.owed{ color:var(--red); text-shadow:0 0 30px rgba(239,68,68,0.35); }
+    .balance-value.clear{ color:var(--green); text-shadow:0 0 30px rgba(34,197,94,0.3); }
+    .balance-note{ color:var(--text-dim); font-size:13px; margin-top:12px; max-width:440px; margin-left:auto; margin-right:auto; line-height:1.55; }
+
+    /* Quick stats row */
+    .wallet-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; }
+    .wallet-stat{ background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:16px 14px; text-align:center; }
+    .wallet-stat .label{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-faint); margin-bottom:6px; font-family:var(--font-head); font-weight:700; }
+    .wallet-stat .value{ font-family:var(--font-display); font-size:22px; letter-spacing:.3px; }
+
+    /* ============ TRANSACTION HISTORY ============ */
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:24px; }
+    .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; margin-bottom:18px; display:flex; align-items:center; gap:9px; }
+    .card-title i{ color:var(--accent-2); }
+
+    .tx-row{ display:flex; align-items:center; gap:14px; padding:13px 0; border-bottom:1px solid var(--border); }
     .tx-row:last-child{ border-bottom:none; }
-    .tx-desc{ font-size:14px; }
+    .tx-icon{ flex-shrink:0; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+    .tx-icon.debit{ background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); }
+    .tx-icon.debit i{ color:var(--red); font-size:14px; }
+    .tx-icon.credit{ background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); }
+    .tx-icon.credit i{ color:var(--green); font-size:14px; }
+    .tx-info{ flex:1; min-width:0; }
+    .tx-desc{ font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .tx-date{ font-size:12px; color:var(--text-faint); margin-top:2px; }
-    .tx-amount{ font-family:var(--font-head); font-weight:700; font-size:15px; white-space:nowrap; }
+    .tx-amount{ font-family:var(--font-head); font-weight:700; font-size:15.5px; white-space:nowrap; flex-shrink:0; }
     .tx-amount.debit{ color:var(--red); }
     .tx-amount.credit{ color:var(--green); }
-    .empty{ text-align:center; color:var(--text-dim); padding:24px; font-size:14px; }
-    .loading{ text-align:center; color:var(--text-dim); padding:24px; font-size:14px; }
+
+    .empty{ text-align:center; color:var(--text-dim); padding:34px 20px; font-size:14px; }
+    .empty i{ display:block; font-size:26px; color:var(--text-faint); margin-bottom:10px; }
+    .loading{ text-align:center; color:var(--text-dim); padding:34px 20px; font-size:14px; }
+
     /* Mobile hamburger drawer — standard across every page */
     .icon-btn.menu-toggle{ display:none; width:38px;height:38px;border-radius:50%; background:var(--bg-card); border:1px solid var(--border); align-items:center; justify-content:center; }
     .icon-btn.menu-toggle i{ font-size:15px; color:var(--text-dim); }
@@ -86,7 +128,13 @@
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
       .icon-btn.menu-toggle{ display:flex; }
-      main{ padding:24px 16px 40px; }
+      main{ padding:22px 14px 50px; }
+      .wallet-hero{ padding:28px 22px; flex-direction:column; text-align:center; gap:18px; }
+      .wallet-hero p{ max-width:100%; }
+      .balance-value{ font-size:44px; }
+      .wallet-stats{ grid-template-columns:1fr 1fr 1fr; gap:8px; }
+      .wallet-stat{ padding:12px 8px; }
+      .wallet-stat .value{ font-size:17px; }
     }
   </style>
 </head>
@@ -120,13 +168,34 @@
   </div>
 
   <main>
-    <h1>Wallet</h1>
-    <p class="subtitle">What you currently owe across every tournament you've entered. This is a running tab, not a live payment — pay the admin however you've arranged, and it'll be marked off here once received.</p>
+    <section class="wallet-hero">
+      <div class="wallet-hero-icon"><i class="fas fa-wallet"></i></div>
+      <div class="wallet-hero-text">
+        <div class="wallet-hero-eyebrow">Your Account</div>
+        <h1>Wallet</h1>
+        <p>A running tab, not a live payment. Entry fees are added automatically when you join a tournament — pay the admin however you've arranged, and it's marked off here once received.</p>
+      </div>
+    </section>
 
-    <div class="card balance-card">
-      <div class="balance-label">You owe</div>
+    <div class="balance-card">
+      <div class="balance-label">Current Balance</div>
       <div class="balance-value" id="balanceValue">--</div>
       <div class="balance-note" id="balanceNote"></div>
+    </div>
+
+    <div class="wallet-stats">
+      <div class="wallet-stat">
+        <div class="label">Total Charged</div>
+        <div class="value" id="statCharged" style="color:var(--red);">--</div>
+      </div>
+      <div class="wallet-stat">
+        <div class="label">Total Paid</div>
+        <div class="value" id="statPaid" style="color:var(--green);">--</div>
+      </div>
+      <div class="wallet-stat">
+        <div class="label">Transactions</div>
+        <div class="value" id="statCount" style="color:var(--accent-2);">--</div>
+      </div>
     </div>
 
     <div class="card">
@@ -157,7 +226,10 @@
       if (!token) {
         document.getElementById('balanceValue').textContent = '--';
         document.getElementById('balanceNote').textContent = 'Log in to see your wallet.';
-        document.getElementById('txList').innerHTML = '<div class="empty">Log in to see your transaction history.</div>';
+        document.getElementById('txList').innerHTML = '<div class="empty"><i class="fas fa-lock"></i>Log in to see your transaction history.</div>';
+        document.getElementById('statCharged').textContent = '--';
+        document.getElementById('statPaid').textContent = '--';
+        document.getElementById('statCount').textContent = '--';
         return;
       }
       try {
@@ -182,17 +254,27 @@
           noteEl.textContent = "You're all square — nothing owed right now.";
         }
 
-        const txList = document.getElementById('txList');
         const transactions = data.transactions || [];
+
+        // Quick stats — computed client-side from the same transaction list
+        const totalCharged = transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
+        const totalPaid = transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        document.getElementById('statCharged').textContent = money(totalCharged);
+        document.getElementById('statPaid').textContent = money(totalPaid);
+        document.getElementById('statCount').textContent = transactions.length;
+
+        const txList = document.getElementById('txList');
         if (transactions.length === 0) {
-          txList.innerHTML = '<div class="empty">No transactions yet — join a tournament to get started.</div>';
+          txList.innerHTML = '<div class="empty"><i class="fas fa-receipt"></i>No transactions yet — join a tournament to get started.</div>';
           return;
         }
         txList.innerHTML = transactions.map(t => {
           const isDebit = t.amount > 0;
+          const icon = t.type === 'payment' ? 'fa-check' : t.type === 'adjustment' ? 'fa-sliders' : 'fa-arrow-up';
           return `
             <div class="tx-row">
-              <div>
+              <div class="tx-icon ${isDebit ? 'debit' : 'credit'}"><i class="fas ${icon}"></i></div>
+              <div class="tx-info">
                 <div class="tx-desc">${escapeHtml(t.description || (t.type === 'entry_fee' ? 'Entry fee' : t.type === 'payment' ? 'Payment' : 'Adjustment'))}</div>
                 <div class="tx-date">${formatDate(t.created_at)}</div>
               </div>
@@ -201,7 +283,7 @@
         }).join('');
       } catch (e) {
         console.error('Failed to load wallet:', e);
-        document.getElementById('txList').innerHTML = '<div class="empty">Couldn\'t load your wallet right now.</div>';
+        document.getElementById('txList').innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load your wallet right now.</div>';
       }
     }
 
