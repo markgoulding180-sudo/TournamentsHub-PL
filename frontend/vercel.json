@@ -1,0 +1,37 @@
+{
+  "outputDirectory": "frontend",
+  "functions": {
+    "api/sync-players.js": { "maxDuration": 60 },
+    "api/sync-fixtures.js": { "maxDuration": 60 },
+    "api/live-scores.js": { "maxDuration": 60 },
+    "api/gameweek-transition.js": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/register", "destination": "/register.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/predictions", "destination": "/predictions-home.html" },
+    { "source": "/predict", "destination": "/predictions.html" },
+    { "source": "/leaderboard", "destination": "/leaderboard.html" },
+    { "source": "/profile", "destination": "/profile.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/injuries", "destination": "/injuries.html" },
+    { "source": "/table", "destination": "/table.html" },
+    { "source": "/links", "destination": "/links.html" },
+    { "source": "/tournaments", "destination": "/tournaments.html" },
+    { "source": "/fantasy-manager", "destination": "/fantasy-manager.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/player", "destination": "/player.html" },
+    { "source": "/fantasy-leaderboard", "destination": "/fantasy-leaderboard.html" },
+    { "source": "/last-man-standing", "destination": "/lms-home.html" },
+    { "source": "/last-man-standing-pick", "destination": "/lms-pick.html" },
+    { "source": "/stock-market", "destination": "/stockmarket-home.html" },
+    { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },
+    { "source": "/stock-market-history", "destination": "/stockmarket-history.html" },
+    { "source": "/stock-market-player", "destination": "/stock-market-player.html" },
+    { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
+    { "source": "/wallet", "destination": "/wallet.html" },
+    { "source": "/how-it-works", "destination": "/how-it-works.html" },
+    { "source": "/predictions-stats", "destination": "/predictions-stats.html" }
+  ]
+}
