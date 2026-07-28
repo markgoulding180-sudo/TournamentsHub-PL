@@ -9,8 +9,8 @@
       container = document.createElement('div');
       container.id = 'gbf-toast-container';
       container.style.cssText = `
-        position: fixed; top: 20px; right: 20px; z-index: 9999;
-        display: flex; flex-direction: column; gap: 10px;
+        position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        display: flex; flex-direction: column-reverse; gap: 10px;
         pointer-events: none;
       `;
       document.body.appendChild(container);
@@ -23,8 +23,8 @@
     const style = document.createElement('style');
     style.id = 'gbf-toast-styles';
     style.textContent = `
-      @keyframes gbfToastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-      @keyframes gbfToastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+      @keyframes gbfToastIn { from { transform: translateY(120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      @keyframes gbfToastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(120%); opacity: 0; } }
       .gbf-toast {
         pointer-events: auto;
         display: flex; align-items: flex-start; gap: 12px;
@@ -48,7 +48,7 @@
       .gbf-toast-close { flex: none; background: none; border: none; color: #4d5972; cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
       .gbf-toast-close:hover { color: #8a97b0; }
       @media (max-width: 480px) {
-        #gbf-toast-container { left: 12px; right: 12px; top: 12px; }
+        #gbf-toast-container { left: 12px; right: 12px; bottom: 12px; }
         .gbf-toast { min-width: 0; max-width: none; }
       }
     `;
