@@ -700,6 +700,7 @@
     .hub-avatar-btn:hover{border-color:var(--border-color);}
     .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
     .hub-menu-toggle{ display:none; }
+    .hub-tourney-home-link{ display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary); text-decoration:none; }
 
     .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
     .mobile-nav-overlay.open{ display:block; }
@@ -717,6 +718,9 @@
       .hub-logo-text{ font-size:14px; }
       .hub-nav-links{ display:none; }
       .hub-menu-toggle{ display:flex; }
+      .hub-nav-right{ gap:8px; }
+      .hub-avatar-btn.logged-in #navAuthLabel{ display:none !important; }
+      .hub-avatar-btn .hub-avatar{ width:34px; height:34px; }
     }
   </style>
 
@@ -739,12 +743,13 @@
       </nav>
     </div>
     <div class="hub-nav-right">
+      <a href="/predictions" class="hub-tourney-home-link" title="Predictions Home"><i class="fas fa-house"></i></a>
       <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
-      <button class="hub-icon-btn hub-menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
       <a class="hub-avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fpredictions-stats" title="Log in">
         <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>
         <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Log In</span>
       </a>
+      <button class="hub-icon-btn hub-menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
     </div>
   </header>
 
@@ -756,6 +761,7 @@
     <a href="/leaderboard">Leaderboard</a>
     <a href="/table">PL Table</a>
     <a href="/injuries">Injuries</a>
+    <a href="/wallet">Wallet</a>
   </div>
 
   <!-- Main Content -->
@@ -981,6 +987,7 @@
             label.style.display = 'inline';
             avatar.textContent = name.substring(0, 2).toUpperCase();
             avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#60a5fa;';
+            btn.classList.add('logged-in');
             btn.href = '/profile';
             btn.title = 'View profile';
           }

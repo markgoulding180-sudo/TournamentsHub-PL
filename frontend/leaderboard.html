@@ -214,6 +214,7 @@
     .hub-avatar-btn:hover{border-color:var(--border-color);}
     .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
     .hub-menu-toggle{ display:none; }
+    .hub-tourney-home-link{ display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary); text-decoration:none; }
 
     .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
     .mobile-nav-overlay.open{ display:block; }
@@ -231,6 +232,9 @@
       .hub-logo-text{ font-size:14px; }
       .hub-nav-links{ display:none; }
       .hub-menu-toggle{ display:flex; }
+      .hub-nav-right{ gap:8px; }
+      .hub-avatar-btn.logged-in #navAuthLabel{ display:none !important; }
+      .hub-avatar-btn .hub-avatar{ width:34px; height:34px; }
     }
   </style>
 
@@ -252,12 +256,13 @@
       </nav>
     </div>
     <div class="hub-nav-right">
+      <a href="/predictions" class="hub-tourney-home-link" title="Predictions Home"><i class="fas fa-house"></i></a>
       <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
-      <button class="hub-icon-btn hub-menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
       <a class="hub-avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fleaderboard" title="Log in">
         <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>
         <span id="navAuthLabel" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Log In</span>
       </a>
+      <button class="hub-icon-btn hub-menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
     </div>
   </header>
 
@@ -268,6 +273,7 @@
     <a href="/predictions">Predictions Hub</a>
     <a href="/table">PL Table</a>
     <a href="/injuries">Injuries</a>
+    <a href="/wallet">Wallet</a>
   </div>
 
   <!-- Main Content -->
@@ -693,6 +699,38 @@
   <script src="toast.js"></script>
   <script src="app.js"></script>
   <script src="leaderboard.js"></script>
+  <script>
+    function initHubNavAuth() {
+      const token = localStorage.getItem('gbf_token');
+      const userJson = localStorage.getItem('gbf_user');
+      const btn = document.getElementById('navAuthBtn');
+      const label = document.getElementById('navAuthLabel');
+      const avatar = document.getElementById('navAvatar');
+      if (!btn || !token || !userJson) return;
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-weight:700;color:#60a5fa;font-size:12px;';
+        btn.classList.add('logged-in');
+        btn.href = '/profile';
+        btn.title = 'View profile';
+      } catch (e) {}
+    }
+    function toggleMobileNav(open) {
+      document.getElementById('mobileNavDrawer').classList.toggle('open', open);
+      document.getElementById('mobileNavOverlay').classList.toggle('open', open);
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      initHubNavAuth();
+      const menuBtn = document.getElementById('mobileMenuBtn');
+      if (menuBtn) menuBtn.addEventListener('click', () => toggleMobileNav(true));
+      const overlay = document.getElementById('mobileNavOverlay');
+      if (overlay) overlay.addEventListener('click', () => toggleMobileNav(false));
+    });
+  </script>
   <script>
     // Mobile nav drawer toggle
     document.addEventListener('DOMContentLoaded', function() {
