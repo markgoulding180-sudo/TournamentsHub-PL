@@ -252,9 +252,20 @@
     }
     .dashboard-card {
       background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255,255,255,0.14);
       border-radius: 14px;
       padding: 1.5rem;
+    }
+    /* Brighten the shared .card border too, just on this page, so every
+       main section (status bar, stat cards) reads as clearly separated. */
+    .card {
+      border-color: rgba(255,255,255,0.14) !important;
+    }
+    .profile-header {
+      border-color: rgba(255,255,255,0.14) !important;
+    }
+    .insight-card, .pick-card {
+      border-color: rgba(255,255,255,0.1) !important;
     }
     .dashboard-card h3 {
       margin-bottom: 1rem;
@@ -521,6 +532,9 @@
       /* Profile header mobile layout */
       .profile-header {
         min-height:auto;
+        background:
+          radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
+          linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 40%, rgba(6,12,26,0.7) 100%) !important;
       }
       .profile-header-content {
         flex-direction: row;
@@ -900,7 +914,6 @@
          and a grid of this gameweek's picks shown as shirt + club name. -->
     <div id="tab-overview" class="profile-tab-content active">
       <div class="dashboard-card mb-3">
-        <h3><i class="fas fa-chart-pie text-blue"></i> Overview</h3>
         <div class="insights-grid">
           <div class="insight-card">
             <div class="insight-label">Tournament</div>
