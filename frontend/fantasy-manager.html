@@ -136,6 +136,24 @@
       .hero-sub{ font-size:16px; }
       .hero-desc{ font-size:13.5px; }
       .hero-graphic{ display:none; }
+      main{ padding:20px 12px 60px; }
+      .fm-card{ padding:14px 12px; }
+
+      /* Player pool & squad rows — on mobile, wrap the stats onto their
+         own line instead of relying on horizontal scroll. A new user
+         would never think to scroll a card sideways to find the Add
+         button, so everything now stays visible without scrolling. */
+      .fm-player-row{ min-width:0; flex-wrap:wrap; }
+      .fm-player-name{ min-width:0; flex-basis:0; }
+      .fm-player-meta{ flex-basis:100%; justify-content:flex-end; order:5; margin-top:2px; }
+      .fm-squad-slot{ min-width:0; }
+      .fm-squad-slot .fm-cap-btn{ order:1; }
+      .fm-squad-slot .fm-player-name{ order:2; flex-basis:0; }
+      .fm-squad-slot .fm-remove-btn{ order:3; }
+      .fm-slot-points{ order:4; flex-basis:100%; text-align:right; margin-top:2px; }
+      .fm-squad-slot{ flex-wrap:wrap; }
+      .fm-player-list{ overflow-x:visible; }
+      #fmSquadPanel{ overflow-x:visible !important; }
     }
 
     .fm-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; min-width:0; }
@@ -167,6 +185,7 @@
     .fm-squad-group-title{font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin:.9rem 0 .4rem; font-family:var(--font-head); font-weight:700;}
     .fm-squad-group-title:first-child{margin-top:0;}
     .fm-squad-slot{display:flex; align-items:center; gap:.6rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.5rem .7rem; margin-bottom:.4rem; min-width:260px;}
+    .fm-slot-points{ flex:none; }
     .fm-squad-slot.empty{opacity:.4; font-style:italic; color:var(--text-faint); font-size:.85rem;}
     .fm-squad-slot .fm-player-name{font-size:.88rem;}
     .fm-cap-btn{flex:none; width:24px; height:24px; border-radius:50%; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:.65rem; cursor:pointer; font-weight:700;}
