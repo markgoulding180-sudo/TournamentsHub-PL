@@ -192,7 +192,7 @@
       .nav-links{ display:none; }
       .logo{ order:1; }
       .avatar-btn{ order:2; margin-left:10px; padding:2px; }
-      .avatar-btn.logged-in #navAuthLabel{ display:none; }
+      .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
       .navbar .icon-btn[title="Notifications"]{ order:3; margin-left:auto; }
       #mobileMenuBtn{ order:4; margin-left:0; }
@@ -299,9 +299,12 @@
   <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <a href="/">GB Hub</a>
+    <a href="/predict">Predict Now</a>
+    <a href="/predictions-stats">My Predictions Stats</a>
     <a href="/leaderboard">Leaderboard</a>
     <a href="/table">PL Table</a>
     <a href="/injuries">Injuries</a>
+    <a href="/wallet">Wallet</a>
   </div>
 
   <!-- Notification panel — toggled by the bell button -->
