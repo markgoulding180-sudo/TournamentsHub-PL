@@ -333,7 +333,6 @@
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <a href="/">GB Hub</a>
     <a href="/predict">Predict Now</a>
-    <a href="/predictions-stats">My Predictions Stats</a>
     <a href="/leaderboard">Leaderboard</a>
     <a href="/table">PL Table</a>
     <a href="/injuries">Injuries</a>
@@ -399,7 +398,6 @@
     <nav class="predict-nav-bar">
       <a href="/predict" class="predict-nav-btn primary"><i class="fas fa-futbol"></i> Predict Now</a>
       <a href="#yourPredictionsCard" class="predict-nav-btn"><i class="fas fa-user-check"></i> Your Predictions</a>
-      <a href="/predictions-stats" class="predict-nav-btn"><i class="fas fa-chart-line"></i> My Predictions Stats</a>
     </nav>
 
     <!-- This Week's Games -->
@@ -526,7 +524,7 @@
 
       // Running total + gameweek-complete check — this is the main place
       // a user checks their picks and points, so this needs to be accurate
-      // and live, not just something predictions-stats duplicates.
+      // and live — this is the one place a user checks their picks.
       const predictedMatches = matches.filter(m => predByMatch[m.id]);
       const finishedPredicted = predictedMatches.filter(m => m.status === 'finished');
       const totalPoints = finishedPredicted.reduce((sum, m) => sum + (predByMatch[m.id].points_earned || 0), 0);
