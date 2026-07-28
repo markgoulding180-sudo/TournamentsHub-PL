@@ -49,7 +49,8 @@
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:20px; }
 
     /* ============ TWO-COLUMN PICK LAYOUT ============ */
-    .pick-layout{ display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
+    .pick-layout{ display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; min-width:0; }
+    .pick-layout > *{ min-width:0; overflow-x:auto; }
     @media (max-width:860px){ .pick-layout{ grid-template-columns:1fr; } }
 
     .card-title-sm{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; margin-bottom:14px; color:var(--text-dim); text-transform:uppercase; }

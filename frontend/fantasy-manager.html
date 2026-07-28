@@ -101,7 +101,8 @@
     .fm-stat-value{font-size:1.25rem; font-weight:700; font-family:var(--font-head);}
     .fm-stat-value.over{color:var(--red);}
 
-    .fm-layout{display:grid; grid-template-columns:1.4fr 1fr; gap:1.5rem; align-items:start;}
+    .fm-layout{display:grid; grid-template-columns:1.4fr 1fr; gap:1.5rem; align-items:start; min-width:0;}
+    .fm-layout > *{ min-width:0; }
     @media (max-width:900px){.fm-layout{grid-template-columns:1fr;}}
     /* Mobile hamburger drawer — standard across every page */
     .icon-btn.menu-toggle{ display:none; }
@@ -137,7 +138,7 @@
       .hero-graphic{ display:none; }
     }
 
-    .fm-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
+    .fm-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; min-width:0; overflow-x:auto; }
     .fm-card-title{ font-family:var(--font-head); font-size:16px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
 
     .fm-search{width:100%; margin-bottom:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:14px;}
@@ -148,7 +149,7 @@
     .fm-filter-btn{padding:.4rem .9rem; border-radius:2rem; border:1px solid var(--border); background:var(--bg-card); color:var(--text-dim); font-size:.8rem; cursor:pointer; font-family:var(--font-head); font-weight:600;}
     .fm-filter-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
 
-    .fm-player-list{display:flex; flex-direction:column; gap:.5rem; max-height:600px; overflow-y:auto; padding-right:4px;}
+    .fm-player-list{display:flex; flex-direction:column; gap:.5rem; max-height:600px; overflow-y:auto; padding-right:4px; min-width:0;}
     .fm-player-row{display:flex; align-items:center; gap:.7rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.55rem .8rem;}
     .fm-player-row.disabled{opacity:.4;}
     .fm-pos-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex:none;}

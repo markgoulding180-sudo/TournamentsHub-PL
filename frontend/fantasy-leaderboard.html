@@ -48,7 +48,8 @@
     .header h1{ font-family:var(--font-display); font-size:26px; letter-spacing:.4px; margin-bottom:6px; }
     .header p{ color:var(--text-dim); font-size:14px; }
 
-    .layout{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; }
+    .layout{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; min-width:0; }
+    .layout > *{ min-width:0; overflow-x:auto; }
     @media (max-width:900px){ .layout{ grid-template-columns:1fr; } }
     /* Mobile hamburger drawer — standard across every page */
     .icon-btn.menu-toggle{ display:none; }

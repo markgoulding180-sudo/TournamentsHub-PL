@@ -164,7 +164,8 @@
     .survivor-row.out .s-status{ color:var(--text-faint); }
     .survivor-row.out .s-name{ color:var(--text-faint); }
 
-    .cards-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; }
+    .cards-grid{ display:grid; grid-template-columns:1.2fr 1fr; gap:18px; min-width:0; }
+    .cards-grid > *{ min-width:0; overflow-x:auto; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
     .loading, .empty{ text-align:center; padding:20px; color:var(--text-faint); font-size:13px; }
