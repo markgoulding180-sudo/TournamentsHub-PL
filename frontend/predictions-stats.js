@@ -45,7 +45,6 @@ async function loadProfile() {
     
     document.getElementById('profile-name').textContent = user.display_name || user.username;
     document.getElementById('profile-username').textContent = '@' + user.username;
-    document.getElementById('profile-avatar').textContent = (user.display_name || user.username).substring(0, 2).toUpperCase();
     
     let joinDate = user.created_at;
     if (!joinDate && typeof supabase !== 'undefined') {
