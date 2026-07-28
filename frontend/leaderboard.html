@@ -58,12 +58,6 @@
     .lb-hero h1{ font-family:var(--font-display); font-size:clamp(30px,5vw,40px); font-weight:400; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
     .lb-hero p{ color:var(--text-dim); font-size:14px; }
 
-    .lb-filter-row{ display:flex; justify-content:center; margin-bottom:22px; }
-    .lb-filter{
-      background:var(--bg-card); border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-weight:600;
-      font-size:13.5px; padding:10px 16px; border-radius:10px; min-width:200px; text-align:center;
-    }
-
     /* ============ LIST ============ */
     .lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
     .lb-row{ display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border); }
@@ -156,15 +150,9 @@
   <main>
     <section class="lb-hero">
       <div class="lb-hero-icon"><i class="fas fa-ranking-star"></i></div>
-      <h1>Leaderboard</h1>
+      <h1>Predictions Leaderboard</h1>
       <p>Every player, ranked by total points.</p>
     </section>
-
-    <div class="lb-filter-row">
-      <select id="tournament-filter" class="lb-filter">
-        <option value="all">All Tournaments</option>
-      </select>
-    </div>
 
     <div class="lb-card">
       <div id="lbList"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div></div>
@@ -176,26 +164,7 @@
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    async function loadTournamentsDropdown() {
-      const dropdown = document.getElementById('tournament-filter');
-      if (!dropdown) return;
-      try {
-        const response = await fetch('/api/tournaments?status=live');
-        if (!response.ok) throw new Error('Failed to load tournaments');
-        const data = await response.json();
-        let options = '<option value="all">All Tournaments</option>';
-        if (data.tournaments && data.tournaments.length > 0) {
-          data.tournaments.forEach(t => {
-            options += `<option value="${t.id}">${escapeHtml(t.name)}</option>`;
-          });
-        }
-        dropdown.innerHTML = options;
-      } catch (error) {
-        console.error('Error loading tournaments:', error);
-      }
-    }
-
-    async function loadLeaderboard(tournament = 'all') {
+    async function loadLeaderboard() {
       const list = document.getElementById('lbList');
       if (!list) return;
       list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>';
@@ -203,7 +172,7 @@
       try {
         const token = localStorage.getItem('gbf_token');
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const response = await fetch(`/api/leaderboard?tournament=${tournament}&limit=50`, { headers });
+        const response = await fetch(`/api/leaderboard?tournament=all&limit=50`, { headers });
         if (!response.ok) throw new Error('Failed to load leaderboard');
         const data = await response.json();
 
@@ -263,13 +232,7 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       initAuthButton();
-      await loadTournamentsDropdown();
       await loadLeaderboard();
-
-      const filter = document.getElementById('tournament-filter');
-      if (filter) {
-        filter.addEventListener('change', () => loadLeaderboard(filter.value));
-      }
     });
   </script>
 </body>
