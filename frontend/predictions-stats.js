@@ -1536,6 +1536,15 @@ function initProfileTabs() {
   // Remove any saved preference to ensure Overview is default
   localStorage.removeItem('profileActiveTab');
   switchProfileTab('overview');
+
+  // Hide the "more tabs" scroll hint once the user has actually scrolled
+  const tabsEl = document.querySelector('.profile-tabs');
+  const wrapEl = document.querySelector('.profile-tabs-wrap');
+  if (tabsEl && wrapEl) {
+    tabsEl.addEventListener('scroll', () => {
+      wrapEl.classList.toggle('scrolled', tabsEl.scrollLeft > 10);
+    }, { passive: true });
+  }
 }
 
 // Single DOMContentLoaded — correct order

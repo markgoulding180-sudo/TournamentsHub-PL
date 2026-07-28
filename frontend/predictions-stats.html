@@ -98,63 +98,41 @@
       color: rgba(255,255,255,0.7);
       font-size: 0.85rem;
     }
-    /* Tournament bar at bottom of banner - only when inside profile-header */
-    .profile-header .profile-tournament-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 3;
-    }
-    /* Tournament bar standalone (outside header) */
+    /* Tournament line — plain text, sits under member-since, same as any
+       other hero detail line. No more boxed overlay bar. */
     .profile-tournament-bar {
-      background: rgba(5, 15, 50, 0.85);
-      backdrop-filter: blur(8px);
-      padding: 0.5rem 1rem;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      position: relative;
-      margin-bottom: 1rem;
-      border-radius: 0.5rem;
-      min-height: 50px;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.3rem;
+      font-size: 0.85rem;
     }
     .profile-tournament-bar .t-left {
       display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
     .profile-tournament-bar .t-name {
       color: var(--text-primary);
       font-weight: 600;
-      font-size: 0.95rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 200px;
+      max-width: 220px;
     }
     .profile-tournament-bar .t-meta {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 0.75rem;
-    }
-    .profile-tournament-bar .t-right {
-      text-align: right;
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--accent-blue);
-    }
-    .profile-tournament-bar .t-gw-label {
-      font-size: 0.65rem;
-      font-weight: 400;
+      font-size: 0.8rem;
       color: rgba(255,255,255,0.7);
     }
     .profile-tournament-bar .t-right {
-      color: var(--accent-blue);
+      font-size: 0.85rem;
       font-weight: 700;
-      font-size: 0.95rem;
-      text-align: right;
+      color: var(--accent-blue);
     }
     .live-badge {
       background: #ef4444;
@@ -166,14 +144,14 @@
       letter-spacing: 0.05em;
       animation: pulse-red 1.5s infinite;
     }
+    .entered-badge {
+      color: var(--accent-green);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
     @keyframes pulse-red {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
-    }
-    .entered-badge {
-      color: var(--accent-green);
-      font-size: 0.85rem;
-      font-weight: 600;
     }
 
     /* ── LIVE MATCHES BANNER ── */
@@ -477,10 +455,13 @@
     }
     
     /* ── TABBED LAYOUT STYLES ── */
+    .profile-tabs-wrap {
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
     .profile-tabs {
       display: flex;
       gap: 0.5rem;
-      margin-bottom: 1.5rem;
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 0;
       overflow-x: auto;
@@ -489,14 +470,17 @@
     .profile-tabs::-webkit-scrollbar {
       display: none;
     }
+    .profile-tabs-scroll-hint {
+      display: none;
+    }
     .profile-tab {
       padding: 0.75rem 1.25rem;
       background: transparent;
       border: none;
       border-bottom: 3px solid transparent;
-      color: var(--text-secondary);
+      color: var(--text-primary);
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 1rem;
       cursor: pointer;
       transition: all 0.2s;
       white-space: nowrap;
@@ -576,15 +560,10 @@
         font-size: 0.65rem;
       }
       
-      /* Tournament bar compact */
+      /* Tournament line compact */
       .profile-tournament-bar {
-        padding: 0.4rem 0.75rem;
-        min-height: 42px;
-        position: relative !important;
-        margin-top: 0.5rem;
-      }
-      .profile-tournament-bar .t-left {
-        gap: 0.1rem;
+        font-size: 0.75rem;
+        margin-top: 0.2rem;
       }
       .profile-tournament-bar .t-name {
         font-size: 0.8rem;
@@ -695,9 +674,35 @@
         padding: 0 0.25rem;
         gap: 0.25rem;
       }
+      .profile-tabs-scroll-hint {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 1px;
+        width: 42px;
+        background: linear-gradient(90deg, transparent, var(--bg-primary) 55%);
+        pointer-events: none;
+      }
+      .profile-tabs-scroll-hint i {
+        color: var(--text-primary);
+        font-size: 0.8rem;
+        margin-right: 2px;
+        animation: scrollHintPulse 1.6s ease-in-out infinite;
+      }
+      @keyframes scrollHintPulse {
+        0%, 100% { transform: translateX(0); opacity: 0.7; }
+        50% { transform: translateX(3px); opacity: 1; }
+      }
+      /* Once the user has scrolled the tabs themselves, hide the hint */
+      .profile-tabs-wrap.scrolled .profile-tabs-scroll-hint {
+        display: none;
+      }
       .profile-tab {
         padding: 0.6rem 0.75rem;
-        font-size: 0.8rem;
+        font-size: 0.9rem;
         gap: 0.35rem;
       }
       .profile-tab i {
@@ -831,15 +836,11 @@
           <div class="hero-username" id="profile-name">Loading...</div>
           <div class="username" id="profile-username">@username</div>
           <div class="member-since"><i class="fas fa-calendar" style="margin-right:4px;"></i>Member since <span id="join-date">--</span></div>
-        </div>
-      </div>
-      <!-- Tournament bar — now nested inside the hero so it sits as the
-           bottom overlay bar (CSS already had a rule for this, just never
-           had the matching markup): tournament name, entered/not entered,
-           gameweek, and total points, all in the hero. -->
-      <div class="profile-tournament-bar" id="profile-tournament-bar">
-        <div class="t-left">
-          <span style="color: rgba(255,255,255,0.7); font-size:0.85rem;">Loading tournament...</span>
+          <!-- Tournament name + GW + entered status + points — plain text,
+               same line style as member-since, no separate overlay box. -->
+          <div class="profile-tournament-bar" id="profile-tournament-bar">
+            <span style="color: rgba(255,255,255,0.6);">Loading tournament...</span>
+          </div>
         </div>
       </div>
     </div>
@@ -867,28 +868,31 @@
     </div>
 
     <!-- Tab Navigation -->
-    <div class="profile-tabs">
-      <button class="profile-tab active" onclick="switchProfileTab('overview')" data-tab="overview">
-        <i class="fas fa-chart-pie"></i> Overview
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('predictions-week')" data-tab="predictions-week">
-        <i class="fas fa-futbol"></i> Predictions This Week
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('week-stats')" data-tab="week-stats">
-        <i class="fas fa-chart-pie"></i> This Week Stats
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('tournament-stats')" data-tab="tournament-stats">
-        <i class="fas fa-trophy"></i> Tournament Stats
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('performance')" data-tab="performance">
-        <i class="fas fa-chart-line"></i> Performance
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('achievements')" data-tab="achievements">
-        <i class="fas fa-medal"></i> Achievements
-      </button>
-      <button class="profile-tab" onclick="switchProfileTab('trends')" data-tab="trends">
-        <i class="fas fa-users"></i> Trends
-      </button>
+    <div class="profile-tabs-wrap">
+      <div class="profile-tabs">
+        <button class="profile-tab active" onclick="switchProfileTab('overview')" data-tab="overview">
+          <i class="fas fa-chart-pie"></i> Overview
+        </button>
+        <button class="profile-tab" onclick="switchProfileTab('predictions-week')" data-tab="predictions-week">
+          <i class="fas fa-futbol"></i> Predictions This Week
+        </button>
+        <button class="profile-tab" onclick="switchProfileTab('week-stats')" data-tab="week-stats">
+          <i class="fas fa-chart-pie"></i> This Week Stats
+        </button>
+        <button class="profile-tab" onclick="switchProfileTab('tournament-stats')" data-tab="tournament-stats">
+          <i class="fas fa-trophy"></i> Tournament Stats
+        </button>
+        <button class="profile-tab" onclick="switchProfileTab('performance')" data-tab="performance">
+          <i class="fas fa-chart-line"></i> Performance
+        </button>
+        <button class="profile-tab" onclick="switchProfileTab('achievements')" data-tab="achievements">
+          <i class="fas fa-medal"></i> Achievements
+        </button>
+        <button class="profile-tab" onclick="switchProfileTab('trends')" data-tab="trends">
+          <i class="fas fa-users"></i> Trends
+        </button>
+      </div>
+      <div class="profile-tabs-scroll-hint"><i class="fas fa-chevron-right"></i></div>
     </div>
 
     <!-- Tab 1: Overview — the basics at a glance: tournament name, total
