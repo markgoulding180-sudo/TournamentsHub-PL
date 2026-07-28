@@ -913,6 +913,8 @@ body {
 .text-right { text-align: right; }
 .text-green { color: var(--accent-green); }
 .text-amber { color: var(--accent-amber); }
+.text-blue { color: var(--accent-blue); }
+.text-red { color: var(--accent-red); }
 .text-muted { color: var(--text-muted); }
 .mb-1 { margin-bottom: 0.5rem; }
 .mb-2 { margin-bottom: 1rem; }

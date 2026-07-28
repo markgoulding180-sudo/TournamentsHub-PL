@@ -18,7 +18,7 @@
     body{ font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     h1, .profile-info h1{ font-family:var(--font-display); letter-spacing:.4px; text-transform:uppercase; }
     .dashboard-card h3, .profile-tab, .card-title, h2{ font-family:var(--font-head); font-weight:700; letter-spacing:.3px; }
-    .btn-primary{ background:linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark)) !important; color:#fff !important; border:none !important; }
+    .btn-primary{ background:linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark)) !important; color: var(--text-primary) !important; border:none !important; }
     .btn-primary:hover{ filter:brightness(1.1); }
 
     /* ── STADIUM BANNER HEADER ── */
@@ -86,16 +86,16 @@
       margin: 0 0 0.2rem 0;
       font-size: 1.5rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-primary);
       text-shadow: 0 1px 4px rgba(0,0,0,0.6);
     }
     .profile-info .username {
-      color: rgba(255,255,255,0.75);
+      color: rgba(255,255,255,0.7);
       font-size: 0.95rem;
       margin-bottom: 0.25rem;
     }
     .profile-info .member-since {
-      color: rgba(255,255,255,0.65);
+      color: rgba(255,255,255,0.7);
       font-size: 0.85rem;
     }
     /* Tournament bar at bottom of banner - only when inside profile-header */
@@ -125,7 +125,7 @@
       gap: 0.15rem;
     }
     .profile-tournament-bar .t-name {
-      color: #fff;
+      color: var(--text-primary);
       font-weight: 600;
       font-size: 0.95rem;
       white-space: nowrap;
@@ -143,22 +143,22 @@
       text-align: right;
       font-size: 0.85rem;
       font-weight: 700;
-      color: #60a5fa;
+      color: var(--accent-blue);
     }
     .profile-tournament-bar .t-gw-label {
       font-size: 0.65rem;
       font-weight: 400;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255,255,255,0.7);
     }
     .profile-tournament-bar .t-right {
-      color: #60a5fa;
+      color: var(--accent-blue);
       font-weight: 700;
       font-size: 0.95rem;
       text-align: right;
     }
     .live-badge {
       background: #ef4444;
-      color: #fff;
+      color: var(--text-primary);
       font-size: 0.7rem;
       font-weight: 700;
       padding: 0.2rem 0.5rem;
@@ -171,7 +171,7 @@
       50% { opacity: 0.6; }
     }
     .entered-badge {
-      color: #22c55e;
+      color: var(--accent-green);
       font-size: 0.85rem;
       font-weight: 600;
     }
@@ -197,7 +197,7 @@
       flex-shrink: 0;
     }
     .live-matches-banner .live-text {
-      color: #ef4444;
+      color: var(--accent-red);
       font-weight: 600;
       font-size: 0.9rem;
       flex: 1;
@@ -205,18 +205,18 @@
     .live-matches-banner .refresh-btn {
       background: none;
       border: none;
-      color: rgba(255,255,255,0.5);
+      color: rgba(255,255,255,0.7);
       cursor: pointer;
       font-size: 0.8rem;
       padding: 0.25rem 0.5rem;
     }
     .live-matches-banner .refresh-btn:hover {
-      color: #fff;
+      color: var(--text-primary);
     }
 
     /* ── MATCH STATUS STYLES ── */
     .match-status-live {
-      color: #ef4444;
+      color: var(--accent-red);
       font-size: 0.8rem;
       font-weight: 700;
       display: inline-flex;
@@ -234,12 +234,12 @@
     .match-live-score {
       font-size: 1rem;
       font-weight: 700;
-      color: #ef4444;
+      color: var(--accent-red);
     }
     .match-finished-score {
       font-size: 0.875rem;
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--text-secondary);
     }
 
     /* ── REST OF STYLES (unchanged) ── */
@@ -698,7 +698,7 @@
     .hub-logo{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
     .hub-logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,#60a5fa,#1d4ed8); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px rgba(59,130,246,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
     .hub-logo-text{font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
-    .hub-logo-text .sub{color:#60a5fa; display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .hub-logo-text .sub{color: var(--accent-blue); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
     .hub-nav-links{display:flex; gap:30px;}
     .hub-nav-links a{ font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-secondary); padding-bottom:19px; position:relative; transition:color .2s; text-decoration:none; }
     .hub-nav-links a:hover{color:var(--text-primary);}
@@ -746,7 +746,7 @@
   <header class="hub-navbar">
     <div class="hub-nav-left">
       <a href="/" class="hub-logo">
-        <div class="hub-logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="hub-logo-mark"><i class="fas fa-trophy" style="color: var(--text-primary);font-size:16px;"></i></div>
         <div class="hub-logo-text">GB TOURNAMENTS<span class="sub">PREDICT · WIN</span></div>
       </a>
       <nav class="hub-nav-links">
@@ -803,7 +803,7 @@
            gameweek, and total points, all in the hero. -->
       <div class="profile-tournament-bar" id="profile-tournament-bar">
         <div class="t-left">
-          <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">Loading tournament...</span>
+          <span style="color: rgba(255,255,255,0.7); font-size:0.85rem;">Loading tournament...</span>
         </div>
       </div>
     </div>
@@ -813,9 +813,9 @@
       <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
         <div style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap;"><i class="fas fa-info-circle" style="color: var(--accent-blue);"></i> Status:</div>
         <div id="match-status-indicator" style="display: flex; gap: 0.5rem; flex-wrap: nowrap;">
-          <span class="status-badge" id="status-live" style="background: rgba(239,68,68,0.2); color: #ef4444; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap;"><i class="fas fa-circle" style="font-size: 0.4rem; animation: pulse-red 1s infinite;"></i> LIVE</span>
-          <span class="status-badge" id="status-finalising" style="background: rgba(245,158,11,0.2); color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; display: none; white-space: nowrap;"><i class="fas fa-clock"></i> FINALISING</span>
-          <span class="status-badge" id="status-points" style="background: rgba(34,197,94,0.2); color: #22c55e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; display: none; white-space: nowrap;"><i class="fas fa-check"></i> POINTS</span>
+          <span class="status-badge" id="status-live" style="background: rgba(239,68,68,0.2); color: var(--accent-red); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; white-space: nowrap;"><i class="fas fa-circle" style="font-size: 0.4rem; animation: pulse-red 1s infinite;"></i> LIVE</span>
+          <span class="status-badge" id="status-finalising" style="background: rgba(245,158,11,0.2); color: var(--accent-amber); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; display: none; white-space: nowrap;"><i class="fas fa-clock"></i> FINALISING</span>
+          <span class="status-badge" id="status-points" style="background: rgba(34,197,94,0.2); color: var(--accent-green); padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; display: none; white-space: nowrap;"><i class="fas fa-check"></i> POINTS</span>
         </div>
         <div id="matches-status-count" style="font-size: 0.75rem; color: var(--text-secondary); flex: 1; text-align: right;"></div>
       </div>
@@ -825,9 +825,9 @@
     <div id="debug-panel" style="display: none; margin-bottom: 1rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; font-family: monospace; font-size: 0.8rem; max-height: 400px; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
         <strong style="color: var(--accent-blue);">Debug Output</strong>
-        <button onclick="document.getElementById('debug-panel').style.display='none'" style="background: none; border: none; color: #94a3b8; cursor: pointer;"><i class="fas fa-times"></i></button>
+        <button onclick="document.getElementById('debug-panel').style.display='none'" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;"><i class="fas fa-times"></i></button>
       </div>
-      <pre id="debug-output" style="margin: 0; white-space: pre-wrap; word-break: break-word; color: #e2e8f0;"></pre>
+      <pre id="debug-output" style="margin: 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary);"></pre>
     </div>
 
     <!-- This Week Stats — moved above the tabs, shown first -->
@@ -1011,7 +1011,7 @@
             label.textContent = name;
             label.style.display = 'inline';
             avatar.textContent = name.substring(0, 2).toUpperCase();
-            avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#60a5fa;';
+            avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color: var(--accent-blue);';
             btn.classList.add('logged-in');
             btn.href = '/profile';
             btn.title = 'View profile';
