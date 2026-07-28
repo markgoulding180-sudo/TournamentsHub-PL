@@ -167,7 +167,30 @@
     .pred-row .pred-result.correct{ background:rgba(34,197,94,0.12); color:var(--green); }
     .pred-row .pred-result.wrong{ background:rgba(239,68,68,0.12); color:#fca5a5; }
     .pred-row .pred-result.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
+    .pred-row .pred-result.live{ background:rgba(239,68,68,0.14); color:#fca5a5; display:inline-flex; align-items:center; gap:5px; }
+    .pred-row .pred-result.live .live-blip{ width:6px; height:6px; border-radius:50%; background:#ef4444; animation:predLiveBlip 1.2s ease-in-out infinite; }
+    @keyframes predLiveBlip{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
     .pred-row .pred-missing{ color:var(--text-faint); font-style:italic; }
+    .pred-row .pred-points{ font-family:var(--font-head); font-weight:700; font-size:12px; padding:3px 9px; border-radius:2rem; }
+    .pred-row .pred-points.p20{ background:rgba(34,197,94,0.16); color:var(--green); }
+    .pred-row .pred-points.p10{ background:rgba(96,165,250,0.16); color:var(--accent-2); }
+    .pred-row .pred-points.p0{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
+
+    /* Running total + gameweek-complete banner, sits above the match rows */
+    .week-points-summary{
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+      padding:12px 16px; border-radius:10px; margin-bottom:14px;
+      background:var(--bg-card); border:1px solid var(--border);
+    }
+    .week-points-summary .label{ font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim); font-weight:700; }
+    .week-points-summary .value{ font-family:var(--font-display); font-size:22px; color:var(--accent-2); }
+    .week-complete-banner{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      padding:12px 16px; border-radius:10px; margin-bottom:14px;
+      background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.35);
+      font-size:13.5px; color:var(--green); font-weight:600;
+    }
+    .week-complete-banner .value{ font-family:var(--font-display); font-size:20px; margin-left:auto; }
     .fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; }
     .fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
     .fixture-chip .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); margin-top:4px; display:block; }
@@ -215,6 +238,11 @@
       .pred-row .pred-teams{ min-width:0; width:100%; font-size:13px; }
       .pred-row .pred-pick{ font-size:13px; }
       .pred-row .pred-result{ font-size:10px; padding:3px 8px; }
+      .pred-row .pred-points{ font-size:10px; padding:3px 8px; }
+      .week-points-summary{ padding:10px 14px; }
+      .week-points-summary .value{ font-size:19px; }
+      .week-complete-banner{ padding:10px 14px; font-size:12.5px; }
+      .week-complete-banner .value{ font-size:17px; width:100%; text-align:right; margin-left:0; }
     }
 
     .t-stat-row{ display:flex; gap:14px; margin-bottom:14px; }
@@ -392,6 +420,7 @@
     <!-- Your Predictions This Week -->
     <section class="card week-card" id="yourPredictionsCard">
       <div class="card-title"><i class="fas fa-user-check" style="color:var(--accent-2);"></i> Your Predictions This Week</div>
+      <div id="yourPredictionsSummary"></div>
       <div id="yourPredictionsBody"><div class="loading">Loading…</div></div>
     </section>
 
@@ -455,6 +484,7 @@
         if (matches.length === 0) {
           strip.innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
           document.getElementById('yourPredictionsBody').innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
+          document.getElementById('yourPredictionsSummary').innerHTML = '';
         } else {
           strip.innerHTML = matches.map(m => {
             const hasScore = m.home_score !== null && m.home_score !== undefined;
@@ -471,6 +501,7 @@
         if (!loggedIn) {
           statusArea.innerHTML = `<a href="/login?redirect=%2Fpredictions" class="predict-status todo"><i class="fas fa-right-to-bracket"></i> Log In to Predict</a>`;
           document.getElementById('yourPredictionsBody').innerHTML = `<div class="empty">Log in to see your predictions.</div>`;
+          document.getElementById('yourPredictionsSummary').innerHTML = '';
         } else if (matches.length > 0 && myPredictions.length >= matches.length) {
           statusArea.innerHTML = `<span class="predict-status done"><i class="fas fa-circle-check"></i> You've Predicted This Week</span>`;
         } else {
@@ -489,12 +520,39 @@
     // ---------- Your Predictions This Week ----------
     function renderYourPredictions(matches, myPredictions) {
       const body = document.getElementById('yourPredictionsBody');
+      const summary = document.getElementById('yourPredictionsSummary');
       const predByMatch = {};
       myPredictions.forEach(p => { predByMatch[p.match_id] = p; });
 
+      // Running total + gameweek-complete check — this is the main place
+      // a user checks their picks and points, so this needs to be accurate
+      // and live, not just something predictions-stats duplicates.
+      const predictedMatches = matches.filter(m => predByMatch[m.id]);
+      const finishedPredicted = predictedMatches.filter(m => m.status === 'finished');
+      const totalPoints = finishedPredicted.reduce((sum, m) => sum + (predByMatch[m.id].points_earned || 0), 0);
+      const allFinished = matches.length > 0 && matches.every(m => m.status === 'finished');
+
+      if (predictedMatches.length === 0) {
+        summary.innerHTML = '';
+      } else if (allFinished) {
+        summary.innerHTML = `
+          <div class="week-complete-banner">
+            <i class="fas fa-circle-check"></i>
+            <span>Gameweek complete — every match has been calculated.</span>
+            <span class="value">${totalPoints} pts</span>
+          </div>`;
+      } else {
+        summary.innerHTML = `
+          <div class="week-points-summary">
+            <span class="label">Running Total This Gameweek</span>
+            <span class="value">${totalPoints} pts</span>
+          </div>`;
+      }
+
       body.innerHTML = matches.map(m => {
         const pred = predByMatch[m.id];
-        const hasResult = m.home_score !== null && m.home_score !== undefined && m.status === 'finished';
+        const isLive = m.status === 'live';
+        const isFinished = m.status === 'finished';
 
         if (!pred) {
           return `
@@ -505,14 +563,23 @@
         }
 
         let resultTag = `<span class="pred-result pending">${escapeHtml(m.status || 'upcoming')}</span>`;
-        if (hasResult) {
+        let pointsTag = '';
+
+        if (isLive) {
+          const liveScore = `${m.home_score ?? 0}-${m.away_score ?? 0}`;
+          resultTag = `<span class="pred-result live"><span class="live-blip"></span> ${liveScore} · In Play</span>`;
+        } else if (isFinished) {
           const correct = pred.predicted_result &&
             ((pred.predicted_result === 'H' && m.home_score > m.away_score) ||
              (pred.predicted_result === 'A' && m.away_score > m.home_score) ||
              (pred.predicted_result === 'D' && m.home_score === m.away_score));
           resultTag = correct
-            ? `<span class="pred-result correct"><i class="fas fa-check"></i> Correct — ${m.home_score}-${m.away_score}</span>`
-            : `<span class="pred-result wrong"><i class="fas fa-xmark"></i> ${m.home_score}-${m.away_score}</span>`;
+            ? `<span class="pred-result correct"><i class="fas fa-check"></i> Finished — ${m.home_score}-${m.away_score}</span>`
+            : `<span class="pred-result wrong"><i class="fas fa-xmark"></i> Finished — ${m.home_score}-${m.away_score}</span>`;
+
+          const pts = pred.points_earned || 0;
+          const ptsClass = pts === 20 ? 'p20' : pts === 10 ? 'p10' : 'p0';
+          pointsTag = `<span class="pred-points ${ptsClass}">${pts} pts</span>`;
         }
 
         return `
@@ -520,6 +587,7 @@
             <div class="pred-teams">${escapeHtml(m.home_team)} v ${escapeHtml(m.away_team)}</div>
             <div class="pred-pick">${pred.home_score}-${pred.away_score}</div>
             ${resultTag}
+            ${pointsTag}
           </div>`;
       }).join('');
     }
