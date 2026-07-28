@@ -45,6 +45,10 @@
     .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
     .avatar-btn:hover{border-color:var(--border);}
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+    .avatar-btn{ order:1; }
+    .wallet-icon-link{ order:2; }
+    .bell-btn{ order:3; }
+    #mobileMenuBtn{ order:5; }
 
     main{ position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:32px 24px 60px; }
 
@@ -192,11 +196,11 @@
       .logo-mark{ width:32px; height:32px; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-      .avatar-btn{ order:2; margin-left:10px; padding:2px; }
+      .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
-      .bell-btn{ order:3; margin-left:auto; }
-      .icon-btn.menu-toggle{ display:flex; order:4; }
+      .bell-btn{ margin-left:0; }
+      .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
       main{ padding:20px 14px 60px; }
       .hero{ padding:28px 22px; min-height:auto; }
       .hero h1{ font-size:42px; }
@@ -221,6 +225,7 @@
       </nav>
     </div>
     <div class="nav-right">
+      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet" style="font-size:14px;color:var(--text-dim);"></i></a>
       <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
       <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Flast-man-standing" title="Log in">
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>

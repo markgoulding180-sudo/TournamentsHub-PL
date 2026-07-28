@@ -87,6 +87,15 @@
 
   .nav-right{display:flex;align-items:center;gap:14px;}
 
+  /* Fixed visual order for the nav-right icons, same on desktop and
+     mobile: Avatar, then Wallet, then Bell, then everything else. */
+  .avatar-btn{ order:1; }
+  .wallet-icon-link{ order:2; }
+  .navbar .icon-btn[title="Notifications"]{ order:3; }
+  .my-tournaments-btn{ order:4; }
+  #mobileMenuBtn{ order:5; }
+  #logoutBtn{ order:6; }
+
   /* ================= NOTIFICATIONS ================= */
   .notif-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
   .notif-overlay.open{ display:block; }
@@ -481,15 +490,15 @@
     .logo-mark{ width:32px; height:32px; }
     .logo-text{ font-size:14px; }
     .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-    .avatar-btn{ order:2; margin-left:10px; padding:2px; }
+    .avatar-btn{ margin-left:10px; padding:2px; }
     .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
     .avatar-btn.logged-in .chev{ display:none !important; }
     .avatar-btn .avatar{ width:34px; height:34px; }
     #logoutBtn{ display:none !important; }
     .my-tournaments-btn{ display:none !important; }
     .navbar-row-break{ display:none; }
-    .navbar .icon-btn[title="Notifications"]{ order:3; margin-left:auto; }
-    #mobileMenuBtn{ order:4; }
+    .navbar .icon-btn[title="Notifications"]{ margin-left:auto; }
+    #mobileMenuBtn{ margin-left:auto; }
 
     /* Navbar is one compact row again here, so anchors/sidebar/carousel
        need a shorter offset than before. */
@@ -550,6 +559,7 @@
     </nav>
   </div>
   <div class="nav-right">
+    <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><svg class="icon"><use href="#i-wallet"/></svg></a>
     <button class="icon-btn" title="Notifications" id="notifBtn"><svg class="icon"><use href="#i-bell"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
     <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
     <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2F" title="Log in">

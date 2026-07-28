@@ -253,6 +253,11 @@
     .hub-avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border-color); display:flex;align-items:center;justify-content:center; }
     .hub-menu-toggle{ display:none; }
     .hub-tourney-home-link{ display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-secondary); text-decoration:none; }
+    .hub-tourney-home-link{ order:1; }
+    .hub-avatar-btn{ order:2; }
+    .hub-wallet-link{ order:3; }
+    .hub-nav-right button.hub-icon-btn:not(.hub-menu-toggle){ order:4; }
+    .hub-menu-toggle{ order:6; }
 
     .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
     .mobile-nav-overlay.open{ display:block; }
@@ -295,6 +300,7 @@
     </div>
     <div class="hub-nav-right">
       <a href="/predictions" class="hub-tourney-home-link" title="Predictions Home"><i class="fas fa-house"></i></a>
+      <a href="/wallet" class="hub-icon-btn hub-wallet-link" title="Wallet"><i class="fas fa-wallet"></i></a>
       <button class="hub-icon-btn"><i class="fas fa-bell"></i></button>
       <a class="hub-avatar-btn" id="navAuthBtn" href="/login?redirect=%2Finjuries" title="Log in">
         <div class="hub-avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-secondary);"></i></div>

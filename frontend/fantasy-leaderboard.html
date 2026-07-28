@@ -42,6 +42,11 @@
     .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
     .avatar-btn:hover{border-color:var(--border);}
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+    .tourney-home-link{ order:1; }
+    .avatar-btn{ order:2; }
+    .wallet-icon-link{ order:3; }
+    .bell-btn{ order:4; }
+    #mobileMenuBtn{ order:6; }
 
     main{ position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:32px 24px 60px; }
     .header{ margin-bottom:22px; }
@@ -73,12 +78,12 @@
       .logo-mark{ width:32px; height:32px; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-      .tourney-home-link{ order:2; display:flex; align-items:center; justify-content:center; width:34px; height:34px; margin-left:10px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
-      .avatar-btn{ order:3; margin-left:10px; padding:2px; }
+      .tourney-home-link{ display:flex; align-items:center; justify-content:center; width:34px; height:34px; margin-left:10px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+      .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
-      .bell-btn{ order:4; margin-left:auto; }
-      .icon-btn.menu-toggle{ display:flex; order:5; }
+      .bell-btn{ margin-left:0; }
+      .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
     }
 
     .board{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
@@ -138,6 +143,7 @@
     </div>
     <div class="nav-right">
       <a href="/fantasy-manager" class="tourney-home-link" title="Fantasy Manager Home"><i class="fas fa-house"></i></a>
+      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet" style="font-size:14px;color:var(--text-dim);"></i></a>
       <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
       <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Ffantasy-leaderboard" title="Log in">
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
