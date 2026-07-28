@@ -243,9 +243,13 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
       
       showToast('Predictions saved successfully!', 'success');
-      
-      // Redirect to profile page
-      window.location.href = '/profile.html';
+
+      // Give the toast a moment to actually be seen before navigating away,
+      // and go back to the Predictions home page — not Profile, which has
+      // nothing to do with what was just submitted.
+      setTimeout(() => {
+        window.location.href = '/predictions';
+      }, 1200);
       
     } catch (error) {
       console.error('Error submitting predictions:', error);
