@@ -2,6 +2,39 @@
 document.addEventListener('DOMContentLoaded', async function() {
   const fixtureList = document.querySelector('.fixture-list');
   const predictionsForm = document.getElementById('predictions-form');
+  const entryGateCard = document.getElementById('entryGateCard');
+
+  // Entry gate — a user must have actually joined the live tournament
+  // before they're allowed to submit predictions. Without this, someone
+  // could predict without entering and score invisibly, off the
+  // leaderboard, since no tournament_entries row would exist for them.
+  const token = localStorage.getItem('gbf_token');
+  if (token) {
+    try {
+      const tRes = await fetch('/api/tournaments?status=live');
+      const tData = await tRes.json();
+      const liveTournament = (tData.tournaments || [])[0];
+
+      if (liveTournament) {
+        const entryRes = await fetch(`/api/tournaments?tournament_id=${liveTournament.id}&my_entry=true`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const entryData = await entryRes.json();
+
+        if (!entryData.entry) {
+          // Not entered — hide the form entirely, show the gate instead.
+          predictionsForm.style.display = 'none';
+          entryGateCard.style.display = 'block';
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to check tournament entry status:', e);
+      // If the check itself fails, fail open rather than blocking a
+      // genuinely-entered user over a network hiccup — the backend
+      // ultimately still only scores predictions tied to a real entry.
+    }
+  }
   
   // Default to next gameweek for predictions (users predict upcoming games)
   let currentGameweek = 36;

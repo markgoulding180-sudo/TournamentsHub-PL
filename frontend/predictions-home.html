@@ -332,7 +332,7 @@
   <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <a href="/">GB Hub</a>
-    <a href="/predict">Predict Now</a>
+    <a href="/predict" class="predict-now-link">Predict Now</a>
     <a href="/leaderboard">Leaderboard</a>
     <a href="/table">PL Table</a>
     <a href="/injuries">Injuries</a>
@@ -396,7 +396,7 @@
 
     <!-- Predict nav bar — quick access to the pages a user actually uses -->
     <nav class="predict-nav-bar">
-      <a href="/predict" class="predict-nav-btn primary"><i class="fas fa-futbol"></i> Predict Now</a>
+      <a href="/predict" class="predict-nav-btn primary predict-now-link"><i class="fas fa-futbol"></i> Predict Now</a>
       <a href="#yourPredictionsCard" class="predict-nav-btn"><i class="fas fa-user-check"></i> Your Predictions</a>
     </nav>
 
@@ -446,6 +446,7 @@
   <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
   <script src="live-poll.js"></script>
+  <script src="toast.js"></script>
   <script>
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -457,6 +458,7 @@
 
     let currentGw = null;
     let tournamentId = null;
+    let isEnteredInTournament = false;
 
     // ---------- This Week's Games ----------
     async function loadThisWeek() {
@@ -503,7 +505,7 @@
         } else if (matches.length > 0 && myPredictions.length >= matches.length) {
           statusArea.innerHTML = `<span class="predict-status done"><i class="fas fa-circle-check"></i> You've Predicted This Week</span>`;
         } else {
-          statusArea.innerHTML = `<a href="/predict?gameweek=${currentGw}" class="predict-status todo"><i class="fas fa-pen"></i> Predict Now</a>`;
+          statusArea.innerHTML = `<a href="/predict?gameweek=${currentGw}" class="predict-status todo predict-now-link"><i class="fas fa-pen"></i> Predict Now</a>`;
         }
 
         if (loggedIn && matches.length > 0) {
@@ -622,6 +624,7 @@
             const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: authHeaders() });
             const entryData = await entryRes.json();
             if (entryData.entry) {
+              isEnteredInTournament = true;
               entryHtml = `<button class="hero-enter-btn entered" disabled><i class="fas fa-circle-check"></i> You're Entered</button>`;
             }
           } catch (e) {}
@@ -827,6 +830,23 @@
       document.getElementById('mobileNavOverlay').classList.toggle('open', open);
     }
     document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
+
+    // Every "Predict Now" link on this page shares this class. If the user
+    // hasn't entered yet, don't send them to /predict just to get bounced
+    // by its own entry gate — scroll them to the hero's real Enter button
+    // instead, with a nudge toast so it's obvious why nothing happened.
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('.predict-now-link');
+      if (!link) return;
+      const token = localStorage.getItem('gbf_token');
+      if (token && !isEnteredInTournament) {
+        e.preventDefault();
+        if (typeof showToast === 'function') {
+          showToast("Enter the tournament first — scroll up to the Enter button.", 'info');
+        }
+        document.querySelector('.hero')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
 
     // ================= NOTIFICATIONS =================

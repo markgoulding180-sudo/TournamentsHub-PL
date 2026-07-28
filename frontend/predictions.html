@@ -606,6 +606,15 @@
       </p>
     </div>
 
+    <!-- Entry gate — shown instead of the form if the user hasn't
+         actually entered the tournament yet. Hidden by default. -->
+    <div id="entryGateCard" class="card mb-3" style="display:none; text-align:center; padding:2rem 1.5rem; border:1.5px solid var(--accent-amber);">
+      <i class="fas fa-lock" style="font-size:2rem; color:var(--accent-amber); margin-bottom:1rem; display:block;"></i>
+      <h3 style="margin-bottom:0.5rem;">You haven't entered this tournament yet</h3>
+      <p class="text-muted mb-3">You need to enter before you can submit predictions — head back to the Predictions home page and hit "Enter Tournament".</p>
+      <a href="/predictions" class="btn btn-primary btn-lg"><i class="fas fa-right-to-bracket"></i> Go Enter the Tournament</a>
+    </div>
+
     <!-- Fixtures & Predictions -->
     <form id="predictions-form">
       <div class="fixture-list">
