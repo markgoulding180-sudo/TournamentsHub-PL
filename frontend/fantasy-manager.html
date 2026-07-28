@@ -138,7 +138,7 @@
       .hero-graphic{ display:none; }
     }
 
-    .fm-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; min-width:0; overflow-x:auto; }
+    .fm-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; min-width:0; }
     .fm-card-title{ font-family:var(--font-head); font-size:16px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
 
     .fm-search{width:100%; margin-bottom:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:14px;}
@@ -149,15 +149,15 @@
     .fm-filter-btn{padding:.4rem .9rem; border-radius:2rem; border:1px solid var(--border); background:var(--bg-card); color:var(--text-dim); font-size:.8rem; cursor:pointer; font-family:var(--font-head); font-weight:600;}
     .fm-filter-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
 
-    .fm-player-list{display:flex; flex-direction:column; gap:.5rem; max-height:600px; overflow-y:auto; padding-right:4px; min-width:0;}
-    .fm-player-row{display:flex; align-items:center; gap:.7rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.55rem .8rem;}
+    .fm-player-list{display:flex; flex-direction:column; gap:.5rem; max-height:600px; overflow-y:auto; overflow-x:auto; padding-right:4px; min-width:0;}
+    .fm-player-row{display:flex; align-items:center; gap:.7rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.55rem .8rem; min-width:300px;}
     .fm-player-row.disabled{opacity:.4;}
     .fm-pos-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex:none;}
     .fm-pos-badge.gk{background:rgba(242,185,61,0.2);color:var(--gold);}
     .fm-pos-badge.def{background:rgba(59,130,246,0.2);color:var(--accent-2);}
     .fm-pos-badge.mid{background:rgba(34,197,94,0.2);color:var(--green);}
     .fm-pos-badge.fwd{background:rgba(239,68,68,0.2);color:var(--red);}
-    .fm-player-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px;}
+    .fm-player-name{flex:1 1 auto; min-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px;}
     .fm-player-name .team{font-size:.72rem; color:var(--text-faint); display:block;}
     .fm-player-meta{display:flex; gap:.9rem; font-size:.8rem; color:var(--text-dim); flex:none; text-align:right;}
     .fm-player-meta span{display:block; min-width:38px;}
@@ -166,7 +166,7 @@
 
     .fm-squad-group-title{font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); margin:.9rem 0 .4rem; font-family:var(--font-head); font-weight:700;}
     .fm-squad-group-title:first-child{margin-top:0;}
-    .fm-squad-slot{display:flex; align-items:center; gap:.6rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.5rem .7rem; margin-bottom:.4rem;}
+    .fm-squad-slot{display:flex; align-items:center; gap:.6rem; background:var(--bg-card); border:1px solid var(--border); border-radius:.6rem; padding:.5rem .7rem; margin-bottom:.4rem; min-width:260px;}
     .fm-squad-slot.empty{opacity:.4; font-style:italic; color:var(--text-faint); font-size:.85rem;}
     .fm-squad-slot .fm-player-name{font-size:.88rem;}
     .fm-cap-btn{flex:none; width:24px; height:24px; border-radius:50%; border:1px solid var(--gold); background:transparent; color:var(--gold); font-size:.65rem; cursor:pointer; font-weight:700;}
@@ -338,7 +338,7 @@
       <div>
         <section class="fm-card" style="margin-bottom:20px;">
           <div class="fm-card-title"><i class="fas fa-shirt"></i> My Squad</div>
-          <div id="fmSquadPanel"></div>
+          <div id="fmSquadPanel" style="overflow-x:auto;"></div>
           <div class="fm-save-bar">
             <span>Tap <i class="fas fa-star gold" style="color:var(--gold);"></i> to set captain (2x points)</span>
             <button class="btn-primary" id="fmSaveBtn" disabled>
