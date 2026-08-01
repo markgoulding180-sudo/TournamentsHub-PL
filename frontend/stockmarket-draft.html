@@ -311,6 +311,42 @@
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
+    // Team shirt fallback for players with no headshot photo
+    function getTeamShirtName(teamName) {
+      const shirtMap = {
+        'Arsenal': 'arsenal', 'Aston Villa': 'aston villa', 'Bournemouth': 'bournmouth',
+        'Brentford': 'brentford', 'Brighton': 'brighton', 'Burnley': 'burnley',
+        'Chelsea': 'chelsea', 'Crystal Palace': 'crystal', 'Everton': 'everton',
+        'Fulham': 'fullham', 'Leeds': 'leeds', 'Liverpool': 'liverpool',
+        'Man City': 'man city', 'Man United': 'man u', 'Man Utd': 'man u',
+        'Manchester United': 'man u', 'Manchester Utd': 'man u',
+        'Newcastle': 'new castle', 'Newcastle United': 'new castle', 'Newcastle Utd': 'new castle',
+        "Nott'm Forest": 'nots forest', 'Nottingham Forest': 'nots forest', 'Notts Forest': 'nots forest',
+        'Spurs': 'spurs', 'Tottenham': 'spurs', 'Tottenham Hotspur': 'spurs',
+        'West Ham': 'west ham', 'West Ham United': 'west ham', 'West Ham Utd': 'west ham',
+        'Wolves': 'wovles temp', 'Wolverhampton': 'wovles temp', 'Wolverhampton Wanderers': 'wovles temp',
+        'Sunderland': 'sunderland', 'Coventry': 'coventry city', 'Coventry City': 'coventry city',
+        'Hull': 'hull city', 'Hull City': 'hull city', 'Ipswich': 'ipswich town', 'Ipswich Town': 'ipswich town'
+      };
+      return shirtMap[teamName] || (teamName || '').toLowerCase();
+    }
+    function shirtSrc(team) {
+      return `shirts/${getTeamShirtName(team)}.webp`;
+    }
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    function shirtFallbackHtml(team, sizePct) {
+      return `<img src="${shirtSrc(team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:${sizePct}%;height:${sizePct}%;object-fit:contain;">`;
+    }
+    // Used directly as an onerror handler when a player photo fails to
+    // load — swaps the broken <img> for the team shirt instead of trying
+    // to rebuild nested HTML as an escaped string.
+    window.swapToShirtFallback = function(imgEl, team) {
+      imgEl.src = shirtSrc(team);
+      imgEl.style.width = '70%';
+      imgEl.style.height = '70%';
+      imgEl.style.objectFit = 'contain';
+      imgEl.onerror = function() { this.onerror = null; this.src = BLANK_IMG; };
+    };
     const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
     const ELEMENT_TYPE_TO_POS = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 
@@ -432,7 +468,7 @@
           <div class="card-selected-badge"><i class="fas fa-check"></i></div>
           <div class="card-photo-wrap">
             ${c.photo ? `<img src="${c.photo}" alt="${escapeHtml(c.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
-            <div class="no-photo" style="${c.photo ? 'display:none;' : 'display:flex; align-items:flex-end;'}"><i class="fas fa-user"></i></div>
+            <div class="no-photo" style="${c.photo ? 'display:none;' : 'display:flex; align-items:flex-end;'}">${shirtFallbackHtml(c.team, 70)}</div>
           </div>
           <div class="card-body">
             <div class="card-name">${escapeHtml(c.name)}</div>
@@ -617,7 +653,7 @@
         return `
         <div class="slot-item filled" id="slot-editor-${idx}">
           <div class="slot-photo">
-            ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-user\\'></i>';">` : `<i class="fas fa-user"></i>`}
+            ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="window.swapToShirtFallback(this, '${escapeHtml(p.team || '')}')">` : shirtFallbackHtml(p.team, 70)}
           </div>
           <div class="slot-info">
             <div class="slot-pos-label">${slot.label} · ${escapeHtml(p.rarity)}</div>

@@ -489,6 +489,31 @@
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
+    // Team shirt image helpers — same mapping used on LMS and elsewhere.
+    // Used as the fallback when a player has no headshot photo, instead of
+    // a generic person icon.
+    function getTeamShirtName(teamName) {
+      const shirtMap = {
+        'Arsenal': 'arsenal', 'Aston Villa': 'aston villa', 'Bournemouth': 'bournmouth',
+        'Brentford': 'brentford', 'Brighton': 'brighton', 'Burnley': 'burnley',
+        'Chelsea': 'chelsea', 'Crystal Palace': 'crystal', 'Everton': 'everton',
+        'Fulham': 'fullham', 'Leeds': 'leeds', 'Liverpool': 'liverpool',
+        'Man City': 'man city', 'Man United': 'man u', 'Man Utd': 'man u',
+        'Manchester United': 'man u', 'Manchester Utd': 'man u',
+        'Newcastle': 'new castle', 'Newcastle United': 'new castle', 'Newcastle Utd': 'new castle',
+        "Nott'm Forest": 'nots forest', 'Nottingham Forest': 'nots forest', 'Notts Forest': 'nots forest',
+        'Spurs': 'spurs', 'Tottenham': 'spurs', 'Tottenham Hotspur': 'spurs',
+        'West Ham': 'west ham', 'West Ham United': 'west ham', 'West Ham Utd': 'west ham',
+        'Wolves': 'wovles temp', 'Wolverhampton': 'wovles temp', 'Wolverhampton Wanderers': 'wovles temp',
+        'Sunderland': 'sunderland', 'Coventry': 'coventry city', 'Coventry City': 'coventry city',
+        'Hull': 'hull city', 'Hull City': 'hull city', 'Ipswich': 'ipswich town', 'Ipswich Town': 'ipswich town'
+      };
+      return shirtMap[teamName] || (teamName || '').toLowerCase();
+    }
+    function shirtSrc(team) {
+      return `shirts/${getTeamShirtName(team)}.webp`;
+    }
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     function authHeaders() {
       const token = localStorage.getItem('gbf_token');
       return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -650,8 +675,8 @@
         ` : `
           <div class="portfolio-card">
             <div class="p-photo-wrap">${p.photo
-              ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
-              : `<div class="no-photo"><i class="fas fa-user"></i></div>`}</div>
+              ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`
+              : `<div class="no-photo"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`}</div>
             <div class="p-overlay-stack">
               <div class="p-name-overlay">
                 <div class="p-name-line">${escapeHtml(p.name)}</div>
@@ -841,8 +866,8 @@
         // lives server-side (photoByPid), so there's nothing extra to
         // check here. Single fallback to the icon if it fails to load.
         const photoHtml = p.photo
-          ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><i class="fas fa-user"></i></div>`
-          : `<div class="no-photo"><i class="fas fa-user"></i></div>`;
+          ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`
+          : `<div class="no-photo"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`;
 
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
