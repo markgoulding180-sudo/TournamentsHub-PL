@@ -468,7 +468,7 @@
           <div class="card-selected-badge"><i class="fas fa-check"></i></div>
           <div class="card-photo-wrap">
             ${c.photo ? `<img src="${c.photo}" alt="${escapeHtml(c.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
-            <div class="no-photo" style="${c.photo ? 'display:none;' : 'display:flex; align-items:flex-end;'}">${shirtFallbackHtml(c.team, 70)}</div>
+            <div class="no-photo" style="${c.photo ? 'display:none;' : 'display:flex; align-items:center; justify-content:center; margin:0;'}">${shirtFallbackHtml(c.team, 85)}</div>
           </div>
           <div class="card-body">
             <div class="card-name">${escapeHtml(c.name)}</div>
