@@ -1125,6 +1125,45 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // Wallet: the logged-in user's own transaction history + running
       // total owed. Read-only ledger view — nothing here charges or pays
       // anything, it just shows what's already been recorded.
+      // Admin — just the polling-paused flag, cheap to check on page load
+      const adminPollingStatus = params.get('admin_polling_status');
+      if (adminPollingStatus === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: clock } = await masterDb.from('master_clock').select('polling_paused').eq('id', 'current').maybeSingle();
+        return res.status(200).json({ polling_paused: !!clock?.polling_paused });
+      }
+
+      // Admin — match list for the Simulate Match tool, plus whether
+      // real polling is currently paused.
+      const adminMatchesGw = params.get('admin_matches_for_gameweek');
+      if (adminMatchesGw) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: matches, error: matchesErr } = await masterDb
+          .from('matches')
+          .select('id, home_team, away_team, status, home_score, away_score, kickoff_time')
+          .eq('gameweek', parseInt(adminMatchesGw))
+          .order('kickoff_time', { ascending: true });
+        if (matchesErr) return res.status(500).json({ error: matchesErr.message });
+
+        const { data: clock } = await masterDb.from('master_clock').select('polling_paused').eq('id', 'current').maybeSingle();
+
+        return res.status(200).json({ matches: matches || [], polling_paused: !!clock?.polling_paused });
+      }
+
       const wallet = params.get('wallet');
       if (wallet === 'true') {
         const authHeader = req.headers.authorization;
@@ -1764,6 +1803,119 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(result.status).json(result.body);
       }
 
+      // Simulate ONE match finishing — same generation logic as the bulk
+      // tool above (literally the same function), same points-calculation
+      // call, just scoped to a single match instead of a whole gameweek.
+      // This is what lets a gameweek be tested match-by-match, the way a
+      // real Saturday 3pm slate actually plays out, instead of everything
+      // resolving at once.
+      if (action === 'simulate_match_finish') {
+        const { data: simCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!simCaller || !simCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { match_id: simMatchId } = req.body;
+        if (!simMatchId) return res.status(400).json({ error: 'match_id is required' });
+
+        try {
+          const { data: match, error: matchErr } = await masterDb
+            .from('matches').select('id, gameweek, home_team, away_team').eq('id', simMatchId).maybeSingle();
+          if (matchErr || !match) return res.status(404).json({ error: 'Match not found' });
+
+          const { data: teams } = await masterDb.from('teams').select('id, name');
+          const teamIdByName = {};
+          (teams || []).forEach(t => { teamIdByName[t.name] = t.id; });
+
+          const { data: allPlayers } = await masterDb
+            .from('players').select('id, web_name, team, element_type, photo, custom_photo_url');
+          const playersByTeamId = {};
+          (allPlayers || []).forEach(p => {
+            if (!playersByTeamId[p.team]) playersByTeamId[p.team] = [];
+            playersByTeamId[p.team].push(p);
+          });
+
+          const statByPlayerId = {};
+          const matchUpdate = simulateOneMatchIntoAccumulator(match, match.gameweek, teamIdByName, playersByTeamId, statByPlayerId);
+
+          const { error: matchUpdateErr } = await masterDb.from('matches').update({
+            home_score: matchUpdate.home_score, away_score: matchUpdate.away_score,
+            status: matchUpdate.status, result: matchUpdate.result
+          }).eq('id', matchUpdate.id);
+          if (matchUpdateErr) return res.status(500).json({ error: matchUpdateErr.message });
+
+          const statRows = Object.values(statByPlayerId);
+          if (statRows.length > 0) {
+            await masterDb.from('player_gameweek_stats').upsert(statRows, { onConflict: 'gameweek,player_id' });
+          }
+
+          // Same real function live-scores.js will use for real — not a
+          // reimplementation. Safe to call after every single match too;
+          // it only scores predictions for matches that are actually
+          // finished, and it's idempotent (upsert-based).
+          let predictionsScored = false;
+          try {
+            const { calculatePointsForGameweek } = require('./live-scores.js');
+            await calculatePointsForGameweek(supabaseAdmin, masterDb, match.gameweek);
+            predictionsScored = true;
+          } catch (predErr) {
+            console.error('simulate_match_finish: Predictions scoring step failed (non-fatal):', predErr);
+          }
+
+          return res.status(200).json({
+            success: true, match_id: matchUpdate.id, gameweek: match.gameweek,
+            home_team: match.home_team, away_team: match.away_team,
+            home_score: matchUpdate.home_score, away_score: matchUpdate.away_score,
+            players_with_stats: statRows.length, predictions_scored: predictionsScored
+          });
+        } catch (err) {
+          console.error('simulate_match_finish error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Simulate ONE match going live (in progress) — no player stats or
+      // points yet, matching real behaviour: a live match doesn't award
+      // points until it's actually finished. This is purely so the "In
+      // Play" live-score UI can be tested before committing to a result.
+      if (action === 'simulate_match_live') {
+        const { data: liveCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!liveCaller || !liveCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { match_id: liveMatchId, home_score: liveHomeScore, away_score: liveAwayScore } = req.body;
+        if (!liveMatchId) return res.status(400).json({ error: 'match_id is required' });
+
+        try {
+          const { error: liveUpdateErr } = await masterDb.from('matches').update({
+            status: 'live',
+            home_score: Number.isInteger(liveHomeScore) ? liveHomeScore : 0,
+            away_score: Number.isInteger(liveAwayScore) ? liveAwayScore : 0
+          }).eq('id', liveMatchId);
+          if (liveUpdateErr) return res.status(500).json({ error: liveUpdateErr.message });
+
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('simulate_match_live error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Toggle the testing pause switch — while paused, live-scores.js,
+      // sync-players.js, and sync-fixtures.js all skip real FPL calls
+      // entirely (checked at the very top of each), so admin-simulated
+      // test data for the current gameweek can't be silently overwritten.
+      if (action === 'admin_set_polling_paused') {
+        const { data: pauseCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!pauseCaller || !pauseCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { paused } = req.body;
+        try {
+          await masterDb.from('master_clock').update({ polling_paused: !!paused }).eq('id', 'current');
+          return res.status(200).json({ success: true, polling_paused: !!paused });
+        } catch (err) {
+          console.error('admin_set_polling_paused error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       // ADMIN: force a re-sync next time this gameweek is processed, by
       // clearing its cached row(s). Useful if FPL corrects a result after
       // the fact. Omit gameweek to clear the whole cache.
@@ -1794,17 +1946,33 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // TEMPORARY TEST TOOL — delete after testing. Force-closes the
       // draft window right now instead of needing manual SQL each time.
       // TEMPORARY TEST TOOL — delete after testing. Advances the master
-      // clock's current gameweek by 1, so real historical data (already
-      // marked finished in reality) processes automatically on next load.
+      // clock's current gameweek by 1. Used to just bump the clock,
+      // relying on real historical FPL data already being finished for
+      // that gameweek — but with the season freshly reset to 0, there's
+      // no real data to rely on any more. Now it generates a full test
+      // result for the gameweek being left (same generator function used
+      // everywhere else, so it's the same real mechanics, not new logic)
+      // before advancing, so Stock Market always has something to settle.
       if (action === 'stockmarket_advance_gameweek') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
         try {
           const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
-          const newGw = (clock ? clock.current_gameweek : 0) + 1;
-          await masterDb.from('master_clock').update({ current_gameweek: newGw }).eq('id', 'current');
-          return res.status(200).json({ success: true, new_gameweek: newGw });
+          const leavingGw = clock ? clock.current_gameweek : 0;
+          const newGw = leavingGw + 1;
+
+          let testDataGenerated = false;
+          if (leavingGw > 0) {
+            const genResult = await generateTestGameweekData(masterDb, leavingGw, supabaseAdmin);
+            testDataGenerated = genResult.status === 200;
+          }
+
+          // Auto-pause real polling the first time this test button is
+          // used, so the data it just generated can't get silently
+          // overwritten by background live-poll syncing 2 minutes later.
+          await masterDb.from('master_clock').update({ current_gameweek: newGw, polling_paused: true }).eq('id', 'current');
+          return res.status(200).json({ success: true, new_gameweek: newGw, test_data_generated: testDataGenerated, polling_paused: true });
         } catch (err) {
           console.error('stockmarket_advance_gameweek error:', err);
           return res.status(500).json({ error: err.message });
@@ -3849,6 +4017,95 @@ const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/
 // player's clean sheet / goals conceded always matches their own team's
 // fake scoreline for that same match — nothing here is independently
 // randomized in a way that could contradict itself).
+// Shared by both the bulk "Generate Test Gameweek Data" tool and the
+// single-match "Simulate Match" tool — literally the same function, so a
+// simulated match is generated identically regardless of which admin
+// button triggered it. Mutates statByPlayerId in place (the caller owns
+// the accumulator so bulk-gameweek calls can merge many matches' stats
+// together before one upsert); returns the match update row.
+function simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTeamId, statByPlayerId) {
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const randInt = (max) => Math.floor(Math.random() * (max + 1));
+  // Weighted toward realistic scorelines: 0,1,2 much more common than 3+
+  const randomScore = () => {
+    const r = Math.random();
+    if (r < 0.28) return 0;
+    if (r < 0.60) return 1;
+    if (r < 0.85) return 2;
+    if (r < 0.96) return 3;
+    return 4;
+  };
+
+  const ensureStat = (p) => {
+    if (!statByPlayerId[p.id]) {
+      statByPlayerId[p.id] = {
+        gameweek, player_id: p.id, team: null, web_name: p.web_name,
+        photo: p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null),
+        goals_scored: 0, assists: 0, yellow_cards: 0, red_cards: 0,
+        clean_sheets: 0, goals_conceded: 0, saves: 0, minutes: 0,
+        synced_at: new Date().toISOString()
+      };
+    }
+    return statByPlayerId[p.id];
+  };
+
+  const homeScore = randomScore();
+  const awayScore = randomScore();
+  const matchUpdate = {
+    id: m.id, gameweek, home_team: m.home_team, away_team: m.away_team,
+    home_score: homeScore, away_score: awayScore, status: 'finished',
+    result: homeScore > awayScore ? 'H' : awayScore > homeScore ? 'A' : 'D'
+  };
+
+  const homeTeamId = teamIdByName[m.home_team];
+  const awayTeamId = teamIdByName[m.away_team];
+  const homeSquad = playersByTeamId[homeTeamId] || [];
+  const awaySquad = playersByTeamId[awayTeamId] || [];
+
+  const simulateTeam = (squad, teamName, goalsFor, goalsAgainst) => {
+    if (squad.length === 0) return;
+    const mids = squad.filter(p => p.element_type === 3);
+    const fwds = squad.filter(p => p.element_type === 4);
+
+    // ~14 of the squad "play" this match — realistic starters+subs mix
+    const shuffled = [...squad].sort(() => Math.random() - 0.5);
+    const playing = shuffled.slice(0, Math.min(14, squad.length));
+    playing.forEach(p => {
+      const s = ensureStat(p);
+      s.team = teamName;
+      s.minutes = Math.random() < 0.75 ? 90 : (30 + randInt(59));
+      s.goals_conceded = goalsAgainst;
+      if (goalsAgainst === 0 && (p.element_type === 1 || p.element_type === 2)) s.clean_sheets = 1;
+      if (Math.random() < 0.12) s.yellow_cards = 1;
+      if (Math.random() < 0.01) s.red_cards = 1;
+    });
+
+    const playingGk = playing.find(p => p.element_type === 1);
+    if (playingGk) {
+      const s = ensureStat(playingGk);
+      s.saves = goalsAgainst + randInt(4);
+    }
+
+    // Distribute this team's goals among players who actually played,
+    // weighted toward attackers — same for assists.
+    const attackers = playing.filter(p => fwds.includes(p) || mids.includes(p));
+    const scorerPool = attackers.length > 0 ? attackers : playing;
+    for (let i = 0; i < goalsFor; i++) {
+      const scorer = pick(scorerPool);
+      ensureStat(scorer).goals_scored += 1;
+      if (Math.random() < 0.65) {
+        const assistPool = playing.filter(p => p.id !== scorer.id && (mids.includes(p) || fwds.includes(p)));
+        if (assistPool.length > 0) ensureStat(pick(assistPool)).assists += 1;
+      }
+    }
+  };
+
+  simulateTeam(homeSquad, m.home_team, homeScore, awayScore);
+  simulateTeam(awaySquad, m.away_team, awayScore, homeScore);
+
+  return matchUpdate;
+}
+
 async function generateTestGameweekData(masterDb, gameweek, localDb) {
   try {
     const { data: matches, error: matchesErr } = await masterDb
@@ -3871,91 +4128,10 @@ async function generateTestGameweekData(masterDb, gameweek, localDb) {
       playersByTeamId[p.team].push(p);
     });
 
-    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-    const randInt = (max) => Math.floor(Math.random() * (max + 1));
-    // Weighted toward realistic scorelines: 0,1,2 much more common than 3+
-    const randomScore = () => {
-      const r = Math.random();
-      if (r < 0.28) return 0;
-      if (r < 0.60) return 1;
-      if (r < 0.85) return 2;
-      if (r < 0.96) return 3;
-      return 4;
-    };
-
     const statByPlayerId = {};
-    const ensureStat = (p) => {
-      if (!statByPlayerId[p.id]) {
-        statByPlayerId[p.id] = {
-          gameweek, player_id: p.id, team: null, web_name: p.web_name,
-          photo: p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null),
-          goals_scored: 0, assists: 0, yellow_cards: 0, red_cards: 0,
-          clean_sheets: 0, goals_conceded: 0, saves: 0, minutes: 0,
-          synced_at: new Date().toISOString()
-        };
-      }
-      return statByPlayerId[p.id];
-    };
-
-    const matchUpdates = [];
-
-    for (const m of matches) {
-      const homeScore = randomScore();
-      const awayScore = randomScore();
-      matchUpdates.push({
-        id: m.id, gameweek, home_team: m.home_team, away_team: m.away_team,
-        home_score: homeScore, away_score: awayScore, status: 'finished',
-        result: homeScore > awayScore ? 'H' : awayScore > homeScore ? 'A' : 'D'
-      });
-
-      const homeTeamId = teamIdByName[m.home_team];
-      const awayTeamId = teamIdByName[m.away_team];
-      const homeSquad = playersByTeamId[homeTeamId] || [];
-      const awaySquad = playersByTeamId[awayTeamId] || [];
-
-      const simulateTeam = (squad, teamName, goalsFor, goalsAgainst) => {
-        if (squad.length === 0) return;
-        const gks = squad.filter(p => p.element_type === 1);
-        const defs = squad.filter(p => p.element_type === 2);
-        const mids = squad.filter(p => p.element_type === 3);
-        const fwds = squad.filter(p => p.element_type === 4);
-
-        // ~14 of the squad "play" this match — realistic starters+subs mix
-        const shuffled = [...squad].sort(() => Math.random() - 0.5);
-        const playing = shuffled.slice(0, Math.min(14, squad.length));
-        playing.forEach(p => {
-          const s = ensureStat(p);
-          s.team = teamName;
-          s.minutes = Math.random() < 0.75 ? 90 : (30 + randInt(59));
-          s.goals_conceded = goalsAgainst;
-          if (goalsAgainst === 0 && (p.element_type === 1 || p.element_type === 2)) s.clean_sheets = 1;
-          if (Math.random() < 0.12) s.yellow_cards = 1;
-          if (Math.random() < 0.01) s.red_cards = 1;
-        });
-
-        const playingGk = playing.find(p => p.element_type === 1);
-        if (playingGk) {
-          const s = ensureStat(playingGk);
-          s.saves = goalsAgainst + randInt(4);
-        }
-
-        // Distribute this team's goals among players who actually played,
-        // weighted toward attackers — same for assists.
-        const attackers = playing.filter(p => fwds.includes(p) || mids.includes(p));
-        const scorerPool = attackers.length > 0 ? attackers : playing;
-        for (let i = 0; i < goalsFor; i++) {
-          const scorer = pick(scorerPool);
-          ensureStat(scorer).goals_scored += 1;
-          if (Math.random() < 0.65) {
-            const assistPool = playing.filter(p => p.id !== scorer.id && (mids.includes(p) || fwds.includes(p)));
-            if (assistPool.length > 0) ensureStat(pick(assistPool)).assists += 1;
-          }
-        }
-      };
-
-      simulateTeam(homeSquad, m.home_team, homeScore, awayScore);
-      simulateTeam(awaySquad, m.away_team, awayScore, homeScore);
-    }
+    const matchUpdates = matches.map(m =>
+      simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTeamId, statByPlayerId)
+    );
 
     let matchesUpdatedOk = 0;
     const matchUpdateErrors = [];

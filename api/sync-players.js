@@ -245,6 +245,13 @@ module.exports = async (req, res) => {
     }
     await supabase.from('sync_debounce').upsert({ sync_name: 'sync_players', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
 
+    // Testing safety switch — same as live-scores/sync-fixtures.
+    const { data: pauseClock } = await supabase
+      .from('master_clock').select('polling_paused').eq('id', 'current').maybeSingle();
+    if (pauseClock?.polling_paused) {
+      return res.status(200).json({ skipped: true, reason: 'Live polling is paused for testing — resume it in /admin.' });
+    }
+
     // Fetch from FPL API
     const response = await fetch(FPL_BOOTSTRAP_URL);
     const data = await response.json();

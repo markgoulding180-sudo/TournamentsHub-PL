@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
     // elsewhere (testing, review, or catching up after a delay).
     const { data: clock } = await masterDb
       .from('master_clock')
-      .select('current_gameweek')
+      .select('current_gameweek, polling_paused')
       .eq('id', 'current')
       .maybeSingle();
 
@@ -43,6 +43,14 @@ module.exports = async (req, res) => {
 
     if (!currentGW) {
       return res.status(200).json({ message: 'Master clock not set — admin must set the current gameweek first' });
+    }
+
+    // Testing safety switch — while paused, real FPL data is never fetched
+    // or written, so admin-generated test/simulated data for the current
+    // gameweek can't be silently overwritten mid-test. Flip back off in
+    // /admin before the real season needs live polling again.
+    if (clock?.polling_paused) {
+      return res.status(200).json({ skipped: true, reason: 'Live polling is paused for testing — resume it in /admin.' });
     }
 
     // Debounce: same protection as sync-players — skip if any user's poll

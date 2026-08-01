@@ -1260,9 +1260,9 @@
         });
         const data = await res.json();
         if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
-        resultsEl.textContent = `Advanced to GW${data.new_gameweek} — reloading…`;
+        resultsEl.textContent = `${data.test_data_generated ? 'Generated test data + advanced' : 'Advanced'} to GW${data.new_gameweek}. Live polling auto-paused so it stays put — reloading…`;
         await loadTournament();
-        resultsEl.textContent = `Now on GW${data.new_gameweek}. Reload again shortly to see it process.`;
+        resultsEl.textContent = `Now on GW${data.new_gameweek}, polling paused. Reload again shortly to see it process.`;
       } catch (e) {
         resultsEl.textContent = `Error: ${e.message}`;
       } finally {

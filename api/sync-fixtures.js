@@ -50,6 +50,17 @@ module.exports = async (req, res) => {
           return res.status(200).json({ skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) });
         }
       }
+
+      // Testing safety switch — ambient polling only. A real FPL sync here
+      // would overwrite admin-simulated match results/status back to
+      // whatever FPL's real (pre-season, blank) feed says. Manual admin
+      // syncs (no ?poll=true) are still allowed through deliberately.
+      const { data: clock } = await masterDb
+        .from('master_clock').select('polling_paused').eq('id', 'current').maybeSingle();
+      if (clock?.polling_paused) {
+        return res.status(200).json({ skipped: true, reason: 'Live polling is paused for testing — resume it in /admin.' });
+      }
+
       await masterDb.from('sync_debounce').upsert({ sync_name: 'sync_fixtures', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
     }
 
