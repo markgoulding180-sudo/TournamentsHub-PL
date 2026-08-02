@@ -2039,9 +2039,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             console.error('mark_matches_finished: Predictions scoring failed (non-fatal):', predErr);
           }
 
+          // Fantasy — updates live per-match, same as Predictions, not
+          // gated on the whole gameweek finishing (see the function's own
+          // comment for why this differs from Stock Market/LMS below).
+          const fantasyResults = {};
+          for (const gw of gameweeksTouched) {
+            fantasyResults[gw] = await updateFantasyPointsForGameweek(masterDb, gw);
+          }
+
           const gameweekResults = {};
           for (const gw of gameweeksTouched) {
             gameweekResults[gw] = await finalizeGameweekIfComplete(masterDb, supabaseAdmin, gw);
+            gameweekResults[gw].fantasy_players_updated = fantasyResults[gw]?.fantasy_players_updated || 0;
           }
 
           return res.status(200).json({
@@ -2111,11 +2120,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             console.error('simulate_match_finish: Predictions scoring step failed (non-fatal):', predErr);
           }
 
+          const fantasyResult = await updateFantasyPointsForGameweek(masterDb, match.gameweek);
+
           return res.status(200).json({
             success: true, match_id: matchUpdate.id, gameweek: match.gameweek,
             home_team: match.home_team, away_team: match.away_team,
             home_score: matchUpdate.home_score, away_score: matchUpdate.away_score,
-            players_with_stats: statRows.length, predictions_scored: predictionsScored
+            players_with_stats: statRows.length, predictions_scored: predictionsScored,
+            fantasy_players_updated: fantasyResult.fantasy_players_updated
           });
         } catch (err) {
           console.error('simulate_match_finish error:', err);
@@ -2216,10 +2228,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           let testDataGenerated = false;
           let stockMarketSettled = 0;
           let lmsSettled = 0;
+          let fantasyUpdated = 0;
 
           if (leavingGw > 0) {
             const genResult = await generateTestGameweekData(masterDb, leavingGw, supabaseAdmin);
             testDataGenerated = genResult.status === 200;
+
+            // Fantasy updates live per-match/whenever called, not gated
+            // on the whole gameweek — same as mark_matches_finished.
+            const fantasyResult = await updateFantasyPointsForGameweek(masterDb, leavingGw);
+            fantasyUpdated = fantasyResult.fantasy_players_updated;
 
             // Settlement only ever checks "is the CURRENT clock gameweek's
             // matches all finished" — and this action is about to move the
@@ -2261,6 +2279,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             success: true, new_gameweek: newGw, test_data_generated: testDataGenerated,
             stock_market_tournaments_settled: stockMarketSettled,
             lms_tournaments_settled: lmsSettled,
+            fantasy_players_updated: fantasyUpdated,
             polling_paused: true
           });
         } catch (err) {
@@ -4580,7 +4599,7 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
     return { fired: false, reason: 'not all matches in this gameweek are finished yet' };
   }
 
-  const result = { fired: true, stock_market_tournaments_settled: 0, lms_tournaments_settled: 0, fantasy_players_updated: 0 };
+  const result = { fired: true, stock_market_tournaments_settled: 0, lms_tournaments_settled: 0 };
 
   const { data: liveStockMarkets } = await supabaseAdmin
     .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
@@ -4598,29 +4617,50 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
     result.lms_tournaments_settled++;
   }
 
-  // Fantasy — compute standard FPL points from whatever stats exist for
-  // this gameweek and write them into players.event_points/total_points,
-  // the same fields Fantasy always reads. Only ever does this for a
-  // gameweek that's genuinely fully finished, same trigger as the others.
+  return result;
+}
+
+// Fantasy — unlike Stock Market/LMS (which genuinely need the whole
+// gameweek's result to settle a head-to-head or an elimination), real FPL
+// itself shows provisional points updating live as each match happens —
+// so this deliberately isn't gated on the whole gameweek being finished.
+// It recomputes standard FPL points from whatever player_gameweek_stats
+// currently exists (players who haven't played yet just score 0, same as
+// real live FPL), and writes into players.event_points/total_points, the
+// same fields Fantasy always reads.
+//
+// Made idempotent so calling it repeatedly through a gameweek (as more
+// matches finish) doesn't compound: total_points is adjusted by removing
+// whatever this same function last credited for event_points before
+// adding the freshly computed value, rather than just adding on top each
+// time. This is correct for updates within a single gameweek; carrying
+// the right baseline forward across a gameweek transition would need
+// bookkeeping this doesn't yet have — fine for now, since it's the same
+// gap real production doesn't have to worry about (FPL's own feed just
+// tells us the true total_points directly each sync, so nothing here
+// mutates incrementally once real polling resumes).
+async function updateFantasyPointsForGameweek(masterDb, gameweek) {
+  const result = { fantasy_players_updated: 0 };
   const { data: gwStats } = await masterDb
     .from('player_gameweek_stats').select('*').eq('gameweek', gameweek);
-  if (gwStats && gwStats.length > 0) {
-    const { data: allPlayers } = await masterDb.from('players').select('id, element_type, total_points');
-    const playerById = {};
-    (allPlayers || []).forEach(p => { playerById[p.id] = p; });
+  if (!gwStats || gwStats.length === 0) return result;
 
-    for (const stat of gwStats) {
-      const player = playerById[stat.player_id];
-      if (!player) continue;
-      const eventPoints = computeStandardFplPoints(player.element_type, stat);
-      await masterDb.from('players').update({
-        event_points: eventPoints,
-        total_points: (player.total_points || 0) + eventPoints
-      }).eq('id', stat.player_id);
-      result.fantasy_players_updated++;
-    }
+  const { data: allPlayers } = await masterDb.from('players').select('id, element_type, total_points, event_points');
+  const playerById = {};
+  (allPlayers || []).forEach(p => { playerById[p.id] = p; });
+
+  for (const stat of gwStats) {
+    const player = playerById[stat.player_id];
+    if (!player) continue;
+    const newEventPoints = computeStandardFplPoints(player.element_type, stat);
+    const previousEventPoints = player.event_points || 0;
+    const newTotal = (player.total_points || 0) - previousEventPoints + newEventPoints;
+    await masterDb.from('players').update({
+      event_points: newEventPoints,
+      total_points: newTotal
+    }).eq('id', stat.player_id);
+    result.fantasy_players_updated++;
   }
-
   return result;
 }
 
