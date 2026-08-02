@@ -1513,9 +1513,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             let total = 0, gw = 0;
             squad.forEach(pid => {
               const pts = pointsMap[pid] || { total: 0, gw: 0 };
-              const mult = pid === e.captain_id ? 2 : 1;
-              total += pts.total * mult;
-              gw += pts.gw * mult;
+              const isCaptain = pid === e.captain_id;
+              // Captain doubling only ever applies to the current
+              // gameweek's points, not their whole season total — total
+              // already includes this gameweek's contribution once, so
+              // captain just adds one extra copy of it, same real FPL rule.
+              total += pts.total + (isCaptain ? pts.gw : 0);
+              gw += isCaptain ? pts.gw * 2 : pts.gw;
             });
             return { ...e, entry_points: total, gw_points: gw };
           }).sort((a, b) => b.entry_points - a.entry_points);
