@@ -1674,20 +1674,28 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'name and gameweek are required' });
         }
 
+        // Stock Market's tournaments table has no prize_pool/top_prize
+        // columns at all — confirmed against the real schema, not
+        // assumed. The other three schemas do, so this only needs to be
+        // conditional here rather than everywhere.
+        const insertPayload = {
+          name,
+          entry_fee: entry_fee || 0,
+          gameweek,
+          end_gameweek: end_gameweek || gameweek,
+          max_entries: max_entries || 100,
+          current_entries: 0,
+          status: 'live',
+          closes_at: closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        };
+        if (schemaName !== 'stockmarket') {
+          insertPayload.prize_pool = prize_pool || 0;
+          insertPayload.top_prize = prize_pool || 0;
+        }
+
         const { data, error } = await supabaseAdmin
           .schema(schemaName).from('tournaments')
-          .insert({
-            name,
-            entry_fee: entry_fee || 0,
-            prize_pool: prize_pool || 0,
-            top_prize: prize_pool || 0,
-            gameweek,
-            end_gameweek: end_gameweek || gameweek,
-            max_entries: max_entries || 100,
-            current_entries: 0,
-            status: 'live',
-            closes_at: closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
