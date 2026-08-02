@@ -133,9 +133,17 @@
     .team-tile.used{ opacity:.4; }
     .team-tile.used .name{ text-decoration:line-through; }
     .team-tile .gw-tag{ font-size:9px; color:var(--gold); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; }
-    .team-tile.current-pick{ border:2px solid var(--green); background:rgba(34,197,94,0.08); opacity:1; }
-    .team-tile.current-pick .name{ text-decoration:none; color:var(--green); }
-    .team-tile .pick-tag{ font-size:9px; color:var(--green); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; font-weight:700; }
+    .team-tile.current-pick{ opacity:1; }
+    .team-tile.current-pick.pick-pending{ border:2px solid var(--gold); background:rgba(242,185,61,0.1); }
+    .team-tile.current-pick.pick-pending .name{ text-decoration:none; color:var(--gold); }
+    .team-tile.current-pick.pick-win{ border:2px solid var(--green); background:rgba(34,197,94,0.08); }
+    .team-tile.current-pick.pick-win .name{ text-decoration:none; color:var(--green); }
+    .team-tile.current-pick.pick-lose, .team-tile.current-pick.pick-draw{ border:2px solid #ef4444; background:rgba(239,68,68,0.1); }
+    .team-tile.current-pick.pick-lose .name, .team-tile.current-pick.pick-draw .name{ text-decoration:none; color:#ef4444; }
+    .team-tile .pick-tag{ font-size:9px; text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; font-weight:700; }
+    .team-tile .pick-tag-pending{ color:var(--gold); }
+    .team-tile .pick-tag-win{ color:var(--green); }
+    .team-tile .pick-tag-lose, .team-tile .pick-tag-draw{ color:#ef4444; }
 
     /* Gameweek results card */
     .results-card{ margin-bottom:24px; }
@@ -546,18 +554,26 @@
       }
     }
 
-    function pickResultTagHtml(team) {
+    function pickResultState(team) {
       const match = gwMatches.find(m => m.home_team === team || m.away_team === team);
-      if (!match) return '';
+      if (!match) return null;
       const hasScore = match.home_score !== null && match.home_score !== undefined;
-      if (!hasScore || match.status !== 'finished') {
-        return `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
-      }
+      if (!hasScore || match.status !== 'finished') return { state: 'pending', match };
       const won = (match.home_team === team && match.result === 'H') || (match.away_team === team && match.result === 'A');
       const drew = match.result === 'D';
+      return { state: won ? 'win' : drew ? 'draw' : 'lose', match };
+    }
+
+    function pickResultTagHtml(team) {
+      const result = pickResultState(team);
+      if (!result) return '';
+      const { state, match } = result;
+      if (state === 'pending') {
+        return `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
+      }
       const score = `${match.home_score}-${match.away_score}`;
-      if (won) return `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
-      if (drew) return `<span class="pick-result-tag draw"><i class="fas fa-minus"></i> Drew ${score}</span>`;
+      if (state === 'win') return `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
+      if (state === 'draw') return `<span class="pick-result-tag draw"><i class="fas fa-minus"></i> Drew ${score}</span>`;
       return `<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Lost ${score}</span>`;
     }
 
@@ -622,19 +638,32 @@
           `;
         }
 
-        // Teams grid — this gameweek's live pick gets a green highlight;
-        // teams used in a past gameweek get greyed/struck-through.
+        // Teams grid — this gameweek's pick is yellow while the result's
+        // still pending, green once won, red if lost or drew (a draw
+        // eliminates too, same as a loss); teams used in a past
+        // gameweek get greyed/struck-through.
         const grid = document.getElementById('teamsGrid');
         grid.innerHTML = ALL_TEAMS.map(team => {
           const usedPick = picks.find(p => p.team === team);
           const isCurrentPick = thisWeekPick && thisWeekPick.team === team;
           const used = usedTeams.includes(team) && !isCurrentPick;
-          const tileClass = isCurrentPick ? 'current-pick' : (used ? 'used' : '');
+
+          let tileClass = used ? 'used' : '';
+          let tagHtml = used ? `<span class="gw-tag">GW${usedPick.gameweek}</span>` : '';
+          if (isCurrentPick) {
+            const result = pickResultState(team);
+            const state = result ? result.state : 'pending';
+            tileClass = `current-pick pick-${state}`;
+            const tagLabel = state === 'pending' ? 'This Week' : state === 'win' ? 'Won' : state === 'draw' ? 'Drew' : 'Lost';
+            const tagIcon = state === 'pending' ? 'fa-star' : state === 'win' ? 'fa-check' : state === 'draw' ? 'fa-minus' : 'fa-xmark';
+            tagHtml = `<span class="pick-tag pick-tag-${state}"><i class="fas ${tagIcon}"></i> ${tagLabel}</span>`;
+          }
+
           return `
             <div class="team-tile ${tileClass}">
               <img src="${shirtSrc(team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
               <div class="name">${escapeHtml(team)}</div>
-              ${isCurrentPick ? `<span class="pick-tag"><i class="fas fa-star"></i> This Week</span>` : (used ? `<span class="gw-tag">GW${usedPick.gameweek}</span>` : '')}
+              ${tagHtml}
             </div>`;
         }).join('');
 
