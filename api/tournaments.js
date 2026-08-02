@@ -2655,6 +2655,91 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
       }
 
+      // TEMPORARY TEST TOOL — delete after testing. Enters each given
+      // user into the live Fantasy tournament (if not already) with a
+      // valid random 15-player squad (2 GK, 5 DEF, 5 MID, 3 FWD) within
+      // the real £100.0m budget, same rules the join action itself
+      // enforces. Biases toward the cheaper half of each position's pool
+      // so 15 random picks comfortably stay under budget without needing
+      // a full optimizer — fine for test data, not trying to build
+      // competitive squads.
+      if (action === 'fantasy_seed_entries') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: fmTournamentId, user_ids: fmUserIds } = req.body;
+        if (!fmTournamentId || !Array.isArray(fmUserIds) || fmUserIds.length === 0) {
+          return res.status(400).json({ error: 'tournament_id and user_ids (array) are required' });
+        }
+
+        try {
+          const { data: allPlayers } = await masterDb
+            .from('players').select('id, element_type, now_cost').limit(700);
+          const byPosition = { 1: [], 2: [], 3: [], 4: [] };
+          (allPlayers || []).forEach(p => { if (byPosition[p.element_type]) byPosition[p.element_type].push(p); });
+          Object.values(byPosition).forEach(pool => pool.sort((a, b) => (a.now_cost || 0) - (b.now_cost || 0)));
+
+          const needed = { 1: 2, 2: 5, 3: 5, 4: 3 };
+
+          const buildSquad = () => {
+            const squad = [];
+            const usedIds = new Set();
+            for (const [type, count] of Object.entries(needed)) {
+              const pool = byPosition[type];
+              // Bias toward the cheaper half so 15 picks comfortably fit
+              // the £100.0m budget without a full knapsack solve.
+              const cheaperHalf = pool.slice(0, Math.max(count, Math.ceil(pool.length * 0.5)));
+              const available = cheaperHalf.filter(p => !usedIds.has(p.id));
+              const shuffled = [...available].sort(() => Math.random() - 0.5);
+              for (let i = 0; i < count; i++) {
+                const pick = shuffled[i % shuffled.length];
+                squad.push(pick);
+                usedIds.add(pick.id);
+              }
+            }
+            return squad;
+          };
+
+          const results = [];
+          for (const uid of fmUserIds) {
+            if (uid === user.id) continue; // never touch your own squad
+
+            let squad = buildSquad();
+            let totalCost = squad.reduce((sum, p) => sum + (p.now_cost || 0), 0);
+            // Extremely unlikely with the cheaper-half bias, but re-roll
+            // once if it somehow still went over budget rather than fail.
+            if (totalCost > 1000) {
+              squad = buildSquad();
+              totalCost = squad.reduce((sum, p) => sum + (p.now_cost || 0), 0);
+            }
+
+            const squad_players = squad.map(p => p.id);
+            const captain_id = squad_players[Math.floor(Math.random() * squad_players.length)];
+
+            const entryPayload = {
+              tournament_id: fmTournamentId, user_id: uid, squad_players, captain_id,
+              entered_at: new Date().toISOString(), entry_points: 0
+            };
+
+            const { data: existingEntry } = await supabaseAdmin
+              .schema('fantasy').from('tournament_entries')
+              .select('id').eq('tournament_id', fmTournamentId).eq('user_id', uid).maybeSingle();
+            if (existingEntry) {
+              await supabaseAdmin.schema('fantasy').from('tournament_entries')
+                .update({ squad_players, captain_id }).eq('id', existingEntry.id);
+            } else {
+              await supabaseAdmin.schema('fantasy').from('tournament_entries').insert(entryPayload);
+            }
+            results.push({ user_id: uid, squad_cost: (totalCost / 10).toFixed(1) });
+          }
+
+          return res.status(200).json({ success: true, seeded: results.length, results });
+        } catch (err) {
+          console.error('fantasy_seed_entries error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'join') {
         try {
           console.log('Join action - tournament_id:', tournament_id, 'user_id:', user.id, 'schema:', schemaName);

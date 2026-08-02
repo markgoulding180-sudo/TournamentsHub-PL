@@ -927,6 +927,31 @@ async function adminSeedLmsEntries() {
   }
 }
 
+async function adminSeedFantasyEntries() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  if (adminTestUserIds.length === 0) { alert('Click "Create 30 Test Accounts" first.'); return; }
+  msgEl.textContent = 'Finding live Fantasy tournament…';
+
+  try {
+    const tournamentId = await adminGetLiveTournamentId('fantasy');
+    if (!tournamentId) { msgEl.textContent = 'No live Fantasy tournament found — launch one first.'; return; }
+
+    msgEl.textContent = `Building squads for ${adminTestUserIds.length} test accounts…`;
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'fantasy_seed_entries', tournament_id: tournamentId, user_ids: adminTestUserIds })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+    msgEl.textContent = `Seeded ${data.seeded} Fantasy squads.`;
+    log('Fantasy squads seeded', 'success');
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  }
+}
+
 async function seedGameweekRange() {
   const fromGw = document.getElementById('seedFromGw').value;
   const toGw = document.getElementById('seedToGw').value;
