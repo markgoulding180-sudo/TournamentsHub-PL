@@ -850,19 +850,31 @@ async function adminCreateTestAccounts() {
   const msgEl = document.getElementById('seedEntriesResultMsg');
   msgEl.textContent = 'Creating 30 test accounts…';
   try {
-    const token = localStorage.getItem('gbf_token');
-    const response = await fetch('/api/tournaments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'stockmarket_create_test_users', count: 30 })
-    });
-    const data = await response.json();
-    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
-    adminTestUserIds = data.user_ids || [];
-    msgEl.textContent = `${data.created} test accounts ready (${adminTestUserIds.length} total). Now pick a gameweek and seed Predictions/LMS.`;
+    adminTestUserIds = await adminEnsureTestUsers();
+    msgEl.textContent = `${adminTestUserIds.length} test accounts ready. Now pick a gameweek and seed Predictions/LMS/Fantasy.`;
   } catch (error) {
     msgEl.textContent = `Error: ${error.message}`;
   }
+}
+
+// stockmarket_create_test_users is idempotent — it returns the existing
+// 30 accounts' ids if they're already there, rather than duplicating
+// them. Calling it silently whenever the seed buttons need the list
+// (instead of only relying on the in-memory adminTestUserIds array)
+// means a page reload between "Create" and "Seed" doesn't silently block
+// with an easy-to-miss alert() — it just quietly re-fetches instead.
+async function adminEnsureTestUsers() {
+  if (adminTestUserIds.length > 0) return adminTestUserIds;
+  const token = localStorage.getItem('gbf_token');
+  const response = await fetch('/api/tournaments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ action: 'stockmarket_create_test_users', count: 30 })
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Failed to fetch test accounts');
+  adminTestUserIds = data.user_ids || [];
+  return adminTestUserIds;
 }
 
 async function adminGetLiveTournamentId(tournamentType) {
@@ -877,7 +889,7 @@ async function adminGetLiveTournamentId(tournamentType) {
 
 async function adminSeedPredictionsEntries() {
   const msgEl = document.getElementById('seedEntriesResultMsg');
-  if (adminTestUserIds.length === 0) { alert('Click "Create 30 Test Accounts" first.'); return; }
+  await adminEnsureTestUsers();
   const gw = parseInt(document.getElementById('seedEntriesGw').value);
   msgEl.textContent = 'Finding live Predictions tournament…';
 
@@ -903,7 +915,7 @@ async function adminSeedPredictionsEntries() {
 
 async function adminSeedLmsEntries() {
   const msgEl = document.getElementById('seedEntriesResultMsg');
-  if (adminTestUserIds.length === 0) { alert('Click "Create 30 Test Accounts" first.'); return; }
+  await adminEnsureTestUsers();
   const gw = parseInt(document.getElementById('seedEntriesGw').value);
   msgEl.textContent = 'Finding live LMS tournament…';
 
@@ -929,7 +941,7 @@ async function adminSeedLmsEntries() {
 
 async function adminSeedFantasyEntries() {
   const msgEl = document.getElementById('seedEntriesResultMsg');
-  if (adminTestUserIds.length === 0) { alert('Click "Create 30 Test Accounts" first.'); return; }
+  await adminEnsureTestUsers();
   msgEl.textContent = 'Finding live Fantasy tournament…';
 
   try {
