@@ -1709,7 +1709,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           end_gameweek: end_gameweek || gameweek,
           max_entries: max_entries || 100,
           current_entries: 0,
-          status: 'live',
+          // Stock Market's own lock-status check treats status='live' as
+          // "drafting already closed", regardless of closes_at — it needs
+          // to start 'upcoming' so there's an actual open draft window
+          // before the market goes live. Every other schema is fine
+          // starting 'live' immediately (they don't have a separate draft
+          // phase), confirmed against the real getStockMarketLockStatus
+          // logic rather than assumed.
+          status: schemaName === 'stockmarket' ? 'upcoming' : 'live',
           closes_at: closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         };
         if (schemaName !== 'stockmarket') {
