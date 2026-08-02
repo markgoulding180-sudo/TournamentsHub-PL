@@ -2482,6 +2482,141 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
       }
 
+      // TEMPORARY TEST TOOL — delete after testing. Enters each given
+      // user into the live Predictions tournament (if not already) and
+      // submits a random-but-valid prediction for every match in the
+      // given gameweek, using the exact same submission shape a real
+      // user's form would send.
+      if (action === 'predictions_seed_entries') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: predTournamentId, user_ids: predUserIds, gameweek: predGw } = req.body;
+        if (!predTournamentId || !Array.isArray(predUserIds) || predUserIds.length === 0 || !predGw) {
+          return res.status(400).json({ error: 'tournament_id, user_ids (array), and gameweek are required' });
+        }
+
+        try {
+          const { data: gwMatches } = await masterDb
+            .from('matches').select('id, home_team, away_team').eq('gameweek', predGw);
+          if (!gwMatches || gwMatches.length === 0) {
+            return res.status(404).json({ error: `No fixtures found for GW${predGw}` });
+          }
+
+          const { data: usersRows } = await supabaseAdmin.from('users').select('id, username').in('id', predUserIds);
+          const usernameById = {};
+          (usersRows || []).forEach(u => { usernameById[u.id] = u.username; });
+
+          const results = [];
+          for (const uid of predUserIds) {
+            if (uid === user.id) continue; // never touch your own predictions
+
+            const { data: existingEntry } = await supabaseAdmin
+              .schema('predictions').from('tournament_entries')
+              .select('id').eq('tournament_id', predTournamentId).eq('user_id', uid).maybeSingle();
+            if (!existingEntry) {
+              await supabaseAdmin.schema('predictions').from('tournament_entries')
+                .insert({ tournament_id: predTournamentId, user_id: uid, username: usernameById[uid] || null, entry_points: 0 });
+            }
+
+            let predictedCount = 0;
+            for (const m of gwMatches) {
+              const outcome = ['H', 'D', 'A'][Math.floor(Math.random() * 3)];
+              let homeScore, awayScore;
+              if (outcome === 'H') { homeScore = 1 + Math.floor(Math.random() * 3); awayScore = Math.floor(Math.random() * homeScore); }
+              else if (outcome === 'A') { awayScore = 1 + Math.floor(Math.random() * 3); homeScore = Math.floor(Math.random() * awayScore); }
+              else { homeScore = awayScore = Math.floor(Math.random() * 3); }
+
+              const { data: existingPred } = await supabaseAdmin
+                .schema('predictions').from('predictions')
+                .select('id').eq('user_id', uid).eq('match_id', m.id).maybeSingle();
+
+              const row = {
+                user_id: uid, match_id: m.id, gameweek: predGw, predicted_result: outcome,
+                home_score: homeScore, away_score: awayScore,
+                home_team: m.home_team, away_team: m.away_team, username: usernameById[uid] || null
+              };
+              if (existingPred) {
+                await supabaseAdmin.schema('predictions').from('predictions').update(row).eq('id', existingPred.id);
+              } else {
+                await supabaseAdmin.schema('predictions').from('predictions').insert(row);
+              }
+              predictedCount++;
+            }
+            results.push({ user_id: uid, predicted: predictedCount });
+          }
+
+          return res.status(200).json({ success: true, seeded: results.length, matches: gwMatches.length, results });
+        } catch (err) {
+          console.error('predictions_seed_entries error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // TEMPORARY TEST TOOL — delete after testing. Enters each given
+      // user into the live LMS tournament (if not already) and submits a
+      // random pick from the given gameweek's fixtures, avoiding any team
+      // that user has already picked in an earlier gameweek — same
+      // no-reuse rule the real pick page enforces.
+      if (action === 'lms_seed_entries') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id: lmsTournamentId, user_ids: lmsUserIds, gameweek: lmsGw } = req.body;
+        if (!lmsTournamentId || !Array.isArray(lmsUserIds) || lmsUserIds.length === 0 || !lmsGw) {
+          return res.status(400).json({ error: 'tournament_id, user_ids (array), and gameweek are required' });
+        }
+
+        try {
+          const { data: gwMatches } = await masterDb
+            .from('matches').select('home_team, away_team').eq('gameweek', lmsGw);
+          if (!gwMatches || gwMatches.length === 0) {
+            return res.status(404).json({ error: `No fixtures found for GW${lmsGw}` });
+          }
+          const teamsThisWeek = [];
+          gwMatches.forEach(m => { teamsThisWeek.push(m.home_team, m.away_team); });
+
+          const results = [];
+          for (const uid of lmsUserIds) {
+            if (uid === user.id) continue; // never touch your own pick
+
+            const { data: existingEntry } = await supabaseAdmin
+              .schema('lms').from('tournament_entries')
+              .select('id, is_eliminated').eq('tournament_id', lmsTournamentId).eq('user_id', uid).maybeSingle();
+            if (!existingEntry) {
+              await supabaseAdmin.schema('lms').from('tournament_entries')
+                .insert({ tournament_id: lmsTournamentId, user_id: uid, is_eliminated: false });
+            } else if (existingEntry.is_eliminated) {
+              results.push({ user_id: uid, skipped: 'already eliminated' });
+              continue;
+            }
+
+            const { data: pastPicks } = await supabaseAdmin
+              .schema('lms').from('picks')
+              .select('team').eq('tournament_id', lmsTournamentId).eq('user_id', uid).neq('gameweek', lmsGw);
+            const alreadyUsed = new Set((pastPicks || []).map(p => p.team));
+            const eligible = teamsThisWeek.filter(t => !alreadyUsed.has(t));
+            const pool = eligible.length > 0 ? eligible : teamsThisWeek; // fallback if genuinely nothing left
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+
+            const { data: existingPick } = await supabaseAdmin
+              .schema('lms').from('picks')
+              .select('id').eq('tournament_id', lmsTournamentId).eq('user_id', uid).eq('gameweek', lmsGw).maybeSingle();
+            if (existingPick) {
+              await supabaseAdmin.schema('lms').from('picks').update({ team: pick }).eq('id', existingPick.id);
+            } else {
+              await supabaseAdmin.schema('lms').from('picks').insert({ tournament_id: lmsTournamentId, user_id: uid, gameweek: lmsGw, team: pick });
+            }
+            results.push({ user_id: uid, picked: pick });
+          }
+
+          return res.status(200).json({ success: true, seeded: results.length, results });
+        } catch (err) {
+          console.error('lms_seed_entries error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'join') {
         try {
           console.log('Join action - tournament_id:', tournament_id, 'user_id:', user.id, 'schema:', schemaName);

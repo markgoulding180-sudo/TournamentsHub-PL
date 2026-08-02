@@ -844,6 +844,89 @@ async function deleteTournamentData() {
   }
 }
 
+let adminTestUserIds = [];
+
+async function adminCreateTestAccounts() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  msgEl.textContent = 'Creating 30 test accounts…';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_create_test_users', count: 30 })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+    adminTestUserIds = data.user_ids || [];
+    msgEl.textContent = `${data.created} test accounts ready (${adminTestUserIds.length} total). Now pick a gameweek and seed Predictions/LMS.`;
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+async function adminGetLiveTournamentId(tournamentType) {
+  const token = localStorage.getItem('gbf_token');
+  const response = await fetch(`/api/tournaments?status=live&tournament_type=${tournamentType}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const data = await response.json();
+  const list = data.tournaments || data || [];
+  return Array.isArray(list) && list.length > 0 ? list[0].id : null;
+}
+
+async function adminSeedPredictionsEntries() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  if (adminTestUserIds.length === 0) { alert('Click "Create 30 Test Accounts" first.'); return; }
+  const gw = parseInt(document.getElementById('seedEntriesGw').value);
+  msgEl.textContent = 'Finding live Predictions tournament…';
+
+  try {
+    const tournamentId = await adminGetLiveTournamentId('predictions');
+    if (!tournamentId) { msgEl.textContent = 'No live Predictions tournament found — launch one first.'; return; }
+
+    msgEl.textContent = `Seeding GW${gw} predictions for ${adminTestUserIds.length} test accounts…`;
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'predictions_seed_entries', tournament_id: tournamentId, user_ids: adminTestUserIds, gameweek: gw })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+    msgEl.textContent = `Seeded ${data.seeded} accounts with predictions across ${data.matches} GW${gw} matches.`;
+    log('Predictions entries seeded', 'success');
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+async function adminSeedLmsEntries() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  if (adminTestUserIds.length === 0) { alert('Click "Create 30 Test Accounts" first.'); return; }
+  const gw = parseInt(document.getElementById('seedEntriesGw').value);
+  msgEl.textContent = 'Finding live LMS tournament…';
+
+  try {
+    const tournamentId = await adminGetLiveTournamentId('lms');
+    if (!tournamentId) { msgEl.textContent = 'No live LMS tournament found — launch one first.'; return; }
+
+    msgEl.textContent = `Seeding GW${gw} picks for ${adminTestUserIds.length} test accounts…`;
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'lms_seed_entries', tournament_id: tournamentId, user_ids: adminTestUserIds, gameweek: gw })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+    msgEl.textContent = `Seeded ${data.seeded} accounts with GW${gw} picks.`;
+    log('LMS entries seeded', 'success');
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  }
+}
+
 async function seedGameweekRange() {
   const fromGw = document.getElementById('seedFromGw').value;
   const toGw = document.getElementById('seedToGw').value;

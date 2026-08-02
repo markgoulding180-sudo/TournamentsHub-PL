@@ -289,6 +289,28 @@
       <div id="seedRangeResultMsg" class="text-muted" style="margin-top:0.75rem; font-size:0.85rem;"></div>
     </div>
 
+    <!-- Seed Test Users & Entries — Predictions and LMS didn't have an
+         equivalent to Stock Market's Create/Seed pair, so test accounts
+         had nothing to actually score against. This closes that gap using
+         the same generic test-user creator, plus two new seed actions. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3><i class="fas fa-users"></i> Seed Test Users &amp; Entries</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Creates 30 test accounts (shared across all tournament types — same ones Stock Market uses), then enters them into the live Predictions and LMS tournaments with random-but-valid predictions/picks for the gameweek below.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
+        <button class="btn" onclick="adminCreateTestAccounts()" id="adminCreateAccountsBtn"><i class="fas fa-user-plus"></i> Create 30 Test Accounts</button>
+        <label class="text-muted" style="margin-left:0.5rem;">Gameweek:</label>
+        <input type="number" id="seedEntriesGw" min="1" max="38" value="1"
+          style="width:80px; padding:0.5rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+      </div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button class="btn btn-green" onclick="adminSeedPredictionsEntries()"><i class="fas fa-futbol"></i> Seed Predictions Entries</button>
+        <button class="btn btn-green" onclick="adminSeedLmsEntries()"><i class="fas fa-shield-halved"></i> Seed LMS Picks</button>
+      </div>
+      <div id="seedEntriesResultMsg" class="text-muted" style="margin-top:0.75rem; font-size:0.85rem;"></div>
+    </div>
+
     <!-- Mark Games Finished — checkbox tool. Trusts whatever result/stats
          data already exists (e.g. inserted directly via SQL for the whole
          season) rather than generating anything; just flips status and
