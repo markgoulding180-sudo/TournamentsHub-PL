@@ -1674,13 +1674,21 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'name and gameweek are required' });
         }
 
+        // Every display page (Predictions/LMS/Stock Market hero cards) and
+        // the wallet charge on join both divide/treat this as pence — but
+        // the admin form's "Entry Fee (£)" field is typed in pounds. This
+        // converts once here, at the single point of creation, instead of
+        // requiring every caller to remember to do it themselves.
+        const entryFeePence = Math.round((entry_fee || 0) * 100);
+        const prizePoolPence = Math.round((prize_pool || 0) * 100);
+
         // Stock Market's tournaments table has no prize_pool/top_prize
         // columns at all — confirmed against the real schema, not
         // assumed. The other three schemas do, so this only needs to be
         // conditional here rather than everywhere.
         const insertPayload = {
           name,
-          entry_fee: entry_fee || 0,
+          entry_fee: entryFeePence,
           gameweek,
           end_gameweek: end_gameweek || gameweek,
           max_entries: max_entries || 100,
@@ -1689,8 +1697,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           closes_at: closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         };
         if (schemaName !== 'stockmarket') {
-          insertPayload.prize_pool = prize_pool || 0;
-          insertPayload.top_prize = prize_pool || 0;
+          insertPayload.prize_pool = prizePoolPence;
+          insertPayload.top_prize = prizePoolPence;
         }
 
         const { data, error } = await supabaseAdmin
