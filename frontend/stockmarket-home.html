@@ -735,6 +735,8 @@
 
       if (!data.entry) {
         document.getElementById('enterGate').style.display = 'block';
+        document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
+        document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
         return;
       }
       document.getElementById('enterGate').style.display = 'none';
