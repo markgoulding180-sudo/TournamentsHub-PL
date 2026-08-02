@@ -1803,6 +1803,33 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(result.status).json(result.body);
       }
 
+      // Seed a whole range of gameweeks with realistic results + player
+      // stats, WITHOUT marking any of them finished — matches stay
+      // 'upcoming', ready for the "Mark Games Finished" checkbox tool to
+      // flip individually later. This is the one-time bulk seed for a
+      // full test season; the checkbox tool is what actually progresses
+      // things from there.
+      if (action === 'seed_gameweek_range') {
+        const { data: seedCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!seedCaller || !seedCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const fromGw = parseInt(req.body.from_gw);
+        const toGw = parseInt(req.body.to_gw);
+        if (!fromGw || !toGw || fromGw < 1 || toGw > 38 || toGw < fromGw) {
+          return res.status(400).json({ error: 'from_gw and to_gw (1-38, from_gw <= to_gw) are required' });
+        }
+        if (toGw - fromGw > 15) {
+          return res.status(400).json({ error: 'Max 15 gameweeks at once — run it again for the rest' });
+        }
+
+        const results = {};
+        for (let gw = fromGw; gw <= toGw; gw++) {
+          const r = await generateTestGameweekData(masterDb, gw, supabaseAdmin, false);
+          results[gw] = { status: r.status, ...r.body };
+        }
+        return res.status(200).json({ success: true, seeded: results });
+      }
+
       // The checkbox tool — mark specific matches finished using
       // whatever result/stats data is ALREADY sitting in the database
       // (e.g. inserted directly via SQL), rather than generating
@@ -4216,7 +4243,7 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
 // button triggered it. Mutates statByPlayerId in place (the caller owns
 // the accumulator so bulk-gameweek calls can merge many matches' stats
 // together before one upsert); returns the match update row.
-function simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTeamId, statByPlayerId) {
+function simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTeamId, statByPlayerId, markFinished = true) {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const randInt = (max) => Math.floor(Math.random() * (max + 1));
   // Weighted toward realistic scorelines: 0,1,2 much more common than 3+
@@ -4246,7 +4273,7 @@ function simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTea
   const awayScore = randomScore();
   const matchUpdate = {
     id: m.id, gameweek, home_team: m.home_team, away_team: m.away_team,
-    home_score: homeScore, away_score: awayScore, status: 'finished',
+    home_score: homeScore, away_score: awayScore, status: markFinished ? 'finished' : 'upcoming',
     result: homeScore > awayScore ? 'H' : awayScore > homeScore ? 'A' : 'D'
   };
 
@@ -4299,7 +4326,7 @@ function simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTea
   return matchUpdate;
 }
 
-async function generateTestGameweekData(masterDb, gameweek, localDb) {
+async function generateTestGameweekData(masterDb, gameweek, localDb, markFinished = true) {
   try {
     const { data: matches, error: matchesErr } = await masterDb
       .from('matches').select('id, home_team, away_team').eq('gameweek', gameweek);
@@ -4323,7 +4350,7 @@ async function generateTestGameweekData(masterDb, gameweek, localDb) {
 
     const statByPlayerId = {};
     const matchUpdates = matches.map(m =>
-      simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTeamId, statByPlayerId)
+      simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTeamId, statByPlayerId, markFinished)
     );
 
     let matchesUpdatedOk = 0;
@@ -4350,14 +4377,18 @@ async function generateTestGameweekData(masterDb, gameweek, localDb) {
     // function live-scores.js will use for real in a few weeks — not a
     // reimplementation, the literal same code, just called directly here
     // since live-scores.js's own trigger (comparing against FPL's real
-    // feed) will never fire for admin-generated fake results.
+    // feed) will never fire for admin-generated fake results. Skipped
+    // entirely when only seeding data (markFinished=false) — matches are
+    // still 'upcoming', so there's nothing to score yet.
     let predictionsScored = false;
-    try {
-      const { calculatePointsForGameweek } = require('./live-scores.js');
-      await calculatePointsForGameweek(localDb, masterDb, gameweek);
-      predictionsScored = true;
-    } catch (predErr) {
-      console.error('generateTestGameweekData: Predictions scoring step failed (non-fatal):', predErr);
+    if (markFinished) {
+      try {
+        const { calculatePointsForGameweek } = require('./live-scores.js');
+        await calculatePointsForGameweek(localDb, masterDb, gameweek);
+        predictionsScored = true;
+      } catch (predErr) {
+        console.error('generateTestGameweekData: Predictions scoring step failed (non-fatal):', predErr);
+      }
     }
 
     return {

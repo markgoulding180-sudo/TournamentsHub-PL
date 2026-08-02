@@ -775,6 +775,38 @@ async function togglePollingPaused() {
 }
 
 // ================= SIMULATE MATCH =================
+async function seedGameweekRange() {
+  const fromGw = document.getElementById('seedFromGw').value;
+  const toGw = document.getElementById('seedToGw').value;
+  const btn = document.getElementById('seedRangeBtn');
+  const msgEl = document.getElementById('seedRangeResultMsg');
+  if (!fromGw || !toGw) { alert('Enter both a From and To gameweek.'); return; }
+  if (!confirm(`Seed GW${fromGw} to GW${toGw} with realistic results + stats? Matches stay 'upcoming' — this just populates the data.`)) return;
+
+  btn.disabled = true;
+  msgEl.textContent = 'Seeding… this can take a little while for a big range.';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'seed_gameweek_range', from_gw: parseInt(fromGw), to_gw: parseInt(toGw) })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+
+    const summary = Object.entries(data.seeded || {}).map(([gw, r]) =>
+      r.status === 200 ? `GW${gw}: ${r.matches_updated} matches, ${r.players_with_stats} players ✓` : `GW${gw}: FAILED (${r.error})`
+    ).join(' | ');
+    msgEl.textContent = summary;
+    log(`Seeded GW${fromGw}-${toGw}`, 'success');
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 async function loadSimulateMatches() {
   const gw = document.getElementById('simGwInput').value;
   const body = document.getElementById('simulateMatchesBody');
