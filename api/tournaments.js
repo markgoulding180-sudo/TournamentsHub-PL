@@ -1716,6 +1716,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           insertPayload.prize_pool = prizePoolPence;
           insertPayload.top_prize = prizePoolPence;
         }
+        // fantasy-manager.js specifically filters for format='fantasy_squad'
+        // to find its live tournament — the column's default ('predictions',
+        // a copy-paste leftover from the schema being cloned) silently
+        // meant Fantasy tournaments were invisible to their own page.
+        if (schemaName === 'fantasy') {
+          insertPayload.format = 'fantasy_squad';
+        }
 
         const { data, error } = await supabaseAdmin
           .schema(schemaName).from('tournaments')
