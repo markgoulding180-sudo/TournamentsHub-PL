@@ -235,6 +235,40 @@
       </div>
     </div>
 
+    <!-- Tournament Data Inspector & Delete — see exactly what's sitting in
+         each tournament's tables, and wipe it clean if needed. Delete-only
+         (doesn't recreate a tournament) — use Launch Tournament / Full
+         Test Reset for that afterward. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444); grid-column: 1 / -1;">
+      <h3><i class="fas fa-table-list"></i> Tournament Data Inspector &amp; Delete</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Pick a tournament type to see row counts across every table it uses — check before deleting, then check again after to confirm nothing's left over.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <select id="tournamentTypeSelect" style="flex:1; min-width:160px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="predictions">Predictions</option>
+          <option value="lms">Last Man Standing</option>
+          <option value="stockmarket">Stock Market</option>
+          <option value="fantasy">Fantasy Manager</option>
+        </select>
+        <button class="btn" onclick="loadTournamentDataCounts()"><i class="fas fa-eye"></i> Show Data</button>
+        <button class="btn" style="background:var(--accent-red, #ef4444); color:#fff;" onclick="deleteTournamentData()"><i class="fas fa-trash"></i> Delete All Data For This Tournament</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;">Table</th>
+              <th style="padding:0.5rem;">Rows</th>
+            </tr>
+          </thead>
+          <tbody id="tournamentDataCountsBody">
+            <tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Pick a type and click Show Data.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Seed Season Data — one-time bulk seed. Generates realistic results
          + player stats for a range of gameweeks WITHOUT marking them
          finished, so matches stay 'upcoming' until you use the checkbox

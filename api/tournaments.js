@@ -14,6 +14,17 @@ function resolveSchema(tournament_type) {
   return 'predictions';
 }
 
+// Every table each tournament type actually uses — pulled directly from
+// every place in the codebase that touches these schemas, not guessed.
+// Shared by the data-count inspector (GET) and the delete action (POST),
+// so they can never drift out of sync with each other.
+const TOURNAMENT_SCHEMA_TABLES = {
+  predictions: ['gameweek_summary', 'prediction_history', 'predictions', 'tournament_entries', 'tournaments'],
+  lms: ['picks', 'tournament_entries', 'tournaments'],
+  fantasy: ['tournament_entries', 'tournaments'],
+  stockmarket: ['audit_log', 'config', 'matchups', 'player_gw_history', 'player_market', 'tournament_entries', 'tournament_stages', 'tournaments', 'transactions']
+};
+
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1142,6 +1153,31 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
       // Admin — match list for the Simulate Match tool, plus whether
       // real polling is currently paused.
+      // Admin — row counts for every table a tournament type uses. Lets
+      // you actually see there's nothing left over after a delete, rather
+      // than just trusting it worked.
+      const adminTournamentDataCounts = params.get('admin_tournament_data_counts');
+      if (adminTournamentDataCounts) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const tables = TOURNAMENT_SCHEMA_TABLES[adminTournamentDataCounts];
+        if (!tables) return res.status(400).json({ error: `Unknown tournament type — must be one of: ${Object.keys(TOURNAMENT_SCHEMA_TABLES).join(', ')}` });
+
+        const counts = {};
+        for (const table of tables) {
+          const { count, error: countErr } = await supabaseAdmin
+            .schema(adminTournamentDataCounts).from(table).select('*', { count: 'exact', head: true });
+          counts[table] = countErr ? `error: ${countErr.message}` : (count ?? 0);
+        }
+        return res.status(200).json({ tournament_type: adminTournamentDataCounts, counts });
+      }
+
       const adminMatchesGw = params.get('admin_matches_for_gameweek');
       if (adminMatchesGw) {
         const authHeader = req.headers.authorization;
@@ -1828,6 +1864,83 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           results[gw] = { status: r.status, ...r.body };
         }
         return res.status(200).json({ success: true, seeded: results });
+      }
+
+      // Wipes every row in every table a tournament type uses. Delete-only
+      // — deliberately doesn't recreate a fresh tournament afterward, so
+      // you use the normal Launch Tournament flow for that type once
+      // you're ready, rather than this guessing at the right defaults.
+      if (action === 'admin_wipe_tournament_schema') {
+        const { data: wipeCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!wipeCaller || !wipeCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const tType = req.body.tournament_type;
+        const tables = TOURNAMENT_SCHEMA_TABLES[tType];
+        if (!tables) return res.status(400).json({ error: `Unknown tournament_type — must be one of: ${Object.keys(TOURNAMENT_SCHEMA_TABLES).join(', ')}` });
+
+        try {
+          const deletedCounts = {};
+          for (const table of tables) {
+            const { error: delErr, count } = await supabaseAdmin
+              .schema(tType).from(table).delete({ count: 'exact' }).neq('id', '00000000-0000-0000-0000-000000000000');
+            if (delErr) {
+              console.error(`admin_wipe_tournament_schema: failed to clear ${tType}.${table}:`, delErr.message);
+              deletedCounts[table] = `error: ${delErr.message}`;
+            } else {
+              deletedCounts[table] = count ?? 0;
+            }
+          }
+          return res.status(200).json({ success: true, tournament_type: tType, deleted: deletedCounts });
+        } catch (err) {
+          console.error('admin_wipe_tournament_schema error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Resets matches in a gameweek range back to blank/upcoming and
+      // deletes their player_gameweek_stats — a clean slate for
+      // re-testing, since matches finished during earlier test runs
+      // (before the seed tool existed, or before the settlement bug was
+      // fixed) would otherwise sit there with stale results and mess up
+      // a fresh test. Scoped to an explicit GW range on purpose — no
+      // "clear everything" option, so this can never touch a gameweek
+      // outside the range typed in. Requires typing CLEAR to confirm,
+      // since this deletes real rows.
+      if (action === 'clear_gameweek_range') {
+        const { data: clearCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!clearCaller || !clearCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const clearFromGw = parseInt(req.body.from_gw);
+        const clearToGw = parseInt(req.body.to_gw);
+        const confirmPhrase = req.body.confirm;
+        if (!clearFromGw || !clearToGw || clearFromGw < 1 || clearToGw > 38 || clearToGw < clearFromGw) {
+          return res.status(400).json({ error: 'from_gw and to_gw (1-38, from_gw <= to_gw) are required' });
+        }
+        if (confirmPhrase !== 'CLEAR') {
+          return res.status(400).json({ error: 'Confirmation phrase did not match' });
+        }
+
+        try {
+          const { error: matchClearErr, count: matchCount } = await masterDb
+            .from('matches')
+            .update({ status: 'upcoming', home_score: null, away_score: null, result: null }, { count: 'exact' })
+            .gte('gameweek', clearFromGw).lte('gameweek', clearToGw);
+          if (matchClearErr) return res.status(500).json({ error: matchClearErr.message });
+
+          const { error: statsClearErr, count: statsCount } = await masterDb
+            .from('player_gameweek_stats')
+            .delete({ count: 'exact' })
+            .gte('gameweek', clearFromGw).lte('gameweek', clearToGw);
+          if (statsClearErr) return res.status(500).json({ error: statsClearErr.message });
+
+          return res.status(200).json({
+            success: true, from_gw: clearFromGw, to_gw: clearToGw,
+            matches_reset: matchCount ?? null, stat_rows_deleted: statsCount ?? null
+          });
+        } catch (err) {
+          console.error('clear_gameweek_range error:', err);
+          return res.status(500).json({ error: err.message });
+        }
       }
 
       // The checkbox tool — mark specific matches finished using

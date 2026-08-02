@@ -775,6 +775,59 @@ async function togglePollingPaused() {
 }
 
 // ================= SIMULATE MATCH =================
+async function loadTournamentDataCounts() {
+  const type = document.getElementById('tournamentTypeSelect').value;
+  const body = document.getElementById('tournamentDataCountsBody');
+  body.innerHTML = '<tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>';
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch(`/api/tournaments?admin_tournament_data_counts=${type}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      body.innerHTML = `<tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Failed: ${data.error}</td></tr>`;
+      return;
+    }
+
+    const rows = Object.entries(data.counts || {});
+    body.innerHTML = rows.map(([table, count]) => {
+      const isEmpty = count === 0;
+      const color = typeof count === 'string' ? 'var(--red)' : (isEmpty ? 'var(--text-muted, #8a97b0)' : 'var(--gold)');
+      return `
+        <tr style="border-bottom:1px solid var(--border-color);">
+          <td style="padding:0.5rem;">${type}.${table}</td>
+          <td style="padding:0.5rem; color:${color}; font-weight:700;">${count}</td>
+        </tr>`;
+    }).join('');
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Error: ${error.message}</td></tr>`;
+  }
+}
+
+async function deleteTournamentData() {
+  const type = document.getElementById('tournamentTypeSelect').value;
+  const typeLabels = { predictions: 'Predictions', lms: 'Last Man Standing', stockmarket: 'Stock Market', fantasy: 'Fantasy Manager' };
+  const typed = prompt(`This permanently deletes ALL ${typeLabels[type]} data — every entry, pick/squad, and history row. This cannot be undone.\n\nType DELETE to confirm:`);
+  if (typed !== 'DELETE') { if (typed !== null) alert('Typed text did not match — nothing was deleted.'); return; }
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_wipe_tournament_schema', tournament_type: type })
+    });
+    const data = await response.json();
+    if (!response.ok) { log(`Failed to delete: ${data.error}`, 'error'); return; }
+    log(`${typeLabels[type]} data cleared`, 'success');
+    loadTournamentDataCounts();
+  } catch (error) {
+    log(`Error deleting data: ${error.message}`, 'error');
+  }
+}
+
 async function seedGameweekRange() {
   const fromGw = document.getElementById('seedFromGw').value;
   const toGw = document.getElementById('seedToGw').value;
