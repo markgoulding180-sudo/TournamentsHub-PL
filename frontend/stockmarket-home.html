@@ -481,6 +481,42 @@
         </div>
         <div id="seedResults" style="margin-top:10px; font-size:12.5px; color:var(--text-faint);"></div>
       </div>
+
+      <!-- TEMPORARY TEST TOOL — delete after testing. Same tool as the
+           admin page's "Mark Games Finished" — kept here too so testing
+           doesn't mean constantly switching pages. Trusts whatever
+           result/stats data already exists (e.g. your own SQL) rather
+           than generating anything. -->
+      <div class="card" style="border-color:var(--gold); margin-top:16px;">
+        <h3 style="margin-bottom:10px;"><i class="fas fa-futbol"></i> Mark Games Finished</h3>
+        <p style="font-size:12.5px; color:var(--text-faint); margin-bottom:10px;">
+          Select matches, mark them finished. Uses whatever data already exists for them. Once every match in a gameweek is finished, Stock Market/LMS/Fantasy all finalize automatically.
+        </p>
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+          <input type="number" id="simGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
+            style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+          <button class="btn-primary" onclick="loadSimulateMatches()"><i class="fas fa-rotate"></i> Load Matches</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="text-align:left; border-bottom:1px solid var(--border);">
+                <th style="padding:6px;"><input type="checkbox" id="simSelectAll" onclick="toggleSelectAllMatches(this)"></th>
+                <th style="padding:6px;">Fixture</th>
+                <th style="padding:6px;">Status</th>
+                <th style="padding:6px;">Score</th>
+              </tr>
+            </thead>
+            <tbody id="simulateMatchesBody">
+              <tr><td colspan="4" style="padding:10px; color:var(--text-faint);">Enter a gameweek and click Load Matches.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <button class="btn-primary" style="background:var(--green); margin-top:10px;" onclick="markSelectedMatchesFinished()" id="markFinishedBtn">
+          <i class="fas fa-check"></i> Mark Selected as Finished
+        </button>
+        <div id="simulateResultMsg" style="margin-top:8px; font-size:12.5px; color:var(--text-faint);"></div>
+      </div>
     </div>
   </main>
 
@@ -1291,6 +1327,84 @@
         resultsEl.textContent = 'Live polling resumed — real FPL data will sync again from now on.';
       } catch (e) {
         resultsEl.textContent = `Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ================= MARK GAMES FINISHED (same tool as /admin) =================
+    async function loadSimulateMatches() {
+      const gw = document.getElementById('simGwInput').value;
+      const body = document.getElementById('simulateMatchesBody');
+      if (!gw) { alert('Enter a gameweek first.'); return; }
+      body.innerHTML = '<tr><td colspan="4" style="padding:10px; color:var(--text-faint);">Loading…</td></tr>';
+
+      try {
+        const res = await fetch(`/api/tournaments?admin_matches_for_gameweek=${gw}`, { headers: authHeaders() });
+        const data = await res.json();
+        if (!res.ok) {
+          body.innerHTML = `<tr><td colspan="4" style="padding:10px; color:var(--text-faint);">Failed: ${data.error}</td></tr>`;
+          return;
+        }
+        if (!data.matches || data.matches.length === 0) {
+          body.innerHTML = '<tr><td colspan="4" style="padding:10px; color:var(--text-faint);">No fixtures found for this gameweek.</td></tr>';
+          return;
+        }
+        renderSimulateMatches(data.matches);
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="4" style="padding:10px; color:var(--text-faint);">Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderSimulateMatches(matches) {
+      const body = document.getElementById('simulateMatchesBody');
+      body.innerHTML = matches.map(m => {
+        const statusColor = m.status === 'finished' ? 'var(--green)' : m.status === 'live' ? '#ef4444' : 'var(--text-faint)';
+        const score = (m.home_score ?? '-') + ' - ' + (m.away_score ?? '-');
+        return `
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:6px;"><input type="checkbox" class="simMatchCheckbox" value="${m.id}" ${m.status === 'finished' ? 'disabled' : ''}></td>
+            <td style="padding:6px;">${escapeHtml(m.home_team)} v ${escapeHtml(m.away_team)}</td>
+            <td style="padding:6px; color:${statusColor}; text-transform:uppercase; font-weight:700; font-size:11px;">${escapeHtml(m.status)}</td>
+            <td style="padding:6px;">${score}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    function toggleSelectAllMatches(checkbox) {
+      document.querySelectorAll('.simMatchCheckbox:not(:disabled)').forEach(cb => { cb.checked = checkbox.checked; });
+    }
+
+    async function markSelectedMatchesFinished() {
+      const selected = Array.from(document.querySelectorAll('.simMatchCheckbox:checked')).map(cb => cb.value);
+      if (selected.length === 0) { alert('Select at least one match first.'); return; }
+      if (!confirm(`Mark ${selected.length} match(es) as finished? Uses whatever data already exists for them.`)) return;
+
+      const btn = document.getElementById('markFinishedBtn');
+      const msgEl = document.getElementById('simulateResultMsg');
+      btn.disabled = true;
+      msgEl.textContent = 'Marking finished…';
+
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'mark_matches_finished', match_ids: selected })
+        });
+        const data = await res.json();
+        if (!res.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+
+        const gwSummaries = Object.entries(data.gameweek_results || {}).map(([gw, r]) =>
+          r.fired
+            ? `GW${gw}: ALL FINISHED — Stock Market settled (${r.stock_market_tournaments_settled}), LMS settled (${r.lms_tournaments_settled}), Fantasy updated (${r.fantasy_players_updated})`
+            : `GW${gw}: still waiting on other matches`
+        ).join(' | ');
+
+        msgEl.textContent = `${data.matches_marked} match(es) marked finished.${data.predictions_scored ? ' Predictions scored.' : ''} ${gwSummaries}`;
+        loadSimulateMatches();
+        loadTournament();
+      } catch (e) {
+        msgEl.textContent = `Error: ${e.message}`;
       } finally {
         btn.disabled = false;
       }

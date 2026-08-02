@@ -221,6 +221,56 @@
       </button>
     </div>
 
+    <!-- Pause Live Polling — testing safety switch. While paused, live-scores,
+         sync-players, and sync-fixtures all skip real FPL calls entirely,
+         so simulated test data can't be silently overwritten mid-test. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-pause-circle"></i> Pause Live Polling</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        While paused, no real FPL data is fetched or written by any user's browser polling — safe to simulate test gameweeks without real data overwriting it. <b>Remember to resume before the real season needs live polling.</b>
+      </p>
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <span id="pollingStatusLabel" style="font-weight:700;">Loading…</span>
+        <button class="btn btn-primary" onclick="togglePollingPaused()" id="pollingToggleBtn">Loading…</button>
+      </div>
+    </div>
+
+    <!-- Mark Games Finished — checkbox tool. Trusts whatever result/stats
+         data already exists (e.g. inserted directly via SQL for the whole
+         season) rather than generating anything; just flips status and
+         fires the real trigger functions, exactly like a real gameweek
+         playing out one match at a time. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-amber, #f2b93d); grid-column: 1 / -1;">
+      <h3><i class="fas fa-futbol"></i> Mark Games Finished</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Select which of this gameweek's matches to mark finished, then click the button. Uses whatever result/stats data already exists for them (e.g. from your own SQL) — doesn't generate anything. Once every match in a gameweek is finished, Stock Market, LMS, and Fantasy all finalize automatically, same as production.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+        <input type="number" id="simGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
+          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn" onclick="loadSimulateMatches()"><i class="fas fa-rotate"></i> Load Matches</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;"><input type="checkbox" id="simSelectAll" onclick="toggleSelectAllMatches(this)"></th>
+              <th style="padding:0.5rem;">Fixture</th>
+              <th style="padding:0.5rem;">Status</th>
+              <th style="padding:0.5rem;">Score</th>
+            </tr>
+          </thead>
+          <tbody id="simulateMatchesBody">
+            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Enter a gameweek and click Load Matches.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-green mt-2" onclick="markSelectedMatchesFinished()" id="markFinishedBtn">
+        <i class="fas fa-check"></i> Mark Selected as Finished
+      </button>
+      <div id="simulateResultMsg" class="text-muted" style="margin-top:0.5rem; font-size:0.85rem;"></div>
+    </div>
+
     <!-- Generate Test Gameweek Data -->
     <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
       <h3><i class="fas fa-flask"></i> Generate Test Gameweek Data</h3>

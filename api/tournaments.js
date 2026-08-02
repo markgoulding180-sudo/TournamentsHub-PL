@@ -1803,6 +1803,63 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(result.status).json(result.body);
       }
 
+      // The checkbox tool — mark specific matches finished using
+      // whatever result/stats data is ALREADY sitting in the database
+      // (e.g. inserted directly via SQL), rather than generating
+      // anything. This is deliberately separate from
+      // generate_test_gameweek_data, which fabricates its own data —
+      // this one trusts what's already there and just flips status,
+      // then fires the same real trigger functions production uses.
+      if (action === 'mark_matches_finished') {
+        const { data: markCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!markCaller || !markCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { match_ids: matchIds } = req.body;
+        if (!Array.isArray(matchIds) || matchIds.length === 0) {
+          return res.status(400).json({ error: 'match_ids (array) is required' });
+        }
+
+        try {
+          const { data: matchesToMark, error: fetchErr } = await masterDb
+            .from('matches').select('id, gameweek, home_score, away_score').in('id', matchIds);
+          if (fetchErr) return res.status(500).json({ error: fetchErr.message });
+
+          const gameweeksTouched = new Set();
+          for (const m of (matchesToMark || [])) {
+            const hs = m.home_score ?? 0;
+            const as = m.away_score ?? 0;
+            const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
+            await masterDb.from('matches').update({ status: 'finished', result }).eq('id', m.id);
+            gameweeksTouched.add(m.gameweek);
+          }
+
+          // Same real function live-scores.js uses for real.
+          let predictionsScored = false;
+          try {
+            const { calculatePointsForGameweek } = require('./live-scores.js');
+            for (const gw of gameweeksTouched) {
+              await calculatePointsForGameweek(supabaseAdmin, masterDb, gw);
+            }
+            predictionsScored = true;
+          } catch (predErr) {
+            console.error('mark_matches_finished: Predictions scoring failed (non-fatal):', predErr);
+          }
+
+          const gameweekResults = {};
+          for (const gw of gameweeksTouched) {
+            gameweekResults[gw] = await finalizeGameweekIfComplete(masterDb, supabaseAdmin, gw);
+          }
+
+          return res.status(200).json({
+            success: true, matches_marked: (matchesToMark || []).length,
+            predictions_scored: predictionsScored, gameweek_results: gameweekResults
+          });
+        } catch (err) {
+          console.error('mark_matches_finished error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       // Simulate ONE match finishing — same generation logic as the bulk
       // tool above (literally the same function), same points-calculation
       // call, just scoped to a single match instead of a whole gameweek.
@@ -1963,16 +2020,55 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const newGw = leavingGw + 1;
 
           let testDataGenerated = false;
+          let stockMarketSettled = 0;
+          let lmsSettled = 0;
+
           if (leavingGw > 0) {
             const genResult = await generateTestGameweekData(masterDb, leavingGw, supabaseAdmin);
             testDataGenerated = genResult.status === 200;
+
+            // Settlement only ever checks "is the CURRENT clock gameweek's
+            // matches all finished" — and this action is about to move the
+            // clock away from leavingGw forever. Without explicitly
+            // settling it here first, no page load would ever check back
+            // on it again, and it would just silently never settle. Same
+            // real functions production uses, just called directly instead
+            // of waiting for a page load to trigger them.
+            const { data: gwMatches } = await masterDb
+              .from('matches')
+              .select('home_team, away_team, home_score, away_score, status, kickoff_time')
+              .eq('gameweek', leavingGw);
+            const allFinished = gwMatches && gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
+
+            if (allFinished) {
+              const { data: liveStockMarkets } = await supabaseAdmin
+                .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
+              for (const t of (liveStockMarkets || [])) {
+                await ensureMatchupsForGameweek(supabaseAdmin, t.id, leavingGw);
+                await applyDueStages(supabaseAdmin, t.id, leavingGw);
+                await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, leavingGw);
+                stockMarketSettled++;
+              }
+
+              const { data: liveLms } = await supabaseAdmin
+                .schema('lms').from('tournaments').select('id').eq('status', 'live');
+              for (const t of (liveLms || [])) {
+                await processLmsEliminations(supabaseAdmin, t.id, leavingGw, gwMatches);
+                lmsSettled++;
+              }
+            }
           }
 
           // Auto-pause real polling the first time this test button is
           // used, so the data it just generated can't get silently
           // overwritten by background live-poll syncing 2 minutes later.
           await masterDb.from('master_clock').update({ current_gameweek: newGw, polling_paused: true }).eq('id', 'current');
-          return res.status(200).json({ success: true, new_gameweek: newGw, test_data_generated: testDataGenerated, polling_paused: true });
+          return res.status(200).json({
+            success: true, new_gameweek: newGw, test_data_generated: testDataGenerated,
+            stock_market_tournaments_settled: stockMarketSettled,
+            lms_tournaments_settled: lmsSettled,
+            polling_paused: true
+          });
         } catch (err) {
           console.error('stockmarket_advance_gameweek error:', err);
           return res.status(500).json({ error: err.message });
@@ -4017,6 +4113,103 @@ const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/
 // player's clean sheet / goals conceded always matches their own team's
 // fake scoreline for that same match — nothing here is independently
 // randomized in a way that could contradict itself).
+// Standard FPL scoring rules — used to compute Fantasy's points from the
+// same raw player_gameweek_stats every other tournament reads, so Fantasy
+// becomes testable through the same mechanism as everything else. This
+// doesn't change how Fantasy reads data in real production (still
+// players.total_points/event_points) — it's what WRITES into those
+// fields when a gameweek is marked finished during testing, standing in
+// for what FPL's own live feed would eventually provide for real.
+// Deliberately doesn't attempt bonus points (BPS) — those depend on
+// FPL's own proprietary in-match algorithm, not reconstructable from
+// basic stats, and aren't needed for testing the tournament mechanics.
+function computeStandardFplPoints(elementType, stats) {
+  const mins = stats.minutes || 0;
+  let pts = 0;
+  if (mins >= 60) pts += 2;
+  else if (mins > 0) pts += 1;
+
+  const goalPts = { 1: 6, 2: 6, 3: 5, 4: 4 }[elementType] || 4;
+  pts += (stats.goals_scored || 0) * goalPts;
+  pts += (stats.assists || 0) * 3;
+
+  if ((elementType === 1 || elementType === 2) && mins >= 60 && (stats.goals_conceded || 0) === 0) pts += 4;
+  else if (elementType === 3 && mins >= 60 && (stats.goals_conceded || 0) === 0) pts += 1;
+
+  if (elementType === 1 || elementType === 2) {
+    pts -= Math.floor((stats.goals_conceded || 0) / 2);
+  }
+  if (elementType === 1) {
+    pts += Math.floor((stats.saves || 0) / 3);
+  }
+
+  pts -= (stats.yellow_cards || 0) * 1;
+  pts -= (stats.red_cards || 0) * 3;
+
+  return pts;
+}
+
+// Fires once a gameweek's matches are ALL finished — the actual "week is
+// completely done" moment. Runs the real settlement functions for Stock
+// Market and LMS (same functions production uses), and writes Fantasy's
+// final points from whatever player_gameweek_stats exists for the
+// gameweek (see computeStandardFplPoints above). Safe to call repeatedly;
+// every step underneath is itself idempotent.
+async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
+  const { data: gwMatches } = await masterDb
+    .from('matches')
+    .select('home_team, away_team, home_score, away_score, status, kickoff_time')
+    .eq('gameweek', gameweek);
+
+  const allFinished = gwMatches && gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
+  if (!allFinished) {
+    return { fired: false, reason: 'not all matches in this gameweek are finished yet' };
+  }
+
+  const result = { fired: true, stock_market_tournaments_settled: 0, lms_tournaments_settled: 0, fantasy_players_updated: 0 };
+
+  const { data: liveStockMarkets } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
+  for (const t of (liveStockMarkets || [])) {
+    await ensureMatchupsForGameweek(supabaseAdmin, t.id, gameweek);
+    await applyDueStages(supabaseAdmin, t.id, gameweek);
+    await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, gameweek);
+    result.stock_market_tournaments_settled++;
+  }
+
+  const { data: liveLms } = await supabaseAdmin
+    .schema('lms').from('tournaments').select('id').eq('status', 'live');
+  for (const t of (liveLms || [])) {
+    await processLmsEliminations(supabaseAdmin, t.id, gameweek, gwMatches);
+    result.lms_tournaments_settled++;
+  }
+
+  // Fantasy — compute standard FPL points from whatever stats exist for
+  // this gameweek and write them into players.event_points/total_points,
+  // the same fields Fantasy always reads. Only ever does this for a
+  // gameweek that's genuinely fully finished, same trigger as the others.
+  const { data: gwStats } = await masterDb
+    .from('player_gameweek_stats').select('*').eq('gameweek', gameweek);
+  if (gwStats && gwStats.length > 0) {
+    const { data: allPlayers } = await masterDb.from('players').select('id, element_type, total_points');
+    const playerById = {};
+    (allPlayers || []).forEach(p => { playerById[p.id] = p; });
+
+    for (const stat of gwStats) {
+      const player = playerById[stat.player_id];
+      if (!player) continue;
+      const eventPoints = computeStandardFplPoints(player.element_type, stat);
+      await masterDb.from('players').update({
+        event_points: eventPoints,
+        total_points: (player.total_points || 0) + eventPoints
+      }).eq('id', stat.player_id);
+      result.fantasy_players_updated++;
+    }
+  }
+
+  return result;
+}
+
 // Shared by both the bulk "Generate Test Gameweek Data" tool and the
 // single-match "Simulate Match" tool — literally the same function, so a
 // simulated match is generated identically regardless of which admin

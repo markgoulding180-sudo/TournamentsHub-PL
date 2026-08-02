@@ -146,6 +146,7 @@ async function refreshStatus() {
   try {
     loadBroadcastMessages();
     loadWalletList();
+    loadPollingStatus();
     const response = await fetch('/api/admin-stats');
     const data = await response.json();
     
@@ -709,6 +710,154 @@ function populateGenTestGwDropdown() {
     opt.value = gw;
     opt.textContent = `Gameweek ${gw}`;
     select.appendChild(opt);
+  }
+}
+
+// ================= PAUSE LIVE POLLING =================
+async function loadPollingStatus() {
+  const label = document.getElementById('pollingStatusLabel');
+  const btn = document.getElementById('pollingToggleBtn');
+  if (!label || !btn) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?admin_polling_status=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) return;
+    pollingPausedState = !!data.polling_paused;
+    updatePollingStatusUI(pollingPausedState);
+  } catch (error) {
+    console.error('loadPollingStatus error:', error);
+  }
+}
+
+function updatePollingStatusUI(paused) {
+  const label = document.getElementById('pollingStatusLabel');
+  const btn = document.getElementById('pollingToggleBtn');
+  if (!label || !btn) return;
+  if (paused) {
+    label.textContent = 'PAUSED — real FPL data is not being fetched';
+    label.style.color = 'var(--red)';
+    btn.textContent = 'Resume Live Polling';
+    btn.className = 'btn btn-green';
+  } else {
+    label.textContent = 'LIVE — real FPL data is being fetched normally';
+    label.style.color = 'var(--green)';
+    btn.textContent = 'Pause Live Polling';
+    btn.className = 'btn';
+    btn.style.background = 'var(--accent-red, #ef4444)';
+    btn.style.color = '#fff';
+  }
+}
+
+let pollingPausedState = false;
+async function togglePollingPaused() {
+  const newState = !pollingPausedState;
+  if (newState && !confirm('Pause live polling? Real FPL data will stop syncing for everyone until you resume it here.')) return;
+  if (!newState && !confirm('Resume live polling? Any simulated test data will start getting overwritten by real FPL data once matches are live.')) return;
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_set_polling_paused', paused: newState })
+    });
+    const data = await response.json();
+    if (!response.ok) { log(`Failed to toggle polling: ${data.error}`, 'error'); return; }
+    pollingPausedState = data.polling_paused;
+    updatePollingStatusUI(pollingPausedState);
+    log(pollingPausedState ? 'Live polling paused' : 'Live polling resumed', 'success');
+  } catch (error) {
+    log(`Error toggling polling: ${error.message}`, 'error');
+  }
+}
+
+// ================= SIMULATE MATCH =================
+async function loadSimulateMatches() {
+  const gw = document.getElementById('simGwInput').value;
+  const body = document.getElementById('simulateMatchesBody');
+  if (!gw) { alert('Enter a gameweek first.'); return; }
+  body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>';
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch(`/api/tournaments?admin_matches_for_gameweek=${gw}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      body.innerHTML = `<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Failed: ${data.error}</td></tr>`;
+      return;
+    }
+
+    pollingPausedState = !!data.polling_paused;
+    updatePollingStatusUI(pollingPausedState);
+
+    if (!data.matches || data.matches.length === 0) {
+      body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">No fixtures found for this gameweek — run Sync Everything first.</td></tr>';
+      return;
+    }
+
+    renderSimulateMatches(data.matches);
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Error: ${error.message}</td></tr>`;
+  }
+}
+
+function renderSimulateMatches(matches) {
+  const body = document.getElementById('simulateMatchesBody');
+  body.innerHTML = matches.map(m => {
+    const statusColor = m.status === 'finished' ? 'var(--green)' : m.status === 'live' ? 'var(--red)' : 'var(--text-muted, #8a97b0)';
+    const score = (m.home_score ?? '-') + ' - ' + (m.away_score ?? '-');
+    return `
+      <tr style="border-bottom:1px solid var(--border-color);">
+        <td style="padding:0.5rem;"><input type="checkbox" class="simMatchCheckbox" value="${m.id}" ${m.status === 'finished' ? 'disabled' : ''}></td>
+        <td style="padding:0.5rem;">${escapeHtmlWallet(m.home_team)} v ${escapeHtmlWallet(m.away_team)}</td>
+        <td style="padding:0.5rem; color:${statusColor}; text-transform:uppercase; font-weight:700; font-size:0.75rem;">${escapeHtmlWallet(m.status)}</td>
+        <td style="padding:0.5rem;">${score}</td>
+      </tr>`;
+  }).join('');
+}
+
+function toggleSelectAllMatches(checkbox) {
+  document.querySelectorAll('.simMatchCheckbox:not(:disabled)').forEach(cb => { cb.checked = checkbox.checked; });
+}
+
+async function markSelectedMatchesFinished() {
+  const selected = Array.from(document.querySelectorAll('.simMatchCheckbox:checked')).map(cb => cb.value);
+  if (selected.length === 0) { alert('Select at least one match first.'); return; }
+  if (!confirm(`Mark ${selected.length} match(es) as finished? Uses whatever result/stats data already exists for them — doesn't generate anything. Runs the real scoring/settlement functions.`)) return;
+
+  const btn = document.getElementById('markFinishedBtn');
+  const msgEl = document.getElementById('simulateResultMsg');
+  btn.disabled = true;
+  msgEl.textContent = 'Marking finished…';
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'mark_matches_finished', match_ids: selected })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+
+    const gwSummaries = Object.entries(data.gameweek_results || {}).map(([gw, r]) =>
+      r.fired
+        ? `GW${gw}: ALL FINISHED — Stock Market settled (${r.stock_market_tournaments_settled}), LMS settled (${r.lms_tournaments_settled}), Fantasy players updated (${r.fantasy_players_updated})`
+        : `GW${gw}: still waiting on other matches`
+    ).join(' | ');
+
+    msgEl.textContent = `${data.matches_marked} match(es) marked finished.${data.predictions_scored ? ' Predictions scored.' : ''} ${gwSummaries}`;
+    log('Marked matches finished', 'success');
+    loadSimulateMatches();
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  } finally {
+    btn.disabled = false;
   }
 }
 
