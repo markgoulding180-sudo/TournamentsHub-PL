@@ -1438,11 +1438,13 @@ async function downloadFullExport() {
 }
 
 async function launchTournament() {
-  if (!confirm('Launch new tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create £20 entry tournament\n3. Open for user registrations')) {
+  const typeLabels = { predictions: 'Predictions', lms: 'Last Man Standing', stockmarket: 'Stock Market', fantasy: 'Fantasy Manager' };
+  const tournamentType = document.getElementById('tournament-type-input')?.value || 'predictions';
+  if (!confirm(`Launch new ${typeLabels[tournamentType]} tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create the tournament\n3. Open for user registrations`)) {
     return;
   }
   
-  log('Launching tournament...', 'info');
+  log(`Launching ${typeLabels[tournamentType]} tournament...`, 'info');
   
   try {
     const token = localStorage.getItem('gbf_token');
@@ -1486,6 +1488,7 @@ async function launchTournament() {
       },
       body: JSON.stringify({
         action: 'create',
+        tournament_type: tournamentType,
         name: tournamentName,
         entry_fee: entryFee,
         prize_pool: 0,

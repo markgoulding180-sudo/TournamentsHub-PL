@@ -25,6 +25,13 @@ const TOURNAMENT_SCHEMA_TABLES = {
   stockmarket: ['audit_log', 'config', 'matchups', 'player_gw_history', 'player_market', 'tournament_entries', 'tournament_stages', 'tournaments', 'transactions']
 };
 
+// Almost every table uses 'id' as its primary key — these are the
+// exceptions, confirmed against the real database schema rather than
+// assumed.
+const TOURNAMENT_TABLE_PK_OVERRIDES = {
+  'stockmarket.config': 'tournament_id'
+};
+
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1881,8 +1888,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         try {
           const deletedCounts = {};
           for (const table of tables) {
+            const pkColumn = TOURNAMENT_TABLE_PK_OVERRIDES[`${tType}.${table}`] || 'id';
             const { error: delErr, count } = await supabaseAdmin
-              .schema(tType).from(table).delete({ count: 'exact' }).not('id', 'is', null);
+              .schema(tType).from(table).delete({ count: 'exact' }).not(pkColumn, 'is', null);
             if (delErr) {
               console.error(`admin_wipe_tournament_schema: failed to clear ${tType}.${table}:`, delErr.message);
               deletedCounts[table] = `error: ${delErr.message}`;
