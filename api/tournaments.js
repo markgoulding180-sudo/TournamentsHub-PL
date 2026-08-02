@@ -1882,7 +1882,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const deletedCounts = {};
           for (const table of tables) {
             const { error: delErr, count } = await supabaseAdmin
-              .schema(tType).from(table).delete({ count: 'exact' }).neq('id', '00000000-0000-0000-0000-000000000000');
+              .schema(tType).from(table).delete({ count: 'exact' }).not('id', 'is', null);
             if (delErr) {
               console.error(`admin_wipe_tournament_schema: failed to clear ${tType}.${table}:`, delErr.message);
               deletedCounts[table] = `error: ${delErr.message}`;

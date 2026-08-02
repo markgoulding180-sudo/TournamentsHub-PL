@@ -812,6 +812,9 @@ async function deleteTournamentData() {
   const typed = prompt(`This permanently deletes ALL ${typeLabels[type]} data — every entry, pick/squad, and history row. This cannot be undone.\n\nType DELETE to confirm:`);
   if (typed !== 'DELETE') { if (typed !== null) alert('Typed text did not match — nothing was deleted.'); return; }
 
+  const body = document.getElementById('tournamentDataCountsBody');
+  body.innerHTML = '<tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Deleting…</td></tr>';
+
   try {
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
@@ -821,8 +824,21 @@ async function deleteTournamentData() {
     });
     const data = await response.json();
     if (!response.ok) { log(`Failed to delete: ${data.error}`, 'error'); return; }
-    log(`${typeLabels[type]} data cleared`, 'success');
-    loadTournamentDataCounts();
+
+    // Show exactly what the delete call itself reported per table, right
+    // here — don't make it wait on a second Show Data click to find out
+    // if something actually failed.
+    const rows = Object.entries(data.deleted || {});
+    body.innerHTML = rows.map(([table, result]) => {
+      const isError = typeof result === 'string';
+      return `
+        <tr style="border-bottom:1px solid var(--border-color);">
+          <td style="padding:0.5rem;">${type}.${table}</td>
+          <td style="padding:0.5rem; color:${isError ? 'var(--red)' : 'var(--green)'}; font-weight:700;">${isError ? result : `${result} deleted`}</td>
+        </tr>`;
+    }).join('');
+
+    log(`${typeLabels[type]} delete finished — check the table above for any per-table errors`, 'success');
   } catch (error) {
     log(`Error deleting data: ${error.message}`, 'error');
   }
