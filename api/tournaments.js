@@ -1598,6 +1598,21 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(500).json({ error: 'Failed to fetch tournaments', details: error.message });
       }
 
+      // current_entries is only ever incremented by the normal "Enter Now"
+      // join flow, so it drifts whenever entries get added any other way
+      // (e.g. the admin test-seeding tools) — counting the real rows
+      // avoids trusting a cache that's known to go stale.
+      const tournamentIds = (data || []).map(t => t.id);
+      const realEntryCounts = {};
+      if (tournamentIds.length > 0) {
+        const { data: entryRows } = await supabaseAdmin
+          .schema(schemaName).from('tournament_entries')
+          .select('tournament_id').in('tournament_id', tournamentIds);
+        (entryRows || []).forEach(e => {
+          realEntryCounts[e.tournament_id] = (realEntryCounts[e.tournament_id] || 0) + 1;
+        });
+      }
+
       // Calculate time remaining and live prize pool for each tournament
       const now = new Date();
       const formattedData = (data || []).map(t => {
@@ -1615,16 +1630,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
         }
         
-        // Calculate live prize pool from entry fee × current entries
+        // Calculate live prize pool from entry fee × real entry count
         const entryFee = parseFloat(t.entry_fee) || 0;
-        const currentEntries = parseInt(t.current_entries) || 0;
+        const currentEntries = realEntryCounts[t.id] ?? (parseInt(t.current_entries) || 0);
         const calculatedPrizePool = entryFee * currentEntries;
 
         return {
           ...t,
+          current_entries: currentEntries, // real count, not the drift-prone cache
           prize_pool: calculatedPrizePool, // Use calculated value, not stored value
           time_remaining: timeRemaining,
-          is_full: t.max_entries && t.current_entries >= t.max_entries
+          is_full: t.max_entries && currentEntries >= t.max_entries
         };
       });
 

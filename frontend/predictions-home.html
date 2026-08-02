@@ -640,7 +640,7 @@
 
         metaRow.innerHTML = `
           <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
-          <div class="hero-meta-item">Prize Pool <b>£${(t.prize_pool || 0).toLocaleString()}</b></div>
+          <div class="hero-meta-item">Prize Pool <b>£${((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></div>
         `;
 
         const enterBtn = document.getElementById('enterTournamentBtn');
