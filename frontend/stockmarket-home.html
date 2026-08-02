@@ -475,6 +475,9 @@
           <button class="btn-primary" onclick="advanceGameweek()" id="advanceGwBtn" style="background:var(--gold); color:#000;">
             <i class="fas fa-forward"></i> Advance Gameweek
           </button>
+          <button class="btn-primary" onclick="resumeLivePolling()" id="resumePollingBtn" style="background:var(--green);">
+            <i class="fas fa-play"></i> Resume Live Polling
+          </button>
         </div>
         <div id="seedResults" style="margin-top:10px; font-size:12.5px; color:var(--text-faint);"></div>
       </div>
@@ -1260,9 +1263,32 @@
         });
         const data = await res.json();
         if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
-        resultsEl.textContent = `${data.test_data_generated ? 'Generated test data + advanced' : 'Advanced'} to GW${data.new_gameweek}. Live polling auto-paused so it stays put — reloading…`;
+        const settledMsg = data.stock_market_tournaments_settled > 0 ? ` Stock Market settled (${data.stock_market_tournaments_settled}).` : (data.test_data_generated ? ' Stock Market: nothing to settle yet.' : '');
+        resultsEl.textContent = `${data.test_data_generated ? 'Generated test data + advanced' : 'Advanced'} to GW${data.new_gameweek}.${settledMsg} Polling paused — reloading…`;
         await loadTournament();
-        resultsEl.textContent = `Now on GW${data.new_gameweek}, polling paused. Reload again shortly to see it process.`;
+        resultsEl.textContent = `Now on GW${data.new_gameweek}, polling paused.${settledMsg}`;
+      } catch (e) {
+        resultsEl.textContent = `Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function resumeLivePolling() {
+      if (!confirm("Resume live polling? Real FPL data will start syncing again — any simulated test data for the current gameweek can get overwritten once real matches are live. Only do this when you're genuinely ready to go live.")) return;
+      const btn = document.getElementById('resumePollingBtn');
+      const resultsEl = document.getElementById('seedResults');
+      btn.disabled = true;
+      resultsEl.textContent = 'Resuming live polling…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'admin_set_polling_paused', paused: false })
+        });
+        const data = await res.json();
+        if (!res.ok) { resultsEl.textContent = `Failed: ${data.error}`; return; }
+        resultsEl.textContent = 'Live polling resumed — real FPL data will sync again from now on.';
       } catch (e) {
         resultsEl.textContent = `Error: ${e.message}`;
       } finally {
