@@ -420,8 +420,20 @@ module.exports = async (req, res) => {
             const { data: statRows, error: statErr } = allIds.length > 0
               ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', currentGw).in('player_id', allIds)
               : { data: [], error: null };
+
+            // Only count stats for teams whose match has actually started
+            // (live or finished). In production FPL only supplies stats
+            // once games play, so this is automatic — but our test rig
+            // pre-stages a whole gameweek's stats in advance, and without
+            // this filter values would visibly move before "kickoff".
+            const { data: gwMatchStatus } = await masterDb
+              .from('matches').select('home_team, away_team, status').eq('gameweek', currentGw);
+            const startedTeams = new Set();
+            (gwMatchStatus || []).forEach(m => {
+              if (m.status === 'live' || m.status === 'finished') { startedTeams.add(m.home_team); startedTeams.add(m.away_team); }
+            });
             const statsByPid = {};
-            (statRows || []).forEach(s => { statsByPid[s.player_id] = s; });
+            (statRows || []).forEach(s => { if (startedTeams.has(s.team)) statsByPid[s.player_id] = s; });
             const concededByTeam = await getTeamGoalsConcededMap(masterDb, currentGw);
 
             const { provA, provB } = computeUnifiedSettlement(
@@ -1454,6 +1466,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
 
         return res.status(200).json({
+          entered: !!entry,
           picks: picks || [],
           used_teams: (picks || []).map(p => p.team),
           is_eliminated: entry ? entry.is_eliminated : false,
