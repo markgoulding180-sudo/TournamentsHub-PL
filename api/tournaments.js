@@ -3565,7 +3565,15 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
       return (min === null || t < min) ? t : min;
     }, null);
 
-    const deadlinePassed = earliestKickoffMs !== null && Date.now() >= earliestKickoffMs;
+    // Real kickoff time passing is the normal signal — but during
+    // testing, matches get marked 'live'/'finished' directly without
+    // their real kickoff_time (still weeks away for the real season)
+    // ever actually passing. Either signal being true means the same
+    // thing: this gameweek has genuinely started, so treat them as
+    // equivalent rather than let a stale real-world timestamp block
+    // eliminations that clearly should already be resolvable.
+    const anyMatchStarted = gwMatches.some(m => m.status === 'live' || m.status === 'finished');
+    const deadlinePassed = anyMatchStarted || (earliestKickoffMs !== null && Date.now() >= earliestKickoffMs);
     const deadlineEpoch = earliestKickoffMs !== null ? Math.floor(earliestKickoffMs / 1000) : null;
 
     if (!deadlinePassed) {
