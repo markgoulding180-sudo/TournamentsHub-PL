@@ -964,6 +964,70 @@ async function adminSeedFantasyEntries() {
   }
 }
 
+// Stock Market starts as 'upcoming' during its draft phase and only
+// flips to 'live' when the market opens — so unlike the other three
+// types, finding it means checking 'upcoming' first, then 'live'.
+async function adminGetStockMarketTournamentId() {
+  const token = localStorage.getItem('gbf_token');
+  for (const status of ['upcoming', 'live']) {
+    const response = await fetch(`/api/tournaments?status=${status}&tournament_type=stockmarket`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    const list = data.tournaments || [];
+    if (Array.isArray(list) && list.length > 0) return list[0].id;
+  }
+  return null;
+}
+
+async function adminSeedStockMarketSquads() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  await adminEnsureTestUsers();
+  msgEl.textContent = 'Finding Stock Market tournament…';
+
+  try {
+    const tournamentId = await adminGetStockMarketTournamentId();
+    if (!tournamentId) { msgEl.textContent = 'No Stock Market tournament found — launch one first.'; return; }
+
+    msgEl.textContent = `Drafting squads for ${adminTestUserIds.length} test accounts…`;
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_seed_squads', tournament_id: tournamentId, user_ids: adminTestUserIds })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+    msgEl.textContent = `Seeded ${data.seeded} Stock Market squads. Draft your own squad on /stock-market-draft if you want in, THEN click Force Close SM Draft.`;
+    log('Stock Market squads seeded', 'success');
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+async function adminForceCloseDraft() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  if (!confirm('Force close the Stock Market draft window? Squads lock permanently and the market goes live. Make sure your own squad is drafted first if you want to be in.')) return;
+
+  try {
+    const tournamentId = await adminGetStockMarketTournamentId();
+    if (!tournamentId) { msgEl.textContent = 'No Stock Market tournament found.'; return; }
+
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_force_close', tournament_id: tournamentId })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
+    msgEl.textContent = 'Draft window closed — the market initializes on the next Stock Market page load.';
+    log('Stock Market draft force-closed', 'success');
+  } catch (error) {
+    msgEl.textContent = `Error: ${error.message}`;
+  }
+}
+
 async function seedGameweekRange() {
   const fromGw = document.getElementById('seedFromGw').value;
   const toGw = document.getElementById('seedToGw').value;
