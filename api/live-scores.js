@@ -277,7 +277,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
     
     const { data: predictions } = await localDb
       .schema('predictions').from('predictions')
-      .select('*, users(username)')
+      .select('*')
       .eq('match_id', match.id);
 
     console.log(`  Found ${predictions?.length || 0} predictions for this match`);
@@ -286,7 +286,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
 
     for (const pred of predictions) {
       let points = 0;
-      const username = pred.users?.username || 'unknown';
+      const username = pred.username || 'unknown';
       
       console.log(`    User ${username}: Predicted ${pred.predicted_result} ${pred.home_score}-${pred.away_score}`);
 
