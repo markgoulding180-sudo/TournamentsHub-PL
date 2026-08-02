@@ -2043,18 +2043,33 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             console.error('mark_matches_finished: Predictions scoring failed (non-fatal):', predErr);
           }
 
-          // Fantasy — updates live per-match, same as Predictions, not
-          // gated on the whole gameweek finishing (see the function's own
-          // comment for why this differs from Stock Market/LMS below).
+          // Fantasy and LMS both update live per-match, same as
+          // Predictions — a player's points, or whether their LMS pick
+          // survived, are knowable the moment the relevant match finishes,
+          // not just once the whole gameweek is done. Stock Market/LMS's
+          // round-completion (settlement, winner declaration) still waits
+          // for the full gameweek below, since those genuinely can't be
+          // decided safely early.
           const fantasyResults = {};
+          const lmsResults = {};
           for (const gw of gameweeksTouched) {
             fantasyResults[gw] = await updateFantasyPointsForGameweek(masterDb, gw);
+
+            const { data: liveLmsTournaments } = await supabaseAdmin
+              .schema('lms').from('tournaments').select('id').eq('status', 'live');
+            let newlyEliminated = 0;
+            for (const t of (liveLmsTournaments || [])) {
+              const r = await updateLmsPicksForGameweek(masterDb, supabaseAdmin, t.id, gw);
+              newlyEliminated += r.newly_eliminated;
+            }
+            lmsResults[gw] = { newly_eliminated: newlyEliminated };
           }
 
           const gameweekResults = {};
           for (const gw of gameweeksTouched) {
             gameweekResults[gw] = await finalizeGameweekIfComplete(masterDb, supabaseAdmin, gw);
             gameweekResults[gw].fantasy_players_updated = fantasyResults[gw]?.fantasy_players_updated || 0;
+            gameweekResults[gw].lms_newly_eliminated = lmsResults[gw]?.newly_eliminated || 0;
           }
 
           return res.status(200).json({
@@ -2269,7 +2284,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               const { data: liveLms } = await supabaseAdmin
                 .schema('lms').from('tournaments').select('id').eq('status', 'live');
               for (const t of (liveLms || [])) {
-                await processLmsEliminations(supabaseAdmin, t.id, leavingGw, gwMatches);
+                await updateLmsPicksForGameweek(masterDb, supabaseAdmin, t.id, leavingGw);
+                await finalizeLmsRoundIfComplete(supabaseAdmin, t.id, leavingGw);
                 lmsSettled++;
               }
             }
@@ -3558,14 +3574,15 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 
     const allFinished = gwMatches.every(m => m.status === 'finished');
 
-    // Still trigger elimination processing once everything's finished —
-    // but the pick itself stays locked either way. Unlike Fantasy Manager
-    // (where reopening after the gameweek finishes is correct, since
-    // that's for editing the *next* squad), a Last Man Standing pick is
-    // locked to one specific gameweek forever — there's no legitimate
-    // reason to let someone change a pick once the result is known.
-    if (allFinished && tournamentId && supabaseAdmin) {
-      await processLmsEliminations(supabaseAdmin, tournamentId, currentGW, gwMatches);
+    // Picks get resolved progressively as each match finishes — a user
+    // whose team's match is done already knows their fate, same as a
+    // real LMS. Round completion (declaring a winner or split pot) still
+    // waits for every match, since that can't be decided safely early.
+    if (tournamentId && supabaseAdmin) {
+      await updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, currentGW);
+      if (allFinished) {
+        await finalizeLmsRoundIfComplete(supabaseAdmin, tournamentId, currentGW);
+      }
     }
 
     return {
@@ -3587,17 +3604,74 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 // eliminated, and anyone who didn't pick at all is eliminated too.
 // Idempotent via tournaments.last_processed_gameweek so a burst of page
 // loads polling lms_lock_status doesn't reprocess the same gameweek.
-async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwMatches) {
+// Progressive — checks whichever picks CAN be resolved right now, based
+// on whatever matches have actually finished, regardless of whether the
+// rest of the gameweek is done. A pick for a team whose match hasn't
+// happened yet stays pending (neither eliminated nor confirmed safe).
+// This is what lets a user see "you're out" the moment their own team's
+// result is known, instead of waiting for every other match in the
+// gameweek to finish too — matches how a real LMS actually works.
+async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, gameweek) {
+  const result = { newly_eliminated: 0 };
   try {
-    // Atomically claim the right to process this gameweek. A plain
-    // "read last_processed_gameweek, decide, then write it later" has a
-    // race: two concurrent requests (e.g. two people loading the page at
-    // the same moment) can both read the old value and both pass the
-    // check before either has written anything, so both proceed to
-    // process eliminations and payouts. A single conditional UPDATE closes
-    // that gap — Postgres guarantees only one concurrent request can
-    // actually match the WHERE clause and update the row; the loser gets
-    // zero rows back and bails out immediately, before doing any work.
+    const { data: finishedMatches } = await masterDb
+      .from('matches')
+      .select('home_team, away_team, home_score, away_score')
+      .eq('gameweek', gameweek)
+      .eq('status', 'finished');
+    if (!finishedMatches || finishedMatches.length === 0) return result;
+
+    // A draw eliminates both teams' backers — nobody "won" that pick.
+    const decidedTeams = new Map();
+    finishedMatches.forEach(m => {
+      if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, true); decidedTeams.set(m.away_team, false); }
+      else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, true); decidedTeams.set(m.home_team, false); }
+      else { decidedTeams.set(m.home_team, false); decidedTeams.set(m.away_team, false); }
+    });
+
+    const { data: entries } = await supabaseAdmin
+      .schema('lms').from('tournament_entries')
+      .select('id, user_id')
+      .eq('tournament_id', tournamentId)
+      .eq('is_eliminated', false);
+    if (!entries || entries.length === 0) return result;
+
+    const { data: picks } = await supabaseAdmin
+      .schema('lms').from('picks')
+      .select('user_id, team')
+      .eq('tournament_id', tournamentId)
+      .eq('gameweek', gameweek);
+    const pickByUser = new Map((picks || []).map(p => [p.user_id, p.team]));
+
+    for (const entry of entries) {
+      const pickedTeam = pickByUser.get(entry.user_id);
+      if (!pickedTeam || !decidedTeams.has(pickedTeam)) continue; // no pick, or their match hasn't finished yet
+      if (decidedTeams.get(pickedTeam) === false) {
+        const { error } = await supabaseAdmin
+          .schema('lms').from('tournament_entries')
+          .update({ is_eliminated: true, eliminated_gameweek: gameweek })
+          .eq('id', entry.id);
+        if (!error) result.newly_eliminated++;
+        else console.error(`Failed to eliminate entry ${entry.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('updateLmsPicksForGameweek error:', error);
+  }
+  return result;
+}
+
+// Round completion — genuinely does need the whole gameweek finished,
+// unlike individual pick resolution above: declaring a winner (or a
+// split pot) prematurely, before every pick's fate is actually known,
+// could crown someone before a still-pending match rules them out too.
+// Eliminations themselves have already been applied progressively by the
+// function above by the time this runs — this only ever checks how many
+// survivors are left and finalizes the tournament if appropriate.
+async function finalizeLmsRoundIfComplete(supabaseAdmin, tournamentId, gameweek) {
+  try {
+    // Same atomic-claim pattern as before — only one concurrent request
+    // can actually process a given gameweek's round completion.
     const { data: claimed, error: claimError } = await supabaseAdmin
       .schema('lms').from('tournaments')
       .update({ last_processed_gameweek: gameweek })
@@ -3608,74 +3682,27 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
       .maybeSingle();
 
     if (claimError) {
-      console.error('processLmsEliminations claim error:', claimError);
+      console.error('finalizeLmsRoundIfComplete claim error:', claimError);
       return;
     }
-    if (!claimed) {
-      return; // another request already claimed this gameweek, or the tournament's already finished
-    }
+    if (!claimed) return; // already claimed, or tournament already finished
 
-    // Prize pool = entry fee x however many people are *actually* entered
-    // right now, counted directly rather than trusting the tournament's
-    // stored prize_pool column (nothing keeps that in sync — it's always
-    // 0) or the cached current_entries counter (only updated by the normal
-    // "Enter Now" flow, so it can drift if entries are ever added any
-    // other way). Counting the real rows avoids both failure modes.
     const { count: entryCount, error: countError } = await supabaseAdmin
       .schema('lms').from('tournament_entries')
       .select('id', { count: 'exact', head: true })
       .eq('tournament_id', tournamentId);
-
-    if (countError) {
-      console.error('processLmsEliminations entry count error:', countError);
-    }
+    if (countError) console.error('finalizeLmsRoundIfComplete entry count error:', countError);
 
     const prizePool = (claimed.entry_fee || 0) * (entryCount || 0);
 
-    const { data: entries, error: entriesError } = await supabaseAdmin
+    const { data: survivors, error: survivorsErr } = await supabaseAdmin
       .schema('lms').from('tournament_entries')
-      .select('id, user_id')
+      .select('id')
       .eq('tournament_id', tournamentId)
       .eq('is_eliminated', false);
+    if (survivorsErr) { console.error('finalizeLmsRoundIfComplete survivors error:', survivorsErr); return; }
 
-    if (entriesError || !entries || entries.length === 0) {
-      return; // nothing to process — the claim above already recorded this gameweek as handled
-    }
-
-    const { data: picks, error: picksError } = await supabaseAdmin
-      .schema('lms').from('picks')
-      .select('user_id, team')
-      .eq('tournament_id', tournamentId)
-      .eq('gameweek', gameweek);
-
-    if (picksError) return;
-
-    const pickByUser = new Map((picks || []).map(p => [p.user_id, p.team]));
-
-    const winningTeams = new Set();
-    gwMatches.forEach(m => {
-      if (m.home_score === null || m.away_score === null) return;
-      if (m.home_score > m.away_score) winningTeams.add(m.home_team);
-      else if (m.away_score > m.home_score) winningTeams.add(m.away_team);
-    });
-
-    const survivors = [];
-    for (const entry of entries) {
-      const pickedTeam = pickByUser.get(entry.user_id);
-      const survived = pickedTeam && winningTeams.has(pickedTeam);
-      if (survived) {
-        survivors.push(entry);
-      } else {
-        const { error: elimError } = await supabaseAdmin
-          .schema('lms').from('tournament_entries')
-          .update({ is_eliminated: true, eliminated_gameweek: gameweek })
-          .eq('id', entry.id);
-        if (elimError) console.error(`Failed to eliminate entry ${entry.id}:`, elimError);
-      }
-    }
-
-    // Tournament end condition: exactly one survivor takes the whole pot.
-    if (survivors.length === 1) {
+    if (survivors && survivors.length === 1) {
       const { error: payoutError } = await supabaseAdmin
         .schema('lms').from('tournament_entries')
         .update({ prize_awarded: prizePool })
@@ -3688,12 +3715,21 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
         .eq('id', tournamentId);
       if (finishError) console.error(`Failed to mark tournament ${tournamentId} finished:`, finishError);
 
-    // Everyone went out in the same gameweek (every pick drew or lost) —
-    // split the pot evenly among whoever was still alive going into this
-    // gameweek (the `entries` set, before this round's eliminations).
-    } else if (survivors.length === 0) {
-      const share = entries.length > 0 ? Math.floor(prizePool / entries.length) : 0;
-      for (const entry of entries) {
+    } else if (survivors && survivors.length === 0) {
+      // Everyone went out — split the pot among whoever was eliminated
+      // specifically THIS gameweek (not everyone ever eliminated), same
+      // as the original rule, just identified by eliminated_gameweek
+      // instead of a snapshot taken before processing started, since
+      // eliminations now happen progressively rather than all at once.
+      const { data: eliminatedThisRound } = await supabaseAdmin
+        .schema('lms').from('tournament_entries')
+        .select('id')
+        .eq('tournament_id', tournamentId)
+        .eq('eliminated_gameweek', gameweek);
+
+      const pool = eliminatedThisRound || [];
+      const share = pool.length > 0 ? Math.floor(prizePool / pool.length) : 0;
+      for (const entry of pool) {
         const { error: splitError } = await supabaseAdmin
           .schema('lms').from('tournament_entries')
           .update({ prize_awarded: share })
@@ -3710,7 +3746,7 @@ async function processLmsEliminations(supabaseAdmin, tournamentId, gameweek, gwM
     // Otherwise more than one survivor remains — tournament continues.
 
   } catch (error) {
-    console.error('processLmsEliminations error:', error);
+    console.error('finalizeLmsRoundIfComplete error:', error);
   }
 }
 
@@ -4617,7 +4653,7 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
   const { data: liveLms } = await supabaseAdmin
     .schema('lms').from('tournaments').select('id').eq('status', 'live');
   for (const t of (liveLms || [])) {
-    await processLmsEliminations(supabaseAdmin, t.id, gameweek, gwMatches);
+    await finalizeLmsRoundIfComplete(supabaseAdmin, t.id, gameweek);
     result.lms_tournaments_settled++;
   }
 
