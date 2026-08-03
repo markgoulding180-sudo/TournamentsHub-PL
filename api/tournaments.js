@@ -4260,9 +4260,14 @@ function recomputeEntryValue(supabaseAdmin, tournamentId, squad) {
 }
 
 async function getTeamGoalsConcededMap(masterDb, gameweek) {
-  const { data: matches } = await masterDb.from('matches').select('home_team, away_team, home_score, away_score').eq('gameweek', gameweek);
+  const { data: matches } = await masterDb.from('matches').select('home_team, away_team, home_score, away_score, status').eq('gameweek', gameweek);
   const map = {};
   (matches || []).forEach(m => {
+    // Only count matches that have actually started — staged scores sit
+    // on 'upcoming' matches in the test rig, and in production a score
+    // only exists once a game is genuinely underway. Final settlement is
+    // unaffected: it only ever runs once every match is 'finished'.
+    if (m.status !== 'live' && m.status !== 'finished') return;
     map[m.home_team] = m.away_score || 0;
     map[m.away_team] = m.home_score || 0;
   });
