@@ -133,10 +133,11 @@
     .pick-cta .team .team-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .pick-cta > a, .pick-cta > span:not(.team){ flex-shrink:0; }
     @media (max-width:480px){
-      .pick-cta{ padding:12px 12px; gap:8px; }
+      .pick-cta{ padding:12px 12px; gap:10px; flex-direction:column; align-items:stretch; }
       .pick-cta .team{ font-size:13.5px; gap:6px; }
       .pick-cta .team img{ width:22px; height:22px; }
-      .pick-cta .btn-primary{ padding:8px 12px; font-size:12.5px; white-space:nowrap; }
+      .pick-cta .btn-primary{ padding:10px 12px; font-size:13px; white-space:nowrap; width:100%; text-align:center; justify-content:center; }
+      .pick-cta > span:not(.team){ white-space:normal; }
       .pick-cta .pick-result-tag{ font-size:10px; padding:2px 8px; margin-left:6px; }
     }
 
