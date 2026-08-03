@@ -2050,6 +2050,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!Array.isArray(matchIds) || matchIds.length === 0) {
           return res.status(400).json({ error: 'match_ids (array) is required' });
         }
+        console.log(`[MARK_MATCHES_FINISHED] Starting — match_ids: ${JSON.stringify(matchIds)}`);
 
         try {
           const { data: matchesToMark, error: fetchErr } = await masterDb
@@ -2088,12 +2089,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const lmsResults = {};
           for (const gw of gameweeksTouched) {
             fantasyResults[gw] = await updateFantasyPointsForGameweek(masterDb, gw);
+            console.log(`[MARK_MATCHES_FINISHED] GW${gw} Fantasy: ${fantasyResults[gw].fantasy_players_updated} players updated`);
 
-            const { data: liveLmsTournaments } = await supabaseAdmin
+            const { data: liveLmsTournaments, error: lmsFetchErr } = await supabaseAdmin
               .schema('lms').from('tournaments').select('id').eq('status', 'live');
+            console.log(`[MARK_MATCHES_FINISHED] GW${gw} LMS: found ${(liveLmsTournaments || []).length} live tournament(s), fetch error: ${lmsFetchErr ? lmsFetchErr.message : 'none'}`);
             let newlyEliminated = 0;
             for (const t of (liveLmsTournaments || [])) {
               const r = await updateLmsPicksForGameweek(masterDb, supabaseAdmin, t.id, gw);
+              console.log(`[MARK_MATCHES_FINISHED] GW${gw} LMS tournament ${t.id}: ${r.newly_eliminated} newly eliminated`);
               newlyEliminated += r.newly_eliminated;
             }
             lmsResults[gw] = { newly_eliminated: newlyEliminated };
@@ -3667,11 +3671,12 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, gameweek) {
   const result = { newly_eliminated: 0 };
   try {
-    const { data: finishedMatches } = await masterDb
+    const { data: finishedMatches, error: finishedErr } = await masterDb
       .from('matches')
       .select('home_team, away_team, home_score, away_score')
       .eq('gameweek', gameweek)
       .eq('status', 'finished');
+    console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: finishedMatches=${finishedMatches ? finishedMatches.length : 'null'}, error=${finishedErr ? finishedErr.message : 'none'}`);
     if (!finishedMatches || finishedMatches.length === 0) return result;
 
     // A draw eliminates both teams' backers — nobody "won" that pick.
@@ -3682,23 +3687,28 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
       else { decidedTeams.set(m.home_team, false); decidedTeams.set(m.away_team, false); }
     });
 
-    const { data: entries } = await supabaseAdmin
+    const { data: entries, error: entriesErr } = await supabaseAdmin
       .schema('lms').from('tournament_entries')
       .select('id, user_id')
       .eq('tournament_id', tournamentId)
       .eq('is_eliminated', false);
+    console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: alive entries=${entries ? entries.length : 'null'}, error=${entriesErr ? entriesErr.message : 'none'}`);
     if (!entries || entries.length === 0) return result;
 
-    const { data: picks } = await supabaseAdmin
+    const { data: picks, error: picksErr } = await supabaseAdmin
       .schema('lms').from('picks')
       .select('user_id, team')
       .eq('tournament_id', tournamentId)
       .eq('gameweek', gameweek);
+    console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: picks=${picks ? picks.length : 'null'}, error=${picksErr ? picksErr.message : 'none'}`);
     const pickByUser = new Map((picks || []).map(p => [p.user_id, p.team]));
 
+    let checkedCount = 0, skippedNoPick = 0, skippedNotDecided = 0, survivedCount = 0;
     for (const entry of entries) {
+      checkedCount++;
       const pickedTeam = pickByUser.get(entry.user_id);
-      if (!pickedTeam || !decidedTeams.has(pickedTeam)) continue; // no pick, or their match hasn't finished yet
+      if (!pickedTeam) { skippedNoPick++; continue; }
+      if (!decidedTeams.has(pickedTeam)) { skippedNotDecided++; continue; }
       if (decidedTeams.get(pickedTeam) === false) {
         const { error } = await supabaseAdmin
           .schema('lms').from('tournament_entries')
@@ -3706,8 +3716,11 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
           .eq('id', entry.id);
         if (!error) result.newly_eliminated++;
         else console.error(`Failed to eliminate entry ${entry.id}:`, error);
+      } else {
+        survivedCount++;
       }
     }
+    console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: checked=${checkedCount}, skippedNoPick=${skippedNoPick}, skippedNotDecided=${skippedNotDecided}, survived=${survivedCount}, eliminated=${result.newly_eliminated}`);
   } catch (error) {
     console.error('updateLmsPicksForGameweek error:', error);
   }
