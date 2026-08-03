@@ -487,7 +487,8 @@
           document.getElementById('yourPredictionsSummary').innerHTML = '';
         } else {
           strip.innerHTML = matches.map(m => {
-            const hasScore = m.home_score !== null && m.home_score !== undefined;
+            const started = m.status === 'live' || m.status === 'finished';
+            const hasScore = started && m.home_score !== null && m.home_score !== undefined;
             return `
               <div class="fixture-chip">
                 <div class="teams">${escapeHtml(m.home_team)}<br>v ${escapeHtml(m.away_team)}</div>

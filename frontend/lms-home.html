@@ -495,9 +495,10 @@
         }
 
         grid.innerHTML = gwMatches.map(m => {
-          const hasScore = m.home_score !== null && m.home_score !== undefined;
-          const homeWin = m.result === 'H';
-          const awayWin = m.result === 'A';
+          const started = m.status === 'live' || m.status === 'finished';
+          const hasScore = started && m.home_score !== null && m.home_score !== undefined;
+          const homeWin = started && m.result === 'H';
+          const awayWin = started && m.result === 'A';
           const statusClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
           return `
             <div class="result-row">
