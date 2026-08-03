@@ -37,6 +37,12 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  // Every response here needs to reflect current data — leaderboards,
+  // live values, lock states. No caching header was ever set, so browsers
+  // and Vercel's edge fell back to their own default heuristics, which
+  // could serve a stale response (confirmed: a full data wipe still
+  // showed the old leaderboard until a hard refresh forced a real fetch).
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
