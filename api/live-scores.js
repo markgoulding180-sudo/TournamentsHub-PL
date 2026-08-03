@@ -278,54 +278,41 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   const usersToUpdate = new Set();
   let totalPredictionsScored = 0;
   let totalPointsAwarded = 0;
+  const predictionUpdateRows = [];
 
   for (const match of matches) {
-    console.log(`\nProcessing match: ${match.home_team} ${match.home_score}-${match.away_score} ${match.away_team} [Result: ${match.result}]`);
-    
     const { data: predictions } = await localDb
       .schema('predictions').from('predictions')
       .select('*')
       .eq('match_id', match.id);
 
-    console.log(`  Found ${predictions?.length || 0} predictions for this match`);
-
     if (!predictions || predictions.length === 0) continue;
 
     for (const pred of predictions) {
       let points = 0;
-      const username = pred.username || 'unknown';
-      
-      console.log(`    User ${username}: Predicted ${pred.predicted_result} ${pred.home_score}-${pred.away_score}`);
-
       if (pred.predicted_result === match.result) {
         points += 10;
-        console.log(`      ✓ Correct result (+10 pts)`);
-        
         if (pred.home_score === match.home_score && pred.away_score === match.away_score) {
           points += 10;
-          console.log(`      ✓✓ Exact score! (+10 pts) = 20 pts TOTAL`);
-        } else {
-          console.log(`      ✗ Wrong score (predicted ${pred.home_score}-${pred.away_score}, actual ${match.home_score}-${match.away_score})`);
         }
-      } else {
-        console.log(`      ✗ Wrong result (predicted ${pred.predicted_result}, actual ${match.result})`);
       }
-
-      console.log(`      → Awarded ${points} points`);
-
-      const { error } = await localDb
-        .schema('predictions').from('predictions')
-        .update({ points_earned: points })
-        .eq('id', pred.id);
-
-      if (error) {
-        console.log(`      ✗ ERROR updating prediction: ${error.message}`);
-      }
-
+      predictionUpdateRows.push({ id: pred.id, points_earned: points });
       usersToUpdate.add(pred.user_id);
       totalPredictionsScored++;
       totalPointsAwarded += points;
     }
+  }
+
+  // One batch upsert instead of one .update() call per prediction — this
+  // was the single biggest contributor by far to marking matches finished
+  // taking so long (90+ sequential round trips confirmed for just a
+  // couple of matches), and quite possibly why Fantasy/LMS processing
+  // appeared to silently fail right after it in the same request.
+  if (predictionUpdateRows.length > 0) {
+    const { error: predUpsertErr } = await localDb
+      .schema('predictions').from('predictions')
+      .upsert(predictionUpdateRows, { onConflict: 'id' });
+    if (predUpsertErr) console.error('Batch predictions upsert failed:', predUpsertErr);
   }
   
   console.log(`\n=== POINTS SUMMARY ===`);
@@ -333,37 +320,11 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   console.log(`Total points awarded: ${totalPointsAwarded}`);
   console.log(`Users to update: ${usersToUpdate.size}`);
 
-  // Update user total points
-  console.log(`\n=== UPDATING USER TOTALS ===`);
-  const { data: users } = await localDb.from('users').select('id, username');
-  let usersUpdated = 0;
-
-  for (const user of users || []) {
-    const { data: userPreds } = await localDb
-      .schema('predictions').from('predictions')
-      .select('points_earned')
-      .eq('user_id', user.id);
-
-    const totalPoints = (userPreds || []).reduce((sum, p) => sum + (p.points_earned || 0), 0);
-    const correctScores = (userPreds || []).filter(p => p.points_earned === 20).length;
-
-    const { error } = await localDb
-      .from('users')
-      .update({
-        total_points: totalPoints,
-        correct_scores: correctScores,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
-    
-    if (!error) {
-      usersUpdated++;
-      if (usersToUpdate.has(user.id)) {
-        console.log(`  Updated ${user.username || user.id}: ${totalPoints} pts, ${correctScores} perfect scores`);
-      }
-    }
-  }
-  console.log(`Updated ${usersUpdated} users`);
+  // Deliberately no longer touches users.total_points/correct_scores —
+  // confirmed that field is never read by the real, current leaderboard
+  // (api/leaderboard.js reads predictions.tournament_entries.entry_points
+  // instead), so writing to it was pure dead weight: a second full loop
+  // over every user in the whole system for zero visible effect.
 
   // Update tournament entry points
   console.log(`\n=== UPDATING TOURNAMENT ENTRIES ===`);
@@ -380,52 +341,42 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
 
   console.log(`Found ${relevantTournaments.length} tournaments covering GW${gameweek}`);
 
-  if (relevantTournaments.length > 0) {
+  if (relevantTournaments.length > 0 && usersToUpdate.size > 0) {
+    const userIdsArr = [...usersToUpdate];
+
     for (const tournament of relevantTournaments) {
-      console.log(`\nTournament: ${tournament.name} (GW${tournament.gameweek}-${tournament.end_gameweek || tournament.gameweek})`);
-    }
-    
-    for (const userId of usersToUpdate) {
-      for (const tournament of relevantTournaments) {
-        const { data: entries } = await localDb
+      const startGW = tournament.gameweek;
+      const endGW = tournament.end_gameweek || tournament.gameweek;
+
+      // Fetch everything needed in bulk instead of a per-user,
+      // per-tournament select-then-write loop.
+      const { data: tournamentMatches } = await masterDb
+        .from('matches').select('id').gte('gameweek', startGW).lte('gameweek', endGW);
+      const tournamentMatchIds = new Set((tournamentMatches || []).map(m => m.id));
+
+      const { data: entries } = await localDb
+        .schema('predictions').from('tournament_entries')
+        .select('id, user_id').eq('tournament_id', tournament.id).in('user_id', userIdsArr);
+      if (!entries || entries.length === 0) continue;
+
+      const { data: predPoints } = await localDb
+        .schema('predictions').from('predictions')
+        .select('user_id, points_earned, match_id').in('user_id', entries.map(e => e.user_id));
+
+      const totalsByUser = {};
+      (predPoints || []).forEach(p => {
+        if (!tournamentMatchIds.has(p.match_id)) return;
+        totalsByUser[p.user_id] = (totalsByUser[p.user_id] || 0) + (p.points_earned || 0);
+      });
+
+      const entryUpdateRows = entries.map(e => ({ id: e.id, entry_points: totalsByUser[e.user_id] || 0 }));
+
+      if (entryUpdateRows.length > 0) {
+        const { error: entryUpsertErr } = await localDb
           .schema('predictions').from('tournament_entries')
-          .select('id, user_id')
-          .eq('tournament_id', tournament.id)
-          .eq('user_id', userId);
-
-        if (!entries || entries.length === 0) continue;
-
-        const startGW = tournament.gameweek;
-        const endGW = tournament.end_gameweek || tournament.gameweek;
-
-        // Get ALL matches across ALL gameweeks in the tournament range (master project)
-        const { data: tournamentMatches } = await masterDb
-          .from('matches')
-          .select('id')
-          .gte('gameweek', startGW)
-          .lte('gameweek', endGW);
-
-        const tournamentMatchIds = new Set((tournamentMatches || []).map(m => m.id));
-
-        const { data: predPoints } = await localDb
-          .schema('predictions').from('predictions')
-          .select('points_earned, match_id')
-          .eq('user_id', userId);
-
-        // Sum points across ALL gameweeks in tournament range
-        const totalPoints = (predPoints || [])
-          .filter(p => tournamentMatchIds.has(p.match_id))
-          .reduce((sum, p) => sum + (p.points_earned || 0), 0);
-
-        const { error } = await localDb
-          .schema('predictions').from('tournament_entries')
-          .update({ entry_points: totalPoints })
-          .eq('tournament_id', tournament.id)
-          .eq('user_id', userId);
-
-        if (!error) {
-          console.log(`    Updated entry for user ${userId}: ${totalPoints} pts`);
-        }
+          .upsert(entryUpdateRows, { onConflict: 'id' });
+        if (entryUpsertErr) console.error(`Batch entry_points upsert failed for ${tournament.name}:`, entryUpsertErr);
+        else console.log(`  Updated ${entryUpdateRows.length} entries for ${tournament.name}`);
       }
     }
 
@@ -438,22 +389,14 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
         .eq('tournament_id', tournament.id)
         .order('entry_points', { ascending: false });
 
-      if (entries) {
-        console.log(`  ${tournament.name}: ${entries.length} entries`);
-        for (let i = 0; i < entries.length; i++) {
-          const newRank = i + 1;
-          const oldRank = entries[i].rank;
-          await localDb
-            .schema('predictions').from('tournament_entries')
-            .update({ rank: newRank })
-            .eq('id', entries[i].id);
-          if (oldRank !== newRank) {
-            console.log(`    Rank change: ${oldRank} → ${newRank}`);
-          }
-        }
-        if (entries.length > 0) {
-          console.log(`    Top: ${entries[0].entry_points} pts, Bottom: ${entries[entries.length-1].entry_points} pts`);
-        }
+      if (entries && entries.length > 0) {
+        const rankUpdateRows = entries.map((e, i) => ({ id: e.id, rank: i + 1 }));
+        // One batch upsert instead of one .update() call per entry.
+        const { error: rankErr } = await localDb
+          .schema('predictions').from('tournament_entries')
+          .upsert(rankUpdateRows, { onConflict: 'id' });
+        if (rankErr) console.error(`Batch rank upsert failed for ${tournament.name}:`, rankErr);
+        else console.log(`  ${tournament.name}: ranked ${entries.length} entries — top ${entries[0].entry_points} pts, bottom ${entries[entries.length - 1].entry_points} pts`);
       }
     }
   }
