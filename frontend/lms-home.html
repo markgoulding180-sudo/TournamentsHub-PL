@@ -110,9 +110,15 @@
     .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
 
     /* How it works */
-    .how-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-bottom:24px; }
-    @media (max-width:800px){ .how-grid{ grid-template-columns:1fr; } }
-    .how-step{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 20px; }
+    .how-collapsible{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:24px; overflow:hidden; }
+    .how-toggle{ width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none; color:var(--text); font-family:var(--font-head); font-size:15px; font-weight:700; padding:16px 20px; cursor:pointer; }
+    .how-toggle i.fa-circle-info{ color:var(--accent-2); margin-right:8px; }
+    .how-chevron{ color:var(--text-faint); transition:transform .2s ease; }
+    .how-collapsible.open .how-chevron{ transform:rotate(180deg); }
+    .how-body{ display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; padding:0 20px; max-height:0; overflow:hidden; transition:max-height .25s ease, padding .25s ease; }
+    .how-collapsible.open .how-body{ max-height:600px; padding:0 20px 20px; }
+    @media (max-width:800px){ .how-body{ grid-template-columns:1fr; } }
+    .how-step{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:18px 16px; }
     .how-step .num{ width:32px;height:32px;border-radius:50%; background:rgba(59,130,246,0.12); border:1px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:12px; font-size:14px; }
     .how-step h3{ font-family:var(--font-head); font-size:15px; margin-bottom:6px; }
     .how-step p{ font-size:13.5px; color:var(--text-dim); line-height:1.5; }
@@ -121,9 +127,18 @@
     .pick-card{ margin-bottom:24px; }
     .pick-header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:4px; }
     .pick-gw{ color:var(--text-dim); font-size:13.5px; margin-bottom:16px; }
-    .pick-cta{ display:flex; align-items:center; justify-content:space-between; gap:14px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px 18px; flex-wrap:wrap; }
-    .pick-cta .team{ font-family:var(--font-head); font-size:17px; font-weight:700; display:flex; align-items:center; gap:10px; }
-    .pick-cta .team img{ width:32px; height:32px; object-fit:contain; }
+    .pick-cta{ display:flex; align-items:center; justify-content:space-between; gap:14px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px 18px; flex-wrap:nowrap; }
+    .pick-cta .team{ font-family:var(--font-head); font-size:17px; font-weight:700; display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 auto; overflow:hidden; }
+    .pick-cta .team img{ width:32px; height:32px; object-fit:contain; flex-shrink:0; }
+    .pick-cta .team .team-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pick-cta > a, .pick-cta > span:not(.team){ flex-shrink:0; }
+    @media (max-width:480px){
+      .pick-cta{ padding:12px 12px; gap:8px; }
+      .pick-cta .team{ font-size:13.5px; gap:6px; }
+      .pick-cta .team img{ width:22px; height:22px; }
+      .pick-cta .btn-primary{ padding:8px 12px; font-size:12.5px; white-space:nowrap; }
+      .pick-cta .pick-result-tag{ font-size:10px; padding:2px 8px; margin-left:6px; }
+    }
 
     /* Teams used grid */
     .teams-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:10px; }
@@ -148,28 +163,21 @@
     /* Gameweek results card */
     .results-card{ margin-bottom:24px; }
     .results-grid{ display:flex; flex-direction:column; gap:8px; }
-    .result-row{
-      display:grid; grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);
-      align-items:center; column-gap:8px; row-gap:4px;
+    .result-row{ display:flex; align-items:center; justify-content:center; gap:6px; }
+    .r-team-card{
+      display:flex; align-items:center; justify-content:center; gap:6px;
       background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
-      padding:10px 14px; font-size:13.5px;
+      padding:9px 6px; width:var(--team-card-w, 112px); flex-shrink:0;
     }
-    .result-row.my-pick{ border-color:var(--accent); background:rgba(59,130,246,0.06); }
-    .result-row .r-team{ display:flex; align-items:center; gap:8px; min-width:0; }
-    .result-row .r-team img{ width:22px; height:22px; object-fit:contain; flex-shrink:0; }
-    .result-row .r-team .r-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-    .result-row .r-team.win .r-name{ color:var(--green); font-weight:700; }
-    .result-row .r-team.away{ justify-content:flex-end; flex-direction:row-reverse; text-align:right; }
-    .result-row .r-score{ font-family:var(--font-head); font-weight:700; color:var(--text-dim); text-align:center; white-space:nowrap; }
-    .result-row .r-score.done{ color:var(--text); }
-    .result-row .r-status-row{ grid-column:1 / -1; display:flex; justify-content:flex-end; }
-    .result-row .r-status{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); }
-    .result-row .r-status.live{ color:var(--red); }
-    .result-row .r-status.finished{ color:var(--green); }
-    @media (max-width:480px){
-      .result-row{ grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr); padding:9px 10px; font-size:12.5px; column-gap:6px; }
-      .result-row .r-team img{ width:18px; height:18px; }
-    }
+    .r-team-card img{ width:18px; height:18px; object-fit:contain; flex-shrink:0; }
+    .r-team-card .r-name{ font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .r-team-card.win{ border-color:var(--green); }
+    .r-team-card.win .r-name{ color:var(--green); font-weight:700; }
+    .r-vs-card{ flex-shrink:0; width:42px; text-align:center; font-family:var(--font-head); font-weight:700; font-size:11px; color:var(--text-faint); }
+    .r-vs-card.done{ color:var(--text); font-size:12.5px; }
+    .r-status-badge{ flex-shrink:0; width:24px; text-align:center; font-size:9.5px; font-weight:800; letter-spacing:.3px; color:var(--text-faint); }
+    .r-status-badge.live{ color:var(--red); }
+    .r-status-badge.finished{ color:var(--green); }
 
     .pick-result-tag{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:2rem; margin-left:10px; }
     .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
@@ -304,21 +312,27 @@
     <div class="finished-banner" id="finishedBanner"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
 
     <!-- How it works -->
-    <div class="how-grid">
-      <div class="how-step">
-        <div class="num">1</div>
-        <h3>Pick a team</h3>
-        <p>Each gameweek, choose one Premier League team you think will win.</p>
-      </div>
-      <div class="how-step">
-        <div class="num">2</div>
-        <h3>They have to win</h3>
-        <p>A draw or a loss and you're eliminated. No margin for error.</p>
-      </div>
-      <div class="how-step">
-        <div class="num">3</div>
-        <h3>No repeats</h3>
-        <p>Once you've picked a team, it's gone — you can never use it again this tournament.</p>
+    <div class="how-collapsible" id="howCollapsible">
+      <button class="how-toggle" id="howToggle" type="button">
+        <span><i class="fas fa-circle-info"></i> How It Works</span>
+        <i class="fas fa-chevron-down how-chevron" id="howChevron"></i>
+      </button>
+      <div class="how-body" id="howBody">
+        <div class="how-step">
+          <div class="num">1</div>
+          <h3>Pick a team</h3>
+          <p>Each gameweek, choose one Premier League team you think will win.</p>
+        </div>
+        <div class="how-step">
+          <div class="num">2</div>
+          <h3>They have to win</h3>
+          <p>A draw or a loss and you're eliminated. No margin for error.</p>
+        </div>
+        <div class="how-step">
+          <div class="num">3</div>
+          <h3>No repeats</h3>
+          <p>Once you've picked a team, it's gone — you can never use it again this tournament.</p>
+        </div>
       </div>
     </div>
 
@@ -506,18 +520,29 @@
           return;
         }
 
+        // Size every team card the same width — wide enough for the
+        // longest name in this gameweek (e.g. "Nott'm Forest"), so cards
+        // line up in clean columns instead of each hugging its own text.
+        const allNames = gwMatches.flatMap(m => [m.home_team, m.away_team]);
+        const longest = allNames.reduce((a, b) => (b.length > a.length ? b : a), '');
+        const cardWidth = Math.max(90, Math.round(longest.length * 7.2) + 44);
+        grid.style.setProperty('--team-card-w', `${cardWidth}px`);
+
+        const statusAbbr = { upcoming: 'UC', live: 'IP', finished: 'FT' };
+
         grid.innerHTML = gwMatches.map(m => {
           const started = m.status === 'live' || m.status === 'finished';
           const hasScore = started && m.home_score !== null && m.home_score !== undefined;
           const homeWin = started && m.result === 'H';
           const awayWin = started && m.result === 'A';
           const statusClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
+          const statusText = statusAbbr[m.status] || 'UC';
           return `
             <div class="result-row">
-              <span class="r-team ${homeWin ? 'win' : ''}"><img src="${shirtSrc(m.home_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"><span class="r-name">${escapeHtml(m.home_team)}</span></span>
-              <span class="r-score ${hasScore ? 'done' : ''}">${hasScore ? `${m.home_score} - ${m.away_score}` : 'vs'}</span>
-              <span class="r-team away ${awayWin ? 'win' : ''}"><img src="${shirtSrc(m.away_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"><span class="r-name">${escapeHtml(m.away_team)}</span></span>
-              <div class="r-status-row"><span class="r-status ${statusClass}">${escapeHtml(m.status || 'upcoming')}</span></div>
+              <div class="r-team-card ${homeWin ? 'win' : ''}"><img src="${shirtSrc(m.home_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"><span class="r-name">${escapeHtml(m.home_team)}</span></div>
+              <div class="r-vs-card ${hasScore ? 'done' : ''}">${hasScore ? `${m.home_score}-${m.away_score}` : 'vs'}</div>
+              <div class="r-team-card ${awayWin ? 'win' : ''}"><img src="${shirtSrc(m.away_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"><span class="r-name">${escapeHtml(m.away_team)}</span></div>
+              <div class="r-status-badge ${statusClass}">${statusText}</div>
             </div>`;
         }).join('');
       } catch (e) {
@@ -632,12 +657,12 @@
           cta.innerHTML = `<span style="color:var(--text-faint);">Eliminated — no further picks this tournament.</span>`;
         } else if (thisWeekPick && locked) {
           cta.innerHTML = `
-            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)} ${pickResultTagHtml(thisWeekPick.team)}</div>
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> <span class="team-name">${escapeHtml(thisWeekPick.team)}</span> ${pickResultTagHtml(thisWeekPick.team)}</div>
             <span style="color:var(--text-faint); font-size:13px;"><i class="fas fa-lock"></i> Locked in</span>
           `;
         } else if (thisWeekPick) {
           cta.innerHTML = `
-            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${escapeHtml(thisWeekPick.team)} ${pickResultTagHtml(thisWeekPick.team)}</div>
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> <span class="team-name">${escapeHtml(thisWeekPick.team)}</span> ${pickResultTagHtml(thisWeekPick.team)}</div>
             <a href="/last-man-standing-pick?gameweek=${currentGw}" class="btn-primary"><i class="fas fa-pen"></i> Change Pick</a>
           `;
         } else if (!currentGw) {
@@ -778,6 +803,10 @@
     }
     document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    document.getElementById('howToggle').addEventListener('click', () => {
+      document.getElementById('howCollapsible').classList.toggle('open');
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
       initAuthButton();
