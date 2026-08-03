@@ -2278,8 +2278,25 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           let fantasyUpdated = 0;
 
           if (leavingGw > 0) {
-            const genResult = await generateTestGameweekData(masterDb, leavingGw, supabaseAdmin);
-            testDataGenerated = genResult.status === 200;
+            // Check BEFORE generating anything — if the leaving gameweek
+            // was already finished (e.g. via Mark Games Finished), it
+            // already has real results everything downstream has been
+            // scored/settled against. Regenerating here would silently
+            // overwrite those with brand new random results, corrupting
+            // Predictions/Stock Market/LMS without any of them knowing
+            // the ground truth had changed under them. Only auto-generate
+            // as a safety net when the admin genuinely never finished it.
+            const { data: gwMatchesBefore } = await masterDb
+              .from('matches')
+              .select('status')
+              .eq('gameweek', leavingGw);
+            const alreadyFinished = gwMatchesBefore && gwMatchesBefore.length > 0
+              && gwMatchesBefore.every(m => m.status === 'finished');
+
+            if (!alreadyFinished) {
+              const genResult = await generateTestGameweekData(masterDb, leavingGw, supabaseAdmin);
+              testDataGenerated = genResult.status === 200;
+            }
 
             // Fantasy updates live per-match/whenever called, not gated
             // on the whole gameweek — same as mark_matches_finished.
@@ -4853,10 +4870,21 @@ function simulateOneMatchIntoAccumulator(m, gameweek, teamIdByName, playersByTea
 async function generateTestGameweekData(masterDb, gameweek, localDb, markFinished = true) {
   try {
     const { data: matches, error: matchesErr } = await masterDb
-      .from('matches').select('id, home_team, away_team').eq('gameweek', gameweek);
+      .from('matches').select('id, home_team, away_team, status').eq('gameweek', gameweek);
     if (matchesErr) return { status: 500, body: { error: matchesErr.message } };
     if (!matches || matches.length === 0) {
       return { status: 404, body: { error: `No real fixtures found for GW${gameweek} — run sync-fixtures first` } };
+    }
+
+    // Never regenerate a gameweek that's already finished — real results
+    // exist that Predictions/Stock Market/LMS have already been scored or
+    // settled against. Overwriting them here would silently swap those
+    // results out from under everything already computed, without any of
+    // it knowing the ground truth had changed. Confirmed as a real
+    // corruption path, not a hypothetical: a finished gameweek's genuine
+    // winners came back marked as losers after this ran a second time.
+    if (matches.every(m => m.status === 'finished')) {
+      return { status: 409, body: { error: `GW${gameweek} is already finished — refusing to regenerate and overwrite real results. Use clear_gameweek_stats_cache and reset match status first if you genuinely need to redo it.`, skipped: true } };
     }
 
     const { data: teams } = await masterDb.from('teams').select('id, name');
