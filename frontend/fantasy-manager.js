@@ -314,9 +314,9 @@ document.addEventListener('DOMContentLoaded', async function () {
       const team = teamsById[p.team];
 
       return `
-        <div class="fm-player-row ${disabled && !inSquad ? 'disabled' : ''}" data-player-id="${p.id}" style="cursor:pointer;">
+        <div class="fm-player-row ${disabled && !inSquad ? 'disabled' : ''}" data-player-id="${p.id}">
           <span class="fm-pos-badge ${posClass}">${posLabel}</span>
-          <span class="fm-player-name">
+          <span class="fm-player-name" data-player-link="${p.id}" style="cursor:pointer;">
             ${escapeHtml(p.web_name)}
             <span class="team">${team ? escapeHtml(team.short_name || team.name) : ''}</span>
           </span>
@@ -344,7 +344,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           html += `
             <div class="fm-squad-slot" data-player-id="${p.id}">
               <button class="fm-cap-btn ${isCaptain ? 'active' : ''}" data-captain="${p.id}" title="Set as captain">C</button>
-              <span class="fm-player-name">${escapeHtml(p.web_name)}<span class="team">£${fmt(p.now_cost)}m</span></span>
+              <span class="fm-player-name" data-player-link="${p.id}" style="cursor:pointer;">${escapeHtml(p.web_name)}<span class="team">£${fmt(p.now_cost)}m</span></span>
               <span class="fm-slot-points" style="color:var(--gold); font-size:.8rem; font-weight:700;">${(p.event_points ?? 0) * (isCaptain ? 2 : 1)} GW</span>
               <button class="fm-remove-btn" data-remove="${p.id}" title="Remove"><i class="fas fa-xmark"></i></button>
             </div>`;
@@ -385,10 +385,13 @@ document.addEventListener('DOMContentLoaded', async function () {
       return;
     }
 
-    // Clicked the row itself (not the add button) — open the player's page
-    const row = e.target.closest('[data-player-id]');
-    if (row) {
-      window.location.href = `/player?id=${row.dataset.playerId}`;
+    // Clicked the player's name specifically (not anywhere else on the
+    // row) — open the player's page. Clicking elsewhere on the row does
+    // nothing, so a near-miss on the + button doesn't accidentally
+    // navigate away.
+    const nameLink = e.target.closest('[data-player-link]');
+    if (nameLink) {
+      window.location.href = `/player?id=${nameLink.dataset.playerLink}`;
     }
   });
 
@@ -408,9 +411,9 @@ document.addEventListener('DOMContentLoaded', async function () {
       renderSquad();
       return;
     }
-    const slot = e.target.closest('[data-player-id]');
-    if (slot) {
-      window.location.href = `/player?id=${slot.dataset.playerId}`;
+    const nameLink = e.target.closest('[data-player-link]');
+    if (nameLink) {
+      window.location.href = `/player?id=${nameLink.dataset.playerLink}`;
     }
   });
 
