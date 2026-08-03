@@ -148,6 +148,10 @@
     .team-tile.used{ opacity:.4; }
     .team-tile.used .name{ text-decoration:line-through; }
     .team-tile .gw-tag{ font-size:9px; color:var(--gold); text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; }
+    .team-tile.selectable{ cursor:pointer; transition:transform .12s ease, border-color .12s ease; }
+    .team-tile.selectable:hover{ transform:translateY(-2px); border-color:var(--accent); }
+    .team-tile.pending-select{ border:2px solid var(--accent); background:rgba(59,130,246,0.1); opacity:1; }
+    .team-tile.pending-select .name{ text-decoration:none; color:var(--accent-2); }
     .team-tile.current-pick{ opacity:1; }
     .team-tile.current-pick.pick-pending{ border:2px solid var(--gold); background:rgba(242,185,61,0.1); }
     .team-tile.current-pick.pick-pending .name{ text-decoration:none; color:var(--gold); }
@@ -368,7 +372,10 @@
       <div class="cards-grid">
         <!-- Teams used -->
         <section class="card">
-          <div class="card-title"><i class="fas fa-shirt" style="color:var(--accent-2);"></i> Your Teams</div>
+          <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
+            <span><i class="fas fa-shirt" style="color:var(--accent-2);"></i> Your Teams</span>
+            <button class="btn-primary" id="confirmPickBtn" style="display:none; font-size:13px; padding:8px 14px;" disabled><i class="fas fa-check"></i> Confirm Team</button>
+          </div>
           <div class="teams-grid" id="teamsGrid"><div class="loading">Loading…</div></div>
         </section>
 
@@ -431,6 +438,7 @@
     let tournamentId = null;
     let currentGw = null;
     let locked = false;
+    let pendingPick = null; // team clicked in the grid but not yet confirmed
     let gwMatches = [];
     let tournamentFinished = false;
 
@@ -663,7 +671,7 @@
         } else if (thisWeekPick) {
           cta.innerHTML = `
             <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> <span class="team-name">${escapeHtml(thisWeekPick.team)}</span> ${pickResultTagHtml(thisWeekPick.team)}</div>
-            <a href="/last-man-standing-pick?gameweek=${currentGw}" class="btn-primary"><i class="fas fa-pen"></i> Change Pick</a>
+            <a href="#teamsGrid" class="btn-primary" onclick="document.getElementById('teamsGrid').scrollIntoView({behavior:'smooth', block:'center'}); return false;"><i class="fas fa-pen"></i> Change Pick</a>
           `;
         } else if (!currentGw) {
           cta.innerHTML = `<span style="color:var(--text-faint);">Gameweek not set yet.</span>`;
@@ -672,23 +680,34 @@
         } else {
           cta.innerHTML = `
             <span style="color:var(--text-dim); font-size:14px;">You haven't picked for Gameweek ${currentGw} yet.</span>
-            <a href="/last-man-standing-pick?gameweek=${currentGw}" class="btn-primary"><i class="fas fa-futbol"></i> Make Your Pick</a>
+            <a href="#teamsGrid" class="btn-primary" onclick="document.getElementById('teamsGrid').scrollIntoView({behavior:'smooth', block:'center'}); return false;"><i class="fas fa-futbol"></i> Make Your Pick</a>
           `;
         }
 
         // Teams grid — this gameweek's pick is yellow while the result's
         // still pending, green once won, red if lost or drew (a draw
         // eliminates too, same as a loss); teams used in a past
-        // gameweek get greyed/struck-through.
+        // gameweek get greyed/struck-through. Eligible teams are
+        // clickable — tapping one stages it as a pending selection
+        // (blue) until Confirm Team is pressed.
+        const canPick = !tournamentFinished && !data.is_eliminated && !locked && !!currentGw;
+        const confirmBtn = document.getElementById('confirmPickBtn');
+        if (!canPick) pendingPick = null;
+
         const grid = document.getElementById('teamsGrid');
         grid.innerHTML = ALL_TEAMS.map(team => {
           const usedPick = picks.find(p => p.team === team);
           const isCurrentPick = thisWeekPick && thisWeekPick.team === team;
           const used = usedTeams.includes(team) && !isCurrentPick;
+          const isPending = pendingPick === team;
+          const eligible = canPick && !used;
 
           let tileClass = used ? 'used' : '';
           let tagHtml = used ? `<span class="gw-tag">GW${usedPick.gameweek}</span>` : '';
-          if (isCurrentPick) {
+          if (isPending) {
+            tileClass = 'pending-select';
+            tagHtml = `<span class="pick-tag" style="color:var(--accent-2);"><i class="fas fa-hand-pointer"></i> Selected</span>`;
+          } else if (isCurrentPick) {
             const result = pickResultState(team);
             const state = result ? result.state : 'pending';
             tileClass = `current-pick pick-${state}`;
@@ -696,19 +715,63 @@
             const tagIcon = state === 'pending' ? 'fa-star' : state === 'win' ? 'fa-check' : state === 'draw' ? 'fa-minus' : 'fa-xmark';
             tagHtml = `<span class="pick-tag pick-tag-${state}"><i class="fas ${tagIcon}"></i> ${tagLabel}</span>`;
           }
+          if (eligible) tileClass += ' selectable';
 
           return `
-            <div class="team-tile ${tileClass}">
+            <div class="team-tile ${tileClass}" ${eligible ? `onclick="selectPendingPick('${team.replace(/'/g, "\\'")}')"` : ''}>
               <img src="${shirtSrc(team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
               <div class="name">${escapeHtml(team)}</div>
               ${tagHtml}
             </div>`;
         }).join('');
 
+        if (canPick) {
+          confirmBtn.style.display = 'inline-flex';
+          const hasChange = pendingPick && pendingPick !== (thisWeekPick && thisWeekPick.team);
+          confirmBtn.disabled = !hasChange;
+          confirmBtn.innerHTML = hasChange
+            ? `<i class="fas fa-check"></i> Confirm ${escapeHtml(pendingPick)}`
+            : '<i class="fas fa-check"></i> Confirm Team';
+          confirmBtn.onclick = () => confirmPendingPick(picks);
+        } else {
+          confirmBtn.style.display = 'none';
+        }
+
         // Survivors
         await loadSurvivors();
       } catch (e) {
         console.error('Failed to load LMS state:', e);
+      }
+    }
+
+    function selectPendingPick(team) {
+      pendingPick = pendingPick === team ? null : team;
+      loadLmsState();
+    }
+
+    async function confirmPendingPick(picks) {
+      if (!pendingPick) return;
+      const thisWeekPick = picks.find(p => p.gameweek === currentGw);
+      if (pendingPick === (thisWeekPick && thisWeekPick.team)) return;
+
+      const btn = document.getElementById('confirmPickBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'lms_pick', tournament_id: tournamentId, tournament_type: 'lms', gameweek: currentGw, team: pendingPick })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save pick');
+        showToast(`${pendingPick} locked in for Gameweek ${currentGw}!`, 'success');
+        pendingPick = null;
+        await loadLmsState();
+      } catch (e) {
+        console.error(e);
+        showToast(e.message || "Couldn't save your pick right now.", 'error');
+        await loadLmsState();
       }
     }
 
