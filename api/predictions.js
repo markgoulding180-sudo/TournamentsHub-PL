@@ -28,22 +28,27 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
+  const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
+
   // Create clients - admin for auth verification and POST operations
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
+    process.env.SUPABASE_KEY,
+    { global: { fetch: noCacheFetch } }
   );
   
   const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SECRET
+    process.env.SUPABASE_SECRET,
+    { global: { fetch: noCacheFetch } }
   );
 
   // Master project: matches — shared PL facts, synced from FPL.
   // Used server-side only, so the service key is fine here.
   const masterDb = createClient(
     process.env.MASTER_SUPABASE_URL,
-    process.env.MASTER_SUPABASE_SERVICE_KEY
+    process.env.MASTER_SUPABASE_SERVICE_KEY,
+    { global: { fetch: noCacheFetch } }
   );
   
   // Use admin client for POST operations

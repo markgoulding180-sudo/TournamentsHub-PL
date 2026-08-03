@@ -17,15 +17,22 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Same reasoning as api/tournaments.js — a warm serverless instance
+    // can serve a stale cached response for an identical query on a
+    // later request. Forcing no-store on every fetch closes this off.
+    const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
+
     // Local project: predictions/users/tournaments (scoring side-effects)
     const localDb = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SECRET
+      process.env.SUPABASE_SECRET,
+      { global: { fetch: noCacheFetch } }
     );
     // Master project: matches — shared PL facts, synced from FPL
     const masterDb = createClient(
       process.env.MASTER_SUPABASE_URL,
-      process.env.MASTER_SUPABASE_SERVICE_KEY
+      process.env.MASTER_SUPABASE_SERVICE_KEY,
+      { global: { fetch: noCacheFetch } }
     );
 
     // Current gameweek comes from master_clock — the one global pointer

@@ -16,9 +16,11 @@ module.exports = async (req, res) => {
   }
 
   // master_clock lives in the shared master PL-facts project now
+  const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
   const supabase = createClient(
     process.env.MASTER_SUPABASE_URL,
-    process.env.MASTER_SUPABASE_SERVICE_KEY
+    process.env.MASTER_SUPABASE_SERVICE_KEY,
+    { global: { fetch: noCacheFetch } }
   );
 
   // GET - Read current gameweek from Master Clock
@@ -119,7 +121,8 @@ module.exports = async (req, res) => {
       const token = authHeader.replace('Bearer ', '');
       const supabaseAdmin = createClient(
         process.env.SUPABASE_URL,
-        process.env.SUPABASE_SECRET
+        process.env.SUPABASE_SECRET,
+        { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
       );
       
       const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);

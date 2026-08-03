@@ -48,21 +48,34 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Vercel serverless functions get reused across requests ("warm
+  // starts") for performance — confirmed via logs that this let a stale
+  // response for an identical query get served on a later request within
+  // the same warm instance (LMS's finished-match count stuck at 3 long
+  // after all 10 were genuinely finished in the database, causing
+  // eliminations to be computed from outdated data). Forcing every
+  // Supabase REST call through a fetch that explicitly disables caching
+  // closes this off at the source, for every client and every query.
+  const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
+
   // Create clients - admin client for auth verification, regular for data
   const supabase = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
+    process.env.SUPABASE_KEY,
+    { global: { fetch: noCacheFetch } }
   );
   
   const supabaseAdmin = createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SECRET
+    process.env.SUPABASE_SECRET,
+    { global: { fetch: noCacheFetch } }
   );
 
   // Master project: players — used for Fantasy Manager squad validation/scoring
   const masterDb = createClient(
     process.env.MASTER_SUPABASE_URL,
-    process.env.MASTER_SUPABASE_SERVICE_KEY
+    process.env.MASTER_SUPABASE_SERVICE_KEY,
+    { global: { fetch: noCacheFetch } }
   );
 
   // GET - List tournaments

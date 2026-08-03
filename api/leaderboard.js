@@ -28,15 +28,19 @@ module.exports = async (req, res) => {
     const limit = parseInt(params.get('limit')) || 50;
     const offset = parseInt(params.get('offset')) || 0;
 
+    const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
+
     const supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SECRET
+      process.env.SUPABASE_SECRET,
+      { global: { fetch: noCacheFetch } }
     );
     // Master project: master_clock — the one global gameweek pointer every
     // tournament follows, not FPL's live is_current flag.
     const masterDb = createClient(
       process.env.MASTER_SUPABASE_URL,
-      process.env.MASTER_SUPABASE_SERVICE_KEY
+      process.env.MASTER_SUPABASE_SERVICE_KEY,
+      { global: { fetch: noCacheFetch } }
     );
 
     let currentGameweek = null;

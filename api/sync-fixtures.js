@@ -25,15 +25,19 @@ module.exports = async (req, res) => {
     const params = new URLSearchParams(req.query);
     const gameweek = params.get('gameweek');
 
+    const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
+
     // Local project: predictions/users/tournaments (scoring side-effects)
     const localDb = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SECRET
+      process.env.SUPABASE_SECRET,
+      { global: { fetch: noCacheFetch } }
     );
     // Master project: matches — shared PL facts, synced from FPL
     const masterDb = createClient(
       process.env.MASTER_SUPABASE_URL,
-      process.env.MASTER_SUPABASE_SERVICE_KEY
+      process.env.MASTER_SUPABASE_SERVICE_KEY,
+      { global: { fetch: noCacheFetch } }
     );
 
     // Debounce: only active when called from the poll (?poll=true), same

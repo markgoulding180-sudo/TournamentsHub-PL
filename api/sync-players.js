@@ -18,7 +18,8 @@ module.exports = async (req, res) => {
   // (players/teams) — never the app's own users/predictions database.
   const supabase = createClient(
     process.env.MASTER_SUPABASE_URL,
-    process.env.MASTER_SUPABASE_SERVICE_KEY
+    process.env.MASTER_SUPABASE_SERVICE_KEY,
+    { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
   );
 
   // Read-only mode: GET /api/sync-players?list=true

@@ -19,7 +19,8 @@ module.exports = async (req, res) => {
     // Pure master PL-facts data — reads from the shared master project
     const supabase = createClient(
       process.env.MASTER_SUPABASE_URL,
-      process.env.MASTER_SUPABASE_ANON_KEY
+      process.env.MASTER_SUPABASE_ANON_KEY,
+      { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
     );
 
     // Get players with injuries/news
