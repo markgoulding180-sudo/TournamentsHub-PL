@@ -2153,13 +2153,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // Same real function live-scores.js uses for real.
           let predictionsScored = false;
           try {
+            console.log(`[PREDICTIONS_DEBUG] mark_matches_finished: requiring live-scores.js, gameweeksTouched=${JSON.stringify([...gameweeksTouched])}`);
             const { calculatePointsForGameweek } = require('./live-scores.js');
+            console.log(`[PREDICTIONS_DEBUG] mark_matches_finished: require succeeded, calculatePointsForGameweek is ${typeof calculatePointsForGameweek}`);
             for (const gw of gameweeksTouched) {
               await calculatePointsForGameweek(supabaseAdmin, masterDb, gw);
             }
             predictionsScored = true;
+            console.log(`[PREDICTIONS_DEBUG] mark_matches_finished: all gameweeks processed successfully`);
           } catch (predErr) {
-            console.error('mark_matches_finished: Predictions scoring failed (non-fatal):', predErr);
+            console.error('[PREDICTIONS_DEBUG] mark_matches_finished: Predictions scoring failed (non-fatal):', predErr, predErr?.stack);
           }
 
           // Fantasy and LMS both update live per-match, same as

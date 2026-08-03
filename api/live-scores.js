@@ -259,19 +259,19 @@ module.exports = async (req, res) => {
 };
 
 async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
-  console.log(`=== POINTS CALCULATION START - GW${gameweek} ===`);
-  
-  const { data: matches } = await masterDb
+  console.log(`[PREDICTIONS_DEBUG] calculatePointsForGameweek called for gw=${gameweek}`);
+
+  const { data: matches, error: matchesErr } = await masterDb
     .from('matches')
     .select('*')
     .eq('gameweek', gameweek)
     .eq('status', 'finished')
     .not('result', 'is', null);
 
-  console.log(`Found ${matches?.length || 0} finished matches to process`);
-  
+  console.log(`[PREDICTIONS_DEBUG] gw=${gameweek}: finished matches found=${matches ? matches.length : 'null'}, error=${matchesErr ? matchesErr.message : 'none'}`);
+
   if (!matches || matches.length === 0) {
-    console.log('No finished matches - skipping points calculation');
+    console.log(`[PREDICTIONS_DEBUG] gw=${gameweek}: no finished matches, returning early`);
     return;
   }
 
@@ -281,10 +281,12 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   const predictionUpdateRows = [];
 
   for (const match of matches) {
-    const { data: predictions } = await localDb
+    const { data: predictions, error: predFetchErr } = await localDb
       .schema('predictions').from('predictions')
       .select('*')
       .eq('match_id', match.id);
+
+    console.log(`[PREDICTIONS_DEBUG] gw=${gameweek} match=${match.id} (${match.home_team} v ${match.away_team}): predictions fetched=${predictions ? predictions.length : 'null'}, error=${predFetchErr ? predFetchErr.message : 'none'}`);
 
     if (!predictions || predictions.length === 0) continue;
 
@@ -303,15 +305,19 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
     }
   }
 
+  console.log(`[PREDICTIONS_DEBUG] gw=${gameweek}: built ${predictionUpdateRows.length} update rows, sample=${JSON.stringify(predictionUpdateRows.slice(0, 3))}`);
+
   // One batch upsert instead of one .update() call per prediction — this
   // was the single biggest contributor by far to marking matches finished
   // taking so long (90+ sequential round trips confirmed for just a
   // couple of matches), and quite possibly why Fantasy/LMS processing
   // appeared to silently fail right after it in the same request.
   if (predictionUpdateRows.length > 0) {
-    const { error: predUpsertErr } = await localDb
+    const { data: upsertData, error: predUpsertErr, status: upsertStatus } = await localDb
       .schema('predictions').from('predictions')
-      .upsert(predictionUpdateRows, { onConflict: 'id' });
+      .upsert(predictionUpdateRows, { onConflict: 'id' })
+      .select('id, points_earned');
+    console.log(`[PREDICTIONS_DEBUG] gw=${gameweek}: upsert status=${upsertStatus}, returned rows=${upsertData ? upsertData.length : 'null'}, error=${predUpsertErr ? JSON.stringify(predUpsertErr) : 'none'}`);
     if (predUpsertErr) console.error('Batch predictions upsert failed:', predUpsertErr);
   }
   
