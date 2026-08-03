@@ -2657,9 +2657,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const byPosition = { 1: [], 2: [], 3: [], 4: [] };
           (playerRows || []).forEach(p => { if (byPosition[p.element_type]) byPosition[p.element_type].push(p); });
 
+          const targetUserIds = user_ids.filter(uid => uid !== user.id); // never touch your own squad
+
+          // Fetch existing entries in bulk first — existing ones must
+          // keep their real current_value/start_value/last_week_value
+          // rather than being reset to 0 just because they're being
+          // re-seeded with a fresh squad.
+          const { data: existingRows } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, user_id, current_value, start_value, last_week_value')
+            .eq('tournament_id', seedTournamentId).in('user_id', targetUserIds);
+          const existingByUser = {};
+          (existingRows || []).forEach(e => { existingByUser[e.user_id] = e; });
+
           const results = [];
-          for (const uid of user_ids) {
-            if (uid === user.id) continue; // never touch your own squad
+          const entryRows = [];
+          for (const uid of targetUserIds) {
             // 1 GK, 1 DEF, 1 MID, 1 FWD, then 2 more from DEF/MID/FWD at random.
             const picks = [];
             const usedIds = new Set();
@@ -2684,18 +2697,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               player_id: p.id, position: pos, name: p.web_name, team: teamNameById[p.team] || '', is_sub: false
             }));
 
-            const { data: existing } = await supabaseAdmin
-              .schema('stockmarket').from('tournament_entries')
-              .select('id').eq('tournament_id', seedTournamentId).eq('user_id', uid).maybeSingle();
-
-            if (existing) {
-              await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-                .update({ squad_players, squad_locked: false }).eq('id', existing.id);
-            } else {
-              await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-                .insert({ tournament_id: seedTournamentId, user_id: uid, squad_players, squad_locked: false, current_value: 0, start_value: 0, last_week_value: 0 });
-            }
+            const existing = existingByUser[uid];
+            entryRows.push({
+              tournament_id: seedTournamentId, user_id: uid, squad_players, squad_locked: false,
+              current_value: existing ? existing.current_value : 0,
+              start_value: existing ? existing.start_value : 0,
+              last_week_value: existing ? existing.last_week_value : 0
+            });
             results.push({ user_id: uid, squad: squad_players.map(s => s.name) });
+          }
+
+          // One batch upsert instead of a per-user select-then-write loop
+          // (this is what made seeding actually slow).
+          if (entryRows.length > 0) {
+            const { error: upsertErr } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .upsert(entryRows, { onConflict: 'tournament_id,user_id' });
+            if (upsertErr) throw upsertErr;
           }
 
           return res.status(200).json({ success: true, seeded: results.length, results });
@@ -2726,23 +2744,28 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(404).json({ error: `No fixtures found for GW${predGw}` });
           }
 
-          const { data: usersRows } = await supabaseAdmin.from('users').select('id, username').in('id', predUserIds);
+          const targetUserIds = predUserIds.filter(uid => uid !== user.id); // never touch your own predictions
+
+          const { data: usersRows } = await supabaseAdmin.from('users').select('id, username').in('id', targetUserIds);
           const usernameById = {};
           (usersRows || []).forEach(u => { usernameById[u.id] = u.username; });
 
-          const results = [];
-          for (const uid of predUserIds) {
-            if (uid === user.id) continue; // never touch your own predictions
-
-            const { data: existingEntry } = await supabaseAdmin
+          // Batch-upsert every entry and every prediction in two calls
+          // total instead of a per-user, per-match select-then-write loop
+          // (30 users x 10 matches was ~660 sequential round trips — this
+          // is what made seeding actually slow).
+          const entryRows = targetUserIds.map(uid => ({
+            tournament_id: predTournamentId, user_id: uid, username: usernameById[uid] || null, entry_points: 0
+          }));
+          if (entryRows.length > 0) {
+            const { error: entryErr } = await supabaseAdmin
               .schema('predictions').from('tournament_entries')
-              .select('id').eq('tournament_id', predTournamentId).eq('user_id', uid).maybeSingle();
-            if (!existingEntry) {
-              await supabaseAdmin.schema('predictions').from('tournament_entries')
-                .insert({ tournament_id: predTournamentId, user_id: uid, username: usernameById[uid] || null, entry_points: 0 });
-            }
+              .upsert(entryRows, { onConflict: 'tournament_id,user_id', ignoreDuplicates: true });
+            if (entryErr) throw entryErr;
+          }
 
-            let predictedCount = 0;
+          const predictionRows = [];
+          for (const uid of targetUserIds) {
             for (const m of gwMatches) {
               const outcome = ['H', 'D', 'A'][Math.floor(Math.random() * 3)];
               let homeScore, awayScore;
@@ -2750,26 +2773,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               else if (outcome === 'A') { awayScore = 1 + Math.floor(Math.random() * 3); homeScore = Math.floor(Math.random() * awayScore); }
               else { homeScore = awayScore = Math.floor(Math.random() * 3); }
 
-              const { data: existingPred } = await supabaseAdmin
-                .schema('predictions').from('predictions')
-                .select('id').eq('user_id', uid).eq('match_id', m.id).maybeSingle();
-
-              const row = {
+              predictionRows.push({
                 user_id: uid, match_id: m.id, gameweek: predGw, predicted_result: outcome,
                 home_score: homeScore, away_score: awayScore,
                 home_team: m.home_team, away_team: m.away_team, username: usernameById[uid] || null
-              };
-              if (existingPred) {
-                await supabaseAdmin.schema('predictions').from('predictions').update(row).eq('id', existingPred.id);
-              } else {
-                await supabaseAdmin.schema('predictions').from('predictions').insert(row);
-              }
-              predictedCount++;
+              });
             }
-            results.push({ user_id: uid, predicted: predictedCount });
           }
 
-          return res.status(200).json({ success: true, seeded: results.length, matches: gwMatches.length, results });
+          if (predictionRows.length > 0) {
+            const { error: predErr } = await supabaseAdmin
+              .schema('predictions').from('predictions')
+              .upsert(predictionRows, { onConflict: 'user_id,match_id' });
+            if (predErr) throw predErr;
+          }
+
+          return res.status(200).json({ success: true, seeded: targetUserIds.length, matches: gwMatches.length });
         } catch (err) {
           console.error('predictions_seed_entries error:', err);
           return res.status(500).json({ error: err.message });
@@ -2799,38 +2818,57 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const teamsThisWeek = [];
           gwMatches.forEach(m => { teamsThisWeek.push(m.home_team, m.away_team); });
 
-          const results = [];
-          for (const uid of lmsUserIds) {
-            if (uid === user.id) continue; // never touch your own pick
+          const targetUserIds = lmsUserIds.filter(uid => uid !== user.id); // never touch your own pick
 
-            const { data: existingEntry } = await supabaseAdmin
+          // Fetch everything needed in bulk (2 queries for up to 30 users)
+          // instead of a per-user select-then-write loop — this is what
+          // made seeding actually slow.
+          const { data: existingEntries } = await supabaseAdmin
+            .schema('lms').from('tournament_entries')
+            .select('id, user_id, is_eliminated').eq('tournament_id', lmsTournamentId).in('user_id', targetUserIds);
+          const entryByUser = {};
+          (existingEntries || []).forEach(e => { entryByUser[e.user_id] = e; });
+
+          const { data: allPastPicks } = await supabaseAdmin
+            .schema('lms').from('picks')
+            .select('user_id, team').eq('tournament_id', lmsTournamentId).in('user_id', targetUserIds).neq('gameweek', lmsGw);
+          const pastPicksByUser = {};
+          (allPastPicks || []).forEach(p => {
+            if (!pastPicksByUser[p.user_id]) pastPicksByUser[p.user_id] = new Set();
+            pastPicksByUser[p.user_id].add(p.team);
+          });
+
+          const newEntryRows = targetUserIds
+            .filter(uid => !entryByUser[uid])
+            .map(uid => ({ tournament_id: lmsTournamentId, user_id: uid, is_eliminated: false }));
+          if (newEntryRows.length > 0) {
+            const { error: entryErr } = await supabaseAdmin
               .schema('lms').from('tournament_entries')
-              .select('id, is_eliminated').eq('tournament_id', lmsTournamentId).eq('user_id', uid).maybeSingle();
-            if (!existingEntry) {
-              await supabaseAdmin.schema('lms').from('tournament_entries')
-                .insert({ tournament_id: lmsTournamentId, user_id: uid, is_eliminated: false });
-            } else if (existingEntry.is_eliminated) {
+              .upsert(newEntryRows, { onConflict: 'tournament_id,user_id', ignoreDuplicates: true });
+            if (entryErr) throw entryErr;
+          }
+
+          const pickRows = [];
+          const results = [];
+          for (const uid of targetUserIds) {
+            const entry = entryByUser[uid];
+            if (entry && entry.is_eliminated) {
               results.push({ user_id: uid, skipped: 'already eliminated' });
               continue;
             }
-
-            const { data: pastPicks } = await supabaseAdmin
-              .schema('lms').from('picks')
-              .select('team').eq('tournament_id', lmsTournamentId).eq('user_id', uid).neq('gameweek', lmsGw);
-            const alreadyUsed = new Set((pastPicks || []).map(p => p.team));
+            const alreadyUsed = pastPicksByUser[uid] || new Set();
             const eligible = teamsThisWeek.filter(t => !alreadyUsed.has(t));
             const pool = eligible.length > 0 ? eligible : teamsThisWeek; // fallback if genuinely nothing left
             const pick = pool[Math.floor(Math.random() * pool.length)];
-
-            const { data: existingPick } = await supabaseAdmin
-              .schema('lms').from('picks')
-              .select('id').eq('tournament_id', lmsTournamentId).eq('user_id', uid).eq('gameweek', lmsGw).maybeSingle();
-            if (existingPick) {
-              await supabaseAdmin.schema('lms').from('picks').update({ team: pick }).eq('id', existingPick.id);
-            } else {
-              await supabaseAdmin.schema('lms').from('picks').insert({ tournament_id: lmsTournamentId, user_id: uid, gameweek: lmsGw, team: pick });
-            }
+            pickRows.push({ tournament_id: lmsTournamentId, user_id: uid, gameweek: lmsGw, team: pick });
             results.push({ user_id: uid, picked: pick });
+          }
+
+          if (pickRows.length > 0) {
+            const { error: pickErr } = await supabaseAdmin
+              .schema('lms').from('picks')
+              .upsert(pickRows, { onConflict: 'tournament_id,user_id,gameweek' });
+            if (pickErr) throw pickErr;
           }
 
           return res.status(200).json({ success: true, seeded: results.length, results });
@@ -2885,10 +2923,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return squad;
           };
 
+          const targetUserIds = fmUserIds.filter(uid => uid !== user.id); // never touch your own squad
+          const entryRows = [];
           const results = [];
-          for (const uid of fmUserIds) {
-            if (uid === user.id) continue; // never touch your own squad
-
+          for (const uid of targetUserIds) {
             let squad = buildSquad();
             let totalCost = squad.reduce((sum, p) => sum + (p.now_cost || 0), 0);
             // Extremely unlikely with the cheaper-half bias, but re-roll
@@ -2901,21 +2939,20 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             const squad_players = squad.map(p => p.id);
             const captain_id = squad_players[Math.floor(Math.random() * squad_players.length)];
 
-            const entryPayload = {
+            entryRows.push({
               tournament_id: fmTournamentId, user_id: uid, squad_players, captain_id,
               entered_at: new Date().toISOString(), entry_points: 0
-            };
-
-            const { data: existingEntry } = await supabaseAdmin
-              .schema('fantasy').from('tournament_entries')
-              .select('id').eq('tournament_id', fmTournamentId).eq('user_id', uid).maybeSingle();
-            if (existingEntry) {
-              await supabaseAdmin.schema('fantasy').from('tournament_entries')
-                .update({ squad_players, captain_id }).eq('id', existingEntry.id);
-            } else {
-              await supabaseAdmin.schema('fantasy').from('tournament_entries').insert(entryPayload);
-            }
+            });
             results.push({ user_id: uid, squad_cost: (totalCost / 10).toFixed(1) });
+          }
+
+          // One batch upsert instead of a per-user select-then-write loop
+          // (this is what made seeding actually slow).
+          if (entryRows.length > 0) {
+            const { error: upsertErr } = await supabaseAdmin
+              .schema('fantasy').from('tournament_entries')
+              .upsert(entryRows, { onConflict: 'tournament_id,user_id' });
+            if (upsertErr) throw upsertErr;
           }
 
           return res.status(200).json({ success: true, seeded: results.length, results });
