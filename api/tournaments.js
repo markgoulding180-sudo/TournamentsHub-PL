@@ -4706,11 +4706,24 @@ async function updateFantasyPointsForGameweek(masterDb, gameweek) {
     .from('player_gameweek_stats').select('*').eq('gameweek', gameweek);
   if (!gwStats || gwStats.length === 0) return result;
 
+  // Only count stats for teams whose match has actually started — same
+  // filter as the Stock Market live view, for the same reason: the test
+  // rig pre-stages a whole gameweek's stats, and without this, marking
+  // one match finished would award points for all twenty teams at once.
+  const { data: gwMatchStatus } = await masterDb
+    .from('matches').select('home_team, away_team, status').eq('gameweek', gameweek);
+  const startedTeams = new Set();
+  (gwMatchStatus || []).forEach(m => {
+    if (m.status === 'live' || m.status === 'finished') { startedTeams.add(m.home_team); startedTeams.add(m.away_team); }
+  });
+  const countableStats = gwStats.filter(s => startedTeams.has(s.team));
+  if (countableStats.length === 0) return result;
+
   const { data: allPlayers } = await masterDb.from('players').select('id, element_type, total_points, event_points');
   const playerById = {};
   (allPlayers || []).forEach(p => { playerById[p.id] = p; });
 
-  for (const stat of gwStats) {
+  for (const stat of countableStats) {
     const player = playerById[stat.player_id];
     if (!player) continue;
     const newEventPoints = computeStandardFplPoints(player.element_type, stat);
