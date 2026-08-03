@@ -219,26 +219,31 @@ function updateGameweekPanel(gwData) {
 
 async function advanceGameweek() {
   const currentText = document.getElementById('gw-current-display').textContent;
-  if (!confirm(`Finalise ${currentText} (archives Predictions' results, calculates rankings/prizes) and advance to the next gameweek?`)) return;
+  if (!confirm(`Advance from ${currentText}? This settles Predictions, Stock Market, LMS, and Fantasy for the current gameweek (if all its matches are finished) and moves the clock forward.`)) return;
 
-  log(`Finalising and advancing gameweek...`);
+  log(`Advancing gameweek...`);
   try {
     const token = localStorage.getItem('gbf_token');
-    // This is the ONE action that does the complete job: archives
-    // Predictions' prediction_history, computes gameweek_summary, ranks
-    // tournament_entries with prizes, AND advances master_clock — all in
-    // one step, so there's only ever one button to click, not two that
-    // silently do different amounts of work.
-    const response = await fetch('/api/gameweek-transition?manual=true', {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` }
+    // Calls the same real action Stock Market's own "Advance Gameweek"
+    // button uses — the old /api/gameweek-transition endpoint this used
+    // to call only ever handled Predictions (and deleted its rows after
+    // archiving them), silently skipping Stock Market, LMS, and Fantasy
+    // entirely. Two different buttons with two different real behaviors
+    // is exactly the kind of trap that caused real confusion, so this is
+    // intentionally now just calling the one true version instead of a
+    // second, incomplete one living beside it.
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_advance_gameweek' })
     });
     const data = await response.json();
     if (!response.ok) {
       log(`Failed to advance: ${data.error}`, 'error');
       return;
     }
-    log(`${data.message || 'Advanced'} — actions: ${(data.actions || []).join(', ')}`, 'success');
+    const settledMsg = `Stock Market settled: ${data.stock_market_tournaments_settled || 0}, LMS settled: ${data.lms_tournaments_settled || 0}, Fantasy players updated: ${data.fantasy_players_updated || 0}.`;
+    log(`Advanced to GW${data.new_gameweek}. ${settledMsg}`, 'success');
     refreshStatus();
   } catch (error) {
     log(`Error advancing gameweek: ${error.message}`, 'error');
