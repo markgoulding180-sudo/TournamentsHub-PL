@@ -20,7 +20,8 @@ module.exports = async (req, res) => {
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SECRET
+      process.env.SUPABASE_SECRET,
+      { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
     )
     const { username, display_name, email, password } = req.body
     

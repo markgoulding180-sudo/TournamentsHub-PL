@@ -18,7 +18,8 @@ module.exports = async (req, res) => {
     try {
       const supabase = createClient(
         process.env.SUPABASE_URL,
-        process.env.SUPABASE_KEY
+        process.env.SUPABASE_KEY,
+        { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
       );
       
       const { data, error } = await supabase.auth.refreshSession({
@@ -56,7 +57,8 @@ module.exports = async (req, res) => {
     // Initialize Supabase with anon key for client-side auth
     const supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_KEY
+      process.env.SUPABASE_KEY,
+      { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
     );
 
     // Sign in user

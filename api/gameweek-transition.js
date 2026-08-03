@@ -17,15 +17,18 @@ module.exports = async (req, res) => {
   }
 
   try {
+    const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
     // Local project: users/predictions/tournaments/tournament_entries/etc.
     const localDb = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SECRET
+      process.env.SUPABASE_SECRET,
+      { global: { fetch: noCacheFetch } }
     );
     // Master project: master_clock/matches — shared PL facts
     const masterDb = createClient(
       process.env.MASTER_SUPABASE_URL,
-      process.env.MASTER_SUPABASE_SERVICE_KEY
+      process.env.MASTER_SUPABASE_SERVICE_KEY,
+      { global: { fetch: noCacheFetch } }
     );
 
     // Get Master Clock - this is the source of truth
