@@ -576,22 +576,12 @@
           : '/api/tournaments?stockmarket_transfer_deadline=true';
         const res = await fetch(url, { headers: authHeaders() });
         const data = await res.json();
-        if (!data.deadline_epoch) {
-          banner.style.display = 'none';
-          return;
-        }
-        const deadlineMs = data.deadline_epoch * 1000;
-        const deadlineDate = new Date(deadlineMs);
-        const formatted = deadlineDate.toLocaleString('en-GB', {
-          weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-        });
 
-        if (Date.now() >= deadlineMs) {
-          // Matches what enforcement actually does — this happens with
-          // historical/test data (the "next kickoff" is naturally in the
-          // past), or in a real season if admin hasn't advanced the clock
-          // yet even though the next gameweek has genuinely started.
-          banner.innerHTML = `<i class="fas fa-lock"></i> Transfer window closed — Gameweek ${data.next_gameweek} kicked off <strong>${formatted}</strong>`;
+        if (!data.open) {
+          // Matches what enforcement actually does — this gameweek's
+          // matches have started, so transfers are locked until the
+          // system moves on to the next gameweek.
+          banner.innerHTML = `<i class="fas fa-lock"></i> ${data.reason || 'Transfer window closed'} — reopens once Gameweek ${data.current_gameweek} finishes`;
           banner.style.background = 'rgba(239,68,68,0.12)';
           banner.style.borderColor = 'var(--red)';
         } else if (data.already_transferred) {
@@ -599,13 +589,19 @@
           // already used their one transfer for the current gameweek —
           // showing "open" here would be misleading, since they can't
           // actually do anything more until the next gameweek.
-          banner.innerHTML = `<i class="fas fa-check"></i> Transfer used for this gameweek — your next transfer window opens in Gameweek ${data.next_gameweek}`;
+          banner.innerHTML = `<i class="fas fa-check"></i> Transfer used for this gameweek — locks when Gameweek ${data.current_gameweek} kicks off`;
           banner.style.background = 'rgba(148,163,184,0.12)';
           banner.style.borderColor = 'var(--text-faint)';
-        } else {
-          banner.innerHTML = `<i class="fas fa-clock"></i> Transfers open — closes when Gameweek ${data.next_gameweek} kicks off: <strong>${formatted}</strong>`;
+        } else if (data.deadline_epoch) {
+          const formatted = new Date(data.deadline_epoch * 1000).toLocaleString('en-GB', {
+            weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+          });
+          banner.innerHTML = `<i class="fas fa-clock"></i> Transfers open — closes when Gameweek ${data.current_gameweek} kicks off: <strong>${formatted}</strong>`;
           banner.style.background = 'rgba(59,130,246,0.12)';
           banner.style.borderColor = 'var(--accent-2)';
+        } else {
+          banner.style.display = 'none';
+          return;
         }
         banner.style.display = 'block';
       } catch (e) {
@@ -747,8 +743,19 @@
       const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
       const displayValue = liveTotalNow !== null ? liveTotalNow : entry.current_value;
       const mySquadArr = entry.squad_players || [];
-      const myTotalPaid = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
-      const myTotalReceived = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
+      // Prefer live-computed received/paid while the gameweek's still in
+      // progress — last_gw_breakdown only gets written once the whole
+      // gameweek is finally settled, so it stays at 0 the entire time
+      // matches are actually playing, even though Portfolio Value above
+      // is already correctly moving live from the same underlying data.
+      let myTotalPaid, myTotalReceived;
+      if (data.live && data.live.mine) {
+        myTotalReceived = data.live.mine.reduce((s, p) => s + (p.received || 0), 0);
+        myTotalPaid = data.live.mine.reduce((s, p) => s + (p.paid || 0), 0);
+      } else {
+        myTotalPaid = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
+        myTotalReceived = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
+      }
       const myNet = myTotalReceived - myTotalPaid;
       document.getElementById('statRow').innerHTML = `
         <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(displayValue)}</div></div>
@@ -998,8 +1005,14 @@
         const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false, data.cost_multiplier || 1)).join('');
 
         const oppEnd = isLive ? liveTotalOpp : opp.current_value;
-        const oppTotalPaid = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
-        const oppTotalReceived = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
+        let oppTotalPaid, oppTotalReceived;
+        if (isLive && data.live && data.live.opponent) {
+          oppTotalReceived = data.live.opponent.reduce((s, p) => s + (p.received || 0), 0);
+          oppTotalPaid = data.live.opponent.reduce((s, p) => s + (p.paid || 0), 0);
+        } else {
+          oppTotalPaid = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.penalty_paid) || 0)), 0);
+          oppTotalReceived = oppSquadWithLive.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
+        }
         const oppNet = oppTotalReceived - oppTotalPaid;
 
         document.getElementById('opponentSummaryCard').style.display = 'block';

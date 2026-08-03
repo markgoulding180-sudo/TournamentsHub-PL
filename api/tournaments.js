@@ -518,15 +518,28 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       if (stockmarketTransferDeadline === 'true') {
         const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
         const currentGW = clock ? clock.current_gameweek : null;
-        if (!currentGW) return res.status(200).json({ deadline_epoch: null });
-        const { deadlineEpoch } = await getNextGameweekDeadline(masterDb, currentGW);
+        if (!currentGW) return res.status(200).json({ open: true, deadline_epoch: null });
+
+        const tdTournamentId = params.get('tournament_id');
+        const windowCheck = tdTournamentId
+          ? await isStockMarketTransferWindowOpen(masterDb, supabaseAdmin, tdTournamentId, currentGW)
+          : { open: true, reason: null };
+
+        // While open, the deadline shown is THIS gameweek's own kickoff
+        // (the window closes the moment it starts) — not next gameweek's,
+        // which was the old, incorrect framing.
+        const { data: gwMatches } = await masterDb.from('matches').select('kickoff_time').eq('gameweek', currentGW);
+        const earliestKickoffMs = (gwMatches || []).reduce((min, m) => {
+          const t = new Date(m.kickoff_time).getTime();
+          return (min === null || t < min) ? t : min;
+        }, null);
+        const deadlineEpoch = earliestKickoffMs !== null ? Math.floor(earliestKickoffMs / 1000) : null;
 
         // If a tournament_id is given and the caller is authenticated,
         // also check whether THIS user has already used their one
-        // transfer for the current gameweek — the deadline being in the
-        // future doesn't mean THEY can do anything more with it.
+        // transfer for the current gameweek — the window being open
+        // doesn't mean THEY can do anything more with it.
         let alreadyTransferred = false;
-        const tdTournamentId = params.get('tournament_id');
         if (tdTournamentId) {
           const authHeader = req.headers.authorization;
           if (authHeader) {
@@ -544,7 +557,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         return res.status(200).json({
           current_gameweek: currentGW, next_gameweek: currentGW + 1,
-          deadline_epoch: deadlineEpoch, already_transferred: alreadyTransferred
+          open: windowCheck.open, reason: windowCheck.reason,
+          deadline_epoch: windowCheck.open ? deadlineEpoch : null,
+          already_transferred: alreadyTransferred
         });
       }
 
@@ -3126,21 +3141,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
 
           // Real deadline enforcement — independent of whether admin has
-          // clicked Advance Gameweek yet. Once the next gameweek's first
-          // match has actually kicked off, transfers stop, full stop.
+          // clicked Advance Gameweek yet. Locks the moment this
+          // gameweek's matches actually start, not at next kickoff.
           // test_bypass_deadline is an explicit, visible, per-tournament
           // opt-in for testing against historical data (where every real
           // "next kickoff" is already in the past) — off by default, so
           // it can never silently disable enforcement on a real tournament.
           if (currentGW) {
-            const { data: bypassCheck } = await supabaseAdmin
-              .schema('stockmarket').from('tournaments')
-              .select('test_bypass_deadline').eq('id', tournament_id).maybeSingle();
-            if (!bypassCheck || !bypassCheck.test_bypass_deadline) {
-              const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGW);
-              if (deadlineMs !== null && Date.now() >= deadlineMs) {
-                return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
-              }
+            const windowCheck = await isStockMarketTransferWindowOpen(masterDb, supabaseAdmin, tournament_id, currentGW);
+            if (!windowCheck.open) {
+              return res.status(403).json({ error: windowCheck.reason });
             }
           }
 
@@ -3199,14 +3209,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const { data: clockForDeadline } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
           const currentGWForDeadline = clockForDeadline ? clockForDeadline.current_gameweek : null;
           if (currentGWForDeadline) {
-            const { data: bypassCheckBuy } = await supabaseAdmin
-              .schema('stockmarket').from('tournaments')
-              .select('test_bypass_deadline').eq('id', tournament_id).maybeSingle();
-            if (!bypassCheckBuy || !bypassCheckBuy.test_bypass_deadline) {
-              const { deadlineMs } = await getNextGameweekDeadline(masterDb, currentGWForDeadline);
-              if (deadlineMs !== null && Date.now() >= deadlineMs) {
-                return res.status(403).json({ error: 'Transfer window closed — the next gameweek has started' });
-              }
+            const windowCheckBuy = await isStockMarketTransferWindowOpen(masterDb, supabaseAdmin, tournament_id, currentGWForDeadline);
+            if (!windowCheckBuy.open) {
+              return res.status(403).json({ error: windowCheckBuy.reason });
             }
           }
 
@@ -4915,6 +4920,28 @@ async function generateTestGameweekData(masterDb, gameweek, localDb, markFinishe
     console.error('generateTestGameweekData error:', err);
     return { status: 500, body: { error: err.message } };
   }
+}
+
+// Transfers must lock the moment the CURRENT gameweek's first match
+// kicks off — not stay open all the way through live play until the
+// NEXT gameweek starts. Letting someone sell/buy mid-gameweek, after
+// seeing how matches are actually going, would let them trade on
+// information nobody else has yet. The window only reopens once the
+// system has actually moved on to the next gameweek (via Advance
+// Gameweek), whose own matches are still 'upcoming' at that point.
+async function isStockMarketTransferWindowOpen(masterDb, supabaseAdmin, tournamentId, currentGW) {
+  if (!currentGW) return { open: true, reason: null };
+
+  const { data: bypassCheck } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments')
+    .select('test_bypass_deadline').eq('id', tournamentId).maybeSingle();
+  if (bypassCheck && bypassCheck.test_bypass_deadline) return { open: true, reason: null };
+
+  const { data: gwMatches } = await masterDb.from('matches').select('status').eq('gameweek', currentGW);
+  const anyStarted = (gwMatches || []).some(m => m.status === 'live' || m.status === 'finished');
+  if (anyStarted) return { open: false, reason: 'Transfer window closed — this gameweek has started' };
+
+  return { open: true, reason: null };
 }
 
 async function getNextGameweekDeadline(masterDb, currentGW) {
