@@ -3505,7 +3505,11 @@ async function getFantasyLockStatus(masterDb) {
       return (min === null || t < min) ? t : min;
     }, null);
 
-    const deadlinePassed = earliestKickoffMs !== null && Date.now() >= earliestKickoffMs;
+    // Same as LMS: a match being live/finished means the gameweek has
+    // genuinely started, even if the real-world kickoff_time (which only
+    // matters once the real season runs) hasn't passed yet.
+    const anyMatchStarted = gwMatches.some(m => m.status === 'live' || m.status === 'finished');
+    const deadlinePassed = anyMatchStarted || (earliestKickoffMs !== null && Date.now() >= earliestKickoffMs);
     const deadlineEpoch = earliestKickoffMs !== null ? Math.floor(earliestKickoffMs / 1000) : null;
 
     if (!deadlinePassed) {
