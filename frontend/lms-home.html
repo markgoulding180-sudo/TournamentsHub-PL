@@ -148,16 +148,28 @@
     /* Gameweek results card */
     .results-card{ margin-bottom:24px; }
     .results-grid{ display:flex; flex-direction:column; gap:8px; }
-    .result-row{ display:flex; align-items:center; gap:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:13.5px; }
+    .result-row{
+      display:grid; grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);
+      align-items:center; column-gap:8px; row-gap:4px;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; font-size:13.5px;
+    }
     .result-row.my-pick{ border-color:var(--accent); background:rgba(59,130,246,0.06); }
-    .result-row .r-team{ flex:1; display:flex; align-items:center; gap:8px; }
-    .result-row .r-team img{ width:22px; height:22px; object-fit:contain; }
-    .result-row .r-team.win{ color:var(--green); font-weight:700; }
-    .result-row .r-score{ font-family:var(--font-head); font-weight:700; color:var(--text-dim); min-width:50px; text-align:center; }
+    .result-row .r-team{ display:flex; align-items:center; gap:8px; min-width:0; }
+    .result-row .r-team img{ width:22px; height:22px; object-fit:contain; flex-shrink:0; }
+    .result-row .r-team .r-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+    .result-row .r-team.win .r-name{ color:var(--green); font-weight:700; }
+    .result-row .r-team.away{ justify-content:flex-end; flex-direction:row-reverse; text-align:right; }
+    .result-row .r-score{ font-family:var(--font-head); font-weight:700; color:var(--text-dim); text-align:center; white-space:nowrap; }
     .result-row .r-score.done{ color:var(--text); }
-    .result-row .r-status{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); min-width:64px; text-align:right; }
+    .result-row .r-status-row{ grid-column:1 / -1; display:flex; justify-content:flex-end; }
+    .result-row .r-status{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); }
     .result-row .r-status.live{ color:var(--red); }
     .result-row .r-status.finished{ color:var(--green); }
+    @media (max-width:480px){
+      .result-row{ grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr); padding:9px 10px; font-size:12.5px; column-gap:6px; }
+      .result-row .r-team img{ width:18px; height:18px; }
+    }
 
     .pick-result-tag{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:2rem; margin-left:10px; }
     .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
@@ -502,10 +514,10 @@
           const statusClass = m.status === 'live' ? 'live' : m.status === 'finished' ? 'finished' : '';
           return `
             <div class="result-row">
-              <span class="r-team ${homeWin ? 'win' : ''}"><img src="${shirtSrc(m.home_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">${escapeHtml(m.home_team)}</span>
+              <span class="r-team ${homeWin ? 'win' : ''}"><img src="${shirtSrc(m.home_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"><span class="r-name">${escapeHtml(m.home_team)}</span></span>
               <span class="r-score ${hasScore ? 'done' : ''}">${hasScore ? `${m.home_score} - ${m.away_score}` : 'vs'}</span>
-              <span class="r-team ${awayWin ? 'win' : ''}" style="justify-content:flex-end; text-align:right; flex-direction:row-reverse;"><img src="${shirtSrc(m.away_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">${escapeHtml(m.away_team)}</span>
-              <span class="r-status ${statusClass}">${escapeHtml(m.status || 'upcoming')}</span>
+              <span class="r-team away ${awayWin ? 'win' : ''}"><img src="${shirtSrc(m.away_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"><span class="r-name">${escapeHtml(m.away_team)}</span></span>
+              <div class="r-status-row"><span class="r-status ${statusClass}">${escapeHtml(m.status || 'upcoming')}</span></div>
             </div>`;
         }).join('');
       } catch (e) {
