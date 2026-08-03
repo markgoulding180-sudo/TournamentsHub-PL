@@ -156,9 +156,77 @@ module.exports = async (req, res) => {
       if (stockmarketLeaderboard === 'true' && tournamentId) {
         const { data: allEntries } = await supabaseAdmin
           .schema('stockmarket').from('tournament_entries')
-          .select('id, user_id, current_value, start_value, relegated, relegated_at_gameweek')
-          .eq('tournament_id', tournamentId).eq('squad_locked', true)
-          .order('current_value', { ascending: false });
+          .select('id, user_id, squad_players, current_value, start_value, relegated, relegated_at_gameweek')
+          .eq('tournament_id', tournamentId).eq('squad_locked', true);
+
+        // current_value only gets written at final settlement (once the
+        // whole gameweek finishes) — mid-gameweek it's still last week's
+        // frozen number. Confirmed as a real bug: the leaderboard showed
+        // everyone flat at their starting value the entire time matches
+        // were actually playing, even though the individual squad page
+        // was correctly live the whole time. Computing a live value per
+        // entry from their own matchup — same mechanism the individual
+        // page already uses — fixes this for everyone at once instead of
+        // just whoever happens to be looking at their own squad.
+        const { data: clockRow } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        const currentGw = clockRow ? clockRow.current_gameweek : null;
+
+        const liveValueByEntryId = {};
+        if (currentGw) {
+          const { data: gwMatchStatus } = await masterDb
+            .from('matches').select('home_team, away_team, status').eq('gameweek', currentGw);
+          const allFinished = gwMatchStatus && gwMatchStatus.length > 0 && gwMatchStatus.every(m => m.status === 'finished');
+
+          if (!allFinished) {
+            const { data: matchupsForGw } = await supabaseAdmin
+              .schema('stockmarket').from('matchups')
+              .select('entry_id_1, entry_id_2, settled')
+              .eq('tournament_id', tournamentId).eq('gameweek', currentGw);
+
+            const startedTeams = new Set();
+            (gwMatchStatus || []).forEach(m => {
+              if (m.status === 'live' || m.status === 'finished') { startedTeams.add(m.home_team); startedTeams.add(m.away_team); }
+            });
+
+            const allPlayerIds = [...new Set((allEntries || []).flatMap(e => (e.squad_players || []).filter(s => !s.empty).map(s => s.player_id)))];
+            const { data: statRows } = allPlayerIds.length > 0
+              ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', currentGw).in('player_id', allPlayerIds)
+              : { data: [] };
+            const statsByPid = {};
+            (statRows || []).forEach(s => { if (startedTeams.has(s.team)) statsByPid[s.player_id] = s; });
+
+            const concededByTeam = await getTeamGoalsConcededMap(masterDb, currentGw);
+
+            const { data: tForMult } = await supabaseAdmin
+              .schema('stockmarket').from('tournaments').select('cost_multiplier').eq('id', tournamentId).maybeSingle();
+            const costMultiplier = (tForMult && tForMult.cost_multiplier) || 1;
+
+            const entryById = {};
+            (allEntries || []).forEach(e => { entryById[e.id] = e; });
+
+            for (const m of (matchupsForGw || [])) {
+              if (m.settled) continue; // already final — current_value is already correct for these
+              const e1 = entryById[m.entry_id_1];
+              const e2 = m.entry_id_2 ? entryById[m.entry_id_2] : null;
+              if (!e1) continue;
+              try {
+                if (e2) {
+                  const { provA, provB } = computeUnifiedSettlement(e1.squad_players || [], e2.squad_players || [], statsByPid, concededByTeam, costMultiplier);
+                  liveValueByEntryId[e1.id] = Math.round(provA.reduce((s, p) => s + p.liveValue, 0));
+                  liveValueByEntryId[e2.id] = Math.round(provB.reduce((s, p) => s + p.liveValue, 0));
+                } else {
+                  // Bye — nobody to redistribute with, just their own raw live total
+                  const provA = prepSquadForSettlement(e1.squad_players || [], statsByPid, concededByTeam, costMultiplier);
+                  liveValueByEntryId[e1.id] = Math.round(provA.reduce((s, p) => s + p.liveValue, 0));
+                }
+              } catch (matchupCalcErr) {
+                console.error(`Leaderboard live calc failed for matchup ${m.entry_id_1}/${m.entry_id_2}:`, matchupCalcErr);
+              }
+            }
+          }
+        }
+
+        const liveValue = (e) => liveValueByEntryId[e.id] !== undefined ? liveValueByEntryId[e.id] : (e.current_value || 0);
 
         const userIds = (allEntries || []).map(e => e.user_id);
         const { data: users } = userIds.length > 0
@@ -175,10 +243,13 @@ module.exports = async (req, res) => {
           .eq('tournament_id', tournamentId).eq('applied', false)
           .order('stage_number', { ascending: true }).limit(1).maybeSingle();
 
+        // Sort by live value now, not the stale persisted column.
+        const sortedEntries = [...(allEntries || [])].sort((a, b) => liveValue(b) - liveValue(a));
+
         // allEntries is sorted current_value descending, so the last
         // `zoneSize` entries in the active-only subset are the lowest
         // active values — exactly who'd be cut if the next stage ran now.
-        const activeIdsInOrder = (allEntries || []).filter(e => !e.relegated).map(e => e.id);
+        const activeIdsInOrder = sortedEntries.filter(e => !e.relegated).map(e => e.id);
         const zoneSize = nextStage ? Math.min(nextStage.relegate_count || 0, activeIdsInOrder.length) : 0;
         const zoneIds = new Set(zoneSize > 0 ? activeIdsInOrder.slice(activeIdsInOrder.length - zoneSize) : []);
 
@@ -186,24 +257,24 @@ module.exports = async (req, res) => {
         // players are pulled out entirely rather than interleaved, since
         // their frozen value no longer means the same thing as an active
         // player's still-moving value.
-        const activeEntries = (allEntries || []).filter(e => !e.relegated);
-        const relegatedEntries = (allEntries || []).filter(e => e.relegated)
-          .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || (b.current_value || 0) - (a.current_value || 0));
+        const activeEntries = sortedEntries.filter(e => !e.relegated);
+        const relegatedEntries = sortedEntries.filter(e => e.relegated)
+          .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || liveValue(b) - liveValue(a));
 
         const leaderboard = activeEntries.map((e, i) => ({
           rank: i + 1,
           entry_id: e.id,
           player_name: nameByUserId[e.user_id] || 'Player',
-          current_value: e.current_value,
-          gain_loss: (e.current_value || 0) - (e.start_value || 0),
+          current_value: liveValue(e),
+          gain_loss: liveValue(e) - (e.start_value || 0),
           in_relegation_zone: zoneIds.has(e.id)
         }));
 
         const relegated = relegatedEntries.map(e => ({
           entry_id: e.id,
           player_name: nameByUserId[e.user_id] || 'Player',
-          current_value: e.current_value,
-          gain_loss: (e.current_value || 0) - (e.start_value || 0),
+          current_value: liveValue(e),
+          gain_loss: liveValue(e) - (e.start_value || 0),
           relegated_at_gameweek: e.relegated_at_gameweek || null
         }));
 
@@ -2304,8 +2375,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               && gwMatchesBefore.every(m => m.status === 'finished');
 
             if (!alreadyFinished) {
+              // generateTestGameweekData itself refuses to fabricate
+              // results while real polling is active — this just
+              // surfaces that as a clear error instead of silently
+              // treating it as "nothing generated".
               const genResult = await generateTestGameweekData(masterDb, leavingGw, supabaseAdmin);
-              testDataGenerated = genResult.status === 200;
+              if (genResult.status !== 200) {
+                return res.status(genResult.status).json(genResult.body);
+              }
+              testDataGenerated = true;
             }
 
             // Fantasy updates live per-match/whenever called, not gated
@@ -4904,6 +4982,16 @@ async function generateTestGameweekData(masterDb, gameweek, localDb, markFinishe
     // winners came back marked as losers after this ran a second time.
     if (matches.every(m => m.status === 'finished')) {
       return { status: 409, body: { error: `GW${gameweek} is already finished — refusing to regenerate and overwrite real results. Use clear_gameweek_stats_cache and reset match status first if you genuinely need to redo it.`, skipped: true } };
+    }
+
+    // This fabricates fake results — only ever safe in test mode. Checked
+    // here, inside the function itself, so every caller (Advance
+    // Gameweek, the direct admin action, Seed Season Data) is protected
+    // uniformly, not just whichever one remembered to check first.
+    const { data: pollingCheck } = await masterDb
+      .from('master_clock').select('polling_paused').eq('id', 'current').maybeSingle();
+    if (!pollingCheck || !pollingCheck.polling_paused) {
+      return { status: 409, body: { error: `Refusing to generate fake results for GW${gameweek} — real polling is live. This can only ever run in test mode (polling paused).`, skipped: true } };
     }
 
     const { data: teams } = await masterDb.from('teams').select('id, name');
