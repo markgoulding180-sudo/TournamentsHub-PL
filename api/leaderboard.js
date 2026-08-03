@@ -10,6 +10,9 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  // Same reasoning as api/tournaments.js — this reflects live scoring,
+  // never safe to let a browser or CDN serve a stale cached copy.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -48,47 +51,53 @@ module.exports = async (req, res) => {
       console.error('Failed to fetch master clock:', clockError);
     }
 
-    let query;
-
+    // "all"/"season" used to read straight from users.total_points — a
+    // field nothing in the real scoring pipeline ever writes to. Real
+    // scoring only ever updates predictions.tournament_entries.entry_points
+    // (via calculatePointsForGameweek), so users.total_points just sat
+    // there holding whatever it was last set to, completely disconnected
+    // from actual results — confirmed as the source of a real bug where a
+    // full data wipe still showed old leaderboard numbers indefinitely.
+    // Resolving to the live predictions tournament and reading from there
+    // instead makes this endpoint reflect the same reality every other
+    // leaderboard in the app already does.
+    let resolvedTournamentId = tournament;
     if (tournament === 'all' || tournament === 'season') {
-      // Get overall leaderboard from users table
-      query = supabase
-        .from('users')
-        .select('id, username, display_name, total_points, correct_scores, current_streak, created_at')
-        .order('total_points', { ascending: false })
-        .range(offset, offset + limit - 1);
-    } else {
-      // Get tournament-specific leaderboard
-      query = supabase
-        .from('tournament_entries')
-        .select(`
-          entry_points,
-          rank,
-          users:user_id (id, username, display_name, correct_scores, current_streak)
-        `)
-        .eq('tournament_id', tournament)
-        .order('entry_points', { ascending: false })
-        .range(offset, offset + limit - 1);
+      const { data: liveTournament } = await supabase
+        .schema('predictions').from('tournaments')
+        .select('id').eq('status', 'live').maybeSingle();
+      resolvedTournamentId = liveTournament ? liveTournament.id : null;
     }
 
-    const { data, error, count } = await query;
+    if (!resolvedTournamentId) {
+      return res.status(200).json({
+        tournament, leaderboard: [],
+        pagination: { offset, limit, total: 0, has_more: false }
+      });
+    }
+
+    const { data, error } = await supabase
+      .schema('predictions').from('tournament_entries')
+      .select('user_id, username, entry_points')
+      .eq('tournament_id', resolvedTournamentId)
+      .order('entry_points', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       return res.status(500).json({ error: 'Failed to fetch leaderboard', details: error.message });
     }
 
-    // Get user IDs to fetch their current GW points
-    const userIds = data.map(entry => entry.id || entry.users?.id).filter(Boolean);
-    
+    const userIds = data.map(entry => entry.user_id).filter(Boolean);
+
     // Fetch current gameweek points for all users
     let gwPointsMap = {};
     if (currentGameweek && userIds.length > 0) {
       const { data: predictionsData, error: predictionsError } = await supabase
-        .from('predictions')
+        .schema('predictions').from('predictions')
         .select('user_id, points_earned')
         .in('user_id', userIds)
         .eq('gameweek', currentGameweek);
-      
+
       if (!predictionsError && predictionsData) {
         // Sum points per user
         predictionsData.forEach(pred => {
@@ -99,44 +108,24 @@ module.exports = async (req, res) => {
 
     // Format the response
     const formattedData = data.map((entry, index) => {
-      const userId = entry.id || entry.users?.id;
-      const gwPoints = gwPointsMap[userId] || 0;
-      
-      if (tournament === 'all' || tournament === 'season') {
-        return {
-          rank: offset + index + 1,
-          user: {
-            id: entry.id,
-            username: entry.username,
-            display_name: entry.display_name,
-            avatar_initials: entry.display_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-          },
-          total_points: entry.total_points,
-          correct_scores: entry.correct_scores,
-          streak: entry.current_streak,
-          gw_points: gwPoints
-        };
-      } else {
-        return {
-          rank: entry.rank || offset + index + 1,
-          user: {
-            id: entry.users.id,
-            username: entry.users.username,
-            display_name: entry.users.display_name,
-            avatar_initials: entry.users.display_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-          },
-          total_points: entry.entry_points,
-          correct_scores: entry.users.correct_scores,
-          streak: entry.users.current_streak,
-          gw_points: gwPoints
-        };
-      }
+      const displayName = entry.username || 'Player';
+      return {
+        rank: offset + index + 1,
+        user: {
+          id: entry.user_id,
+          username: entry.username,
+          display_name: displayName,
+          avatar_initials: displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+        },
+        total_points: entry.entry_points || 0,
+        gw_points: gwPointsMap[entry.user_id] || 0
+      };
     });
 
-    // Get total count for pagination
     const { count: totalCount } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+      .schema('predictions').from('tournament_entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('tournament_id', resolvedTournamentId);
 
     return res.status(200).json({
       tournament: tournament,
