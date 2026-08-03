@@ -298,7 +298,7 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
           points += 10;
         }
       }
-      predictionUpdateRows.push({ id: pred.id, points_earned: points });
+      predictionUpdateRows.push({ ...pred, points_earned: points });
       usersToUpdate.add(pred.user_id);
       totalPredictionsScored++;
       totalPointsAwarded += points;

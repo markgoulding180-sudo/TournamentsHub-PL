@@ -4576,12 +4576,17 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     const gapA = totalA - startA, gapB = totalB - startB;
 
     matchupUpdateRows.push({
-      id: row.id, raw_total_1: gapA, raw_total_2: gapB, gap: Math.abs(gapA - gapB),
+      ...row, raw_total_1: gapA, raw_total_2: gapB, gap: Math.abs(gapA - gapB),
       winner_entry_id: gapA === gapB ? null : (gapA > gapB ? row.entry_id_1 : row.entry_id_2),
       settled: true
     });
   }
   // One batch upsert instead of one .update() call per matchup pair.
+  // Spreads the full existing row (not just the changed fields) — an
+  // upsert's ON CONFLICT DO UPDATE path still gets checked against every
+  // NOT NULL constraint as if it might be a fresh insert, confirmed via a
+  // real failure on predictions.predictions when only partial rows were
+  // sent (tournament_id/gameweek/entry_id_1 are NOT NULL here too).
   if (matchupUpdateRows.length > 0) {
     const { error: matchupUpsertErr } = await supabaseAdmin
       .schema('stockmarket').from('matchups').upsert(matchupUpdateRows, { onConflict: 'id' });
@@ -4629,7 +4634,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     });
     const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
     entryUpdateRows.push({
-      id: entry.id, squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal
+      ...entry, squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal
     });
   }
   // One batch upsert instead of one .update() call per entry.
@@ -4654,8 +4659,8 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     // happens to still say if anyone looks later").
     const { data: allFinalEntries } = await supabaseAdmin
       .schema('stockmarket').from('tournament_entries')
-      .select('id, current_value').eq('tournament_id', tournamentId);
-    const finalRows = (allFinalEntries || []).map(e => ({ id: e.id, final_value: e.current_value }));
+      .select('*').eq('tournament_id', tournamentId);
+    const finalRows = (allFinalEntries || []).map(e => ({ ...e, final_value: e.current_value }));
     if (finalRows.length > 0) {
       const { error: finalErr } = await supabaseAdmin
         .schema('stockmarket').from('tournament_entries').upsert(finalRows, { onConflict: 'id' });
@@ -4713,7 +4718,7 @@ async function applyDueStages(supabaseAdmin, tournamentId, currentGW) {
 async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentGW) {
   const { data: activeEntries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
-    .select('id, current_value, squad_players')
+    .select('*')
     .eq('tournament_id', tournamentId).eq('squad_locked', true).eq('relegated', false)
     .order('current_value', { ascending: true });
 
@@ -4761,7 +4766,7 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
         const survivorUpdateRows = survivors.map(e => {
           const squad = squadCopies[e.id];
           const newTotal = Math.round(squad.reduce((s, p) => s + (p.empty ? 0 : (p.value || 0)), 0));
-          return { id: e.id, squad_players: squad, current_value: newTotal };
+          return { ...e, squad_players: squad, current_value: newTotal };
         });
         // One batch upsert instead of one .update() call per survivor.
         const { error: survErr } = await supabaseAdmin
