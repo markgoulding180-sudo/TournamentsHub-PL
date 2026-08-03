@@ -3832,21 +3832,26 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
     const pickByUser = new Map((picks || []).map(p => [p.user_id, p.team]));
 
     let checkedCount = 0, skippedNoPick = 0, skippedNotDecided = 0, survivedCount = 0;
+    const idsToEliminate = [];
     for (const entry of entries) {
       checkedCount++;
       const pickedTeam = pickByUser.get(entry.user_id);
       if (!pickedTeam) { skippedNoPick++; continue; }
       if (!decidedTeams.has(pickedTeam)) { skippedNotDecided++; continue; }
       if (decidedTeams.get(pickedTeam) === false) {
-        const { error } = await supabaseAdmin
-          .schema('lms').from('tournament_entries')
-          .update({ is_eliminated: true, eliminated_gameweek: gameweek })
-          .eq('id', entry.id);
-        if (!error) result.newly_eliminated++;
-        else console.error(`Failed to eliminate entry ${entry.id}:`, error);
+        idsToEliminate.push(entry.id);
       } else {
         survivedCount++;
       }
+    }
+    // One batch update instead of one .update() call per eliminated entry.
+    if (idsToEliminate.length > 0) {
+      const { error } = await supabaseAdmin
+        .schema('lms').from('tournament_entries')
+        .update({ is_eliminated: true, eliminated_gameweek: gameweek })
+        .in('id', idsToEliminate);
+      if (!error) result.newly_eliminated = idsToEliminate.length;
+      else console.error(`Failed to eliminate entries:`, error);
     }
     console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: checked=${checkedCount}, skippedNoPick=${skippedNoPick}, skippedNotDecided=${skippedNotDecided}, survived=${survivedCount}, eliminated=${result.newly_eliminated}`);
   } catch (error) {
@@ -4552,6 +4557,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   // in the tournament, spread evenly, before finally giving up.
   const historyRows = [];
 
+  const matchupUpdateRows = [];
   for (const row of (matchupRowsExisting || [])) {
     if (!row.entry_id_2) continue; // bye row, nothing to settle
     const provA = preppedByEntry[row.entry_id_1];
@@ -4566,17 +4572,24 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     const startB = provB.reduce((s, p) => s + (p.value || 0), 0);
     const gapA = totalA - startA, gapB = totalB - startB;
 
-    await supabaseAdmin.schema('stockmarket').from('matchups').update({
-      raw_total_1: gapA, raw_total_2: gapB, gap: Math.abs(gapA - gapB),
+    matchupUpdateRows.push({
+      id: row.id, raw_total_1: gapA, raw_total_2: gapB, gap: Math.abs(gapA - gapB),
       winner_entry_id: gapA === gapB ? null : (gapA > gapB ? row.entry_id_1 : row.entry_id_2),
       settled: true
-    }).eq('id', row.id);
+    });
+  }
+  // One batch upsert instead of one .update() call per matchup pair.
+  if (matchupUpdateRows.length > 0) {
+    const { error: matchupUpsertErr } = await supabaseAdmin
+      .schema('stockmarket').from('matchups').upsert(matchupUpdateRows, { onConflict: 'id' });
+    if (matchupUpsertErr) console.error('Batch matchup settlement upsert failed:', matchupUpsertErr);
   }
 
   // Save every entry's updated squad + total value, including a full
   // breakdown per player of exactly what happened this gameweek and why.
   // Also permanently log it to player_gw_history — squad_players only
   // ever holds the latest snapshot, this is the full week-by-week record.
+  const entryUpdateRows = [];
   for (const entry of entries) {
     const settled = preppedByEntry[entry.id];
     if (!settled) continue;
@@ -4612,9 +4625,15 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
       };
     });
     const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
-    await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-      .update({ squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal })
-      .eq('id', entry.id);
+    entryUpdateRows.push({
+      id: entry.id, squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal
+    });
+  }
+  // One batch upsert instead of one .update() call per entry.
+  if (entryUpdateRows.length > 0) {
+    const { error: entryUpsertErr } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries').upsert(entryUpdateRows, { onConflict: 'id' });
+    if (entryUpsertErr) console.error('Batch entry settlement upsert failed:', entryUpsertErr);
   }
   if (historyRows.length > 0) {
     const { error: historyError } = await supabaseAdmin.schema('stockmarket').from('player_gw_history').insert(historyRows);
@@ -4633,9 +4652,11 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     const { data: allFinalEntries } = await supabaseAdmin
       .schema('stockmarket').from('tournament_entries')
       .select('id, current_value').eq('tournament_id', tournamentId);
-    for (const e of (allFinalEntries || [])) {
-      await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-        .update({ final_value: e.current_value }).eq('id', e.id);
+    const finalRows = (allFinalEntries || []).map(e => ({ id: e.id, final_value: e.current_value }));
+    if (finalRows.length > 0) {
+      const { error: finalErr } = await supabaseAdmin
+        .schema('stockmarket').from('tournament_entries').upsert(finalRows, { onConflict: 'id' });
+      if (finalErr) console.error('Batch final_value upsert failed:', finalErr);
     }
   }
 
@@ -4705,10 +4726,12 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
     const relegatedEntries = activeEntries.slice(0, cutCount);
     const survivors = activeEntries.slice(cutCount);
 
-    for (const e of relegatedEntries) {
-      await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+    if (relegatedEntries.length > 0) {
+      const { error: relErr } = await supabaseAdmin
+        .schema('stockmarket').from('tournament_entries')
         .update({ relegated: true, relegated_at_gameweek: currentGW })
-        .eq('id', e.id);
+        .in('id', relegatedEntries.map(e => e.id));
+      if (relErr) console.error('Batch relegation update failed:', relErr);
     }
 
     const pot = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
@@ -4732,13 +4755,15 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
           slot.value = Math.round((slot.value || 0) + amount);
         });
 
-        for (const e of survivors) {
+        const survivorUpdateRows = survivors.map(e => {
           const squad = squadCopies[e.id];
           const newTotal = Math.round(squad.reduce((s, p) => s + (p.empty ? 0 : (p.value || 0)), 0));
-          await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-            .update({ squad_players: squad, current_value: newTotal })
-            .eq('id', e.id);
-        }
+          return { id: e.id, squad_players: squad, current_value: newTotal };
+        });
+        // One batch upsert instead of one .update() call per survivor.
+        const { error: survErr } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries').upsert(survivorUpdateRows, { onConflict: 'id' });
+        if (survErr) console.error('Batch pot-redistribution upsert failed:', survErr);
       }
     }
     console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegated ${relegatedEntries.length}, pot ${pot}p spread across ${survivors.length} survivors.`);
@@ -4910,17 +4935,26 @@ async function updateFantasyPointsForGameweek(masterDb, gameweek) {
   const playerById = {};
   (allPlayers || []).forEach(p => { playerById[p.id] = p; });
 
+  const updateRows = [];
   for (const stat of countableStats) {
     const player = playerById[stat.player_id];
     if (!player) continue;
     const newEventPoints = computeStandardFplPoints(player.element_type, stat);
     const previousEventPoints = player.event_points || 0;
     const newTotal = (player.total_points || 0) - previousEventPoints + newEventPoints;
-    await masterDb.from('players').update({
-      event_points: newEventPoints,
-      total_points: newTotal
-    }).eq('id', stat.player_id);
-    result.fantasy_players_updated++;
+    updateRows.push({ id: stat.player_id, event_points: newEventPoints, total_points: newTotal });
+  }
+
+  // One batch upsert instead of one .update() call per player (was 280
+  // sequential round trips for a full gameweek — the single biggest
+  // contributor to Advance Gameweek taking so long).
+  if (updateRows.length > 0) {
+    const { error: upsertErr } = await masterDb.from('players').upsert(updateRows, { onConflict: 'id' });
+    if (upsertErr) {
+      console.error('updateFantasyPointsForGameweek batch upsert failed:', upsertErr);
+    } else {
+      result.fantasy_players_updated = updateRows.length;
+    }
   }
   return result;
 }
