@@ -210,7 +210,6 @@
       .logo-mark{ width:32px; height:32px; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-      main{ padding:20px 14px 60px; }
 
       /* Single compact mobile header row, matching the Hub: logo, then
          login/avatar right next to it, then bell + hamburger on the right. */
@@ -225,7 +224,15 @@
       #mobileMenuBtn{ margin-left:auto; }
       .navbar-row-break{ display:none; }
 
-      .hero{ padding:28px 22px; min-height:auto; }
+      main{ padding:0 14px 60px; }
+
+      /* Full-bleed to the screen edges — breaks out of main's own side
+         padding with matching negative margins — and sits directly under
+         the navbar instead of leaving a gap above it. */
+      .hero{
+        padding:28px 22px; min-height:auto; border-radius:0;
+        margin-left:-14px; margin-right:-14px; margin-top:0; width:auto;
+      }
       .hero h1{ font-size:42px; }
       .hero-sub{ font-size:16px; }
       .hero-desc{ font-size:13.5px; }

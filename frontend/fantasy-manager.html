@@ -135,12 +135,18 @@
       .avatar-btn .avatar{ width:34px; height:34px; }
       .bell-btn{ margin-left:0; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
-      .hero{ padding:28px 22px; min-height:auto; }
+      /* Full-bleed to the screen edges — breaks out of main's own side
+         padding with matching negative margins — and sits directly under
+         the navbar instead of leaving a gap above it. */
+      .hero{
+        padding:28px 22px; min-height:auto; border-radius:0;
+        margin-left:-12px; margin-right:-12px; margin-top:0; width:auto;
+      }
       .hero h1{ font-size:42px; }
       .hero-sub{ font-size:16px; }
       .hero-desc{ font-size:13.5px; }
       .hero-graphic{ display:none; }
-      main{ padding:20px 12px 60px; }
+      main{ padding:0 12px 60px; }
       .fm-card{ padding:14px 12px; }
 
       /* Player pool & squad rows — on mobile, wrap the stats onto their
