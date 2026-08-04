@@ -183,6 +183,7 @@
 
     .fm-card{ background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:var(--radius); padding:20px 22px; min-width:0; }
     .fm-card-title{ font-family:var(--font-head); font-size:16px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+    .view-all{ font-size:12px; color:var(--accent-2); text-decoration:none; font-weight:600; }
 
     .fm-search{width:100%; margin-bottom:1rem; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:14px;}
     .fm-search::placeholder{color:var(--text-faint);}
@@ -393,7 +394,10 @@
         </section>
 
         <section class="fm-card">
-          <div class="fm-card-title"><i class="fas fa-chart-line"></i> Top of the Table</div>
+          <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
+            <span><i class="fas fa-chart-line"></i> Top 10 Leaderboard</span>
+            <a href="/fantasy-leaderboard" class="view-all">View All<i class="fas fa-arrow-right" style="font-size:11px; margin-left:4px;"></i></a>
+          </div>
           <div id="fmLeaderboard">
             <p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</p>
           </div>

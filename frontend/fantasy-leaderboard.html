@@ -15,7 +15,7 @@
       --border:#131f35; --border-hover:#3b82f6;
       --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
       --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
-      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --gold:#f2b93d; --silver:#c7cedb; --bronze:#d08a4f; --red:#ef4444; --green:#22c55e;
       --radius:14px;
       --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
@@ -82,7 +82,8 @@
       .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
-      .bell-btn{ margin-left:0; }
+      .wallet-icon-link{ margin-left:8px; }
+      .bell-btn{ margin-left:8px; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
     }
 
@@ -95,10 +96,13 @@
     .row{ display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--border); }
     .row:last-child{ border-bottom:none; }
     .row:hover{ background:var(--bg-card); }
+    .row.top1{ background:linear-gradient(90deg, rgba(242,185,61,0.08), transparent); }
+    .row.top2{ background:linear-gradient(90deg, rgba(199,206,219,0.06), transparent); }
+    .row.top3{ background:linear-gradient(90deg, rgba(208,138,79,0.07), transparent); }
     .rank{ width:40px; font-family:var(--font-head); font-weight:700; font-size:16px; color:var(--text-faint); }
     .rank.top1{ color:var(--gold); }
-    .rank.top2{ color:#c7cdd6; }
-    .rank.top3{ color:#c98a4b; }
+    .rank.top2{ color:var(--silver); }
+    .rank.top3{ color:var(--bronze); }
     .name{ flex:1; font-size:15px; }
     .points-col{ width:90px; text-align:right; }
     .points-col .total{ font-family:var(--font-head); font-weight:700; font-size:16px; color:var(--gold); display:block; }
@@ -244,7 +248,7 @@
           const rankClass = r.rank === 1 ? 'top1' : r.rank === 2 ? 'top2' : r.rank === 3 ? 'top3' : '';
           const name = r.users ? (r.users.display_name || r.users.username) : 'Player';
           return `
-            <div class="row">
+            <div class="row ${rankClass}">
               <div class="rank ${rankClass}">${r.rank}</div>
               <div class="name">${escapeHtml(name)}</div>
               <div class="points-col">
