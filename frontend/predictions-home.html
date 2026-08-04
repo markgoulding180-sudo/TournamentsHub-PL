@@ -231,7 +231,7 @@
          the navbar instead of leaving a gap above it. */
       .hero{
         padding:28px 22px; min-height:auto; border-radius:0;
-        margin-left:-14px; margin-right:-14px; margin-top:0; margin-bottom:0; width:auto;
+        margin-left:-14px; margin-right:-14px; margin-top:0; margin-bottom:12px; width:auto;
       }
       .hero h1{ font-size:42px; }
       .hero-sub{ font-size:16px; }
@@ -432,7 +432,13 @@
 
     <!-- Your Predictions This Week -->
     <section class="card week-card" id="yourPredictionsCard">
-      <div class="card-title"><i class="fas fa-user-check" style="color:var(--accent-2);"></i> Your Predictions This Week</div>
+      <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
+        <span><i class="fas fa-user-check" style="color:var(--accent-2);"></i> <span id="yourPredictionsTitle">Your Predictions This Week</span></span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="yourPredPrevGw" title="Previous gameweek" aria-label="Previous gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-left"></i></button>
+          <button id="yourPredNextGw" title="Next gameweek" aria-label="Next gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
       <div id="yourPredictionsSummary"></div>
       <div id="yourPredictionsBody"><div class="loading">Loading…</div></div>
     </section>
@@ -472,6 +478,7 @@
     }
 
     let currentGw = null;
+    let viewedPredictionsGw = null; // which gameweek the Your Predictions card shows — separate from currentGw so browsing history doesn't touch the real pick flow
     let tournamentId = null;
     let isEnteredInTournament = false;
 
@@ -525,11 +532,48 @@
         }
 
         if (loggedIn && matches.length > 0) {
-          renderYourPredictions(matches, myPredictions);
+          loadYourPredictionsForGw(currentGw);
         }
       } catch (e) {
         console.error('Failed to load this week:', e);
         strip.innerHTML = '<div class="empty">Couldn\'t load fixtures right now.</div>';
+      }
+    }
+
+    // ---------- Your Predictions This Week (browsable by gameweek) ----------
+    async function loadYourPredictionsForGw(gw) {
+      viewedPredictionsGw = gw;
+      const titleEl = document.getElementById('yourPredictionsTitle');
+      const prevBtn = document.getElementById('yourPredPrevGw');
+      const nextBtn = document.getElementById('yourPredNextGw');
+      if (titleEl) titleEl.textContent = gw === currentGw ? 'Your Predictions This Week' : `Your Predictions — Gameweek ${gw}`;
+      // GW1 is the real floor for every tournament — never navigate below it.
+      if (prevBtn) {
+        const atFloor = !gw || gw <= 1;
+        prevBtn.disabled = atFloor;
+        prevBtn.style.opacity = atFloor ? '0.4' : '1';
+        prevBtn.style.cursor = atFloor ? 'not-allowed' : 'pointer';
+      }
+
+      const body = document.getElementById('yourPredictionsBody');
+      const summary = document.getElementById('yourPredictionsSummary');
+      if (body) body.innerHTML = '<div class="loading">Loading…</div>';
+      if (summary) summary.innerHTML = '';
+
+      try {
+        const res = await fetch(`/api/predictions?gameweek=${gw}`, { headers: authHeaders() });
+        const data = await res.json();
+        const matches = data.matches || [];
+        const myPredictions = data.predictions || [];
+
+        if (matches.length === 0) {
+          if (body) body.innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
+          return;
+        }
+        renderYourPredictions(matches, myPredictions);
+      } catch (e) {
+        console.error('Failed to load predictions for GW' + gw, e);
+        if (body) body.innerHTML = '<div class="empty">Couldn\'t load predictions right now.</div>';
       }
     }
 
@@ -839,6 +883,16 @@
       loadInjuriesSnapshot();
       loadTableSnapshot();
     }
+
+    document.getElementById('yourPredPrevGw').addEventListener('click', () => {
+      const target = (viewedPredictionsGw || currentGw || 1) - 1;
+      if (target < 1) return;
+      loadYourPredictionsForGw(target);
+    });
+    document.getElementById('yourPredNextGw').addEventListener('click', () => {
+      const target = (viewedPredictionsGw || currentGw || 1) + 1;
+      loadYourPredictionsForGw(target);
+    });
 
     // ================= MOBILE NAV DRAWER =================
     function toggleMobileNav(open) {
