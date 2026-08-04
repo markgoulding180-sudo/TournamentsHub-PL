@@ -10,6 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
+    /* Match the hub's theme — this page inherited style.css/stadium-theme.css's
+       green accent, which is inconsistent with the rest of the app's white/blue
+       look. Overriding the root variable here fixes every green background and
+       green text usage throughout the page in one place, rather than hunting
+       down each individual rule. */
+    :root{
+      --accent-green: #f1f5fc;
+      --accent-green-dark: #c7d2e0;
+    }
     .team-shirt {
       width: 60px;
       height: 60px;
