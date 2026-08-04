@@ -335,8 +335,8 @@ document.addEventListener('DOMContentLoaded', async function () {
       return `
         <div class="fm-player-row ${disabled && !inSquad ? 'disabled' : ''}" data-player-id="${p.id}">
           <span class="fm-pos-badge ${posClass}">${posLabel}</span>
-          <span class="fm-player-name" data-player-link="${p.id}" style="cursor:pointer;">
-            ${escapeHtml(p.web_name)}
+          <span class="fm-player-name">
+            <span data-player-link="${p.id}" style="cursor:pointer;">${escapeHtml(p.web_name)}</span>
             <span class="team">${team ? escapeHtml(team.short_name || team.name) : ''}</span>
           </span>
           <span class="fm-player-meta">
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           html += `
             <div class="fm-squad-slot" data-player-id="${p.id}">
               <button class="fm-cap-btn ${isCaptain ? 'active' : ''}" data-captain="${p.id}" title="Set as captain">C</button>
-              <span class="fm-player-name" data-player-link="${p.id}" style="cursor:pointer;">${escapeHtml(p.web_name)}<span class="team">£${fmt(p.now_cost)}m</span></span>
+              <span class="fm-player-name"><span data-player-link="${p.id}" style="cursor:pointer;">${escapeHtml(p.web_name)}</span><span class="team">£${fmt(p.now_cost)}m</span></span>
               <span class="fm-slot-points" style="color:var(--gold); font-size:.8rem; font-weight:700;">${(p.event_points ?? 0) * (isCaptain ? 2 : 1)} GW</span>
               <button class="fm-remove-btn" data-remove="${p.id}" title="Remove"><i class="fas fa-xmark"></i></button>
             </div>`;
