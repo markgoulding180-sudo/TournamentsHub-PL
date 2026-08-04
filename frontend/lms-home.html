@@ -156,6 +156,16 @@
     .team-tile.current-pick{ opacity:1; }
     .team-tile.current-pick.pick-pending{ border:2px solid var(--gold); background:rgba(242,185,61,0.1); }
     .team-tile.current-pick.pick-pending .name{ text-decoration:none; color:var(--gold); }
+
+    /* Fixed 4 equal columns instead of auto-fill with a minimum width —
+       guarantees exactly 4 per row and shrinks each tile to fit instead
+       of ever overflowing into horizontal scroll. */
+    @media (max-width:480px){
+      .teams-grid{ grid-template-columns:repeat(4, 1fr); gap:8px; }
+      .team-tile{ padding:10px 4px; }
+      .team-tile img{ width:26px; height:26px; }
+      .team-tile .name{ font-size:9.5px; }
+    }
     .team-tile.current-pick.pick-win{ border:2px solid var(--green); background:rgba(34,197,94,0.08); }
     .team-tile.current-pick.pick-win .name{ text-decoration:none; color:var(--green); }
     .team-tile.current-pick.pick-lose, .team-tile.current-pick.pick-draw{ border:2px solid #ef4444; background:rgba(239,68,68,0.1); }
