@@ -4270,11 +4270,11 @@ const FLAT_REWARDS = {
   goal: 300, assist: 150, yellow_card: -150, red_card: -300,
   clean_sheet: 125, save: 30, save_cap: 5,
   gk_goal_conceded: -75, gk_goal_conceded_cap: 4,
-  outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4,
-  // Forwards earn more from their own goal involvements than every other
-  // position (+20%, kept a whole number and divisible by 6 so it splits
-  // cleanly across an opponent's 6-player squad with no leftover pence).
-  fwd_goal: 360, fwd_assist: 180
+  outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4
+  // No position-based bonus on goals/assists — flat rate for every
+  // position. The cost multiplier (climbing 1x -> 2x -> 3x -> 4x across
+  // relegation stages) is what's meant to drive bigger swings later in
+  // the tournament, not position weighting.
 };
 
 // Computes one player's own raw value change for the gameweek, floored
@@ -4319,8 +4319,8 @@ function computePlayerEventBreakdown(position, stats, costMultiplier, rewardsOve
   const mult = costMultiplier || 1;
   const goals = Math.min(stats.goals_scored || 0, 99);
   const assists = Math.min(stats.assists || 0, 99);
-  const goalRate = position === 'fwd' ? R.fwd_goal : R.goal;
-  const assistRate = position === 'fwd' ? R.fwd_assist : R.assist;
+  const goalRate = R.goal;
+  const assistRate = R.assist;
   const goalAmt = Math.round(goals * goalRate * mult);
   const assistAmt = Math.round(assists * assistRate * mult);
   const yellowAmt = Math.round((stats.yellow_cards || 0) * R.yellow_card * mult);
