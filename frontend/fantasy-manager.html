@@ -309,6 +309,10 @@
         <div class="hero-sub">Build. Captain. Win.</div>
         <p class="hero-desc">Build a 15-player squad within a £100.0m budget. Score points every gameweek from real Premier League performances — your captain scores double.</p>
         <span class="fm-status-badge" id="fmStatusBadge"><i class="fas fa-circle-notch fa-spin"></i> Checking your squad…</span>
+        <div id="fmRankRow" style="display:none; align-items:center; gap:10px; margin-top:12px;">
+          <span class="fm-status-badge" id="fmRankBadge" style="background:rgba(242,185,61,0.1); border-color:var(--gold); color:var(--gold);"></span>
+          <a href="#fmLeaderboardCard" class="fm-status-badge" style="text-decoration:none; cursor:pointer;"><i class="fas fa-chart-line"></i> Leaderboard</a>
+        </div>
       </div>
     </section>
 
@@ -365,8 +369,11 @@
 
     <div class="fm-layout">
       <!-- Player pool -->
-      <section class="fm-card">
-        <div class="fm-card-title"><i class="fas fa-list"></i> Player Pool</div>
+      <section class="fm-card" id="playerPoolCard">
+        <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
+          <span><i class="fas fa-list"></i> Player Pool</span>
+          <a href="#mySquadCard" class="view-all"><i class="fas fa-shirt" style="font-size:11px; margin-right:4px;"></i>My Squad</a>
+        </div>
         <input type="text" class="fm-search" id="fmSearch" placeholder="Search players…">
         <div class="fm-pool-filters" id="fmFilters">
           <button class="fm-filter-btn active" data-pos="all">All</button>
@@ -382,8 +389,11 @@
 
       <!-- My squad -->
       <div>
-        <section class="fm-card" style="margin-bottom:20px;">
-          <div class="fm-card-title"><i class="fas fa-shirt"></i> My Squad</div>
+        <section class="fm-card" id="mySquadCard" style="margin-bottom:20px;">
+          <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
+            <span><i class="fas fa-shirt"></i> My Squad</span>
+            <a href="#playerPoolCard" class="view-all"><i class="fas fa-list" style="font-size:11px; margin-right:4px;"></i>Player Pool</a>
+          </div>
           <div id="fmSquadPanel" style="overflow-x:auto;"></div>
           <div class="fm-save-bar">
             <span>Tap <i class="fas fa-star gold" style="color:var(--gold);"></i> to set captain (2x points)</span>
@@ -393,7 +403,7 @@
           </div>
         </section>
 
-        <section class="fm-card">
+        <section class="fm-card" id="fmLeaderboardCard">
           <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
             <span><i class="fas fa-chart-line"></i> Top 10 Leaderboard</span>
             <a href="/fantasy-leaderboard" class="view-all">View All<i class="fas fa-arrow-right" style="font-size:11px; margin-left:4px;"></i></a>

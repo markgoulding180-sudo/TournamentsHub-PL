@@ -237,7 +237,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
       const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&leaderboard=true&tournament_type=fantasy`);
       const data = await res.json();
-      const rows = (data.leaderboard || []).slice(0, 10);
+      const fullRows = data.leaderboard || [];
+      const rows = fullRows.slice(0, 10);
       if (rows.length === 0) {
         els.leaderboard.innerHTML = '<p class="text-muted">No squads saved yet — be the first!</p>';
         return;
@@ -251,6 +252,24 @@ document.addEventListener('DOMContentLoaded', async function () {
             <span class="text-muted" style="font-size:.72rem;">${r.gw_points || 0} this GW</span>
           </span>
         </div>`).join('');
+
+      // Show the current user's own rank in the hero, even if they're
+      // outside the top 10 shown in the card itself.
+      try {
+        const userJson = localStorage.getItem('gbf_user');
+        const rankRow = document.getElementById('fmRankRow');
+        const rankBadge = document.getElementById('fmRankBadge');
+        if (userJson && rankRow && rankBadge) {
+          const myUserId = JSON.parse(userJson).id;
+          const mine = fullRows.find(r => r.user_id === myUserId);
+          if (mine) {
+            rankBadge.innerHTML = `<i class="fas fa-ranking-star"></i> Your Rank: #${mine.rank} of ${fullRows.length}`;
+            rankRow.style.display = 'flex';
+          }
+        }
+      } catch (rankErr) {
+        console.error('Failed to show rank:', rankErr);
+      }
     } catch (e) {
       console.error('Failed to load leaderboard:', e);
       els.leaderboard.innerHTML = '<p class="text-muted">Couldn\'t load leaderboard right now.</p>';
