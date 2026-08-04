@@ -2118,11 +2118,90 @@ async function recalculateTournamentPoints() {
     
     const data = await response.json();
     
-    resultDiv.innerHTML = `<span class="text-green">✅ Recalculation complete! ${data.results.tournaments_processed} tournaments processed, ${data.results.entries_updated} entries updated</span>`;
-    log(`Tournament points recalculated. ${data.results.entries_updated} entries updated.`, 'success');
+    const gwList = (data.results.gameweeks_recalculated || []).join(', ') || 'none (no finished gameweeks yet)';
+    const errCount = (data.results.errors || []).length;
+    resultDiv.innerHTML = `<span class="text-green">✅ Recalculation complete! Gameweeks recalculated: ${gwList}${errCount ? ` (${errCount} error(s), check console)` : ''}</span>`;
+    if (errCount) console.error('recalculate-tournament-points errors:', data.results.errors);
+    log(`Tournament points recalculated. Gameweeks: ${gwList}`, 'success');
     
   } catch (error) {
     resultDiv.innerHTML = `<span class="text-red">❌ Error: ${error.message}</span>`;
     log(`Recalculation error: ${error.message}`, 'error');
+  }
+}
+
+// ---------- Admin Guide modal ----------
+function mdToHtml(md) {
+  // Lightweight, dependency-free markdown -> HTML, covering exactly what
+  // the guide doc uses (headers, bold, italic, lists, horizontal rules).
+  // Not a general-purpose parser — just enough for this one document.
+  const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const lines = md.split('\n');
+  let html = '';
+  let inList = false;
+  for (let raw of lines) {
+    let line = escapeHtml(raw);
+    line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    const isListItem = /^(-|\d+\.)\s+/.test(raw);
+    if (isListItem && !inList) { html += '<ul style="margin:0.5rem 0; padding-left:1.5rem;">'; inList = true; }
+    if (!isListItem && inList) { html += '</ul>'; inList = false; }
+
+    if (/^### /.test(raw)) html += `<h4 style="margin:1.25rem 0 0.4rem;">${line.slice(4)}</h4>`;
+    else if (/^## /.test(raw)) html += `<h3 style="margin:1.5rem 0 0.5rem; color:var(--accent-green);">${line.slice(3)}</h3>`;
+    else if (/^# /.test(raw)) html += `<h2 style="margin:0 0 1rem;">${line.slice(2)}</h2>`;
+    else if (/^---\s*$/.test(raw)) html += '<hr style="border-color:var(--border-color); margin:1.25rem 0;">';
+    else if (isListItem) html += `<li>${line.replace(/^(-|\d+\.)\s+/, '')}</li>`;
+    else if (raw.trim() === '') html += '';
+    else html += `<p style="margin:0.6rem 0;">${line}</p>`;
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+async function openAdminGuide() {
+  const overlay = document.getElementById('adminGuideOverlay');
+  const body = document.getElementById('adminGuideBody');
+  overlay.style.display = 'flex';
+  body.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</p>';
+
+  try {
+    const res = await fetch('https://ywfdilwfjytllethgrvl.supabase.co/storage/v1/object/public/admin-docs/ADMIN-PANEL-GUIDE.md', { cache: 'no-store' });
+    if (!res.ok) {
+      body.innerHTML = `
+        <p class="text-muted">The guide hasn't been uploaded to storage yet.</p>
+        <button class="btn btn-primary" onclick="uploadAdminGuideNow()"><i class="fas fa-cloud-arrow-up"></i> Upload Guide Now</button>
+        <div id="guideUploadResult" style="margin-top:0.75rem; font-size:0.85rem;"></div>`;
+      return;
+    }
+    const text = await res.text();
+    body.innerHTML = mdToHtml(text);
+  } catch (e) {
+    body.innerHTML = `<p class="text-red">Couldn't load the guide: ${e.message}</p>`;
+  }
+}
+
+function closeAdminGuide() {
+  document.getElementById('adminGuideOverlay').style.display = 'none';
+}
+
+async function uploadAdminGuideNow() {
+  const resultEl = document.getElementById('guideUploadResult');
+  if (resultEl) resultEl.textContent = 'Uploading…';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'upload_admin_guide' })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`;
+      return;
+    }
+    openAdminGuide(); // reload now that it exists
+  } catch (e) {
+    if (resultEl) resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${e.message}</span>`;
   }
 }
