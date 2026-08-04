@@ -206,7 +206,7 @@
   }
 
   .mobile-cat-strip{
-    display:none; position:sticky; top:69px; z-index:95;
+    display:none; position:static; z-index:95;
     justify-content:space-around; padding:14px 14px;
     background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
   }
@@ -369,7 +369,7 @@
   .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
   .card-row-3{grid-template-columns:repeat(3,1fr);}
   .t-card{
-    position:relative; background:var(--bg-card); border:1px solid var(--border);
+    position:relative; background:var(--bg-card); border:1px solid rgba(59,130,246,0.35);
     border-radius:var(--radius); overflow:hidden;
     transition:border-color .25s, transform .25s, box-shadow .25s;
     display:flex; flex-direction:column;
@@ -516,6 +516,8 @@
     .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
     .avatar-btn.logged-in .chev{ display:none !important; }
     .avatar-btn .avatar{ width:34px; height:34px; }
+    .wallet-icon-link{ margin-left:8px; }
+    .navbar .icon-btn[title="Notifications"]{ margin-left:8px; }
     #logoutBtn{ display:none !important; }
     .my-tournaments-btn{ display:none !important; }
     .navbar-row-break{ display:none; }
