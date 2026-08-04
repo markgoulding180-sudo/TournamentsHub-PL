@@ -2048,6 +2048,69 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // — deliberately doesn't recreate a fresh tournament afterward, so
       // you use the normal Launch Tournament flow for that type once
       // you're ready, rather than this guessing at the right defaults.
+      // The full clean-slate reset — everything, both databases, in one
+      // action. Matches exactly the manual SQL reset used throughout this
+      // session's testing, now available as a real button instead of
+      // needing hand-run SQL every time. Requires typing the exact
+      // confirmation phrase, since this is genuinely irreversible and
+      // touches literally every table the platform uses.
+      if (action === 'full_platform_reset') {
+        const { data: resetCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!resetCaller || !resetCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        if (req.body.confirm_phrase !== 'RESET EVERYTHING') {
+          return res.status(400).json({ error: 'Type the exact phrase "RESET EVERYTHING" to confirm.' });
+        }
+
+        try {
+          const deletedCounts = {};
+
+          // Every tournament schema, every table — same list the single-
+          // schema wipe action above already uses, just looped over all 4.
+          for (const tType of Object.keys(TOURNAMENT_SCHEMA_TABLES)) {
+            for (const table of TOURNAMENT_SCHEMA_TABLES[tType]) {
+              const pkColumn = TOURNAMENT_TABLE_PK_OVERRIDES[`${tType}.${table}`] || 'id';
+              const { error: delErr, count } = await supabaseAdmin
+                .schema(tType).from(table).delete({ count: 'exact' }).not(pkColumn, 'is', null);
+              deletedCounts[`${tType}.${table}`] = delErr ? `error: ${delErr.message}` : (count ?? 0);
+            }
+          }
+
+          // Wallet — real "Enter Now" clicks genuinely charge this, so a
+          // tournament-data-only wipe would leave fake charges behind.
+          const { error: walletErr, count: walletCount } = await supabaseAdmin
+            .from('wallet_transactions').delete({ count: 'exact' }).not('id', 'is', null);
+          deletedCounts['wallet_transactions'] = walletErr ? `error: ${walletErr.message}` : (walletCount ?? 0);
+
+          // Legacy leaderboard field, confirmed disconnected from real
+          // scoring but still worth zeroing so nothing stale shows anywhere.
+          await supabaseAdmin.from('users').update({ total_points: 0, correct_scores: 0, current_streak: 0 }).not('id', 'is', null);
+
+          // Master database — matches, stats, and every player's season
+          // columns, back to a genuine blank slate across the whole season.
+          await masterDb.from('matches').update({ status: 'upcoming', home_score: null, away_score: null, result: null }).gte('gameweek', 1).lte('gameweek', 38);
+          const { error: statsErr, count: statsCount } = await masterDb.from('player_gameweek_stats').delete({ count: 'exact' }).gte('gameweek', 1).lte('gameweek', 38);
+          deletedCounts['player_gameweek_stats'] = statsErr ? `error: ${statsErr.message}` : (statsCount ?? 0);
+          const { error: histErr, count: histCount } = await masterDb.from('player_gameweek_history').delete({ count: 'exact' }).gte('gameweek', 1).lte('gameweek', 38);
+          deletedCounts['player_gameweek_history'] = histErr ? `error: ${histErr.message}` : (histCount ?? 0);
+          await masterDb.from('players').update({
+            total_points: 0, event_points: 0, goals_scored: 0, assists: 0, yellow_cards: 0, red_cards: 0,
+            clean_sheets: 0, goals_conceded: 0, saves: 0, minutes: 0, bonus: 0, bps: 0, form: 0, points_per_game: 0
+          }).not('id', 'is', null);
+
+          // Clock back to GW1, polling paused — deliberately safe default
+          // regardless of whether this is a testing reset or a genuine
+          // pre-launch clean slate. Turn polling back on explicitly
+          // afterward once everything's confirmed ready.
+          await masterDb.from('master_clock').update({ current_gameweek: 1, last_finalised_gameweek: 0, polling_paused: true }).eq('id', 'current');
+
+          return res.status(200).json({ success: true, deleted: deletedCounts });
+        } catch (err) {
+          console.error('full_platform_reset error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'admin_wipe_tournament_schema') {
         const { data: wipeCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!wipeCaller || !wipeCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });

@@ -1551,6 +1551,39 @@ async function saveRelegationStages() {
   }
 }
 
+async function fullPlatformReset() {
+  const resultEl = document.getElementById('fullResetResult');
+  const typed = prompt('This wipes EVERY tournament, entry, wallet transaction, match result, and player stat across the ENTIRE platform — both databases, all four tournament types. This cannot be undone.\n\nType RESET EVERYTHING (exactly, in capitals) to confirm:');
+  if (typed !== 'RESET EVERYTHING') {
+    if (typed !== null) alert('Phrase didn\'t match exactly — nothing was reset.');
+    return;
+  }
+
+  resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Resetting everything…</span>';
+  log('Starting full platform reset...', 'warn');
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'full_platform_reset', confirm_phrase: typed })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`;
+      log(`Full reset failed: ${data.error}`, 'error');
+      return;
+    }
+    resultEl.innerHTML = '<span style="color:var(--accent-green);">Done. Every table wiped, clock back to GW1, polling paused. Check the counts in the browser console for full detail.</span>';
+    console.log('Full platform reset — deleted counts:', data.deleted);
+    log('Full platform reset complete.', 'success');
+    refreshStatus();
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+    log(`Full reset error: ${error.message}`, 'error');
+  }
+}
+
 async function fullTestReset() {
   const resultEl = document.getElementById('resetResult');
   if (!confirm('This wipes EVERY Stock Market tournament, entry, and history record, and starts a brand new one at Gameweek 1. This cannot be undone. Continue?')) return;

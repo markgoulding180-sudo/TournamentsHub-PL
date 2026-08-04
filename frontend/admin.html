@@ -759,6 +759,23 @@
     <div style="margin: 2.5rem 0 1rem; padding: 1.5rem; border: 3px dashed var(--accent-red, #ef4444); border-radius: 1rem; background: rgba(239,68,68,0.04);">
       <h2 style="margin: 0 0 0.5rem; font-size: 1.3rem; color: var(--accent-red, #ef4444);"><i class="fas fa-flask"></i> TESTING TOOLS</h2>
       <p class="text-muted mb-3" style="font-size: 0.9rem;"><strong>Everything below this line fabricates fake data or bypasses real match results.</strong> Genuinely useful for testing right now — but every one of these must be removed before real users are on the platform. See the pre-go-live checklist for the full removal list.</p>
+
+    <!-- Full Platform Reset — the real, single-button version of the
+         manual SQL reset used throughout testing. Wipes literally
+         everything: all four tournament schemas, wallet, master data,
+         player stats, clock back to GW1. Also the correct Step 0 tool
+         for a genuine pre-launch clean slate before going live. -->
+    <div class="admin-card" style="border: 3px solid var(--accent-red, #ef4444); background: rgba(239,68,68,0.06); grid-column: 1 / -1;">
+      <h3 style="color: var(--accent-red, #ef4444);"><i class="fas fa-triangle-exclamation"></i> Full Platform Reset — Wipes EVERYTHING</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Every tournament, every entry, every prediction/pick/squad, every wallet transaction, every match result, every player's season stats — across all four tournament types, both databases. Clock resets to GW1, polling paused. This is the one-click version of the full manual reset used throughout testing, and it's also the correct Step 0 for a genuine pre-launch clean slate. <strong>Completely irreversible.</strong>
+      </p>
+      <button class="btn" onclick="fullPlatformReset()" style="width:100%; background:var(--accent-red); color:#fff; font-weight:700;">
+        <i class="fas fa-radiation"></i> Reset Absolutely Everything
+      </button>
+      <div id="fullResetResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
     <!-- Seed Season Data — one-time bulk seed. Generates realistic results
          + player stats for a range of gameweeks WITHOUT marking them
          finished, so matches stay 'upcoming' until you use the checkbox
