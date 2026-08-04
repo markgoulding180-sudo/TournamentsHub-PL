@@ -2421,6 +2421,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             const allFinished = gwMatches && gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
 
             if (allFinished) {
+              // Fantasy's "Best Single Gameweek" / "Longest Scoring Streak"
+              // records depend on this snapshot existing for every finished
+              // gameweek. It used to only fire if someone happened to load
+              // Fantasy Manager's page (or save a squad) in the narrow
+              // window between a gameweek finishing and it being advanced —
+              // easy to miss entirely, which is exactly why those records
+              // were showing "no data yet". Guaranteed here instead.
+              await snapshotGameweekIfNeeded(masterDb, leavingGw);
+
               const { data: liveStockMarkets } = await supabaseAdmin
                 .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
               for (const t of (liveStockMarkets || [])) {
@@ -4881,6 +4890,12 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
   }
 
   const result = { fired: true, stock_market_tournaments_settled: 0, lms_tournaments_settled: 0 };
+
+  // Same reasoning as the Advance Gameweek path — this used to only fire
+  // on an incidental Fantasy Manager page visit, easy to miss entirely.
+  // Idempotent (checks if already snapshotted), so firing it here too
+  // alongside the Advance Gameweek path is safe, not a double-write.
+  await snapshotGameweekIfNeeded(masterDb, gameweek);
 
   const { data: liveStockMarkets } = await supabaseAdmin
     .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
