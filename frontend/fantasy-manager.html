@@ -153,13 +153,16 @@
          evenly spaced, and centered — plus tighter padding for height,
          and the same border color used on the Predictions page cards. */
       .fm-budget-bar{
-        display:grid; grid-template-columns:repeat(2, 1fr); gap:8px;
+        display:grid; grid-template-columns:repeat(4, 1fr); gap:6px;
         margin:1rem 0 1.25rem;
       }
       .fm-stat{
-        min-width:0; width:auto; padding:.6rem .8rem;
+        min-width:0; width:auto; padding:.5rem .4rem;
         border-color:var(--accent-dim) !important;
       }
+      .fm-stat-label{ font-size:.6rem; }
+      .fm-stat-value{ font-size:1rem; }
+      #fmDeadlineValue{ font-size:.85rem !important; }
 
       /* Player pool & squad rows — on mobile, wrap the stats onto their
          own line instead of relying on horizontal scroll. A new user
