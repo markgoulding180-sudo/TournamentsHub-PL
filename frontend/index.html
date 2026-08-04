@@ -461,8 +461,14 @@
     .sidebar.mobile-open{transform:translateX(0); width:100%; min-width:100%; padding:24px 20px; background:var(--bg); z-index:96;}
     .sidebar.collapsed{width:222px; min-width:222px; padding:22px 14px;}
     .sidebar.collapsed .sport-label, .sidebar.collapsed .sidebar-section-label, .sidebar.collapsed .toggle-label{display:block;}
-    .main-content{padding:20px;}
-    .hero{padding:36px 24px; min-height:auto;}
+    .main-content{padding:0 20px 20px;}
+    /* Full-bleed to the screen edges — breaks out of main-content's own
+       side padding with matching negative margins — and sits directly
+       under the navbar instead of leaving a gap above it. */
+    .hero{
+      padding:36px 24px; min-height:auto; border-radius:0;
+      margin-left:-20px; margin-right:-20px; margin-top:0; width:auto;
+    }
     .hero h1{font-size:44px;}
     .hero-graphic{width:70%; opacity:0.5;}
   }
@@ -587,18 +593,6 @@
   </div>
 </div>
 
-<!-- Mobile-only quick category strip (sidebar is hidden below 860px) -->
-<nav class="mobile-cat-strip" id="mobileCatStrip">
-  <a href="/my-tournaments" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span></a>
-  <a href="#pl-predictions" class="mobile-cat-item active"><svg class="icon"><use href="#i-ball"/></svg><span>Football</span></a>
-  <a href="#champions-league" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>Champions League</span></a>
-  <a href="#darts" class="mobile-cat-item"><svg class="icon"><use href="#i-target"/></svg><span>Darts</span></a>
-  <a href="#golf" class="mobile-cat-item"><svg class="icon"><use href="#i-flag"/></svg><span>Golf</span></a>
-  <a href="#racing" class="mobile-cat-item"><svg class="icon"><use href="#i-horseshoe"/></svg><span>Racing</span></a>
-  <a href="#stocks" class="mobile-cat-item"><svg class="icon"><use href="#i-trend"/></svg><span>Stocks</span></a>
-  <a href="#special" class="mobile-cat-item"><svg class="icon"><use href="#i-star"/></svg><span>Special</span></a>
-</nav>
-
 <div class="layout">
 
   <!-- ================= SIDEBAR ================= -->
@@ -664,6 +658,20 @@
         <a href="/how-it-works" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>How It Works</a>
       </div>
     </section>
+
+    <!-- Mobile-only quick category strip (sidebar is hidden below 860px) —
+         sits directly under the hero; sticks under the navbar once
+         scrolled past it, thanks to position:sticky. -->
+    <nav class="mobile-cat-strip" id="mobileCatStrip">
+      <a href="/my-tournaments" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span></a>
+      <a href="#pl-predictions" class="mobile-cat-item active"><svg class="icon"><use href="#i-ball"/></svg><span>Football</span></a>
+      <a href="#champions-league" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>Champions League</span></a>
+      <a href="#darts" class="mobile-cat-item"><svg class="icon"><use href="#i-target"/></svg><span>Darts</span></a>
+      <a href="#golf" class="mobile-cat-item"><svg class="icon"><use href="#i-flag"/></svg><span>Golf</span></a>
+      <a href="#racing" class="mobile-cat-item"><svg class="icon"><use href="#i-horseshoe"/></svg><span>Racing</span></a>
+      <a href="#stocks" class="mobile-cat-item"><svg class="icon"><use href="#i-trend"/></svg><span>Stocks</span></a>
+      <a href="#special" class="mobile-cat-item"><svg class="icon"><use href="#i-star"/></svg><span>Special</span></a>
+    </nav>
 
     <!-- ================= FOOTBALL ================= -->
     <section class="section" id="pl-predictions">
