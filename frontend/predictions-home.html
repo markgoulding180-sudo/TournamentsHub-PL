@@ -278,6 +278,7 @@
     .predict-nav-btn{ display:inline-flex; align-items:center; gap:9px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; padding:12px 22px; border-radius:10px; transition:border-color .2s, background .2s; flex:1; justify-content:center; min-width:160px; }
     .predict-nav-btn:hover{ border-color:var(--accent); background:var(--bg-card); }
     .predict-nav-btn.primary{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); border:none; color:#fff; }
+    .leaderboard-link{ display:none; } /* mobile only - shown again in the media query below */
     .predict-nav-btn.primary:hover{ filter:brightness(1.1); }
     @media (max-width:640px){ .predict-nav-bar{ flex-direction:row; padding-left:14px; padding-right:14px; gap:8px; flex-wrap:nowrap; margin-bottom:8px; }
       .predict-nav-btn, .predict-nav-btn.primary{
@@ -285,8 +286,9 @@
         border:none !important; color:#fff !important;
         padding:6px 4px; font-size:13.5px; min-width:0;
       }
-      .predict-nav-btn:not(.primary){ display:none; }
-      .predict-nav-btn.primary{ flex:1 1 100%; }
+      .your-predictions-link{ display:none; }
+      .leaderboard-link{ display:inline-flex; }
+      .predict-nav-btn.primary, .leaderboard-link{ flex:1 1 0; }
       #injuriesTableGrid{ display:none; }
       #thisWeekGamesCard{ display:none; }
     }
@@ -414,7 +416,8 @@
     <!-- Predict nav bar — quick access to the pages a user actually uses -->
     <nav class="predict-nav-bar">
       <a href="/predict" class="predict-nav-btn primary predict-now-link"><i class="fas fa-futbol"></i> Predict Now</a>
-      <a href="#yourPredictionsCard" class="predict-nav-btn"><i class="fas fa-user-check"></i> Your Predictions</a>
+      <a href="#yourPredictionsCard" class="predict-nav-btn your-predictions-link"><i class="fas fa-user-check"></i> Your Predictions</a>
+      <a href="#leaderboardCard" class="predict-nav-btn leaderboard-link"><i class="fas fa-chart-line"></i> Leaderboard</a>
     </nav>
 
     <!-- This Week's Games -->
@@ -446,7 +449,7 @@
     </section>
 
     <!-- Leaderboard — full width on desktop -->
-    <section class="card" style="margin-bottom:18px;">
+    <section class="card" id="leaderboardCard" style="margin-bottom:18px;">
       <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Top 10 Leaderboard <a href="/leaderboard" class="view-all">View All →</a></div>
       <div id="leaderboardBody"><div class="loading">Loading…</div></div>
     </section>
