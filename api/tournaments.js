@@ -1619,27 +1619,30 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           if (allIds.size > 0) {
             const { data: playersData } = await masterDb
               .from('players')
-              .select('id, total_points, event_points')
+              .select('id, event_points')
               .in('id', Array.from(allIds));
             (playersData || []).forEach(p => {
-              pointsMap[p.id] = { total: p.total_points || 0, gw: p.event_points || 0 };
+              pointsMap[p.id] = p.event_points || 0;
             });
           }
 
+          // entry_points is now a genuinely accumulating total, settled
+          // once per finished gameweek based on whoever was actually in
+          // the squad at the time (settleFantasyGameweekScores) — reading
+          // it directly here instead of recomputing it live from the
+          // CURRENT squad's players.total_points, which used to let a
+          // transfer retroactively inherit credit for points earned
+          // before that player even joined the squad. gw_points is still
+          // a genuine live preview of the current, in-progress gameweek,
+          // which is legitimately supposed to update in real time.
           scoredEntries = scoredEntries.map(e => {
             const squad = e.squad_players || [];
-            let total = 0, gw = 0;
+            let gw = 0;
             squad.forEach(pid => {
-              const pts = pointsMap[pid] || { total: 0, gw: 0 };
-              const isCaptain = pid === e.captain_id;
-              // Captain doubling only ever applies to the current
-              // gameweek's points, not their whole season total — total
-              // already includes this gameweek's contribution once, so
-              // captain just adds one extra copy of it, same real FPL rule.
-              total += pts.total + (isCaptain ? pts.gw : 0);
-              gw += isCaptain ? pts.gw * 2 : pts.gw;
+              const pts = pointsMap[pid] || 0;
+              gw += (pid === e.captain_id) ? pts * 2 : pts;
             });
-            return { ...e, entry_points: total, gw_points: gw };
+            return { ...e, entry_points: e.entry_points || 0, gw_points: gw };
           }).sort((a, b) => b.entry_points - a.entry_points);
         }
 
@@ -2430,6 +2433,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               // were showing "no data yet". Guaranteed here instead.
               await snapshotGameweekIfNeeded(masterDb, leavingGw);
 
+              // Locks in each Fantasy entry's real score for this gameweek
+              // (their squad exactly as it stood) into a genuine
+              // accumulating total, before event_points gets reset below
+              // for the next gameweek. Fixes rank/points being retroactively
+              // exploitable via a transfer.
+              await settleFantasyGameweekScores(masterDb, supabaseAdmin, leavingGw);
+
               const { data: liveStockMarkets } = await supabaseAdmin
                 .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
               for (const t of (liveStockMarkets || [])) {
@@ -2448,6 +2458,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               }
             }
           }
+
+          // event_points represents only the CURRENT gameweek's contribution
+          // (total_points is the season-cumulative one) — it was never
+          // being reset when the clock moved to a new gameweek, so it just
+          // sat at whatever the leaving gameweek's final values were until
+          // individual players' new stats happened to overwrite them.
+          // Confirmed as a real bug: swapping in a player who scored well
+          // last gameweek inflated "This Gameweek" before anything in the
+          // new gameweek had actually happened.
+          await masterDb.from('players').update({ event_points: 0 }).neq('id', -1);
 
           // Auto-pause real polling the first time this test button is
           // used, so the data it just generated can't get silently
@@ -4896,6 +4916,7 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
   // Idempotent (checks if already snapshotted), so firing it here too
   // alongside the Advance Gameweek path is safe, not a double-write.
   await snapshotGameweekIfNeeded(masterDb, gameweek);
+  await settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek);
 
   const { data: liveStockMarkets } = await supabaseAdmin
     .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
@@ -4982,7 +5003,66 @@ async function updateFantasyPointsForGameweek(masterDb, gameweek) {
   return result;
 }
 
-// Shared by both the bulk "Generate Test Gameweek Data" tool and the
+// The missing piece that made "Your Rank" retroactive-transfer-exploitable:
+// entry_points used to be recomputed live from whoever's CURRENTLY in a
+// squad's players.total_points — meaning transferring in a player who
+// scored well in a gameweek you didn't even own them for instantly
+// inherited credit for those points. Real FPL never works this way — a
+// season total should only reflect what your squad scored while those
+// specific players were actually on it. This locks in each entry's score
+// for the gameweek that just finished (using their squad exactly as it
+// stood, captain included) into a genuinely accumulating total, called
+// once per gameweek right after event_points is correct for it and
+// before it gets reset for the next one.
+async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
+  const result = { fantasy_entries_settled: 0 };
+  const { data: liveFantasyTournaments } = await supabaseAdmin
+    .schema('fantasy').from('tournaments').select('id, last_settled_gameweek').eq('status', 'live');
+  if (!liveFantasyTournaments || liveFantasyTournaments.length === 0) return result;
+
+  const { data: allPlayers } = await masterDb.from('players').select('id, event_points');
+  const eventPointsById = {};
+  (allPlayers || []).forEach(p => { eventPointsById[p.id] = p.event_points || 0; });
+
+  const updateRows = [];
+  for (const t of liveFantasyTournaments) {
+    // Atomic claim, same pattern as LMS's last_processed_gameweek — only
+    // proceed if this tournament hasn't already been settled for this
+    // gameweek or a later one. If two call sites race for the same
+    // tournament+gameweek, only the first genuinely claims it; the
+    // second's WHERE clause matches nothing and correctly no-ops.
+    const { data: claimed, error: claimErr } = await supabaseAdmin
+      .schema('fantasy').from('tournaments')
+      .update({ last_settled_gameweek: gameweek })
+      .eq('id', t.id)
+      .or(`last_settled_gameweek.is.null,last_settled_gameweek.lt.${gameweek}`)
+      .select('id')
+      .maybeSingle();
+    if (claimErr || !claimed) continue; // already settled, or a genuine error — skip either way
+
+    const { data: entries } = await supabaseAdmin
+      .schema('fantasy').from('tournament_entries')
+      .select('*').eq('tournament_id', t.id);
+    for (const e of (entries || [])) {
+      const squad = e.squad_players || [];
+      if (squad.length === 0) continue;
+      let gwScore = 0;
+      squad.forEach(pid => {
+        const pts = eventPointsById[pid] || 0;
+        gwScore += (pid === e.captain_id) ? pts * 2 : pts;
+      });
+      updateRows.push({ ...e, entry_points: (e.entry_points || 0) + gwScore });
+    }
+  }
+
+  if (updateRows.length > 0) {
+    const { error } = await supabaseAdmin
+      .schema('fantasy').from('tournament_entries').upsert(updateRows, { onConflict: 'id' });
+    if (error) console.error('settleFantasyGameweekScores upsert failed:', error);
+    else result.fantasy_entries_settled = updateRows.length;
+  }
+  return result;
+}
 // single-match "Simulate Match" tool — literally the same function, so a
 // simulated match is generated identically regardless of which admin
 // button triggered it. Mutates statByPlayerId in place (the caller owns
