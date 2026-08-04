@@ -116,6 +116,7 @@ module.exports = async (req, res) => {
         if (matchError) throw matchError;
 
         let gameweeksRecalculated = [];
+        let lmsCorrections = [];
         if (status === 'finished') {
           // Same real, already-correct, already-batched function the live
           // scoring pipeline uses — instead of a second, broken, parallel
@@ -125,12 +126,24 @@ module.exports = async (req, res) => {
           const { calculatePointsForGameweek } = require('./live-scores.js');
           await calculatePointsForGameweek(supabase, masterDb, matchRow.gameweek);
           gameweeksRecalculated.push(matchRow.gameweek);
+
+          // A manually corrected result needs to be able to both
+          // eliminate AND revive LMS entries — the normal live-play flow
+          // only ever eliminates, since it only checks currently-alive
+          // entries. Runs for every live LMS tournament.
+          const { recalculateLmsForGameweekCorrection } = require('./tournaments.js');
+          const { data: liveLms } = await supabase.schema('lms').from('tournaments').select('id').eq('status', 'live');
+          for (const t of (liveLms || [])) {
+            const r = await recalculateLmsForGameweekCorrection(masterDb, supabase, t.id, matchRow.gameweek);
+            lmsCorrections.push({ tournament_id: t.id, ...r });
+          }
         }
 
         return res.status(200).json({
           message: 'Score updated successfully',
           match_id,
-          gameweeks_recalculated: gameweeksRecalculated
+          gameweeks_recalculated: gameweeksRecalculated,
+          lms_corrections: lmsCorrections
         });
       }
 

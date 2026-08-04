@@ -3913,6 +3913,81 @@ async function getLmsLockStatus(masterDb, supabaseAdmin, tournamentId) {
 // This is what lets a user see "you're out" the moment their own team's
 // result is known, instead of waiting for every other match in the
 // gameweek to finish too — matches how a real LMS actually works.
+// Used specifically by Manual Score Entry corrections — the normal
+// progressive flow (updateLmsPicksForGameweek above) only ever examines
+// currently-alive entries, which is correct for real-time play but means
+// it can never revive someone if a result gets corrected after the fact
+// (VAR overturns, a data error found later, etc.). This re-examines
+// everyone who picked for this specific gameweek regardless of their
+// current status, and can move someone either direction — only ever
+// touching an elimination that happened in this exact gameweek, never
+// reaching back into an earlier one.
+async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tournamentId, gameweek) {
+  const result = { eliminated: 0, revived: 0 };
+  try {
+    const { data: finishedMatches } = await masterDb
+      .from('matches')
+      .select('home_team, away_team, home_score, away_score')
+      .eq('gameweek', gameweek)
+      .eq('status', 'finished');
+    if (!finishedMatches || finishedMatches.length === 0) return result;
+
+    const decidedTeams = new Map();
+    finishedMatches.forEach(m => {
+      if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, true); decidedTeams.set(m.away_team, false); }
+      else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, true); decidedTeams.set(m.home_team, false); }
+      else { decidedTeams.set(m.home_team, false); decidedTeams.set(m.away_team, false); }
+    });
+
+    const { data: picks } = await supabaseAdmin
+      .schema('lms').from('picks')
+      .select('user_id, team')
+      .eq('tournament_id', tournamentId)
+      .eq('gameweek', gameweek);
+    if (!picks || picks.length === 0) return result;
+    const pickByUser = new Map(picks.map(p => [p.user_id, p.team]));
+
+    // Everyone who picked this gameweek, regardless of current status —
+    // the only way to catch someone who needs reviving, not just eliminating.
+    const { data: entries } = await supabaseAdmin
+      .schema('lms').from('tournament_entries')
+      .select('id, user_id, is_eliminated, eliminated_gameweek')
+      .eq('tournament_id', tournamentId)
+      .in('user_id', picks.map(p => p.user_id));
+
+    const toEliminate = [];
+    const toRevive = [];
+    for (const entry of (entries || [])) {
+      const pickedTeam = pickByUser.get(entry.user_id);
+      if (!pickedTeam || !decidedTeams.has(pickedTeam)) continue;
+      const won = decidedTeams.get(pickedTeam);
+
+      if (!won && !entry.is_eliminated) {
+        toEliminate.push(entry.id);
+      } else if (won && entry.is_eliminated && entry.eliminated_gameweek === gameweek) {
+        // Only revive if THIS gameweek is specifically what eliminated
+        // them — never touch an elimination from an earlier gameweek.
+        toRevive.push(entry.id);
+      }
+    }
+
+    if (toEliminate.length > 0) {
+      const { error } = await supabaseAdmin.schema('lms').from('tournament_entries')
+        .update({ is_eliminated: true, eliminated_gameweek: gameweek }).in('id', toEliminate);
+      if (!error) result.eliminated = toEliminate.length;
+    }
+    if (toRevive.length > 0) {
+      const { error } = await supabaseAdmin.schema('lms').from('tournament_entries')
+        .update({ is_eliminated: false, eliminated_gameweek: null }).in('id', toRevive);
+      if (!error) result.revived = toRevive.length;
+    }
+    console.log(`[LMS_CORRECTION] tournament=${tournamentId} gw=${gameweek}: eliminated=${result.eliminated}, revived=${result.revived}`);
+  } catch (error) {
+    console.error('recalculateLmsForGameweekCorrection error:', error);
+  }
+  return result;
+}
+
 async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, gameweek) {
   const result = { newly_eliminated: 0 };
   try {
@@ -5953,3 +6028,5 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
     return { ok: false, step: 'exception', error: error.message };
   }
 }
+
+module.exports.recalculateLmsForGameweekCorrection = recalculateLmsForGameweekCorrection;
