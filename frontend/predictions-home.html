@@ -279,7 +279,14 @@
     .predict-nav-btn:hover{ border-color:var(--accent); background:var(--bg-card); }
     .predict-nav-btn.primary{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); border:none; color:#fff; }
     .predict-nav-btn.primary:hover{ filter:brightness(1.1); }
-    @media (max-width:640px){ .predict-nav-bar{ flex-direction:column; padding-left:22px; padding-right:22px; } }
+    @media (max-width:640px){ .predict-nav-bar{ flex-direction:row; padding-left:14px; padding-right:14px; gap:8px; flex-wrap:nowrap; }
+      .predict-nav-btn, .predict-nav-btn.primary{
+        background:linear-gradient(135deg, var(--accent), var(--accent-dim)) !important;
+        border:none !important; color:#fff !important;
+        padding:12px 10px; font-size:13px; min-width:0;
+      }
+      #injuriesTableGrid{ display:none; }
+    }
 
     .lb-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
     .lb-row:last-child{ border-bottom:none; }
@@ -435,7 +442,7 @@
       <div id="leaderboardBody"><div class="loading">Loading…</div></div>
     </section>
 
-    <div class="cards-grid">
+    <div class="cards-grid" id="injuriesTableGrid">
       <!-- Injuries/News -->
       <section class="card">
         <div class="card-title"><i class="fas fa-notes-medical" style="color:var(--red);"></i> Injuries & News <a href="/injuries" class="view-all">View All →</a></div>
