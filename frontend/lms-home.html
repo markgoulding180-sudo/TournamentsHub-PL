@@ -366,7 +366,13 @@
 
       <!-- All results for this gameweek -->
       <section class="card results-card">
-        <div class="card-title"><i class="fas fa-list-ol" style="color:var(--accent-2);"></i> <span id="resultsTitle">Gameweek Results</span></div>
+        <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
+          <span><i class="fas fa-list-ol" style="color:var(--accent-2);"></i> <span id="resultsTitle">Gameweek Results</span></span>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="resultsPrevGw" class="btn-icon" title="Previous gameweek" aria-label="Previous gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-left"></i></button>
+            <button id="resultsNextGw" class="btn-icon" title="Next gameweek" aria-label="Next gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
         <div class="results-grid" id="resultsGrid"><div class="loading">Loading…</div></div>
       </section>
 
@@ -438,6 +444,7 @@
 
     let tournamentId = null;
     let currentGw = null;
+    let viewedGw = null; // which gameweek the Results card is currently showing — separate from currentGw so browsing history doesn't affect the pick flow
     let locked = false;
     let pendingPick = null; // team clicked in the grid but not yet confirmed
     let gwMatches = [];
@@ -511,16 +518,35 @@
       await loadLmsState();
     }
 
-    async function loadGameweekResults() {
+    async function loadGameweekResults(gw) {
+      // First call (no arg) starts on the real current gameweek; after
+      // that, the arrow buttons pass whichever gameweek they navigated to.
+      if (gw !== undefined) {
+        viewedGw = gw;
+      } else if (viewedGw === null) {
+        viewedGw = currentGw;
+      }
+
       const grid = document.getElementById('resultsGrid');
-      document.getElementById('resultsTitle').textContent = currentGw ? `Gameweek ${currentGw} Results` : 'Gameweek Results';
-      if (!currentGw) {
+      document.getElementById('resultsTitle').textContent = viewedGw ? `Gameweek ${viewedGw} Results` : 'Gameweek Results';
+
+      const prevBtn = document.getElementById('resultsPrevGw');
+      const nextBtn = document.getElementById('resultsNextGw');
+      // GW1 is the real floor for every tournament — never navigate below
+      // it. No hard ceiling on the way up: if a gameweek genuinely has no
+      // fixtures yet, the existing "no fixtures found" state below covers
+      // it rather than needing a guessed max here.
+      if (prevBtn) prevBtn.disabled = !viewedGw || viewedGw <= 1;
+      if (prevBtn) prevBtn.style.opacity = (!viewedGw || viewedGw <= 1) ? '0.4' : '1';
+      if (prevBtn) prevBtn.style.cursor = (!viewedGw || viewedGw <= 1) ? 'not-allowed' : 'pointer';
+
+      if (!viewedGw) {
         grid.innerHTML = '<div class="empty">Gameweek not set yet.</div>';
         gwMatches = [];
         return;
       }
       try {
-        const res = await fetch(`/api/predictions?gameweek=${currentGw}`);
+        const res = await fetch(`/api/predictions?gameweek=${viewedGw}`);
         const data = await res.json();
         gwMatches = data.matches || [];
 
@@ -870,6 +896,16 @@
 
     document.getElementById('howToggle').addEventListener('click', () => {
       document.getElementById('howCollapsible').classList.toggle('open');
+    });
+
+    document.getElementById('resultsPrevGw').addEventListener('click', () => {
+      const target = (viewedGw || currentGw || 1) - 1;
+      if (target < 1) return;
+      loadGameweekResults(target);
+    });
+    document.getElementById('resultsNextGw').addEventListener('click', () => {
+      const target = (viewedGw || currentGw || 1) + 1;
+      loadGameweekResults(target);
     });
 
     document.addEventListener('DOMContentLoaded', () => {
