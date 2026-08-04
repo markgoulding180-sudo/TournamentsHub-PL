@@ -207,19 +207,14 @@
 
   .mobile-cat-strip{
     display:none; position:sticky; top:69px; z-index:95;
-    gap:8px; padding:10px 14px; overflow-x:auto;
+    justify-content:space-around; padding:14px 14px;
     background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
-    scrollbar-width:none; -ms-overflow-style:none;
   }
-  .mobile-cat-strip::-webkit-scrollbar{display:none;}
   .mobile-cat-item{
-    flex:none; display:flex; align-items:center; gap:6px; padding:8px 13px;
-    border-radius:20px; background:var(--bg-card); border:1px solid var(--border);
-    color:var(--text-dim); font-family:var(--font-head); font-size:12.5px; font-weight:600;
-    white-space:nowrap;
+    color:var(--text-dim); font-family:var(--font-head); font-size:13.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.4px; padding:6px 4px; text-decoration:none;
   }
-  .mobile-cat-item .icon{width:14px;height:14px;flex-shrink:0;}
-  .mobile-cat-item.active{background:rgba(59,130,246,0.14); border-color:var(--accent); color:var(--accent-2);}
+  .mobile-cat-item.active{color:var(--accent-2);}
   @media (max-width:860px){ .mobile-cat-strip{display:flex;} }
   .sidebar.collapsed .sport-label{display:none;}
   .sidebar.collapsed .sport-item{justify-content:center;}
@@ -616,12 +611,7 @@
     <div class="sidebar-divider sidebar-menu-mobile"></div>
     <div class="sidebar-section-label">Sport Categories</div>
     <a class="sport-item active" href="#pl-predictions"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Football (Premier League)</span></a>
-    <a class="sport-item" href="#champions-league"><svg class="icon"><use href="#i-trophy"/></svg><span class="sport-label">Champions League</span></a>
     <a class="sport-item" href="#darts"><svg class="icon"><use href="#i-target"/></svg><span class="sport-label">Darts</span></a>
-    <a class="sport-item" href="#golf"><svg class="icon"><use href="#i-flag"/></svg><span class="sport-label">Golf</span></a>
-    <a class="sport-item" href="#racing"><svg class="icon"><use href="#i-horseshoe"/></svg><span class="sport-label">Horse Racing</span></a>
-    <a class="sport-item" href="#pl-predictions"><svg class="icon"><use href="#i-trend"/></svg><span class="sport-label">Stock Market</span></a>
-    <a class="sport-item" href="#special"><svg class="icon"><use href="#i-star"/></svg><span class="sport-label">Special</span></a>
   </aside>
 
   <!-- ================= MAIN ================= -->
@@ -661,7 +651,6 @@
         <div class="hero-brand-heading">GB Tournaments</div>
         <div class="hero-brand-tagline">Prove You're the Best</div>
         <div class="hero-eyebrow"><span class="dot"></span>Live Tournaments Running Now</div>
-        <h1>Tournaments</h1>
         <div class="hero-sub">Compete. Predict. Win.</div>
         <p class="hero-desc">Choose your arena and prove you're the best. Football, darts, golf, stocks and more — enter, predict, and climb the leaderboard.</p>
         <a href="/how-it-works" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>How It Works</a>
@@ -671,15 +660,14 @@
     <!-- Mobile-only quick category strip (sidebar is hidden below 860px) —
          sits directly under the hero; sticks under the navbar once
          scrolled past it, thanks to position:sticky. -->
+    <!-- Mobile-only quick nav bar (sidebar is hidden below 860px) — sits
+         directly under the hero; sticks under the navbar once scrolled
+         past it, thanks to position:sticky. Plain links, not a scrolling
+         carousel — only 3 items, so it never needs to scroll. -->
     <nav class="mobile-cat-strip" id="mobileCatStrip">
-      <a href="/my-tournaments" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span></a>
-      <a href="#pl-predictions" class="mobile-cat-item active"><svg class="icon"><use href="#i-ball"/></svg><span>Football</span></a>
-      <a href="#champions-league" class="mobile-cat-item"><svg class="icon"><use href="#i-trophy"/></svg><span>Champions League</span></a>
-      <a href="#darts" class="mobile-cat-item"><svg class="icon"><use href="#i-target"/></svg><span>Darts</span></a>
-      <a href="#golf" class="mobile-cat-item"><svg class="icon"><use href="#i-flag"/></svg><span>Golf</span></a>
-      <a href="#racing" class="mobile-cat-item"><svg class="icon"><use href="#i-horseshoe"/></svg><span>Racing</span></a>
-      <a href="#stocks" class="mobile-cat-item"><svg class="icon"><use href="#i-trend"/></svg><span>Stocks</span></a>
-      <a href="#special" class="mobile-cat-item"><svg class="icon"><use href="#i-star"/></svg><span>Special</span></a>
+      <a href="/my-tournaments" class="mobile-cat-item">My Tournaments</a>
+      <a href="#pl-predictions" class="mobile-cat-item active">Football</a>
+      <a href="#darts" class="mobile-cat-item">Darts</a>
     </nav>
 
     <!-- ================= FOOTBALL ================= -->
@@ -824,40 +812,6 @@
       </div>
     </section>
 
-    <!-- ================= CHAMPIONS LEAGUE (separate from Premier League) ================= -->
-    <section class="section" id="champions-league">
-      <div class="section-head">
-        <div class="section-title-group">
-          <div class="section-icon"><svg class="icon"><use href="#i-trophy"/></svg></div>
-          <div class="section-title">
-            <h2>Champions League</h2>
-            <p>Europe's top club competition — not Premier League, its own tournaments.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="t-grid">
-        <!-- Champions League -->
-        <div class="t-card">
-          <div class="t-card-media media-champion">
-            <svg class="media-svg" viewBox="0 0 300 132">
-              <circle cx="150" cy="66" r="40" fill="none" stroke="#a78bfa" stroke-width="2" opacity="0.6"/>
-              <path d="M150 34l5.5 12.2 13.2 1.2-10 9 3 13-11.7-6.5-11.7 6.5 3-13-10-9 13.2-1.2z" fill="#f2b93d"/>
-              <circle cx="150" cy="66" r="4" fill="#c4b5fd"/>
-            </svg>
-          </div>
-          <div class="t-card-body">
-            <h3>Champions League</h3>
-            <p class="desc">Predict Europe's top competition, round by round.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£8,500</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- ================= DARTS ================= -->
     <section class="section" id="darts">
@@ -987,168 +941,7 @@
       </div>
     </section>
 
-    <!-- ================= GOLF ================= -->
-    <section class="section" id="golf">
-      <div class="section-head">
-        <div class="section-title-group">
-          <div class="section-icon"><svg class="icon"><use href="#i-flag"/></svg></div>
-          <div class="section-title">
-            <h2>Golf</h2>
-            <p>The Majors. Predict every leaderboard.</p>
-          </div>
-        </div>
-        <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
-      </div>
-      <div class="card-row card-row-3">
 
-        <!-- The Masters -->
-        <div class="t-card">
-          <div class="t-card-media" style="background:linear-gradient(160deg,#0e2418,#0a1226);">
-            <svg class="media-svg" viewBox="0 0 300 132">
-              <ellipse cx="150" cy="104" rx="110" ry="10" fill="#08170f" opacity="0.6"/>
-              <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
-              <path d="M205 24l24 8-24 9z" fill="#22c55e"/>
-              <circle cx="130" cy="78" r="13" fill="#e5e7eb"/>
-              <circle cx="126" cy="74" r="1.2" fill="#9ca3af"/><circle cx="132" cy="72" r="1.2" fill="#9ca3af"/><circle cx="136" cy="78" r="1.2" fill="#9ca3af"/>
-            </svg>
-          </div>
-          <div class="t-card-body">
-            <h3>The Masters</h3>
-            <p class="desc">Predict the winner at Augusta.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£6,000</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
-          </div>
-        </div>
-
-        <!-- PGA Championship -->
-        <div class="t-card">
-          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#0a1226);">
-            <svg class="media-svg" viewBox="0 0 300 132">
-              <ellipse cx="150" cy="104" rx="110" ry="10" fill="#0a1120" opacity="0.6"/>
-              <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
-              <path d="M205 24l24 8-24 9z" fill="#f2b93d"/>
-              <circle cx="130" cy="78" r="13" fill="#e5e7eb"/>
-              <circle cx="126" cy="74" r="1.2" fill="#9ca3af"/><circle cx="132" cy="72" r="1.2" fill="#9ca3af"/><circle cx="136" cy="78" r="1.2" fill="#9ca3af"/>
-            </svg>
-          </div>
-          <div class="t-card-body">
-            <h3>PGA Championship</h3>
-            <p class="desc">Predict the winner of golf's second major.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£5,500</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
-          </div>
-        </div>
-
-        <!-- U.S. Open -->
-        <div class="t-card">
-          <div class="t-card-media" style="background:linear-gradient(160deg,#0e1830,#0a1226);">
-            <svg class="media-svg" viewBox="0 0 300 132">
-              <ellipse cx="150" cy="104" rx="110" ry="10" fill="#0a1120" opacity="0.6"/>
-              <line x1="205" y1="24" x2="205" y2="96" stroke="#93c5fd" stroke-width="2"/>
-              <path d="M205 24l24 8-24 9z" fill="#ef4444"/>
-              <circle cx="130" cy="78" r="13" fill="#e5e7eb"/>
-              <circle cx="126" cy="74" r="1.2" fill="#9ca3af"/><circle cx="132" cy="72" r="1.2" fill="#9ca3af"/><circle cx="136" cy="78" r="1.2" fill="#9ca3af"/>
-            </svg>
-          </div>
-          <div class="t-card-body">
-            <h3>U.S. Open</h3>
-            <p class="desc">Predict the winner of America's national championship.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£5,500</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= MORE CATEGORIES ================= -->
-    <section class="section">
-      <div class="section-head">
-        <div class="section-title-group">
-          <div class="section-icon"><svg class="icon"><use href="#i-star"/></svg></div>
-          <div class="section-title">
-            <h2>More Categories</h2>
-            <p>Coming soon — full tournament lists added per event.</p>
-          </div>
-        </div>
-      </div>
-      <div class="sport-grid">
-
-        <div class="sport-tile" id="racing">
-          <div class="sport-tile-head">
-            <div class="sport-tile-icon"><svg class="icon"><use href="#i-horseshoe"/></svg></div>
-            <div><h3>Horse Racing</h3><p>Major meetings and festivals. Predict the winners.</p></div>
-          </div>
-          <div class="sport-tile-media">
-            <svg class="media-svg" viewBox="0 0 300 112" style="background:linear-gradient(160deg,#0e1830,#0a1226)">
-              <ellipse cx="150" cy="98" rx="110" ry="9" fill="#08120a" opacity="0.5"/>
-              <path d="M60 90c20-6 40-6 60 0M140 84c20-6 40-6 60 0M220 78c14-4 28-4 40 0" stroke="#28466f" stroke-width="3" fill="none" stroke-linecap="round"/>
-              <path d="M90 66c-6-14 4-26 16-24 4-10 18-10 20 2 10-2 16 8 10 16" fill="#132340" stroke="#93c5fd" stroke-width="2"/>
-              <path d="M124 44c4-8 14-10 18-4" stroke="#93c5fd" stroke-width="2" fill="none" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="t-card-stats">
-            <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,000</div></div>
-            <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
-          </div>
-          <button class="btn-enter" style="margin-top:14px;">Browse Tournaments</button>
-        </div>
-
-        <div class="sport-tile" id="stocks">
-          <div class="sport-tile-head">
-            <div class="sport-tile-icon"><svg class="icon"><use href="#i-trend"/></svg></div>
-            <div><h3>Stock Market</h3><p>Predict real market moves. Outperform the rest.</p></div>
-          </div>
-          <div class="sport-tile-media">
-            <svg class="media-svg" viewBox="0 0 300 112" preserveAspectRatio="none" style="background:linear-gradient(160deg,#0e1830,#0a1226)">
-              <g stroke="#1d4ed8" stroke-width="6" opacity="0.7">
-                <line x1="40" y1="95" x2="40" y2="75"/><line x1="65" y1="95" x2="65" y2="60"/>
-                <line x1="90" y1="95" x2="90" y2="50"/><line x1="115" y1="95" x2="115" y2="65"/>
-                <line x1="140" y1="95" x2="140" y2="40"/><line x1="165" y1="95" x2="165" y2="30"/>
-              </g>
-              <path d="M195 55 C205 40 215 65 225 45 235 25 245 50 260 20" fill="none" stroke="#f2b93d" stroke-width="2.5"/>
-              <path d="M198 32 c8-14 20-10 26 4 5 11 4 26-4 38-9 13-24 15-33 5" fill="#101a38" stroke="#93c5fd" stroke-width="2"/>
-              <path d="M198 32l-8-10M220 30l6-10" stroke="#93c5fd" stroke-width="2" fill="none" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="t-card-stats">
-            <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£8,000</div></div>
-            <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
-          </div>
-          <button class="btn-enter" style="margin-top:14px;">Browse Tournaments</button>
-        </div>
-
-        <div class="sport-tile" id="special">
-          <div class="sport-tile-head">
-            <div class="sport-tile-icon"><svg class="icon"><use href="#i-star"/></svg></div>
-            <div><h3>Special Tournaments</h3><p>Unique formats. Big prizes. Limited time.</p></div>
-          </div>
-          <div class="sport-tile-media">
-            <svg class="media-svg" viewBox="0 0 300 112" style="background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.25), transparent 65%), linear-gradient(160deg,#0e1830,#0a1226)">
-              <path d="M128 30h44v16a22 22 0 0 1-44 0V30z" fill="#1a1030" stroke="#c4b5fd" stroke-width="2"/>
-              <path d="M128 33h-16a12 12 0 0 0 16 12" fill="none" stroke="#c4b5fd" stroke-width="2"/>
-              <path d="M172 33h16a12 12 0 0 1-16 12" fill="none" stroke="#c4b5fd" stroke-width="2"/>
-              <rect x="145" y="66" width="10" height="14" fill="#c4b5fd"/>
-              <path d="M132 90h36l5 12h-46z" fill="#c4b5fd"/>
-              <path d="M95 40l3 8 8 1-6 5.5 1.7 8.2-6.7-4-6.7 4 1.7-8.2-6-5.5 8-1z" fill="#f2b93d"/>
-              <path d="M212 46l2.4 6 6.4.8-4.8 4.4 1.3 6.5-5.3-3.2-5.3 3.2 1.3-6.5-4.8-4.4 6.4-.8z" fill="#f2b93d"/>
-            </svg>
-          </div>
-          <div class="t-card-stats">
-            <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£10,000+</div></div>
-            <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">Varies</div></div>
-          </div>
-          <button class="btn-enter" style="margin-top:14px;">Browse Tournaments</button>
-        </div>
-      </div>
     </section>
 
     <!-- ================= TOP OF THE TABLE ================= -->
