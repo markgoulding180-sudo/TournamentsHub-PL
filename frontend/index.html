@@ -1267,7 +1267,18 @@
         const res = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=live`);
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.tournaments || []);
-        const t = list[0];
+        let t = list[0];
+
+        // Stock Market's normal, correct state during its draft window is
+        // 'upcoming', not 'live' — it hasn't gone live yet on purpose,
+        // that's not the same thing as "doesn't exist". Only fall back to
+        // Coming Soon if genuinely neither state has a real tournament.
+        if (!t && type === 'stockmarket') {
+          const upRes = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=upcoming`);
+          const upData = await upRes.json();
+          const upList = Array.isArray(upData) ? upData : (upData.tournaments || []);
+          t = upList[0];
+        }
 
         if (!t) {
           markCardComingSoon(card);
