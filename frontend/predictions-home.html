@@ -286,6 +286,7 @@
         padding:6px 4px; font-size:13.5px; min-width:0;
       }
       #injuriesTableGrid{ display:none; }
+      #thisWeekGamesCard{ display:none; }
     }
 
     .lb-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
@@ -415,7 +416,7 @@
     </nav>
 
     <!-- This Week's Games -->
-    <section class="card week-card">
+    <section class="card week-card" id="thisWeekGamesCard">
       <div class="week-header">
         <div class="card-title" style="margin-bottom:0;"><i class="fas fa-calendar-week"></i> <span id="weekTitle">This Week's Games</span></div>
         <div id="predictStatusArea"><span class="predict-status todo"><i class="fas fa-spinner fa-spin"></i> Checking…</span></div>
