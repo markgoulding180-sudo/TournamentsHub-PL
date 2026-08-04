@@ -141,6 +141,72 @@
     <h1><i class="fas fa-cog text-amber"></i> Admin Panel</h1>
     <p class="text-muted mb-3">Manage gameweeks, sync fixtures, and finalise points.</p>
 
+
+    <!-- ============================================================ -->
+    <!-- 1. Setup -->
+    <!-- ============================================================ -->
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">1. Setup</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">One-time or occasional — get real data in and tournaments launched.</p>
+    <!-- Fixture Sync -->
+    <div class="admin-card">
+      <h3><i class="fas fa-sync"></i> Sync Fixtures from FPL</h3>
+      <div class="grid grid-3">
+        <div>
+          <label class="form-label">Sync Specific GW (optional)</label>
+          <select id="sync-gw-select" class="form-input">
+            <option value="">All Gameweeks</option>
+            <option value="1">GW 1</option>
+            <option value="2">GW 2</option>
+            <option value="3">GW 3</option>
+            <option value="4">GW 4</option>
+            <option value="5">GW 5</option>
+            <option value="6">GW 6</option>
+            <option value="7">GW 7</option>
+            <option value="8">GW 8</option>
+            <option value="9">GW 9</option>
+            <option value="10">GW 10</option>
+            <option value="11">GW 11</option>
+            <option value="12">GW 12</option>
+            <option value="13">GW 13</option>
+            <option value="14">GW 14</option>
+            <option value="15">GW 15</option>
+            <option value="16">GW 16</option>
+            <option value="17">GW 17</option>
+            <option value="18">GW 18</option>
+            <option value="19">GW 19</option>
+            <option value="20">GW 20</option>
+            <option value="21">GW 21</option>
+            <option value="22">GW 22</option>
+            <option value="23">GW 23</option>
+            <option value="24">GW 24</option>
+            <option value="25">GW 25</option>
+            <option value="26">GW 26</option>
+            <option value="27">GW 27</option>
+            <option value="28">GW 28</option>
+            <option value="29">GW 29</option>
+            <option value="30">GW 30</option>
+            <option value="31">GW 31</option>
+            <option value="32">GW 32</option>
+            <option value="33">GW 33</option>
+            <option value="34">GW 34</option>
+            <option value="35">GW 35</option>
+            <option value="36">GW 36</option>
+            <option value="37">GW 37</option>
+            <option value="38">GW 38</option>
+          </select>
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+          <button class="btn btn-primary" onclick="syncFixtures()" style="width: 100%;">
+            <i class="fas fa-download"></i> Sync Fixtures
+          </button>
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+          <button class="btn btn-secondary" onclick="syncLiveScores()" style="width: 100%;">
+            <i class="fas fa-bolt"></i> Live Scores Update
+          </button>
+        </div>
+      </div>
+    </div>
     <!-- Sync Everything -->
     <div class="admin-card" style="border: 2px solid var(--accent-blue);">
       <h3><i class="fas fa-bolt"></i> Sync Everything</h3>
@@ -151,289 +217,43 @@
         <i class="fas fa-rotate"></i> Sync Everything Now
       </button>
     </div>
-
-    <!-- Payments & Bookkeeping — the wallet ledger. No real payments are
-         taken anywhere in the app; joining a paid tournament just records
-         what a user owes. This is where you mark it paid once you've
-         actually received the money (cash, bank transfer, whatever) — a
-         book-keeping ledger, not a payment processor. -->
-    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
-      <h3><i class="fas fa-book"></i> Payments &amp; Bookkeeping</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Every registered user and what they currently owe across all tournaments (entry fees charged automatically when they join, minus payments you've recorded here). Nothing here moves real money — it's a ledger.
-      </p>
-      <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
-        <input type="text" id="walletSearchInput" class="form-input" placeholder="Search by username…" style="flex:1; min-width:200px;" oninput="renderWalletList()">
-        <button class="btn btn-sm" onclick="loadWalletList()"><i class="fas fa-rotate"></i> Refresh</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
-          <thead>
-            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
-              <th style="padding:0.5rem;">User</th>
-              <th style="padding:0.5rem;">Owed</th>
-              <th style="padding:0.5rem;">Record a payment</th>
-              <th style="padding:0.5rem;"></th>
-            </tr>
-          </thead>
-          <tbody id="walletListBody">
-            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Message Center — broadcast an alert to every user's notification bell -->
-    <div class="admin-card" style="border: 2px solid var(--accent-purple, #a855f7);">
-      <h3><i class="fas fa-bullhorn"></i> Message Center</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Broadcast an alert to every user — shows in their notification bell until you deactivate it.
-      </p>
-      <textarea id="broadcastMessageInput" rows="3" placeholder="e.g. Gameweek 39 predictions close Saturday 12:30pm"
-        style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary); font-family:inherit; margin-bottom:0.6rem; resize:vertical;"></textarea>
-      <select id="broadcastSeveritySelect" style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary); margin-bottom:0.6rem;">
-        <option value="info">Info</option>
-        <option value="warning">Warning</option>
-        <option value="urgent">Urgent</option>
-      </select>
-      <button class="btn btn-primary" onclick="sendBroadcastMessage()" style="width:100%; margin-bottom:1rem;">
-        <i class="fas fa-paper-plane"></i> Broadcast to All Users
-      </button>
-      <div id="broadcastMessagesList" style="font-size:0.85rem;">Loading active messages…</div>
-    </div>
-
-    <!-- Historical Gameweek Sync — real data for repeatable testing -->
-    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
-      <h3><i class="fas fa-clock-rotate-left"></i> Historical Gameweek Sync</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Pulls a REAL gameweek's actual player stats from the FPL feed into the local master database — not invented data. Once synced, rewind the master clock to GW1 and hit Advance Week to replay a genuine past season for testing every tournament type, Stock Market included, exactly like a real live season.
-      </p>
-      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
-        <input type="number" id="syncGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
-          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-        <button class="btn btn-primary" onclick="syncHistoricalGameweek()"><i class="fas fa-download"></i> Sync This Gameweek</button>
-      </div>
-      <button class="btn" onclick="syncAllHistoricalGameweeks()" style="width:100%; margin-bottom:0.5rem;">
-        <i class="fas fa-layer-group"></i> Sync All Gameweeks (1 to current)
-      </button>
-      <button class="btn" onclick="clearGameweekStatsCache()" style="width:100%; background:var(--accent-red); color:#fff;">
-        <i class="fas fa-trash"></i> Clear Cached Stats (force re-sync)
-      </button>
-    </div>
-
-    <!-- Pause Live Polling — testing safety switch. While paused, live-scores,
-         sync-players, and sync-fixtures all skip real FPL calls entirely,
-         so simulated test data can't be silently overwritten mid-test. -->
-    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
-      <h3><i class="fas fa-pause-circle"></i> Pause Live Polling</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        While paused, no real FPL data is fetched or written by any user's browser polling — safe to simulate test gameweeks without real data overwriting it. <b>Remember to resume before the real season needs live polling.</b>
-      </p>
-      <div style="display:flex; align-items:center; gap:1rem;">
-        <span id="pollingStatusLabel" style="font-weight:700;">Loading…</span>
-        <button class="btn btn-primary" onclick="togglePollingPaused()" id="pollingToggleBtn">Loading…</button>
-      </div>
-    </div>
-
-    <!-- Tournament Data Inspector & Delete — see exactly what's sitting in
-         each tournament's tables, and wipe it clean if needed. Delete-only
-         (doesn't recreate a tournament) — use Launch Tournament / Full
-         Test Reset for that afterward. -->
-    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444); grid-column: 1 / -1;">
-      <h3><i class="fas fa-table-list"></i> Tournament Data Inspector &amp; Delete</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Pick a tournament type to see row counts across every table it uses — check before deleting, then check again after to confirm nothing's left over.
-      </p>
-      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
-        <select id="tournamentTypeSelect" style="flex:1; min-width:160px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-          <option value="predictions">Predictions</option>
-          <option value="lms">Last Man Standing</option>
-          <option value="stockmarket">Stock Market</option>
-          <option value="fantasy">Fantasy Manager</option>
-        </select>
-        <button class="btn" onclick="loadTournamentDataCounts()"><i class="fas fa-eye"></i> Show Data</button>
-        <button class="btn" style="background:var(--accent-red, #ef4444); color:#fff;" onclick="deleteTournamentData()"><i class="fas fa-trash"></i> Delete All Data For This Tournament</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
-          <thead>
-            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
-              <th style="padding:0.5rem;">Table</th>
-              <th style="padding:0.5rem;">Rows</th>
-            </tr>
-          </thead>
-          <tbody id="tournamentDataCountsBody">
-            <tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Pick a type and click Show Data.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Seed Season Data — one-time bulk seed. Generates realistic results
-         + player stats for a range of gameweeks WITHOUT marking them
-         finished, so matches stay 'upcoming' until you use the checkbox
-         tool below to flip them individually. -->
-    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6); grid-column: 1 / -1;">
-      <h3><i class="fas fa-database"></i> Seed Season Data</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Generates a realistic result + full player stats for every real fixture in the gameweek range below — but leaves every match's status as 'upcoming'. Use this once to populate a test season, then use "Mark Games Finished" below to progress through it match by match.
-      </p>
-      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-        <input type="number" id="seedFromGw" min="1" max="38" placeholder="From GW" value="1"
-          style="width:100px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-        <span class="text-muted">to</span>
-        <input type="number" id="seedToGw" min="1" max="38" placeholder="To GW" value="10"
-          style="width:100px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-        <button class="btn btn-primary" onclick="seedGameweekRange()" id="seedRangeBtn"><i class="fas fa-seedling"></i> Seed This Range</button>
-      </div>
-      <div id="seedRangeResultMsg" class="text-muted" style="margin-top:0.75rem; font-size:0.85rem;"></div>
-    </div>
-
-    <!-- Seed Test Users & Entries — Predictions and LMS didn't have an
-         equivalent to Stock Market's Create/Seed pair, so test accounts
-         had nothing to actually score against. This closes that gap using
-         the same generic test-user creator, plus two new seed actions. -->
-    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
-      <h3><i class="fas fa-users"></i> Seed Test Users &amp; Entries</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Creates 30 test accounts (shared across all tournament types), then enters them into every live tournament with random-but-valid predictions/picks/squads — the complete test setup from one page. Order: Create Accounts → seed each tournament → Force Close SM Draft last (locks Stock Market squads and opens the market). Enter your own account through each tournament's normal page first if you want to be included.
-      </p>
-      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
-        <button class="btn" onclick="adminCreateTestAccounts()" id="adminCreateAccountsBtn"><i class="fas fa-user-plus"></i> Create 30 Test Accounts</button>
-        <label class="text-muted" style="margin-left:0.5rem;">Gameweek:</label>
-        <input type="number" id="seedEntriesGw" min="1" max="38" value="1"
-          style="width:80px; padding:0.5rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-      </div>
-      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button class="btn btn-green" onclick="adminSeedPredictionsEntries()"><i class="fas fa-futbol"></i> Seed Predictions Entries</button>
-        <button class="btn btn-green" onclick="adminSeedLmsEntries()"><i class="fas fa-shield-halved"></i> Seed LMS Picks</button>
-        <button class="btn btn-green" onclick="adminSeedFantasyEntries()"><i class="fas fa-star"></i> Seed Fantasy Squads</button>
-        <button class="btn btn-green" onclick="adminSeedStockMarketSquads()"><i class="fas fa-chart-line"></i> Seed Stock Market Squads</button>
-        <button class="btn" style="background:var(--accent-red, #ef4444); color:#fff;" onclick="adminForceCloseDraft()"><i class="fas fa-door-closed"></i> Force Close SM Draft</button>
-      </div>
-      <div id="seedEntriesResultMsg" class="text-muted" style="margin-top:0.75rem; font-size:0.85rem;"></div>
-    </div>
-
-    <!-- Mark Games Finished — checkbox tool. Trusts whatever result/stats
-         data already exists (e.g. inserted directly via SQL for the whole
-         season) rather than generating anything; just flips status and
-         fires the real trigger functions, exactly like a real gameweek
-         playing out one match at a time. -->
-    <div class="admin-card" style="border: 2px solid var(--accent-amber, #f2b93d); grid-column: 1 / -1;">
-      <h3><i class="fas fa-futbol"></i> Mark Games Finished</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Select which of this gameweek's matches to mark finished, then click the button. Uses whatever result/stats data already exists for them (e.g. from your own SQL) — doesn't generate anything. Once every match in a gameweek is finished, Stock Market, LMS, and Fantasy all finalize automatically, same as production.
-      </p>
-      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
-        <input type="number" id="simGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
-          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-        <button class="btn" onclick="loadSimulateMatches()"><i class="fas fa-rotate"></i> Load Matches</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
-          <thead>
-            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
-              <th style="padding:0.5rem;"><input type="checkbox" id="simSelectAll" onclick="toggleSelectAllMatches(this)"></th>
-              <th style="padding:0.5rem;">Fixture</th>
-              <th style="padding:0.5rem;">Status</th>
-              <th style="padding:0.5rem;">Score</th>
-            </tr>
-          </thead>
-          <tbody id="simulateMatchesBody">
-            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Enter a gameweek and click Load Matches.</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <button class="btn btn-green mt-2" onclick="markSelectedMatchesFinished()" id="markFinishedBtn">
-        <i class="fas fa-check"></i> Mark Selected as Finished
-      </button>
-      <div id="simulateResultMsg" class="text-muted" style="margin-top:0.5rem; font-size:0.85rem;"></div>
-    </div>
-
-    <!-- Generate Test Gameweek Data -->
-    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
-      <h3><i class="fas fa-flask"></i> Generate Test Gameweek Data</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Fabricates believable match results and player stats for a real gameweek's real fixtures, all in one go — result, goals, assists, clean sheets, cards, minutes, everything consistent with each other. Every tournament type reads the same master data, so this is one action that lets you test everything at once, the same way a real live gameweek would play out.
-      </p>
-      <div style="display:flex; gap:0.5rem; align-items:center;">
-        <select id="genTestGwSelect" style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-          <option value="">-- Select Gameweek --</option>
-        </select>
-        <button class="btn btn-primary" onclick="generateTestGameweekData()"><i class="fas fa-bolt"></i> Generate</button>
-      </div>
-      <div id="genTestGwResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
-    </div>
-
-    <!-- Player ID Watchlist -->
-    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
-      <h3><i class="fas fa-triangle-exclamation"></i> Player ID Watchlist</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        FPL occasionally reassigns a player's numeric ID to a different real player (usually once someone leaves the league). This checks automatically every time player data syncs and logs it here the moment it happens — so it can't silently affect a live tournament without you knowing.
-      </p>
-      <button class="btn btn-primary" onclick="loadPlayerIdChanges()"><i class="fas fa-rotate"></i> Refresh</button>
-      <div id="playerIdChangesResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
-    </div>
-
-    <!-- Player Photo Verification -->
-    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
-      <h3><i class="fas fa-image"></i> Player Photo Verification</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Checks each player's actual photo URL against FPL's CDN (a real request, not just whether a code is stored in the DB) and records the result. Players confirmed to have no working photo are automatically excluded from Bronze/Silver/Gold pack pools going forward — anyone not yet checked still shows up as normal, so this is safe to run at any time. Runs in batches; leave the tab open until it says Done.
-      </p>
-      <button class="btn btn-primary" onclick="runPhotoVerification()" id="photoVerifyBtn"><i class="fas fa-play"></i> Run Verification</button>
-      <div id="photoVerifyResults" style="font-size:0.85rem; margin-top:0.75rem;"></div>
-    </div>
-
-    <!-- Upload Player Photo -->
-    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
-      <h3><i class="fas fa-upload"></i> Upload Player Photo</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Fixes one player at a time. Pick a player below (list comes from the last Photo Verification run), click Search to open Google Images for them in a new tab, download whichever photo you want, then upload it here — it goes straight to storage and is live immediately, no redeploy needed.
-      </p>
-      <div style="margin-bottom:0.75rem;">
-        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Player missing a photo</label>
-        <div style="display:flex; gap:0.5rem;">
-          <select id="photoUploadPlayerSelect"
-            style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-            <option value="">Loading list…</option>
+      <!-- Tournament Launch -->
+      <div class="admin-card" style="border: 2px solid var(--accent-green);">
+        <h3><i class="fas fa-rocket text-green"></i> Step 2: Launch Tournament</h3>
+        <p class="text-muted mb-2">Create new tournament and sync fixtures</p>
+        <div class="mb-2">
+          <label class="form-label">Tournament Type</label>
+          <select id="tournament-type-input" class="form-input">
+            <option value="predictions">Predictions</option>
+            <option value="lms">Last Man Standing</option>
+            <option value="stockmarket">Stock Market</option>
+            <option value="fantasy">Fantasy Manager</option>
           </select>
-          <button class="btn btn-primary" onclick="loadMissingPhotoPlayers()" title="Refresh list"><i class="fas fa-rotate"></i></button>
         </div>
+        <div class="grid grid-2 mb-2">
+          <div>
+            <label class="form-label">Tournament Name</label>
+            <input type="text" id="tournament-name-input" class="form-input" value="GW Tournament - £20 Entry">
+          </div>
+          <div>
+            <label class="form-label">Entry Fee (£)</label>
+            <input type="number" id="tournament-fee-input" class="form-input" value="20">
+          </div>
+        </div>
+        <div class="grid grid-2 mb-2">
+          <div>
+            <label class="form-label">Start Gameweek</label>
+            <input type="number" id="tournament-start-gw" class="form-input" value="35" min="1" max="38">
+          </div>
+          <div>
+            <label class="form-label">End Gameweek</label>
+            <input type="number" id="tournament-end-gw" class="form-input" value="38" min="1" max="38">
+          </div>
+        </div>
+        <button class="btn btn-green admin-btn btn-lg" onclick="launchTournament()">
+          <i class="fas fa-play"></i> Launch Tournament
+        </button>
       </div>
-      <button class="btn btn-primary" onclick="searchGoogleImagesForSelected()" style="margin-bottom:0.75rem;">
-        <i class="fas fa-magnifying-glass"></i> Search Google Images
-      </button>
-      <div style="margin-bottom:0.75rem;">
-        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Downloaded photo file</label>
-        <input type="file" id="photoUploadFile" accept="image/*"
-          style="width:100%; padding:0.5rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-      </div>
-      <button class="btn btn-primary" onclick="uploadSelectedPlayerPhoto()" id="photoUploadBtn"><i class="fas fa-cloud-arrow-up"></i> Upload</button>
-      <div id="photoUploadResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
-    </div>
-
-    <!-- Stock Market Zero-Sum Audit -->
-    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
-      <h3><i class="fas fa-scale-balanced"></i> Stock Market Zero-Sum Audit</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Checks, on demand, whether every still-active entry's total value adds up to exactly what it should (entry fee × total entrants), AND replays every settled matchup/gameweek to confirm every individual player got exactly the right Won/Paid for their real actions, using today's live reward values. One click, everything checked.
-      </p>
-      <div style="margin-bottom:0.75rem;">
-        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Select tournament</label>
-        <select id="auditTournamentSelect" onchange="onAuditTournamentSelected()"
-          style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-          <option value="">Loading tournaments…</option>
-        </select>
-      </div>
-      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
-        <input type="text" id="auditTournamentId" placeholder="...or paste a Tournament ID directly"
-          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-        <button class="btn btn-primary" onclick="loadAuditHistory()"><i class="fas fa-magnifying-glass"></i> Check</button>
-      </div>
-      <div id="auditResults" style="font-size:0.85rem;">Enter a tournament ID above to check its history.</div>
-    </div>
-
     <!-- Stock Market — Relegation Stages -->
     <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
       <h3><i class="fas fa-arrow-trend-down"></i> Stock Market — Relegation Stages</h3>
@@ -468,36 +288,11 @@
       <div id="stagesSaveResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
     </div>
 
-    <!-- Stock Market — Full Test Reset -->
-    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
-      <h3><i class="fas fa-triangle-exclamation"></i> Stock Market — Full Test Reset</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        One-click version of the manual SQL reset: wipes every Stock Market table (matchups, history, transactions, entries, stages, tournaments) across the board, creates one fresh tournament at Gameweek 1, and resets the shared master clock. This affects ALL Stock Market tournaments, not just one — same as the manual SQL you've been running.
-      </p>
-      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
-        <input type="text" id="resetTournamentName" placeholder="Tournament name (optional)" value="Test Stock Market"
-          style="flex:1; min-width:180px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-        <input type="number" id="resetEntryFee" placeholder="Entry fee (pence)" value="2400"
-          style="width:140px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-      </div>
-      <button class="btn" onclick="fullTestReset()" style="width:100%; background:var(--accent-red); color:#fff;">
-        <i class="fas fa-rotate-left"></i> Reset & Start Fresh at GW1
-      </button>
-      <div id="resetResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
-    </div>
-
-    <!-- Stock Market — Full Data Export -->
-    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
-      <h3><i class="fas fa-file-excel"></i> Stock Market — Full Data Export</h3>
-      <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Downloads an Excel file with two sheets: every entrant's full per-gameweek player breakdown (same detail as the individual player history pages, for everyone at once), and a full log of every sell/buy transaction across the tournament — including pack fees, shortfalls, and how many other players' values absorbed each fee. Use the same tournament dropdown as the panel above.
-      </p>
-      <button class="btn btn-primary" onclick="downloadFullExport()" style="width:100%;">
-        <i class="fas fa-download"></i> Download Full Export (Excel)
-      </button>
-      <div id="exportResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
-    </div>
-
+    <!-- ============================================================ -->
+    <!-- 2. Day-to-Day Operations -->
+    <!-- ============================================================ -->
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">2. Day-to-Day Operations</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">What you'll actually touch during a real, live gameweek.</p>
     <!-- Current Status -->
     <div class="admin-card">
       <h3><i class="fas fa-info-circle"></i> Current Status</h3>
@@ -535,7 +330,6 @@
         <i class="fas fa-sync"></i> Refresh Status
       </button>
     </div>
-
     <!-- Game Weeks — the one clock every tournament using the master
          database follows (Predictions, Fantasy Manager, future ones) -->
     <div class="admin-card" style="border: 2px solid var(--accent-amber);">
@@ -633,132 +427,53 @@
         </div>
       </details>
     </div>
-
-    <div class="grid grid-2">
-      <!-- Master Clock Setup -->
-      <div class="admin-card" style="border: 2px solid var(--accent-amber); display:none;">
-        <h3><i class="fas fa-clock text-amber"></i> Step 1: Master Clock Setup</h3>
-        <p class="text-muted mb-2">Set the current gameweek. This is the source of truth for the entire system.</p>
-        <div class="override-mode" id="master-clock-panel">
-          <button class="btn btn-amber admin-btn btn-lg" onclick="initMasterClock()">
-            <i class="fas fa-play"></i> Initialize Master Clock
-          </button>
-          <p class="text-muted mt-2" style="font-size: 0.8rem;">
-            <i class="fas fa-info-circle"></i> This sets the current GW for predictions. FPL API is only used for match data.
-          </p>
-        </div>
-      </div>
-
-      <!-- Tournament Launch -->
-      <div class="admin-card" style="border: 2px solid var(--accent-green);">
-        <h3><i class="fas fa-rocket text-green"></i> Step 2: Launch Tournament</h3>
-        <p class="text-muted mb-2">Create new tournament and sync fixtures</p>
-        <div class="mb-2">
-          <label class="form-label">Tournament Type</label>
-          <select id="tournament-type-input" class="form-input">
-            <option value="predictions">Predictions</option>
-            <option value="lms">Last Man Standing</option>
-            <option value="stockmarket">Stock Market</option>
-            <option value="fantasy">Fantasy Manager</option>
-          </select>
-        </div>
-        <div class="grid grid-2 mb-2">
-          <div>
-            <label class="form-label">Tournament Name</label>
-            <input type="text" id="tournament-name-input" class="form-input" value="GW Tournament - £20 Entry">
-          </div>
-          <div>
-            <label class="form-label">Entry Fee (£)</label>
-            <input type="number" id="tournament-fee-input" class="form-input" value="20">
-          </div>
-        </div>
-        <div class="grid grid-2 mb-2">
-          <div>
-            <label class="form-label">Start Gameweek</label>
-            <input type="number" id="tournament-start-gw" class="form-input" value="35" min="1" max="38">
-          </div>
-          <div>
-            <label class="form-label">End Gameweek</label>
-            <input type="number" id="tournament-end-gw" class="form-input" value="38" min="1" max="38">
-          </div>
-        </div>
-        <button class="btn btn-green admin-btn btn-lg" onclick="launchTournament()">
-          <i class="fas fa-play"></i> Launch Tournament
-        </button>
-      </div>
-
-    <!-- Gameweek Actions — folded into the "Advance to Next Gameweek" button
-         in the Game Weeks panel above; kept here only in case it's ever
-         needed directly without also advancing the clock. -->
-      <div class="admin-card" style="display:none;">
-        <h3><i class="fas fa-forward"></i> Gameweek Actions</h3>
-        <button class="btn btn-primary admin-btn" onclick="finalisePoints()">
-          <i class="fas fa-calculator"></i> Finalise All Points
-        </button>
-      </div>
-    </div>
-
-    <!-- Fixture Sync -->
+    <!-- Live Matches -->
     <div class="admin-card">
-      <h3><i class="fas fa-sync"></i> Sync Fixtures from FPL</h3>
-      <div class="grid grid-3">
-        <div>
-          <label class="form-label">Sync Specific GW (optional)</label>
-          <select id="sync-gw-select" class="form-input">
-            <option value="">All Gameweeks</option>
-            <option value="1">GW 1</option>
-            <option value="2">GW 2</option>
-            <option value="3">GW 3</option>
-            <option value="4">GW 4</option>
-            <option value="5">GW 5</option>
-            <option value="6">GW 6</option>
-            <option value="7">GW 7</option>
-            <option value="8">GW 8</option>
-            <option value="9">GW 9</option>
-            <option value="10">GW 10</option>
-            <option value="11">GW 11</option>
-            <option value="12">GW 12</option>
-            <option value="13">GW 13</option>
-            <option value="14">GW 14</option>
-            <option value="15">GW 15</option>
-            <option value="16">GW 16</option>
-            <option value="17">GW 17</option>
-            <option value="18">GW 18</option>
-            <option value="19">GW 19</option>
-            <option value="20">GW 20</option>
-            <option value="21">GW 21</option>
-            <option value="22">GW 22</option>
-            <option value="23">GW 23</option>
-            <option value="24">GW 24</option>
-            <option value="25">GW 25</option>
-            <option value="26">GW 26</option>
-            <option value="27">GW 27</option>
-            <option value="28">GW 28</option>
-            <option value="29">GW 29</option>
-            <option value="30">GW 30</option>
-            <option value="31">GW 31</option>
-            <option value="32">GW 32</option>
-            <option value="33">GW 33</option>
-            <option value="34">GW 34</option>
-            <option value="35">GW 35</option>
-            <option value="36">GW 36</option>
-            <option value="37">GW 37</option>
-            <option value="38">GW 38</option>
-          </select>
-        </div>
-        <div style="display: flex; align-items: flex-end;">
-          <button class="btn btn-primary" onclick="syncFixtures()" style="width: 100%;">
-            <i class="fas fa-download"></i> Sync Fixtures
-          </button>
-        </div>
-        <div style="display: flex; align-items: flex-end;">
-          <button class="btn btn-secondary" onclick="syncLiveScores()" style="width: 100%;">
-            <i class="fas fa-bolt"></i> Live Scores Update
-          </button>
-        </div>
+      <h3><i class="fas fa-futbol"></i> Live Match Status</h3>
+      <button class="btn btn-secondary btn-sm mb-2" onclick="refreshLiveMatches()">
+        <i class="fas fa-sync"></i> Refresh
+      </button>
+      <div id="live-matches" class="text-muted">
+        Click refresh to load live match data...
       </div>
     </div>
+    <!-- Pause Live Polling — testing safety switch. While paused, live-scores,
+         sync-players, and sync-fixtures all skip real FPL calls entirely,
+         so simulated test data can't be silently overwritten mid-test. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-pause-circle"></i> Pause Live Polling</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        While paused, no real FPL data is fetched or written by any user's browser polling — safe to simulate test gameweeks without real data overwriting it. <b>Remember to resume before the real season needs live polling.</b>
+      </p>
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <span id="pollingStatusLabel" style="font-weight:700;">Loading…</span>
+        <button class="btn btn-primary" onclick="togglePollingPaused()" id="pollingToggleBtn">Loading…</button>
+      </div>
+    </div>
+    <!-- Historical Gameweek Sync — real data for repeatable testing -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-clock-rotate-left"></i> Historical Gameweek Sync</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Pulls a REAL gameweek's actual player stats from the FPL feed into the local master database — not invented data. Once synced, rewind the master clock to GW1 and hit Advance Week to replay a genuine past season for testing every tournament type, Stock Market included, exactly like a real live season.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+        <input type="number" id="syncGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
+          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn btn-primary" onclick="syncHistoricalGameweek()"><i class="fas fa-download"></i> Sync This Gameweek</button>
+      </div>
+      <button class="btn" onclick="syncAllHistoricalGameweeks()" style="width:100%; margin-bottom:0.5rem;">
+        <i class="fas fa-layer-group"></i> Sync All Gameweeks (1 to current)
+      </button>
+      <button class="btn" onclick="clearGameweekStatsCache()" style="width:100%; background:var(--accent-red); color:#fff;">
+        <i class="fas fa-trash"></i> Clear Cached Stats (force re-sync)
+      </button>
+    </div>
 
+    <!-- ============================================================ -->
+    <!-- 3. Troubleshooting &amp; Corrections -->
+    <!-- ============================================================ -->
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">3. Troubleshooting &amp; Corrections</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">For when something needs a manual fix.</p>
     <!-- Manual Score Entry -->
     <div class="admin-card" style="border: 2px solid var(--accent-blue);">
       <h3><i class="fas fa-edit text-blue"></i> Manual Score Entry</h3>
@@ -843,7 +558,6 @@
       
       <div id="manual-score-result" class="text-muted mt-2"></div>
     </div>
-
     <!-- Tournament Points Fix -->
     <div class="admin-card">
       <h3><i class="fas fa-calculator"></i> Tournament Points</h3>
@@ -853,18 +567,181 @@
       </button>
       <div id="recalc-result" class="mt-2"></div>
     </div>
-
-    <!-- Live Matches -->
-    <div class="admin-card">
-      <h3><i class="fas fa-futbol"></i> Live Match Status</h3>
-      <button class="btn btn-secondary btn-sm mb-2" onclick="refreshLiveMatches()">
-        <i class="fas fa-sync"></i> Refresh
+    <!-- Tournament Data Inspector & Delete — see exactly what's sitting in
+         each tournament's tables, and wipe it clean if needed. Delete-only
+         (doesn't recreate a tournament) — use Launch Tournament / Full
+         Test Reset for that afterward. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444); grid-column: 1 / -1;">
+      <h3><i class="fas fa-table-list"></i> Tournament Data Inspector &amp; Delete</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Pick a tournament type to see row counts across every table it uses — check before deleting, then check again after to confirm nothing's left over.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <select id="tournamentTypeSelect" style="flex:1; min-width:160px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="predictions">Predictions</option>
+          <option value="lms">Last Man Standing</option>
+          <option value="stockmarket">Stock Market</option>
+          <option value="fantasy">Fantasy Manager</option>
+        </select>
+        <button class="btn" onclick="loadTournamentDataCounts()"><i class="fas fa-eye"></i> Show Data</button>
+        <button class="btn" style="background:var(--accent-red, #ef4444); color:#fff;" onclick="deleteTournamentData()"><i class="fas fa-trash"></i> Delete All Data For This Tournament</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;">Table</th>
+              <th style="padding:0.5rem;">Rows</th>
+            </tr>
+          </thead>
+          <tbody id="tournamentDataCountsBody">
+            <tr><td colspan="2" class="text-muted" style="padding:0.75rem;">Pick a type and click Show Data.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Stock Market Zero-Sum Audit -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-scale-balanced"></i> Stock Market Zero-Sum Audit</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Checks, on demand, whether every still-active entry's total value adds up to exactly what it should (entry fee × total entrants), AND replays every settled matchup/gameweek to confirm every individual player got exactly the right Won/Paid for their real actions, using today's live reward values. One click, everything checked.
+      </p>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Select tournament</label>
+        <select id="auditTournamentSelect" onchange="onAuditTournamentSelected()"
+          style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="">Loading tournaments…</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+        <input type="text" id="auditTournamentId" placeholder="...or paste a Tournament ID directly"
+          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn btn-primary" onclick="loadAuditHistory()"><i class="fas fa-magnifying-glass"></i> Check</button>
+      </div>
+      <div id="auditResults" style="font-size:0.85rem;">Enter a tournament ID above to check its history.</div>
+    </div>
+    <!-- Stock Market — Full Data Export -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-file-excel"></i> Stock Market — Full Data Export</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Downloads an Excel file with two sheets: every entrant's full per-gameweek player breakdown (same detail as the individual player history pages, for everyone at once), and a full log of every sell/buy transaction across the tournament — including pack fees, shortfalls, and how many other players' values absorbed each fee. Use the same tournament dropdown as the panel above.
+      </p>
+      <button class="btn btn-primary" onclick="downloadFullExport()" style="width:100%;">
+        <i class="fas fa-download"></i> Download Full Export (Excel)
       </button>
-      <div id="live-matches" class="text-muted">
-        Click refresh to load live match data...
+      <div id="exportResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 4. Content Maintenance -->
+    <!-- ============================================================ -->
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">4. Content Maintenance</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">Ongoing upkeep of player data/photos.</p>
+    <!-- Player ID Watchlist -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-triangle-exclamation"></i> Player ID Watchlist</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        FPL occasionally reassigns a player's numeric ID to a different real player (usually once someone leaves the league). This checks automatically every time player data syncs and logs it here the moment it happens — so it can't silently affect a live tournament without you knowing.
+      </p>
+      <button class="btn btn-primary" onclick="loadPlayerIdChanges()"><i class="fas fa-rotate"></i> Refresh</button>
+      <div id="playerIdChangesResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
+    </div>
+    <!-- Player Photo Verification -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-image"></i> Player Photo Verification</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Checks each player's actual photo URL against FPL's CDN (a real request, not just whether a code is stored in the DB) and records the result. Players confirmed to have no working photo are automatically excluded from Bronze/Silver/Gold pack pools going forward — anyone not yet checked still shows up as normal, so this is safe to run at any time. Runs in batches; leave the tab open until it says Done.
+      </p>
+      <button class="btn btn-primary" onclick="runPhotoVerification()" id="photoVerifyBtn"><i class="fas fa-play"></i> Run Verification</button>
+      <div id="photoVerifyResults" style="font-size:0.85rem; margin-top:0.75rem;"></div>
+    </div>
+    <!-- Upload Player Photo -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-upload"></i> Upload Player Photo</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Fixes one player at a time. Pick a player below (list comes from the last Photo Verification run), click Search to open Google Images for them in a new tab, download whichever photo you want, then upload it here — it goes straight to storage and is live immediately, no redeploy needed.
+      </p>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Player missing a photo</label>
+        <div style="display:flex; gap:0.5rem;">
+          <select id="photoUploadPlayerSelect"
+            style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+            <option value="">Loading list…</option>
+          </select>
+          <button class="btn btn-primary" onclick="loadMissingPhotoPlayers()" title="Refresh list"><i class="fas fa-rotate"></i></button>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="searchGoogleImagesForSelected()" style="margin-bottom:0.75rem;">
+        <i class="fas fa-magnifying-glass"></i> Search Google Images
+      </button>
+      <div style="margin-bottom:0.75rem;">
+        <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Downloaded photo file</label>
+        <input type="file" id="photoUploadFile" accept="image/*"
+          style="width:100%; padding:0.5rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+      </div>
+      <button class="btn btn-primary" onclick="uploadSelectedPlayerPhoto()" id="photoUploadBtn"><i class="fas fa-cloud-arrow-up"></i> Upload</button>
+      <div id="photoUploadResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 5. Communications &amp; Finance -->
+    <!-- ============================================================ -->
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">5. Communications &amp; Finance</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;"></p>
+    <!-- Message Center — broadcast an alert to every user's notification bell -->
+    <div class="admin-card" style="border: 2px solid var(--accent-purple, #a855f7);">
+      <h3><i class="fas fa-bullhorn"></i> Message Center</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Broadcast an alert to every user — shows in their notification bell until you deactivate it.
+      </p>
+      <textarea id="broadcastMessageInput" rows="3" placeholder="e.g. Gameweek 39 predictions close Saturday 12:30pm"
+        style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary); font-family:inherit; margin-bottom:0.6rem; resize:vertical;"></textarea>
+      <select id="broadcastSeveritySelect" style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary); margin-bottom:0.6rem;">
+        <option value="info">Info</option>
+        <option value="warning">Warning</option>
+        <option value="urgent">Urgent</option>
+      </select>
+      <button class="btn btn-primary" onclick="sendBroadcastMessage()" style="width:100%; margin-bottom:1rem;">
+        <i class="fas fa-paper-plane"></i> Broadcast to All Users
+      </button>
+      <div id="broadcastMessagesList" style="font-size:0.85rem;">Loading active messages…</div>
+    </div>
+    <!-- Payments & Bookkeeping — the wallet ledger. No real payments are
+         taken anywhere in the app; joining a paid tournament just records
+         what a user owes. This is where you mark it paid once you've
+         actually received the money (cash, bank transfer, whatever) — a
+         book-keeping ledger, not a payment processor. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3><i class="fas fa-book"></i> Payments &amp; Bookkeeping</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Every registered user and what they currently owe across all tournaments (entry fees charged automatically when they join, minus payments you've recorded here). Nothing here moves real money — it's a ledger.
+      </p>
+      <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <input type="text" id="walletSearchInput" class="form-input" placeholder="Search by username…" style="flex:1; min-width:200px;" oninput="renderWalletList()">
+        <button class="btn btn-sm" onclick="loadWalletList()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;">User</th>
+              <th style="padding:0.5rem;">Owed</th>
+              <th style="padding:0.5rem;">Record a payment</th>
+              <th style="padding:0.5rem;"></th>
+            </tr>
+          </thead>
+          <tbody id="walletListBody">
+            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- 6. Monitoring -->
+    <!-- ============================================================ -->
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">6. Monitoring</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;"></p>
     <!-- Log Output -->
     <div class="admin-card">
       <h3><i class="fas fa-terminal"></i> Activity Log</h3>
@@ -874,6 +751,123 @@
       <div id="log-output" class="log-output">
         <div class="log-entry">Admin panel loaded. Ready.</div>
       </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TESTING TOOLS -->
+    <!-- ============================================================ -->
+    <div style="margin: 2.5rem 0 1rem; padding: 1.5rem; border: 3px dashed var(--accent-red, #ef4444); border-radius: 1rem; background: rgba(239,68,68,0.04);">
+      <h2 style="margin: 0 0 0.5rem; font-size: 1.3rem; color: var(--accent-red, #ef4444);"><i class="fas fa-flask"></i> TESTING TOOLS</h2>
+      <p class="text-muted mb-3" style="font-size: 0.9rem;"><strong>Everything below this line fabricates fake data or bypasses real match results.</strong> Genuinely useful for testing right now — but every one of these must be removed before real users are on the platform. See the pre-go-live checklist for the full removal list.</p>
+    <!-- Seed Season Data — one-time bulk seed. Generates realistic results
+         + player stats for a range of gameweeks WITHOUT marking them
+         finished, so matches stay 'upcoming' until you use the checkbox
+         tool below to flip them individually. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6); grid-column: 1 / -1;">
+      <h3><i class="fas fa-database"></i> Seed Season Data</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Generates a realistic result + full player stats for every real fixture in the gameweek range below — but leaves every match's status as 'upcoming'. Use this once to populate a test season, then use "Mark Games Finished" below to progress through it match by match.
+      </p>
+      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+        <input type="number" id="seedFromGw" min="1" max="38" placeholder="From GW" value="1"
+          style="width:100px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <span class="text-muted">to</span>
+        <input type="number" id="seedToGw" min="1" max="38" placeholder="To GW" value="10"
+          style="width:100px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn btn-primary" onclick="seedGameweekRange()" id="seedRangeBtn"><i class="fas fa-seedling"></i> Seed This Range</button>
+      </div>
+      <div id="seedRangeResultMsg" class="text-muted" style="margin-top:0.75rem; font-size:0.85rem;"></div>
+    </div>
+    <!-- Seed Test Users & Entries — Predictions and LMS didn't have an
+         equivalent to Stock Market's Create/Seed pair, so test accounts
+         had nothing to actually score against. This closes that gap using
+         the same generic test-user creator, plus two new seed actions. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3><i class="fas fa-users"></i> Seed Test Users &amp; Entries</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Creates 30 test accounts (shared across all tournament types), then enters them into every live tournament with random-but-valid predictions/picks/squads — the complete test setup from one page. Order: Create Accounts → seed each tournament → Force Close SM Draft last (locks Stock Market squads and opens the market). Enter your own account through each tournament's normal page first if you want to be included.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap; align-items:center;">
+        <button class="btn" onclick="adminCreateTestAccounts()" id="adminCreateAccountsBtn"><i class="fas fa-user-plus"></i> Create 30 Test Accounts</button>
+        <label class="text-muted" style="margin-left:0.5rem;">Gameweek:</label>
+        <input type="number" id="seedEntriesGw" min="1" max="38" value="1"
+          style="width:80px; padding:0.5rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+      </div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button class="btn btn-green" onclick="adminSeedPredictionsEntries()"><i class="fas fa-futbol"></i> Seed Predictions Entries</button>
+        <button class="btn btn-green" onclick="adminSeedLmsEntries()"><i class="fas fa-shield-halved"></i> Seed LMS Picks</button>
+        <button class="btn btn-green" onclick="adminSeedFantasyEntries()"><i class="fas fa-star"></i> Seed Fantasy Squads</button>
+        <button class="btn btn-green" onclick="adminSeedStockMarketSquads()"><i class="fas fa-chart-line"></i> Seed Stock Market Squads</button>
+        <button class="btn" style="background:var(--accent-red, #ef4444); color:#fff;" onclick="adminForceCloseDraft()"><i class="fas fa-door-closed"></i> Force Close SM Draft</button>
+      </div>
+      <div id="seedEntriesResultMsg" class="text-muted" style="margin-top:0.75rem; font-size:0.85rem;"></div>
+    </div>
+    <!-- Mark Games Finished — checkbox tool. Trusts whatever result/stats
+         data already exists (e.g. inserted directly via SQL for the whole
+         season) rather than generating anything; just flips status and
+         fires the real trigger functions, exactly like a real gameweek
+         playing out one match at a time. -->
+    <div class="admin-card" style="border: 2px solid var(--accent-amber, #f2b93d); grid-column: 1 / -1;">
+      <h3><i class="fas fa-futbol"></i> Mark Games Finished</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Select which of this gameweek's matches to mark finished, then click the button. Uses whatever result/stats data already exists for them (e.g. from your own SQL) — doesn't generate anything. Once every match in a gameweek is finished, Stock Market, LMS, and Fantasy all finalize automatically, same as production.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem;">
+        <input type="number" id="simGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
+          style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <button class="btn" onclick="loadSimulateMatches()"><i class="fas fa-rotate"></i> Load Matches</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;"><input type="checkbox" id="simSelectAll" onclick="toggleSelectAllMatches(this)"></th>
+              <th style="padding:0.5rem;">Fixture</th>
+              <th style="padding:0.5rem;">Status</th>
+              <th style="padding:0.5rem;">Score</th>
+            </tr>
+          </thead>
+          <tbody id="simulateMatchesBody">
+            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Enter a gameweek and click Load Matches.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-green mt-2" onclick="markSelectedMatchesFinished()" id="markFinishedBtn">
+        <i class="fas fa-check"></i> Mark Selected as Finished
+      </button>
+      <div id="simulateResultMsg" class="text-muted" style="margin-top:0.5rem; font-size:0.85rem;"></div>
+    </div>
+    <!-- Generate Test Gameweek Data -->
+    <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+      <h3><i class="fas fa-flask"></i> Generate Test Gameweek Data</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Fabricates believable match results and player stats for a real gameweek's real fixtures, all in one go — result, goals, assists, clean sheets, cards, minutes, everything consistent with each other. Every tournament type reads the same master data, so this is one action that lets you test everything at once, the same way a real live gameweek would play out.
+      </p>
+      <div style="display:flex; gap:0.5rem; align-items:center;">
+        <select id="genTestGwSelect" style="flex:1; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+          <option value="">-- Select Gameweek --</option>
+        </select>
+        <button class="btn btn-primary" onclick="generateTestGameweekData()"><i class="fas fa-bolt"></i> Generate</button>
+      </div>
+      <div id="genTestGwResult" style="font-size:0.85rem; margin-top:0.75rem;"></div>
+    </div>
+    <!-- Stock Market — Full Test Reset -->
+    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444);">
+      <h3><i class="fas fa-triangle-exclamation"></i> Stock Market — Full Test Reset</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        One-click version of the manual SQL reset: wipes every Stock Market table (matchups, history, transactions, entries, stages, tournaments) across the board, creates one fresh tournament at Gameweek 1, and resets the shared master clock. This affects ALL Stock Market tournaments, not just one — same as the manual SQL you've been running.
+      </p>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <input type="text" id="resetTournamentName" placeholder="Tournament name (optional)" value="Test Stock Market"
+          style="flex:1; min-width:180px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+        <input type="number" id="resetEntryFee" placeholder="Entry fee (pence)" value="2400"
+          style="width:140px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+      </div>
+      <button class="btn" onclick="fullTestReset()" style="width:100%; background:var(--accent-red); color:#fff;">
+        <i class="fas fa-rotate-left"></i> Reset & Start Fresh at GW1
+      </button>
+      <div id="resetResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
     </div>
   </main>
 
