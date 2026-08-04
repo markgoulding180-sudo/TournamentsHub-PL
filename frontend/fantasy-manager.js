@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   let teamsById = {};
   let squad = []; // array of player objects currently selected
   let captainId = null;
+  let lastGwPoints = 0; // locked-in score for the gameweek once its matches are all finished
   let activeFilter = 'all';
   let searchTerm = '';
   let tournamentId = null;
@@ -206,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           .map(id => allPlayers.find(p => p.id === id))
           .filter(Boolean);
         captainId = data.entry.captain_id;
+        lastGwPoints = data.entry.last_gw_points || 0;
         els.statusBadge.className = 'fm-status-badge entered';
         els.statusBadge.innerHTML = '<i class="fas fa-circle-check"></i> Squad saved — edit any time before your next gameweek deadline';
       } else {
@@ -292,10 +294,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     els.countMID.textContent = `${countByType(3)} / 5`;
     els.countFWD.textContent = `${countByType(4)} / 3`;
 
-    // This gameweek's live points for the squad as currently built —
-    // uses each player's event_points (this gameweek only), captain doubled.
+    // This gameweek's points. While the gameweek is still in progress
+    // (or hasn't started), a live preview from the current squad is
+    // correct and genuinely useful. But once every match has finished,
+    // that gameweek's real score is locked in server-side — recalculating
+    // live from the CURRENT squad after that point would let a transfer
+    // silently rewrite what your score for an already-finished gameweek
+    // appears to be, even though the real, permanent total never
+    // actually changes. Confirmed as a real, confusing bug.
     if (els.gwPoints) {
-      if (squad.length === 0) {
+      if (lockInfo && lockInfo.all_finished) {
+        els.gwPoints.textContent = `${lastGwPoints} pts`;
+      } else if (squad.length === 0) {
         els.gwPoints.textContent = '-- pts';
       } else {
         const gw = squad.reduce((sum, p) => {

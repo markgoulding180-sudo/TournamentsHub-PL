@@ -3790,7 +3790,7 @@ async function getFantasyLockStatus(masterDb) {
     const deadlineEpoch = earliestKickoffMs !== null ? Math.floor(earliestKickoffMs / 1000) : null;
 
     if (!deadlinePassed) {
-      return { locked: false, gameweek: currentGW, deadline_epoch: deadlineEpoch, reason: null };
+      return { locked: false, gameweek: currentGW, deadline_epoch: deadlineEpoch, all_finished: false, reason: null };
     }
 
     const allFinished = gwMatches.every(m => m.status === 'finished');
@@ -3803,6 +3803,7 @@ async function getFantasyLockStatus(masterDb) {
       locked: !allFinished,
       gameweek: currentGW,
       deadline_epoch: deadlineEpoch,
+      all_finished: allFinished,
       reason: allFinished ? null : 'Squad is locked until every match in this gameweek has finished.'
     };
   } catch (error) {
@@ -5211,7 +5212,7 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
         const pts = eventPointsById[pid] || 0;
         gwScore += (pid === e.captain_id) ? pts * 2 : pts;
       });
-      updateRows.push({ ...e, entry_points: (e.entry_points || 0) + gwScore });
+      updateRows.push({ ...e, entry_points: (e.entry_points || 0) + gwScore, last_gw_points: gwScore });
     }
   }
 
