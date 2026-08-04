@@ -477,11 +477,16 @@
        under the navbar instead of leaving a gap above it. */
     .hero{
       padding:36px 24px; min-height:auto; border-radius:0;
-      margin-left:-20px; margin-right:-20px; margin-top:0; width:auto;
+      margin-left:-20px; margin-right:-20px; margin-top:0; margin-bottom:0; width:auto;
     }
     .hero h1{font-size:44px;}
     .hero-brand-heading{font-size:44px;}
     .hero-graphic{width:70%; opacity:0.5;}
+    /* Same full-bleed treatment for the nav bar directly below the hero —
+       flush against it, no gap, no rounded corners, edge to edge. */
+    .mobile-cat-strip{
+      margin-left:-20px; margin-right:-20px; width:auto; margin-top:0;
+    }
   }
   @media (max-width:640px){
     .card-row, .card-row-3, .sport-grid{grid-template-columns:1fr;}
@@ -514,7 +519,6 @@
     #logoutBtn{ display:none !important; }
     .my-tournaments-btn{ display:none !important; }
     .navbar-row-break{ display:none; }
-    .navbar .icon-btn[title="Notifications"]{ margin-left:auto; }
     #mobileMenuBtn{ margin-left:auto; }
 
     /* Navbar is one compact row again here, so anchors/sidebar/carousel
@@ -837,7 +841,7 @@
       <div class="card-row">
 
         <!-- Premier League Darts -->
-        <div class="t-card">
+        <div class="t-card coming-soon">
           <div class="t-card-media media-fixture">
             <svg class="media-svg" viewBox="0 0 300 132">
               <circle cx="150" cy="66" r="46" fill="#132340" stroke="#28466f" stroke-width="2"/>
@@ -851,16 +855,13 @@
           <div class="t-card-body">
             <h3>Premier League Darts</h3>
             <p class="desc">Predict every night of the league.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£3,000</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£2</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
+            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
+            <button class="btn-enter" disabled>Coming Soon</button>
           </div>
         </div>
 
         <!-- Grand Slam of Darts -->
-        <div class="t-card">
+        <div class="t-card coming-soon">
           <div class="t-card-media media-champion">
             <svg class="media-svg" viewBox="0 0 300 132">
               <circle cx="150" cy="66" r="46" fill="#1a1030" stroke="#7c3aed" stroke-width="2"/>
@@ -873,16 +874,13 @@
           <div class="t-card-body">
             <h3>Grand Slam of Darts</h3>
             <p class="desc">The group-stage major. Predict every group.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,500</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
+            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
+            <button class="btn-enter" disabled>Coming Soon</button>
           </div>
         </div>
 
         <!-- World Cup of Darts -->
-        <div class="t-card">
+        <div class="t-card coming-soon">
           <div class="t-card-media media-fixture">
             <svg class="media-svg" viewBox="0 0 300 132">
               <circle cx="150" cy="66" r="46" fill="#132340" stroke="#28466f" stroke-width="2"/>
@@ -895,16 +893,13 @@
           <div class="t-card-body">
             <h3>World Cup of Darts</h3>
             <p class="desc">Nations go head to head. Predict every tie.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£4,000</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£3</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
+            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
+            <button class="btn-enter" disabled>Coming Soon</button>
           </div>
         </div>
 
         <!-- UK Open -->
-        <div class="t-card">
+        <div class="t-card coming-soon">
           <div class="t-card-media media-goal">
             <svg class="media-svg" viewBox="0 0 300 132">
               <circle cx="150" cy="66" r="46" fill="#132340" stroke="#28466f" stroke-width="2"/>
@@ -917,16 +912,13 @@
           <div class="t-card-body">
             <h3>UK Open</h3>
             <p class="desc">The open format major. Anyone can enter, anyone can win.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£3,500</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£2</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
+            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
+            <button class="btn-enter" disabled>Coming Soon</button>
           </div>
         </div>
 
         <!-- World Championship -->
-        <div class="t-card">
+        <div class="t-card coming-soon">
           <div class="t-card-media media-breakout">
             <svg class="media-svg" viewBox="0 0 300 132">
               <circle cx="150" cy="66" r="46" fill="#1c1608" stroke="#f2b93d" stroke-width="2"/>
@@ -940,17 +932,11 @@
           <div class="t-card-body">
             <h3>World Championship</h3>
             <p class="desc">The biggest stage. Predict every round at Ally Pally.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Prize Pool</div><div class="stat-value prize">£10,000</div></div>
-              <div style="text-align:right"><div class="stat-label">Entry Fee</div><div class="stat-value">£5</div></div>
-            </div>
-            <button class="btn-enter">Enter Now</button>
+            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
+            <button class="btn-enter" disabled>Coming Soon</button>
           </div>
         </div>
       </div>
-    </section>
-
-
     </section>
 
     <!-- ================= TOP OF THE TABLE ================= -->
