@@ -3799,12 +3799,22 @@ async function getFantasyLockStatus(masterDb) {
       await snapshotGameweekIfNeeded(masterDb, currentGW);
     }
 
+    // Deliberately NOT "locked: !allFinished" — squad editing stays
+    // locked for the entire gameweek once it's started, regardless of
+    // whether every match has finished. It only unlocks once the admin
+    // actually advances the clock to a new gameweek. Unlocking as soon
+    // as matches finish (even before Advance Gameweek is clicked) would
+    // let someone make a transfer with full hindsight of this gameweek's
+    // results while it's still nominally the current one — confirmed as
+    // a real exploit window, not just a display issue.
     return {
-      locked: !allFinished,
+      locked: true,
       gameweek: currentGW,
       deadline_epoch: deadlineEpoch,
       all_finished: allFinished,
-      reason: allFinished ? null : 'Squad is locked until every match in this gameweek has finished.'
+      reason: allFinished
+        ? 'This gameweek has finished — squad unlocks once the admin advances to the next gameweek.'
+        : 'Squad is locked until every match in this gameweek has finished.'
     };
   } catch (error) {
     console.error('getFantasyLockStatus error:', error);
