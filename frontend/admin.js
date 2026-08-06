@@ -1003,8 +1003,9 @@ async function adminSeedStockMarketSquads() {
     });
     const data = await response.json();
     if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
-    msgEl.textContent = `Seeded ${data.seeded} Stock Market squads. Draft your own squad on /stock-market-draft if you want in, THEN click Force Close SM Draft.`;
-    log('Stock Market squads seeded', 'success');
+    const skipped = data.already_had_squad_skipped || 0;
+    msgEl.textContent = `Seeded ${data.seeded} new Stock Market squads.${skipped > 0 ? ` ${skipped} account(s) already had a squad and were correctly left untouched.` : ''} Draft your own squad on /stock-market-draft if you want in, THEN click Force Close SM Draft.`;
+    log(`Stock Market squads seeded: ${data.seeded} new, ${skipped} skipped (already had one)`, 'success');
   } catch (error) {
     msgEl.textContent = `Error: ${error.message}`;
   }

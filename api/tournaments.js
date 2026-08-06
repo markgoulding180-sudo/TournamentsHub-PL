@@ -2782,14 +2782,31 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // re-seeded with a fresh squad.
           const { data: existingRows } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
-            .select('id, user_id, current_value, start_value, last_week_value')
+            .select('id, user_id, squad_players, squad_locked, current_value, start_value, last_week_value')
             .eq('tournament_id', seedTournamentId).in('user_id', targetUserIds);
           const existingByUser = {};
           (existingRows || []).forEach(e => { existingByUser[e.user_id] = e; });
 
+          // Stock Market is a one-time draft, not a weekly re-pick — this
+          // tool is only ever meant to run once, for accounts that don't
+          // have a squad yet. Running it again with no guard would
+          // silently generate and overwrite EVERY existing account's
+          // real squad with a brand new random one, discarding genuine
+          // portfolio history and re-unlocking them. Confirmed as a real
+          // risk, not hypothetical — caught before it corrupted a live
+          // test tournament.
+          const alreadySeededCount = targetUserIds.filter(uid => {
+            const e = existingByUser[uid];
+            return e && e.squad_players && e.squad_players.length > 0;
+          }).length;
+          const seedableUserIds = targetUserIds.filter(uid => {
+            const e = existingByUser[uid];
+            return !e || !e.squad_players || e.squad_players.length === 0;
+          });
+
           const results = [];
           const entryRows = [];
-          for (const uid of targetUserIds) {
+          for (const uid of seedableUserIds) {
             // 1 GK, 1 DEF, 1 MID, 1 FWD, then 2 more from DEF/MID/FWD at random.
             const picks = [];
             const usedIds = new Set();
@@ -2833,7 +2850,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             if (upsertErr) throw upsertErr;
           }
 
-          return res.status(200).json({ success: true, seeded: results.length, results });
+          return res.status(200).json({ success: true, seeded: results.length, already_had_squad_skipped: alreadySeededCount, results });
         } catch (err) {
           console.error('stockmarket_seed_squads error:', err);
           return res.status(500).json({ error: err.message });
