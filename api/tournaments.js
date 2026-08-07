@@ -5056,7 +5056,8 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
     .schema('stockmarket').from('tournament_entries')
     .select('*')
     .eq('tournament_id', tournamentId).eq('squad_locked', true).eq('relegated', false)
-    .order('current_value', { ascending: true });
+    .order('current_value', { ascending: true })
+    .order('id', { ascending: true }); // deterministic tie-breaker — without this, who specifically gets cut among entries tied at the exact boundary value was arbitrary and could differ between runs, rather than consistent and explainable
 
   if (!activeEntries || activeEntries.length === 0) {
     console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: no active entries, skipping.`);
