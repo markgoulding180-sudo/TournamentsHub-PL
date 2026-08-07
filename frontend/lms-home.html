@@ -870,10 +870,17 @@
           } else {
             status = `Out — GW${r.eliminated_gameweek}`;
           }
+          // Show the team they're currently backing as a small shirt icon
+          // — only while genuinely still alive, since an eliminated
+          // player's last pick is just history, not a current choice.
+          const currentPickShirt = (alive && r.last_pick && r.last_pick.team)
+            ? `<img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain; flex:none;">`
+            : '';
           return `
             <div class="survivor-row ${won ? 'alive' : (alive ? 'alive' : 'out')}">
               <div class="s-avatar">${escapeHtml(initials)}</div>
               <div class="s-name">${escapeHtml(name)}</div>
+              ${currentPickShirt}
               <div class="s-status" style="${won ? 'color:var(--gold);' : ''}">${(alive && !won) ? '<i class="fas fa-shield-halved"></i> ' : ''}${status}</div>
             </div>`;
         }).join('');
