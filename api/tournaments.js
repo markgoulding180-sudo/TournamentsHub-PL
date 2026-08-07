@@ -2630,8 +2630,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
                 .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
               for (const t of (liveStockMarkets || [])) {
                 await ensureMatchupsForGameweek(supabaseAdmin, t.id, leavingGw);
-                await applyDueStages(supabaseAdmin, t.id, leavingGw);
+                // Settlement must run BEFORE relegation, not after — a
+                // real bug, confirmed live: relegation was ranking people
+                // using their value from BEFORE this gameweek's real
+                // matches were even credited, then excluding anyone cut
+                // from ever having that same gameweek's real performance
+                // calculated at all. Exactly like relegating a team
+                // before their final match is played. Now everyone gets
+                // genuine credit for the gameweek they just played,
+                // THEN the bottom N get cut using their true, final value.
                 await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, leavingGw);
+                await applyDueStages(supabaseAdmin, t.id, leavingGw);
                 stockMarketSettled++;
               }
 
@@ -4396,22 +4405,21 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
     debug.push(`allFinished=${allFinished}`);
 
     if (allFinished) {
-      // Relegation now fires here, gated by the SAME "this gameweek's
-      // matches have actually finished" check settlement uses — not on
-      // the raw clock number alone. Previously this ran unconditionally
-      // the instant the clock reached a stage's trigger_gameweek, which
-      // meant advancing the clock could relegate people using the
-      // PREVIOUS gameweek's stale values, before anything about the
-      // current gameweek had actually happened. Must still run BEFORE
-      // settlement so newly-relegated entries never show up in this
-      // gameweek's processing.
-      await applyDueStages(supabaseAdmin, tournamentId, currentGW);
-
+      // Settlement must run BEFORE relegation, not after — a real bug,
+      // confirmed live: the old order ranked people for relegation using
+      // their value from BEFORE this gameweek's real matches were even
+      // credited, then excluded anyone cut from ever having that same
+      // gameweek's real performance calculated at all. Exactly like
+      // relegating a team before their final match is played. The
+      // original intent (don't let a relegated entry show up in FUTURE
+      // gameweeks' processing) was correct — but excluding them from
+      // their OWN current gameweek's settlement was the actual mistake.
       debug.push(`last_processed_gameweek BEFORE claim attempt = ${tournament.last_processed_gameweek}`);
       console.log('[SM DEBUG]', debug.join(' | '));
       const processResult = await processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, currentGW);
       debug.push(`processStockMarketGameweek returned: ${JSON.stringify(processResult)}`);
       console.log('[SM DEBUG post-process]', debug.join(' | '));
+      await applyDueStages(supabaseAdmin, tournamentId, currentGW);
     } else {
       console.log('[SM DEBUG]', debug.join(' | '));
     }
@@ -5218,8 +5226,11 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
     .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
   for (const t of (liveStockMarkets || [])) {
     await ensureMatchupsForGameweek(supabaseAdmin, t.id, gameweek);
-    await applyDueStages(supabaseAdmin, t.id, gameweek);
+    // Settlement before relegation - same fix as the other two call
+    // sites, so everyone gets genuine credit for this gameweek's real
+    // performance before the bottom N get cut using their true value.
     await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, gameweek);
+    await applyDueStages(supabaseAdmin, t.id, gameweek);
     result.stock_market_tournaments_settled++;
   }
 
