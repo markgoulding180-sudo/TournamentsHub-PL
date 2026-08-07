@@ -990,6 +990,17 @@
       loadAll();
       loadNotifications();
     });
+
+    // Refresh Your Predictions This Week whenever this page becomes
+    // visible again — covers navigating back from /predict after saving
+    // a change, where the browser can otherwise restore a stale cached
+    // view (bfcache) without re-running the initial fetch, showing an
+    // outdated prediction until a full manual reload.
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        loadYourPredictionsForGw(viewedPredictionsGw || currentGw);
+      }
+    });
     window.addEventListener('gbf-data-refreshed', loadAll);
   </script>
 </body>
