@@ -874,7 +874,10 @@
           // — only while genuinely still alive, since an eliminated
           // player's last pick is just history, not a current choice.
           const currentPickShirt = (alive && r.last_pick && r.last_pick.team)
-            ? `<img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain; flex:none;">`
+            ? `<span style="display:inline-flex; align-items:center; gap:5px; flex:none;">
+                 <img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain;">
+                 <span style="font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(r.last_pick.team)}</span>
+               </span>`
             : '';
           return `
             <div class="survivor-row ${won ? 'alive' : (alive ? 'alive' : 'out')}">
