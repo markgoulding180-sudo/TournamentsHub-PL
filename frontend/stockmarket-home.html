@@ -1278,13 +1278,25 @@
         const smData = await smRes.json();
         results.push(smRes.ok ? `Stock Market: ${smData.seeded} squads seeded` : `Stock Market failed: ${smData.error}`);
 
-        // 4. Force close the Stock Market draft window last, exactly as
-        // the original order required — locks squads and opens the market.
-        resultsEl.textContent = 'Force closing Stock Market draft window…';
-        const closeRes = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_force_close', tournament_id: tournamentId }) });
-        const closeData = await closeRes.json();
-        results.push(closeRes.ok ? 'Stock Market draft window closed, market open' : `Force close failed: ${closeData.error}`);
+        // 4. Force close only applies once, for GW1's draft window — on
+        // every subsequent gameweek the market's already live, and
+        // re-running this would be semantically wrong (there's no draft
+        // window left to close). Checks the tournament's real current
+        // status fresh rather than assuming, so this stays correct
+        // regardless of how many times the button gets pressed.
+        const statusCheckRes = await fetch(`/api/tournaments?tournament_id=${tournamentId}`, { headers: authHeaders() });
+        const statusCheckData = await statusCheckRes.json();
+        const isStillDraft = statusCheckData.tournament && statusCheckData.tournament.status === 'upcoming';
+
+        if (isStillDraft) {
+          resultsEl.textContent = 'Force closing Stock Market draft window…';
+          const closeRes = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ action: 'stockmarket_force_close', tournament_id: tournamentId }) });
+          const closeData = await closeRes.json();
+          results.push(closeRes.ok ? 'Stock Market draft window closed, market open' : `Force close failed: ${closeData.error}`);
+        } else {
+          results.push('Stock Market: already live, draft window not re-closed');
+        }
 
         resultsEl.innerHTML = `<strong>GW${gw} — done:</strong><br>` + results.map(r => `• ${r}`).join('<br>');
       } catch (e) {
