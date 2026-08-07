@@ -262,8 +262,20 @@ module.exports = async (req, res) => {
         // allEntries is sorted current_value descending, so the last
         // `zoneSize` entries in the active-only subset are the lowest
         // active values — exactly who'd be cut if the next stage ran now.
+        // Extended the same way applyRelegationStage is: if several
+        // entries are tied at the exact boundary value, all of them show
+        // as "in the zone", not an arbitrary subset — otherwise this
+        // preview could under-count who's genuinely at risk and disagree
+        // with what actually happens when the stage fires.
         const activeIdsInOrder = sortedEntries.filter(e => !e.relegated).map(e => e.id);
-        const zoneSize = nextStage ? Math.min(nextStage.relegate_count || 0, activeIdsInOrder.length) : 0;
+        const activeSortedAsc = [...sortedEntries].filter(e => !e.relegated).sort((a, b) => liveValue(a) - liveValue(b));
+        let zoneSize = nextStage ? Math.min(nextStage.relegate_count || 0, activeSortedAsc.length) : 0;
+        if (zoneSize > 0 && zoneSize < activeSortedAsc.length) {
+          const boundaryValue = liveValue(activeSortedAsc[zoneSize - 1]);
+          while (zoneSize < activeSortedAsc.length && liveValue(activeSortedAsc[zoneSize]) === boundaryValue) {
+            zoneSize++;
+          }
+        }
         const zoneIds = new Set(zoneSize > 0 ? activeIdsInOrder.slice(activeIdsInOrder.length - zoneSize) : []);
 
         // Active entries get their own clean 1..N ranking — relegated
