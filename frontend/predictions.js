@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // STANDARDISED MATCH CARD LAYOUT - Same structure for all matches
         fixturesHTML += `
-          <div class="fixture ${finishedClass}" data-match-id="${match.id}">
+          <div class="fixture ${finishedClass}" data-match-id="${match.id}" data-home-team="${match.home_team}" data-away-team="${match.away_team}">
             <!-- Top row: Date | Status | Points -->
             <div class="fixture-header">
               <span><i class="far fa-clock"></i> ${dateStr}</span>
@@ -222,12 +222,15 @@ document.addEventListener('DOMContentLoaded', async function() {
       
       const fixtures = document.querySelectorAll('.fixture');
       const predictions = [];
+      const validationErrors = [];
       
       console.log('Submitting predictions for', fixtures.length, 'fixtures');
       
       fixtures.forEach((fixture, index) => {
         const matchId = fixture.dataset.matchId;
         const matchNum = index + 1;
+        const homeTeam = fixture.dataset.homeTeam || 'Home';
+        const awayTeam = fixture.dataset.awayTeam || 'Away';
         
         // Get the selected radio button for this match
         const resultRadio = document.querySelector(`input[name="match${matchNum}_result"]:checked`);
@@ -239,16 +242,45 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         console.log(`Match ${matchNum}:`, { matchId, result: resultRadio?.value, homeScore, awayScore });
         
-        // Only require a result to be selected - scores default to 0-0 if not entered
         if (resultRadio && resultRadio.value) {
+          const result = resultRadio.value;
+          const hScore = homeScore !== '' ? parseInt(homeScore) : 0;
+          const aScore = awayScore !== '' ? parseInt(awayScore) : 0;
+
+          // The result pick (1/X/2) and the exact score must actually
+          // agree — a Home win needs a genuine winning home score, a
+          // Draw needs equal scores, an Away win needs a genuine winning
+          // away score. Left unchecked, tapping a result without also
+          // entering a matching score (or entering a score for the wrong
+          // team) silently saved something contradictory, like "Home
+          // win" alongside a 0-0 or an away-winning scoreline — technically
+          // saved correctly, but not what the person actually meant.
+          let mismatch = null;
+          if (result === 'H' && hScore <= aScore) {
+            mismatch = `${homeTeam} vs ${awayTeam}: you picked ${homeTeam} to win, but ${hScore}-${aScore} isn't a ${homeTeam} win.`;
+          } else if (result === 'A' && aScore <= hScore) {
+            mismatch = `${homeTeam} vs ${awayTeam}: you picked ${awayTeam} to win, but ${hScore}-${aScore} isn't an ${awayTeam} win.`;
+          } else if (result === 'D' && hScore !== aScore) {
+            mismatch = `${homeTeam} vs ${awayTeam}: you picked a Draw, but ${hScore}-${aScore} isn't an equal score.`;
+          }
+
+          if (mismatch) {
+            validationErrors.push(mismatch);
+          }
+
           predictions.push({
             match_id: matchId,
-            predicted_result: resultRadio.value,
-            home_score: homeScore !== '' ? parseInt(homeScore) : 0,
-            away_score: awayScore !== '' ? parseInt(awayScore) : 0
+            predicted_result: result,
+            home_score: hScore,
+            away_score: aScore
           });
         }
       });
+
+      if (validationErrors.length > 0) {
+        alert(`Your score doesn't match your pick for ${validationErrors.length} match(es):\n\n${validationErrors.join('\n\n')}\n\nPlease fix the score (or your pick) before submitting.`);
+        return;
+      }
       
       console.log('Collected predictions:', predictions);
       

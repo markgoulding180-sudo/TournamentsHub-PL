@@ -292,9 +292,22 @@ module.exports = async (req, res) => {
           return res.status(400).json({ error: `Prediction ${i}: result must be H, D, or A` });
         }
         
-        // Scores can be any value - no validation against result
+        // The exact score must genuinely agree with the picked result —
+        // enforced here too, not just client-side, since a direct API
+        // call could otherwise still save something contradictory (e.g.
+        // "Home win" alongside a 0-0 or an away-winning scoreline).
         const homeScore = pred.home_score !== undefined ? parseInt(pred.home_score) : 0;
         const awayScore = pred.away_score !== undefined ? parseInt(pred.away_score) : 0;
+
+        if (pred.predicted_result === 'H' && homeScore <= awayScore) {
+          return res.status(400).json({ error: `Prediction ${i}: Home win selected, but ${homeScore}-${awayScore} isn't a home win.` });
+        }
+        if (pred.predicted_result === 'A' && awayScore <= homeScore) {
+          return res.status(400).json({ error: `Prediction ${i}: Away win selected, but ${homeScore}-${awayScore} isn't an away win.` });
+        }
+        if (pred.predicted_result === 'D' && homeScore !== awayScore) {
+          return res.status(400).json({ error: `Prediction ${i}: Draw selected, but ${homeScore}-${awayScore} isn't an equal score.` });
+        }
 
         // Get match details
         const match = matchMap[pred.match_id];
