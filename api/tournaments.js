@@ -4952,9 +4952,14 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
     const survivors = activeEntries.slice(cutCount);
 
     if (relegatedEntries.length > 0) {
+      // current_value must be zeroed here — their whole pot is about to
+      // be redistributed to survivors below, and without this their
+      // value stayed sitting in the database AND got added to survivors,
+      // duplicating real money rather than genuinely transferring it.
+      // Confirmed as a real zero-sum violation, not hypothetical.
       const { error: relErr } = await supabaseAdmin
         .schema('stockmarket').from('tournament_entries')
-        .update({ relegated: true, relegated_at_gameweek: currentGW })
+        .update({ relegated: true, relegated_at_gameweek: currentGW, current_value: 0 })
         .in('id', relegatedEntries.map(e => e.id));
       if (relErr) console.error('Batch relegation update failed:', relErr);
     }
