@@ -302,6 +302,71 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Per-entry player stats — best/worst player, biggest single-week
+      // win/loss, top scorer, all built from player_gw_history (already
+      // populated at real settlement time, one row per player per
+      // gameweek). Works for both active and relegated entries, since it
+      // reads the entry's own history regardless of current status.
+      const stockmarketPlayerStats = params.get('stockmarket_player_stats');
+      if (stockmarketPlayerStats === 'true' && tournamentId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (!user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: myEntryForStats } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id').eq('tournament_id', tournamentId).eq('user_id', user.id).maybeSingle();
+        if (!myEntryForStats) return res.status(200).json({ has_history: false });
+
+        const { data: history } = await supabaseAdmin
+          .schema('stockmarket').from('player_gw_history')
+          .select('*').eq('entry_id', myEntryForStats.id).order('gameweek', { ascending: true });
+
+        if (!history || history.length === 0) {
+          return res.status(200).json({ has_history: false });
+        }
+
+        // Per-player totals across every gameweek they were held.
+        const byPlayer = {};
+        history.forEach(row => {
+          if (!byPlayer[row.player_id]) {
+            byPlayer[row.player_id] = { player_id: row.player_id, name: row.name, position: row.position, team: row.team, total_change: 0, total_goals: 0, weeks_held: 0 };
+          }
+          const p = byPlayer[row.player_id];
+          p.total_change += (row.raw_change || 0);
+          p.total_goals += ((row.stats && row.stats.goals) || 0);
+          p.weeks_held += 1;
+        });
+        const players = Object.values(byPlayer);
+
+        const bestPlayer = players.reduce((a, b) => (b.total_change > (a?.total_change ?? -Infinity) ? b : a), null);
+        const worstPlayer = players.reduce((a, b) => (b.total_change < (a?.total_change ?? Infinity) ? b : a), null);
+        const topScorer = players.filter(p => p.total_goals > 0).reduce((a, b) => (b.total_goals > (a?.total_goals ?? -1) ? b : a), null);
+
+        // Single best/worst individual gameweek performance — a single
+        // player, in a single week, not summed across the season.
+        const biggestSingleWin = history.reduce((a, b) => ((b.raw_change || 0) > (a ? (a.raw_change || 0) : -Infinity) ? b : a), null);
+        const biggestSingleLoss = history.reduce((a, b) => ((b.raw_change || 0) < (a ? (a.raw_change || 0) : Infinity) ? b : a), null);
+
+        const totalEarned = history.reduce((s, r) => s + (r.win_bonus || 0), 0);
+        const totalPaid = history.reduce((s, r) => s + (r.penalty_paid || 0), 0);
+
+        return res.status(200).json({
+          has_history: true,
+          best_player: bestPlayer ? { name: bestPlayer.name, team: bestPlayer.team, total_change: bestPlayer.total_change, weeks_held: bestPlayer.weeks_held } : null,
+          worst_player: worstPlayer ? { name: worstPlayer.name, team: worstPlayer.team, total_change: worstPlayer.total_change, weeks_held: worstPlayer.weeks_held } : null,
+          top_scorer: topScorer ? { name: topScorer.name, team: topScorer.team, total_goals: topScorer.total_goals } : null,
+          biggest_single_win: biggestSingleWin ? { name: biggestSingleWin.name, team: biggestSingleWin.team, gameweek: biggestSingleWin.gameweek, raw_change: biggestSingleWin.raw_change } : null,
+          biggest_single_loss: biggestSingleLoss ? { name: biggestSingleLoss.name, team: biggestSingleLoss.team, gameweek: biggestSingleLoss.gameweek, raw_change: biggestSingleLoss.raw_change } : null,
+          total_earned: totalEarned,
+          total_paid: totalPaid,
+          gameweeks_covered: [...new Set(history.map(r => r.gameweek))].sort((a, b) => a - b)
+        });
+      }
+
+
       // Final results for a FINISHED tournament — separate from the live
       // leaderboard above since it reads the locked final_value snapshot,
       // not current_value. Survivors and relegated entries both included,
