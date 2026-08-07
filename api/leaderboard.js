@@ -66,11 +66,18 @@ module.exports = async (req, res) => {
     // instead makes this endpoint reflect the same reality every other
     // leaderboard in the app already does.
     let resolvedTournamentId = tournament;
+    let tournamentStatus = null;
     if (tournament === 'all' || tournament === 'season') {
-      const { data: liveTournament } = await supabase
+      // Must also accept 'finished' here, not just 'live' — otherwise the
+      // moment a season tournament genuinely finishes, this resolves to
+      // null and the whole leaderboard page goes blank instead of
+      // showing the final result. Prefers live if somehow both exist.
+      const { data: candidateTournaments } = await supabase
         .schema('predictions').from('tournaments')
-        .select('id').eq('status', 'live').maybeSingle();
-      resolvedTournamentId = liveTournament ? liveTournament.id : null;
+        .select('id, status').in('status', ['live', 'finished']);
+      const chosen = (candidateTournaments || []).find(t => t.status === 'live') || (candidateTournaments || [])[0];
+      resolvedTournamentId = chosen ? chosen.id : null;
+      tournamentStatus = chosen ? chosen.status : null;
     }
 
     if (!resolvedTournamentId) {
@@ -82,7 +89,7 @@ module.exports = async (req, res) => {
 
     const { data, error } = await supabase
       .schema('predictions').from('tournament_entries')
-      .select('user_id, username, entry_points')
+      .select('user_id, username, entry_points, prize_awarded')
       .eq('tournament_id', resolvedTournamentId)
       .order('entry_points', { ascending: false })
       .order('user_id', { ascending: true }) // deterministic tie-breaker — without this, Postgres doesn't guarantee a consistent order for tied entries across separate calls, which is exactly why the same two 60pt players could show in a different order (and different rank number) between the Top 10 preview and the full leaderboard
@@ -123,7 +130,8 @@ module.exports = async (req, res) => {
           avatar_initials: displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
         },
         total_points: entry.entry_points || 0,
-        gw_points: gwPointsMap[entry.user_id] || 0
+        gw_points: gwPointsMap[entry.user_id] || 0,
+        prize_awarded: entry.prize_awarded || 0
       };
     });
 
@@ -134,6 +142,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       tournament: tournament,
+      tournament_status: tournamentStatus,
       leaderboard: formattedData,
       pagination: {
         offset,

@@ -2378,6 +2378,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             console.log(`[PREDICTIONS_DEBUG] mark_matches_finished: require succeeded, calculatePointsForGameweek is ${typeof calculatePointsForGameweek}`);
             for (const gw of gameweeksTouched) {
               await calculatePointsForGameweek(supabaseAdmin, masterDb, gw);
+              await checkAndFinishSeasonTournament(supabaseAdmin, masterDb, 'predictions', gw);
             }
             predictionsScored = true;
             console.log(`[PREDICTIONS_DEBUG] mark_matches_finished: all gameweeks processed successfully`);
@@ -2479,12 +2480,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           try {
             const { calculatePointsForGameweek } = require('./live-scores.js');
             await calculatePointsForGameweek(supabaseAdmin, masterDb, match.gameweek);
+            await checkAndFinishSeasonTournament(supabaseAdmin, masterDb, 'predictions', match.gameweek);
             predictionsScored = true;
           } catch (predErr) {
             console.error('simulate_match_finish: Predictions scoring step failed (non-fatal):', predErr);
           }
 
           const fantasyResult = await updateFantasyPointsForGameweek(masterDb, match.gameweek);
+          await checkAndFinishSeasonTournament(supabaseAdmin, masterDb, 'fantasy', match.gameweek);
 
           return res.status(200).json({
             success: true, match_id: matchUpdate.id, gameweek: match.gameweek,
@@ -2656,6 +2659,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               // for the next gameweek. Fixes rank/points being retroactively
               // exploitable via a transfer.
               await settleFantasyGameweekScores(masterDb, supabaseAdmin, leavingGw);
+              await checkAndFinishSeasonTournament(supabaseAdmin, masterDb, 'fantasy', leavingGw);
 
               const { data: liveStockMarkets } = await supabaseAdmin
                 .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
@@ -5289,6 +5293,7 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
   // alongside the Advance Gameweek path is safe, not a double-write.
   await snapshotGameweekIfNeeded(masterDb, gameweek);
   await settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek);
+  await checkAndFinishSeasonTournament(supabaseAdmin, masterDb, 'fantasy', gameweek);
 
   const { data: liveStockMarkets } = await supabaseAdmin
     .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
@@ -5389,6 +5394,51 @@ async function updateFantasyPointsForGameweek(masterDb, gameweek) {
 // stood, captain included) into a genuinely accumulating total, called
 // once per gameweek right after event_points is correct for it and
 // before it gets reset for the next one.
+// Shared finish trigger for season-long tournaments (Predictions,
+// Fantasy) that use a simple highest-entry_points-wins structure — the
+// same underlying idea Stock Market already has for its own end_gameweek
+// check, generalized here rather than duplicated per type. Only fires
+// once the end_gameweek's real matches have ALL genuinely finished, not
+// merely reached, since Predictions/Fantasy both score progressively
+// per-match rather than waiting for a whole-gameweek gate — calling this
+// from a partial-gameweek context would finish the tournament too early.
+async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaName, gameweek) {
+  const { data: gwMatches } = await masterDb.from('matches').select('status').eq('gameweek', gameweek);
+  const allFinished = gwMatches && gwMatches.length > 0 && gwMatches.every(m => m.status === 'finished');
+  if (!allFinished) return;
+
+  const { data: liveTournaments } = await supabaseAdmin
+    .schema(schemaName).from('tournaments')
+    .select('id, entry_fee, end_gameweek').eq('status', 'live');
+
+  for (const t of (liveTournaments || [])) {
+    if (!t.end_gameweek || gameweek < t.end_gameweek) continue;
+
+    const { data: entries } = await supabaseAdmin
+      .schema(schemaName).from('tournament_entries')
+      .select('id, entry_points')
+      .eq('tournament_id', t.id)
+      .order('entry_points', { ascending: false })
+      .order('id', { ascending: true }); // deterministic tie-breaker, same reasoning as the relegation cutoff fix
+
+    if (!entries || entries.length === 0) {
+      await supabaseAdmin.schema(schemaName).from('tournaments').update({ status: 'finished' }).eq('id', t.id);
+      continue;
+    }
+
+    const topScore = entries[0].entry_points || 0;
+    const winners = entries.filter(e => (e.entry_points || 0) === topScore);
+    const prizePool = (t.entry_fee || 0) * entries.length;
+    const share = Math.floor(prizePool / winners.length);
+
+    for (const w of winners) {
+      await supabaseAdmin.schema(schemaName).from('tournament_entries')
+        .update({ prize_awarded: share }).eq('id', w.id);
+    }
+    await supabaseAdmin.schema(schemaName).from('tournaments').update({ status: 'finished' }).eq('id', t.id);
+  }
+}
+
 async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
   const result = { fantasy_entries_settled: 0 };
   const { data: liveFantasyTournaments } = await supabaseAdmin

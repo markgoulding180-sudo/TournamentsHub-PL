@@ -174,6 +174,8 @@
       <div class="record-card empty"><i class="fas fa-spinner fa-spin"></i>&nbsp; Loading records…</div>
     </div>
 
+    <div id="fmFinishedBanner" style="display:none; align-items:center; gap:12px; background:rgba(242,185,61,0.1); border:1px solid var(--gold); color:var(--gold); border-radius:12px; padding:18px 20px; margin-bottom:16px; font-size:15px; font-weight:600;"></div>
+
     <div class="layout">
       <div class="board">
         <div class="board-head">
@@ -227,9 +229,18 @@
     async function loadBoard() {
       const body = document.getElementById('boardBody');
       try {
+        // Must accept 'finished' too, not just 'live' — otherwise the
+        // moment the Fantasy tournament genuinely finishes, this finds
+        // nothing and the whole leaderboard page breaks instead of
+        // showing the final result.
         const tRes = await fetch('/api/tournaments?status=live&tournament_type=fantasy');
         const tData = await tRes.json();
-        const tournament = (tData.tournaments || []).find(t => t.format === 'fantasy_squad');
+        let tournament = (tData.tournaments || []).find(t => t.format === 'fantasy_squad');
+        if (!tournament) {
+          const tResFinished = await fetch('/api/tournaments?status=finished&tournament_type=fantasy');
+          const tDataFinished = await tResFinished.json();
+          tournament = (tDataFinished.tournaments || []).find(t => t.format === 'fantasy_squad');
+        }
         if (!tournament) {
           body.innerHTML = '<div class="empty">Fantasy Manager tournament not set up yet.</div>';
           return;
@@ -242,6 +253,28 @@
         if (rows.length === 0) {
           body.innerHTML = '<div class="empty">No squads saved yet — be the first!</div>';
           return;
+        }
+
+        const banner = document.getElementById('fmFinishedBanner');
+        if (banner) {
+          if (tournament.status === 'finished') {
+            const winners = rows.filter(r => (r.prize_awarded || 0) > 0);
+            banner.style.display = 'flex';
+            if (winners.length === 1) {
+              const w = winners[0];
+              const name = w.users ? (w.users.display_name || w.users.username) : 'Player';
+              banner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i>
+                <span>Season finished! <strong>${escapeHtml(name)}</strong> wins with ${w.entry_points || 0} points — £${(w.prize_awarded/100).toFixed(2)} prize.</span>`;
+            } else if (winners.length > 1) {
+              const names = winners.map(w => w.users ? (w.users.display_name || w.users.username) : 'Player');
+              banner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i>
+                <span>Season finished! ${names.length}-way tie at the top — ${names.map(escapeHtml).join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.</span>`;
+            } else {
+              banner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i> <span>Season finished — final standings below.</span>`;
+            }
+          } else {
+            banner.style.display = 'none';
+          }
         }
 
         body.innerHTML = rows.map(r => {
