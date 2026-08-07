@@ -713,7 +713,7 @@
           : `<div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>`;
 
         const cards = portfolio.map(p => p.empty ? `
-          <div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div></div></div>
+          <div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>${p.reserved_value ? `<div style="font-size:12px; color:var(--text-faint); margin-top:4px;">${money(p.reserved_value)} reserved — pick your replacement</div>` : ''}</div></div>
         ` : `
           <div class="portfolio-card">
             <div class="p-photo-wrap">${p.photo
@@ -748,8 +748,17 @@
 
       const entry = data.entry;
       const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
-      const displayValue = liveTotalNow !== null ? liveTotalNow : entry.current_value;
       const mySquadArr = entry.squad_players || [];
+      // An empty slot (mid-transfer, sold but not yet replaced) correctly
+      // contributes £0 to liveValue/current_value for real settlement —
+      // you genuinely have nobody there to earn or lose from. But to the
+      // person looking at the screen, that reads as money having
+      // vanished the instant they sell, before they've even picked a
+      // replacement. It hasn't — it's sitting in reserve for their next
+      // buy. This adds it back in for display only, without touching the
+      // real stored total or the settlement maths at all.
+      const reservedFromEmptySlots = mySquadArr.reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
+      const displayValue = (liveTotalNow !== null ? liveTotalNow : entry.current_value) + reservedFromEmptySlots;
       // Prefer live-computed received/paid while the gameweek's still in
       // progress — last_gw_breakdown only gets written once the whole
       // gameweek is finally settled, so it stays at 0 the entire time
@@ -1011,7 +1020,8 @@
         const oppSquadWithLive = withLive(opp.squad_players, liveByPidOpp);
         const oppCards = oppSquadWithLive.map(p => renderPlayerCard(p, false, data.cost_multiplier || 1)).join('');
 
-        const oppEnd = isLive ? liveTotalOpp : opp.current_value;
+        const oppReservedFromEmptySlots = (opp.squad_players || []).reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
+        const oppEnd = (isLive ? liveTotalOpp : opp.current_value) + oppReservedFromEmptySlots;
         let oppTotalPaid, oppTotalReceived;
         if (isLive && data.live && data.live.opponent) {
           oppTotalReceived = data.live.opponent.reduce((s, p) => s + (p.received || 0), 0);
