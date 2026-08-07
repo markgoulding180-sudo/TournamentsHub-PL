@@ -1266,7 +1266,7 @@
           const r = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({ action: 'lms_seed_entries', tournament_id: lmsTid, user_ids: allIds, gameweek: gw }) });
           const d = await r.json();
-          results.push(r.ok ? `LMS: seeded ${d.seeded} for GW${gw}` : `LMS failed: ${d.error}`);
+          results.push(r.ok ? `LMS: ${d.seeded} new pick(s) for GW${gw}${d.already_eliminated_skipped ? `, ${d.already_eliminated_skipped} already eliminated (correctly skipped)` : ''}` : `LMS failed: ${d.error}`);
         } else { results.push('LMS: no live tournament, skipped'); }
 
         const fmTid = await findTournament('fantasy');

@@ -3125,10 +3125,12 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           const pickRows = [];
           const results = [];
+          let skippedEliminated = 0;
           for (const uid of targetUserIds) {
             const entry = entryByUser[uid];
             if (entry && entry.is_eliminated) {
               results.push({ user_id: uid, skipped: 'already eliminated' });
+              skippedEliminated++;
               continue;
             }
             const alreadyUsed = pastPicksByUser[uid] || new Set();
@@ -3146,7 +3148,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             if (pickErr) throw pickErr;
           }
 
-          return res.status(200).json({ success: true, seeded: results.length, results });
+          return res.status(200).json({ success: true, seeded: pickRows.length, already_eliminated_skipped: skippedEliminated, results });
         } catch (err) {
           console.error('lms_seed_entries error:', err);
           return res.status(500).json({ error: err.message });

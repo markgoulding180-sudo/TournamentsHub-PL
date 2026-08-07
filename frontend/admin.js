@@ -942,7 +942,7 @@ async function adminSeedEverything() {
         body: JSON.stringify({ action: 'lms_seed_entries', tournament_id: tid, user_ids: adminTestUserIds, gameweek: gw })
       });
       const data = await res.json();
-      results.push(res.ok ? `LMS: seeded ${data.seeded} accounts for GW${gw}` : `LMS: failed — ${data.error}`);
+      results.push(res.ok ? `LMS: ${data.seeded} new pick(s) for GW${gw}${data.already_eliminated_skipped ? `, ${data.already_eliminated_skipped} already eliminated (correctly skipped)` : ''}` : `LMS: failed — ${data.error}`);
     }
   } catch (e) { results.push(`LMS: error — ${e.message}`); }
 
@@ -1013,7 +1013,8 @@ async function adminSeedLmsEntries() {
     });
     const data = await response.json();
     if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
-    msgEl.textContent = `Seeded ${data.seeded} accounts with GW${gw} picks.`;
+    const lmsSkipped = data.already_eliminated_skipped || 0;
+    msgEl.textContent = `Seeded ${data.seeded} new GW${gw} picks.${lmsSkipped > 0 ? ` ${lmsSkipped} account(s) already eliminated, correctly skipped.` : ''}`;
     log('LMS entries seeded', 'success');
   } catch (error) {
     msgEl.textContent = `Error: ${error.message}`;
