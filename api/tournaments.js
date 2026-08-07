@@ -169,7 +169,7 @@ module.exports = async (req, res) => {
       if (stockmarketLeaderboard === 'true' && tournamentId) {
         const { data: allEntries } = await supabaseAdmin
           .schema('stockmarket').from('tournament_entries')
-          .select('id, user_id, squad_players, current_value, start_value, relegated, relegated_at_gameweek')
+          .select('id, user_id, squad_players, current_value, start_value, relegated, relegated_at_gameweek, value_at_relegation')
           .eq('tournament_id', tournamentId).eq('squad_locked', true);
 
         // current_value only gets written at final settlement (once the
@@ -271,8 +271,9 @@ module.exports = async (req, res) => {
         // their frozen value no longer means the same thing as an active
         // player's still-moving value.
         const activeEntries = sortedEntries.filter(e => !e.relegated);
+        const valueAtCut = (e) => e.value_at_relegation !== null && e.value_at_relegation !== undefined ? e.value_at_relegation : liveValue(e);
         const relegatedEntries = sortedEntries.filter(e => e.relegated)
-          .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || liveValue(b) - liveValue(a));
+          .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || valueAtCut(b) - valueAtCut(a));
 
         const leaderboard = activeEntries.map((e, i) => ({
           rank: i + 1,
@@ -283,13 +284,16 @@ module.exports = async (req, res) => {
           in_relegation_zone: zoneIds.has(e.id)
         }));
 
-        const relegated = relegatedEntries.map(e => ({
-          entry_id: e.id,
-          player_name: nameByUserId[e.user_id] || 'Player',
-          current_value: liveValue(e),
-          gain_loss: liveValue(e) - (e.start_value || 0),
-          relegated_at_gameweek: e.relegated_at_gameweek || null
-        }));
+        const relegated = relegatedEntries.map(e => {
+          const finalValue = valueAtCut(e);
+          return {
+            entry_id: e.id,
+            player_name: nameByUserId[e.user_id] || 'Player',
+            current_value: finalValue,
+            gain_loss: finalValue - (e.start_value || 0),
+            relegated_at_gameweek: e.relegated_at_gameweek || null
+          };
+        });
 
         return res.status(200).json({
           leaderboard,
@@ -447,6 +451,38 @@ module.exports = async (req, res) => {
           .schema('stockmarket').from('tournament_entries')
           .select('*').eq('tournament_id', tournamentId).eq('user_id', user.id).maybeSingle();
         if (!myEntry) return res.status(200).json({ entry: null });
+
+        // A relegated entry is genuinely out of active competition — no
+        // more weekly matchups, no live value movement. Returning early
+        // here means the frontend can show clear "you've been relegated"
+        // messaging instead of a live "LIVE vs [opponent]" matchup that
+        // shouldn't exist anymore. Confirmed as a real gap: this endpoint
+        // previously had no awareness of relegation status at all, so a
+        // relegated user kept seeing themselves in an active, live
+        // matchup indefinitely.
+        if (myEntry.relegated) {
+          // A returning user needs real context, not just "you're out" —
+          // their own value at the moment of the cut, and where the
+          // actual cutoff line was (the highest value among everyone cut
+          // in that same stage), so it's genuinely clear why, not just that.
+          let cutoffValue = null;
+          if (myEntry.relegated_at_gameweek) {
+            const { data: sameStageEntries } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('value_at_relegation')
+              .eq('tournament_id', tournamentId).eq('relegated', true).eq('relegated_at_gameweek', myEntry.relegated_at_gameweek);
+            const values = (sameStageEntries || []).map(e => e.value_at_relegation).filter(v => v !== null && v !== undefined);
+            if (values.length > 0) cutoffValue = Math.max(...values);
+          }
+          return res.status(200).json({
+            entry: myEntry,
+            relegated: true,
+            relegated_at_gameweek: myEntry.relegated_at_gameweek || null,
+            value_at_relegation: myEntry.value_at_relegation !== null && myEntry.value_at_relegation !== undefined ? myEntry.value_at_relegation : myEntry.current_value,
+            cutoff_value: cutoffValue,
+            opponent: null, matchup: null, live: null, live_debug: null
+          });
+        }
 
         const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
         const currentGw = clock ? clock.current_gameweek : null;
@@ -4952,16 +4988,18 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
     const survivors = activeEntries.slice(cutCount);
 
     if (relegatedEntries.length > 0) {
-      // current_value must be zeroed here — their whole pot is about to
-      // be redistributed to survivors below, and without this their
-      // value stayed sitting in the database AND got added to survivors,
-      // duplicating real money rather than genuinely transferring it.
-      // Confirmed as a real zero-sum violation, not hypothetical.
-      const { error: relErr } = await supabaseAdmin
-        .schema('stockmarket').from('tournament_entries')
-        .update({ relegated: true, relegated_at_gameweek: currentGW, current_value: 0 })
-        .in('id', relegatedEntries.map(e => e.id));
-      if (relErr) console.error('Batch relegation update failed:', relErr);
+      // current_value must be zeroed for real zero-sum pot accounting —
+      // their whole value is about to be redistributed to survivors
+      // below. But value_at_relegation preserves their real final
+      // number for display, so the leaderboard can still show their
+      // actual gain/loss instead of an identical -£60 for everyone
+      // regardless of how differently they'd actually performed.
+      for (const e of relegatedEntries) {
+        await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .update({ relegated: true, relegated_at_gameweek: currentGW, value_at_relegation: e.current_value, current_value: 0 })
+          .eq('id', e.id);
+      }
     }
 
     const pot = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
