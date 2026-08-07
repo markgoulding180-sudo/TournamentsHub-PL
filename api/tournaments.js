@@ -353,13 +353,23 @@ module.exports = async (req, res) => {
         const totalEarned = history.reduce((s, r) => s + (r.win_bonus || 0), 0);
         const totalPaid = history.reduce((s, r) => s + (r.penalty_paid || 0), 0);
 
+        // Real player photos, same pattern used for the squad/matchup cards.
+        const statPlayerIds = [...new Set([bestPlayer, worstPlayer, topScorer, biggestSingleWin, biggestSingleLoss].filter(Boolean).map(p => p.player_id))];
+        const { data: photoRows } = statPlayerIds.length > 0
+          ? await masterDb.from('players').select('id, photo, custom_photo_url').in('id', statPlayerIds)
+          : { data: [] };
+        const photoByPid = {};
+        (photoRows || []).forEach(p => {
+          photoByPid[p.id] = p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null);
+        });
+
         return res.status(200).json({
           has_history: true,
-          best_player: bestPlayer ? { name: bestPlayer.name, team: bestPlayer.team, total_change: bestPlayer.total_change, weeks_held: bestPlayer.weeks_held } : null,
-          worst_player: worstPlayer ? { name: worstPlayer.name, team: worstPlayer.team, total_change: worstPlayer.total_change, weeks_held: worstPlayer.weeks_held } : null,
-          top_scorer: topScorer ? { name: topScorer.name, team: topScorer.team, total_goals: topScorer.total_goals } : null,
-          biggest_single_win: biggestSingleWin ? { name: biggestSingleWin.name, team: biggestSingleWin.team, gameweek: biggestSingleWin.gameweek, raw_change: biggestSingleWin.raw_change } : null,
-          biggest_single_loss: biggestSingleLoss ? { name: biggestSingleLoss.name, team: biggestSingleLoss.team, gameweek: biggestSingleLoss.gameweek, raw_change: biggestSingleLoss.raw_change } : null,
+          best_player: bestPlayer ? { player_id: bestPlayer.player_id, name: bestPlayer.name, team: bestPlayer.team, photo: photoByPid[bestPlayer.player_id] || null, total_change: bestPlayer.total_change, weeks_held: bestPlayer.weeks_held } : null,
+          worst_player: worstPlayer ? { player_id: worstPlayer.player_id, name: worstPlayer.name, team: worstPlayer.team, photo: photoByPid[worstPlayer.player_id] || null, total_change: worstPlayer.total_change, weeks_held: worstPlayer.weeks_held } : null,
+          top_scorer: topScorer ? { player_id: topScorer.player_id, name: topScorer.name, team: topScorer.team, photo: photoByPid[topScorer.player_id] || null, total_goals: topScorer.total_goals } : null,
+          biggest_single_win: biggestSingleWin ? { player_id: biggestSingleWin.player_id, name: biggestSingleWin.name, team: biggestSingleWin.team, photo: photoByPid[biggestSingleWin.player_id] || null, gameweek: biggestSingleWin.gameweek, raw_change: biggestSingleWin.raw_change } : null,
+          biggest_single_loss: biggestSingleLoss ? { player_id: biggestSingleLoss.player_id, name: biggestSingleLoss.name, team: biggestSingleLoss.team, photo: photoByPid[biggestSingleLoss.player_id] || null, gameweek: biggestSingleLoss.gameweek, raw_change: biggestSingleLoss.raw_change } : null,
           total_earned: totalEarned,
           total_paid: totalPaid,
           gameweeks_covered: [...new Set(history.map(r => r.gameweek))].sort((a, b) => a - b)
