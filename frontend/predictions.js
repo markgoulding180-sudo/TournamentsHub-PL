@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       });
 
       if (validationErrors.length > 0) {
-        alert(`Your score doesn't match your pick for ${validationErrors.length} match(es):\n\n${validationErrors.join('\n\n')}\n\nPlease fix the score (or your pick) before submitting.`);
+        showScoreWarning(validationErrors);
         return;
       }
       
@@ -364,4 +364,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     };
     return shirtMap[teamName] || teamName.toLowerCase();
   }
+
+  window.showScoreWarning = function(errors) {
+    const list = document.getElementById('scoreWarningList');
+    list.innerHTML = errors.map(e => `<div style="margin-bottom:10px; padding-left:10px; border-left:2px solid var(--accent-red);">${e}</div>`).join('');
+    document.getElementById('scoreWarningOverlay').style.display = 'flex';
+  };
+
+  window.closeScoreWarning = function() {
+    document.getElementById('scoreWarningOverlay').style.display = 'none';
+  };
 });
