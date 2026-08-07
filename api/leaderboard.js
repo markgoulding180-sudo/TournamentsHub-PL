@@ -85,6 +85,7 @@ module.exports = async (req, res) => {
       .select('user_id, username, entry_points')
       .eq('tournament_id', resolvedTournamentId)
       .order('entry_points', { ascending: false })
+      .order('user_id', { ascending: true }) // deterministic tie-breaker — without this, Postgres doesn't guarantee a consistent order for tied entries across separate calls, which is exactly why the same two 60pt players could show in a different order (and different rank number) between the Top 10 preview and the full leaderboard
       .range(offset, offset + limit - 1);
 
     if (error) {
