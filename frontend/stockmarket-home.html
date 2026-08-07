@@ -493,14 +493,8 @@
            known test users' squads randomly, never touches your own. -->
       <div class="card" style="border-color:var(--gold); margin-top:24px;">
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn-primary" onclick="createLoadTestUsers()" id="createUsersBtn">
-            <i class="fas fa-users"></i> Create 30 Test Accounts
-          </button>
-          <button class="btn-primary" onclick="seedTestSquads()" id="seedBtn">
-            <i class="fas fa-flask"></i> Seed All Test Squads
-          </button>
-          <button class="btn-primary" onclick="forceCloseWindow()" id="closeWindowBtn" style="background:var(--red);">
-            <i class="fas fa-door-closed"></i> Force Close Draft Window
+          <button class="btn-primary" onclick="seedEverythingAndOpenMarket()" id="seedEverythingBtn">
+            <i class="fas fa-bolt"></i> Seed Everything + Open Market
           </button>
           <button class="btn-primary" onclick="advanceGameweek()" id="advanceGwBtn" style="background:var(--gold); color:#000;">
             <i class="fas fa-forward"></i> Advance Gameweek
@@ -1215,6 +1209,90 @@
       'a12d9dce-a807-487b-85e5-8c9f8ade2fb0'
     ];
     let dynamicTestUserIds = [];
+
+    async function seedEverythingAndOpenMarket() {
+      const btn = document.getElementById('seedEverythingBtn');
+      const resultsEl = document.getElementById('seedResults');
+      btn.disabled = true;
+      const results = [];
+
+      try {
+        // 1. Create test accounts (safe to re-run — the backend only
+        // creates what's missing, matching every other seed action's
+        // already-exists guard).
+        resultsEl.textContent = 'Creating 30 test accounts…';
+        const acctRes = await fetch('/api/tournaments', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_create_test_users', count: 30 })
+        });
+        const acctData = await acctRes.json();
+        if (!acctRes.ok) { resultsEl.textContent = `Failed creating accounts: ${acctData.error}`; return; }
+        dynamicTestUserIds = acctData.user_ids || [];
+        const allIds = [...TEST_USER_IDS, ...dynamicTestUserIds];
+        results.push(`Created ${acctData.created} test accounts`);
+
+        // 2. Real current gameweek, fetched fresh right now — not a
+        // stale dropdown value, which is exactly what caused picks to
+        // get seeded for the wrong week previously.
+        const gwRes = await fetch('/api/current-gameweek');
+        const gwData = await gwRes.json();
+        const gw = gwData.current_gameweek;
+        if (!gw) { resultsEl.textContent = 'Could not determine the current gameweek.'; return; }
+
+        // 3. Seed all four tournament types for that real current gameweek.
+        const findTournament = async (type, status = 'live') => {
+          const r = await fetch(`/api/tournaments?status=${status}&tournament_type=${type}`, { headers: authHeaders() });
+          const d = await r.json();
+          const list = d.tournaments || [];
+          return Array.isArray(list) && list.length > 0 ? list[0].id : null;
+        };
+
+        resultsEl.textContent = `Seeding GW${gw} for all tournament types…`;
+
+        const predTid = await findTournament('predictions');
+        if (predTid) {
+          const r = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ action: 'predictions_seed_entries', tournament_id: predTid, user_ids: allIds, gameweek: gw }) });
+          const d = await r.json();
+          results.push(r.ok ? `Predictions: seeded ${d.seeded} for GW${gw}` : `Predictions failed: ${d.error}`);
+        } else { results.push('Predictions: no live tournament, skipped'); }
+
+        const lmsTid = await findTournament('lms');
+        if (lmsTid) {
+          const r = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ action: 'lms_seed_entries', tournament_id: lmsTid, user_ids: allIds, gameweek: gw }) });
+          const d = await r.json();
+          results.push(r.ok ? `LMS: seeded ${d.seeded} for GW${gw}` : `LMS failed: ${d.error}`);
+        } else { results.push('LMS: no live tournament, skipped'); }
+
+        const fmTid = await findTournament('fantasy');
+        if (fmTid) {
+          const r = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ action: 'fantasy_seed_entries', tournament_id: fmTid, user_ids: allIds }) });
+          const d = await r.json();
+          results.push(r.ok ? `Fantasy: ${d.seeded} squads seeded` : `Fantasy failed: ${d.error}`);
+        } else { results.push('Fantasy: no live tournament, skipped'); }
+
+        const smRes = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_seed_squads', tournament_id: tournamentId, user_ids: allIds }) });
+        const smData = await smRes.json();
+        results.push(smRes.ok ? `Stock Market: ${smData.seeded} squads seeded` : `Stock Market failed: ${smData.error}`);
+
+        // 4. Force close the Stock Market draft window last, exactly as
+        // the original order required — locks squads and opens the market.
+        resultsEl.textContent = 'Force closing Stock Market draft window…';
+        const closeRes = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ action: 'stockmarket_force_close', tournament_id: tournamentId }) });
+        const closeData = await closeRes.json();
+        results.push(closeRes.ok ? 'Stock Market draft window closed, market open' : `Force close failed: ${closeData.error}`);
+
+        resultsEl.innerHTML = `<strong>GW${gw} — done:</strong><br>` + results.map(r => `• ${r}`).join('<br>');
+      } catch (e) {
+        resultsEl.textContent = `Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
 
     async function createLoadTestUsers() {
       const resultsEl = document.getElementById('seedResults');
