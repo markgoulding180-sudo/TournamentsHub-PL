@@ -5068,8 +5068,25 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
   if (cutCount === 0) {
     console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegate_count is 0, nothing cut.`);
   } else {
-    const relegatedEntries = activeEntries.slice(0, cutCount);
-    const survivors = activeEntries.slice(cutCount);
+    // The configured count is a minimum, not a hard cap. If several
+    // entries are genuinely tied at the exact boundary value, arbitrarily
+    // picking which of them go — even consistently — isn't fair to
+    // whichever ones get unlucky despite an identical real performance
+    // to the ones who survive. So the cut extends to include everyone
+    // tied with the last entry that would have been cut, even if that
+    // means relegating more than the configured number this stage.
+    let actualCutCount = cutCount;
+    if (cutCount < activeEntries.length) {
+      const boundaryValue = activeEntries[cutCount - 1].current_value;
+      while (actualCutCount < activeEntries.length && activeEntries[actualCutCount].current_value === boundaryValue) {
+        actualCutCount++;
+      }
+    }
+    const relegatedEntries = activeEntries.slice(0, actualCutCount);
+    const survivors = activeEntries.slice(actualCutCount);
+    if (actualCutCount > cutCount) {
+      console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: configured to cut ${cutCount}, but extended to ${actualCutCount} to include everyone tied at the boundary value.`);
+    }
 
     if (relegatedEntries.length > 0) {
       // current_value must be zeroed for real zero-sum pot accounting —
