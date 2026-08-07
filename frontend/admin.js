@@ -2081,10 +2081,13 @@ async function submitManualScore() {
     
     const data = await response.json();
     
-    const gwList = (data.gameweeks_recalculated || []).join(', ') || 'none (match not finished)';
-    const lmsSummary = (data.lms_corrections || [])
-      .map(c => `${c.eliminated} eliminated, ${c.revived} revived`)
-      .join(' / ') || 'no LMS tournaments live';
+    const matchFinished = (data.gameweeks_recalculated || []).length > 0;
+    const gwList = matchFinished ? data.gameweeks_recalculated.join(', ') : 'none (match not finished — nothing to score yet)';
+    const lmsSummary = !matchFinished
+      ? 'not checked (match not finished — nothing to correct yet)'
+      : ((data.lms_corrections || [])
+          .map(c => `${c.eliminated} eliminated, ${c.revived} revived`)
+          .join(' / ') || 'no live LMS tournaments found');
     resultDiv.innerHTML = `<span class="text-green">✅ Score saved! Predictions recalculated for GW: ${gwList}. LMS: ${lmsSummary}</span>`;
     log(`Score saved. Predictions recalculated: GW ${gwList}. LMS corrections: ${lmsSummary}`, 'success');
     
