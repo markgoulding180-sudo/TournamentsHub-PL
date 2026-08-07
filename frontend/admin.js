@@ -892,6 +892,82 @@ async function adminGetLiveTournamentId(tournamentType) {
   return Array.isArray(list) && list.length > 0 ? list[0].id : null;
 }
 
+async function adminSeedEverything() {
+  const msgEl = document.getElementById('seedEntriesResultMsg');
+  await adminEnsureTestUsers();
+
+  // Fetch the real current gameweek fresh, right now — not from the GW
+  // dropdown, which is exactly what caused the bug this replaces: the
+  // dropdown could show one gameweek while Advance Gameweek changed the
+  // real current one mid-click, seeding the wrong week's picks.
+  msgEl.innerHTML = 'Checking current gameweek…';
+  const token = localStorage.getItem('gbf_token');
+  let gw;
+  try {
+    const gwRes = await fetch('/api/current-gameweek');
+    const gwData = await gwRes.json();
+    gw = gwData.current_gameweek;
+    if (!gw) { msgEl.textContent = 'Could not determine the current gameweek.'; return; }
+  } catch (e) {
+    msgEl.textContent = `Error fetching current gameweek: ${e.message}`;
+    return;
+  }
+
+  const results = [];
+  msgEl.innerHTML = `Seeding everything for GW${gw}…`;
+
+  // Predictions
+  try {
+    const tid = await adminGetLiveTournamentId('predictions');
+    if (!tid) {
+      results.push('Predictions: no live tournament found, skipped');
+    } else {
+      const res = await fetch('/api/tournaments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'predictions_seed_entries', tournament_id: tid, user_ids: adminTestUserIds, gameweek: gw })
+      });
+      const data = await res.json();
+      results.push(res.ok ? `Predictions: seeded ${data.seeded} accounts for GW${gw}` : `Predictions: failed — ${data.error}`);
+    }
+  } catch (e) { results.push(`Predictions: error — ${e.message}`); }
+
+  // LMS
+  try {
+    const tid = await adminGetLiveTournamentId('lms');
+    if (!tid) {
+      results.push('LMS: no live tournament found, skipped');
+    } else {
+      const res = await fetch('/api/tournaments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'lms_seed_entries', tournament_id: tid, user_ids: adminTestUserIds, gameweek: gw })
+      });
+      const data = await res.json();
+      results.push(res.ok ? `LMS: seeded ${data.seeded} accounts for GW${gw}` : `LMS: failed — ${data.error}`);
+    }
+  } catch (e) { results.push(`LMS: error — ${e.message}`); }
+
+  // Fantasy — squads are one-time, but this action already correctly
+  // skips any account that already has one, so it's safe to include here
+  // every time without needing a separate first-time-only step.
+  try {
+    const tid = await adminGetLiveTournamentId('fantasy');
+    if (!tid) {
+      results.push('Fantasy: no live tournament found, skipped');
+    } else {
+      const res = await fetch('/api/tournaments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'fantasy_seed_entries', tournament_id: tid, user_ids: adminTestUserIds })
+      });
+      const data = await res.json();
+      results.push(res.ok ? `Fantasy: ${data.seeded} squads seeded` : `Fantasy: failed — ${data.error}`);
+    }
+  } catch (e) { results.push(`Fantasy: error — ${e.message}`); }
+
+  msgEl.innerHTML = `<strong>GW${gw} — done:</strong><br>` + results.map(r => `• ${r}`).join('<br>') +
+    '<br><br><em>Stock Market not included — it\'s a one-time draft, not a per-gameweek reseed. Use Seed Stock Market Squads + Force Close separately, once, at the start.</em>';
+  log(`Seed Everything: GW${gw} — ${results.join(' | ')}`, 'success');
+}
+
 async function adminSeedPredictionsEntries() {
   const msgEl = document.getElementById('seedEntriesResultMsg');
   await adminEnsureTestUsers();
@@ -1669,7 +1745,7 @@ async function downloadFullExport() {
 async function launchTournament() {
   const typeLabels = { predictions: 'Predictions', lms: 'Last Man Standing', stockmarket: 'Stock Market', fantasy: 'Fantasy Manager' };
   const tournamentType = document.getElementById('tournament-type-input')?.value || 'predictions';
-  if (!confirm(`Launch new ${typeLabels[tournamentType]} tournament? This will:\n1. Sync current GW fixtures from FPL\n2. Create the tournament\n3. Open for user registrations`)) {
+  if (!confirm(`Launch new ${typeLabels[tournamentType]} tournament? This will:\n1. Create the tournament\n2. Open for user registrations`)) {
     return;
   }
   
@@ -1685,22 +1761,16 @@ async function launchTournament() {
     const currentGameweek = gwData.current_gameweek || 35;
     log(`Current gameweek: ${currentGameweek}`);
     
-    // Step 1: Sync fixtures
-    log('Syncing fixtures from FPL API...');
-    const syncResponse = await fetch('/api/sync-fixtures', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    log(`Sync response status: ${syncResponse.status}`);
-    
-    if (!syncResponse.ok) {
-      const errorText = await syncResponse.text();
-      log(`Sync error: ${errorText}`, 'error');
-      throw new Error('Failed to sync fixtures: ' + syncResponse.status);
-    }
-    
-    const syncData = await syncResponse.json();
-    log(`Synced ${syncData.matches?.length || 0} matches`, 'success');
+    // Fixture syncing deliberately removed from here — a tournament
+    // record doesn't actually need real fixtures to exist to be created,
+    // and this used to make launching a tournament depend on a live,
+    // external call to FPL's real API succeeding. During testing that
+    // synced data gets immediately overwritten by Seed Season Data
+    // anyway, so the dependency was pure risk with no benefit — a
+    // temporary FPL rate-limit or outage could block testing entirely
+    // for something the test flow never even used. "Sync Fixtures from
+    // FPL" already exists as its own separate, deliberate tool for
+    // whenever real fixture data is genuinely wanted.
     
     // Step 2: Create tournament
     log('Creating tournament...');

@@ -70,6 +70,16 @@ module.exports = async (req, res) => {
 
     // Fetch team data from FPL
     const teamsResponse = await fetch(FPL_BOOTSTRAP_URL);
+    if (!teamsResponse.ok) {
+      const bodyText = await teamsResponse.text().catch(() => '');
+      console.error(`FPL bootstrap fetch failed: ${teamsResponse.status} ${teamsResponse.statusText} — ${bodyText.slice(0, 300)}`);
+      return res.status(502).json({
+        error: `FPL's real API returned ${teamsResponse.status} (${teamsResponse.statusText}) when fetching team data.`,
+        detail: teamsResponse.status === 429
+          ? 'This looks like FPL rate-limiting us — likely from repeated syncs in a short window. Wait a few minutes and try again.'
+          : 'FPL\'s API may be temporarily down or blocking this request. Check again shortly.'
+      });
+    }
     const bootstrapData = await teamsResponse.json();
     
     const teams = {};
@@ -82,6 +92,16 @@ module.exports = async (req, res) => {
 
     // Fetch fixtures from FPL API
     const fixturesResponse = await fetch(FPL_FIXTURES_URL);
+    if (!fixturesResponse.ok) {
+      const bodyText = await fixturesResponse.text().catch(() => '');
+      console.error(`FPL fixtures fetch failed: ${fixturesResponse.status} ${fixturesResponse.statusText} — ${bodyText.slice(0, 300)}`);
+      return res.status(502).json({
+        error: `FPL's real API returned ${fixturesResponse.status} (${fixturesResponse.statusText}) when fetching fixtures.`,
+        detail: fixturesResponse.status === 429
+          ? 'This looks like FPL rate-limiting us — likely from repeated syncs in a short window. Wait a few minutes and try again.'
+          : 'FPL\'s API may be temporarily down or blocking this request. Check again shortly.'
+      });
+    }
     const fixtures = await fixturesResponse.json();
 
     // Filter by gameweek if specified
