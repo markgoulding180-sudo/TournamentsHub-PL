@@ -837,22 +837,49 @@
           : `${data.alive_count ?? rows.filter(r => !r.is_eliminated).length} / ${rows.length} still in`;
 
         // Prominent top-of-page banner announcing the result, once the
-        // tournament has actually ended.
+        // tournament has actually ended — a real summary, not just a
+        // one-line notice, using the same leaderboard data already
+        // fetched for the survivors board below.
         const finishedBanner = document.getElementById('finishedBanner');
         const winners = rows.filter(r => (r.prize_awarded || 0) > 0);
+        const totalEntrants = rows.length;
+        const totalPrizePool = rows.reduce((s, r) => s + (r.prize_awarded || 0), 0);
+        const roundsPlayed = Math.max(...rows.map(r => r.is_eliminated ? (r.eliminated_gameweek || 0) : (r.weeks_survived || 0)), 0);
+
         if (tournamentFinished && winners.length > 0) {
           finishedBanner.style.display = 'flex';
-          const names = winners.map(w => w.users?.display_name || w.users?.username || 'Player');
+          finishedBanner.style.flexDirection = 'column';
+          finishedBanner.style.alignItems = 'flex-start';
+          finishedBanner.style.gap = '10px';
+          const winnerFinalPick = winners[0].last_pick && winners[0].last_pick.team ? winners[0].last_pick.team : null;
           if (winners.length === 1) {
-            document.getElementById('finishedText').textContent =
-              `Tournament finished! ${names[0]} wins £${(winners[0].prize_awarded/100).toFixed(2)}.`;
+            const name = winners[0].users?.display_name || winners[0].users?.username || 'Player';
+            finishedBanner.innerHTML = `
+              <div style="display:flex; align-items:center; gap:12px; font-size:17px; font-weight:700;">
+                <i class="fas fa-trophy" style="font-size:22px;"></i>
+                <span>${escapeHtml(name)} wins the tournament! — £${(winners[0].prize_awarded/100).toFixed(2)}</span>
+              </div>
+              <div style="font-size:13px; font-weight:500; opacity:0.85; padding-left:34px;">
+                Survived ${roundsPlayed} round${roundsPlayed === 1 ? '' : 's'} against ${totalEntrants} entrant${totalEntrants === 1 ? '' : 's'}
+                ${winnerFinalPick ? ` — sealed it backing ${escapeHtml(winnerFinalPick)} in the final round` : ''}.
+                Total prize pool: £${(totalPrizePool/100).toFixed(2)}.
+              </div>`;
           } else {
-            document.getElementById('finishedText').textContent =
-              `Tournament finished! Everyone went out together — the pot splits between ${names.join(', ')} (£${(winners[0].prize_awarded/100).toFixed(2)} each).`;
+            const names = winners.map(w => w.users?.display_name || w.users?.username || 'Player');
+            finishedBanner.innerHTML = `
+              <div style="display:flex; align-items:center; gap:12px; font-size:17px; font-weight:700;">
+                <i class="fas fa-trophy" style="font-size:22px;"></i>
+                <span>Tournament finished — shared victory!</span>
+              </div>
+              <div style="font-size:13px; font-weight:500; opacity:0.85; padding-left:34px;">
+                ${names.length} players went out together in the same round after ${roundsPlayed} round${roundsPlayed === 1 ? '' : 's'} —
+                ${names.map(escapeHtml).join(', ')} split the £${(totalPrizePool/100).toFixed(2)} pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.
+                ${totalEntrants} entrants in total.
+              </div>`;
           }
         } else if (tournamentFinished) {
           finishedBanner.style.display = 'flex';
-          document.getElementById('finishedText').textContent = 'Tournament finished — see the final standings below.';
+          finishedBanner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i> <span>Tournament finished — see the final standings below.</span>`;
         } else {
           finishedBanner.style.display = 'none';
         }
