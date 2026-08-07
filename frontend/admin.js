@@ -1473,7 +1473,13 @@ async function loadRelegationStages() {
     });
     const data = await response.json();
     if (!response.ok) { wrap.innerHTML = `Failed: ${data.error}`; return; }
-    currentStagesData = data.stages || [];
+    // A fresh tournament has no stage rows at all yet — without this,
+    // the table rendered completely empty, with no input fields to type
+    // into whatsoever. Confirmed as a real bug, not user error: there
+    // was nothing to save because there was nothing to fill in.
+    currentStagesData = (data.stages && data.stages.length > 0)
+      ? data.stages
+      : [1, 2, 3, 4].map(n => ({ stage_number: n, trigger_gameweek: null, relegate_count: 0, cost_multiplier: 1, applied: false }));
     renderRelegationStages();
     document.getElementById('saveStagesBtn').disabled = false;
   } catch (error) {
