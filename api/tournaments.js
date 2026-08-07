@@ -3199,9 +3199,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           };
 
           const targetUserIds = fmUserIds.filter(uid => uid !== user.id); // never touch your own squad
+
+          // The exact same protection Stock Market's seed action has —
+          // this used to have none at all, meaning re-running it for a
+          // later gameweek silently overwrote every account's existing
+          // squad AND reset their real, accumulated entry_points back to
+          // zero. Confirmed as a real, severe bug: it wiped out 33 real
+          // test accounts' genuine GW1 Fantasy results the moment this
+          // was called a second time for GW2.
+          const { data: existingFmRows } = await supabaseAdmin
+            .schema('fantasy').from('tournament_entries')
+            .select('user_id, squad_players')
+            .eq('tournament_id', fmTournamentId).in('user_id', targetUserIds);
+          const alreadyHasSquad = new Set(
+            (existingFmRows || []).filter(e => e.squad_players && e.squad_players.length > 0).map(e => e.user_id)
+          );
+          const seedableUserIds = targetUserIds.filter(uid => !alreadyHasSquad.has(uid));
+
           const entryRows = [];
           const results = [];
-          for (const uid of targetUserIds) {
+          for (const uid of seedableUserIds) {
             let squad = buildSquad();
             let totalCost = squad.reduce((sum, p) => sum + (p.now_cost || 0), 0);
             // Extremely unlikely with the cheaper-half bias, but re-roll
@@ -3230,7 +3247,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             if (upsertErr) throw upsertErr;
           }
 
-          return res.status(200).json({ success: true, seeded: results.length, results });
+          return res.status(200).json({ success: true, seeded: results.length, already_had_squad_skipped: alreadyHasSquad.size, results });
         } catch (err) {
           console.error('fantasy_seed_entries error:', err);
           return res.status(500).json({ error: err.message });

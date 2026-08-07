@@ -959,7 +959,7 @@ async function adminSeedEverything() {
         body: JSON.stringify({ action: 'fantasy_seed_entries', tournament_id: tid, user_ids: adminTestUserIds })
       });
       const data = await res.json();
-      results.push(res.ok ? `Fantasy: ${data.seeded} squads seeded` : `Fantasy: failed — ${data.error}`);
+      results.push(res.ok ? `Fantasy: ${data.seeded} new squad(s)${data.already_had_squad_skipped ? `, ${data.already_had_squad_skipped} already had one` : ''}` : `Fantasy: failed — ${data.error}`);
     }
   } catch (e) { results.push(`Fantasy: error — ${e.message}`); }
 
@@ -1038,7 +1038,8 @@ async function adminSeedFantasyEntries() {
     });
     const data = await response.json();
     if (!response.ok) { msgEl.textContent = `Failed: ${data.error}`; return; }
-    msgEl.textContent = `Seeded ${data.seeded} Fantasy squads.`;
+    const fmSkipped = data.already_had_squad_skipped || 0;
+    msgEl.textContent = `Seeded ${data.seeded} new Fantasy squads.${fmSkipped > 0 ? ` ${fmSkipped} account(s) already had one, correctly left untouched.` : ''}`;
     log('Fantasy squads seeded', 'success');
   } catch (error) {
     msgEl.textContent = `Error: ${error.message}`;

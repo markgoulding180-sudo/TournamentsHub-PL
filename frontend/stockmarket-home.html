@@ -1274,7 +1274,7 @@
           const r = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({ action: 'fantasy_seed_entries', tournament_id: fmTid, user_ids: allIds }) });
           const d = await r.json();
-          results.push(r.ok ? `Fantasy: ${d.seeded} squads seeded` : `Fantasy failed: ${d.error}`);
+          results.push(r.ok ? `Fantasy: ${d.seeded} new squad(s)${d.already_had_squad_skipped ? `, ${d.already_had_squad_skipped} already had one` : ''}` : `Fantasy failed: ${d.error}`);
         } else { results.push('Fantasy: no live tournament, skipped'); }
 
         const smRes = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
