@@ -276,7 +276,16 @@ module.exports = async (req, res) => {
             zoneSize++;
           }
         }
-        const zoneIds = new Set(zoneSize > 0 ? activeIdsInOrder.slice(activeIdsInOrder.length - zoneSize) : []);
+        // If the tie-extension pushed the zone to cover the entire active
+        // population (everyone still exactly tied, e.g. before any real
+        // gameweek events have differentiated anyone), showing "everyone's
+        // at risk" isn't a meaningful warning — suppress it entirely
+        // rather than tag every single row.
+        const zoneIds = new Set(
+          zoneSize > 0 && zoneSize < activeIdsInOrder.length
+            ? activeIdsInOrder.slice(activeIdsInOrder.length - zoneSize)
+            : []
+        );
 
         // Active entries get their own clean 1..N ranking — relegated
         // players are pulled out entirely rather than interleaved, since
