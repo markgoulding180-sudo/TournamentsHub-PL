@@ -1202,10 +1202,14 @@
     }
 
     // TEMPORARY TEST TOOL — delete after testing.
+    // Legacy hardcoded test accounts from earlier sessions — kept for
+    // continuity with existing seeded data, but the admin's own real
+    // account must never be in this list. It was found here by mistake,
+    // meaning every seed action was silently overwriting the admin's own
+    // real predictions/pick/squad with random test data. Removed.
     const TEST_USER_IDS = [
       '04bb6461-bd3b-4be1-b2b5-dfd61f6eb9cc',
       '347fe8d3-297c-4cb1-816f-af61177c9072',
-      '4d935300-c707-4e73-86a3-217d73e006a8',
       'a12d9dce-a807-487b-85e5-8c9f8ade2fb0'
     ];
     let dynamicTestUserIds = [];
@@ -1284,7 +1288,7 @@
         // window left to close). Checks the tournament's real current
         // status fresh rather than assuming, so this stays correct
         // regardless of how many times the button gets pressed.
-        const statusCheckRes = await fetch(`/api/tournaments?tournament_id=${tournamentId}`, { headers: authHeaders() });
+        const statusCheckRes = await fetch(`/api/tournaments?tournament_id=${tournamentId}&tournament_type=stockmarket`, { headers: authHeaders() });
         const statusCheckData = await statusCheckRes.json();
         const isStillDraft = statusCheckData.tournament && statusCheckData.tournament.status === 'upcoming';
 
