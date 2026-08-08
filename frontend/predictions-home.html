@@ -415,6 +415,15 @@
       </div>
     </section>
 
+    <div id="predsFinishedCard" style="display:none;">
+      <div class="card" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
+        <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+        <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Season Complete — Final Standings</h2>
+        <p style="max-width:460px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);" id="predsFinishedSummary">Loading final standings…</p>
+        <a href="/leaderboard" class="hero-enter-btn" style="text-decoration:none;"><i class="fas fa-ranking-star"></i> View Full Standings</a>
+      </div>
+    </div>
+
     <!-- Predict nav bar — quick access to the pages a user actually uses -->
     <nav class="predict-nav-bar">
       <a href="/predict" class="predict-nav-btn primary predict-now-link"><i class="fas fa-futbol"></i> Predict Now</a>
@@ -689,11 +698,30 @@
         document.getElementById('heroTournamentName').textContent = isFinished ? 'Season Finished' : (t.name || 'Predictions');
 
         if (isFinished) {
-          ctaRow.innerHTML = `<a href="/leaderboard" class="hero-enter-btn"><i class="fas fa-trophy"></i> See Final Standings</a>`;
-          metaRow.innerHTML = `
-            <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
-            <div class="hero-meta-item">Prize Pool <b>£${((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></div>
-          `;
+          document.getElementById('heroCtaRow').innerHTML = '';
+          document.getElementById('heroMetaRow').innerHTML = '';
+          const finalCard = document.getElementById('predsFinishedCard');
+          finalCard.style.display = 'block';
+          try {
+            const lbRes = await fetch('/api/leaderboard?tournament=all&limit=50');
+            const lbData = await lbRes.json();
+            const entries = lbData.leaderboard || [];
+            const winners = entries.filter(e => (e.prize_awarded || 0) > 0);
+            const summaryEl = document.getElementById('predsFinishedSummary');
+            if (winners.length === 1) {
+              const w = winners[0];
+              const name = w.user?.display_name || 'Player';
+              summaryEl.textContent = `${name} wins with ${(w.total_points||0).toLocaleString()} points — £${(w.prize_awarded/100).toFixed(2)} prize.`;
+            } else if (winners.length > 1) {
+              const names = winners.map(w => w.user?.display_name || 'Player');
+              summaryEl.textContent = `${names.length}-way tie at the top — ${names.join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.`;
+            } else {
+              summaryEl.textContent = `${t.current_entries ?? 0} entrants — see final standings below.`;
+            }
+          } catch (e) {
+            console.error('Failed to load winner data:', e);
+            document.getElementById('predsFinishedSummary').textContent = 'See final standings below.';
+          }
           return;
         }
 
