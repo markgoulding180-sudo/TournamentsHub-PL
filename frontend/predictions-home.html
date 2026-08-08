@@ -449,7 +449,7 @@
     <!-- Your Predictions This Week -->
     <section class="card week-card" id="yourPredictionsCard">
       <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
-        <span><i class="fas fa-user-check" style="color:var(--accent-2);"></i> <span id="yourPredictionsTitle" style="font-family:var(--font-display); font-size:20px; color:var(--accent-2);">Your Predictions This Week</span></span>
+        <span><i class="fas fa-user-check" style="color:var(--accent-2);"></i> <span id="yourPredictionsTitle" style="font-family:var(--font-display); font-size:20px; color:#fff;">Your Predictions This Week</span></span>
         <div style="display:flex; gap:8px; align-items:center;">
           <button id="yourPredPrevGw" title="Previous gameweek" aria-label="Previous gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-left"></i></button>
           <button id="yourPredNextGw" title="Next gameweek" aria-label="Next gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-right"></i></button>
@@ -562,7 +562,9 @@
       const titleEl = document.getElementById('yourPredictionsTitle');
       const prevBtn = document.getElementById('yourPredPrevGw');
       const nextBtn = document.getElementById('yourPredNextGw');
-      if (titleEl) titleEl.textContent = gw === currentGw ? `Your Predictions This Week (GW${gw})` : `Your Predictions — Gameweek ${gw}`;
+      if (titleEl) titleEl.innerHTML = gw === currentGw
+        ? `Your Predictions This Week <span style="color:var(--accent-2);">GW${gw}</span>`
+        : `Your Predictions — <span style="color:var(--accent-2);">Gameweek ${gw}</span>`;
       // GW1 is the real floor for every tournament — never navigate below it.
       if (prevBtn) {
         const atFloor = !gw || gw <= 1;
