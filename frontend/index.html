@@ -1280,9 +1280,26 @@
           t = upList[0];
         }
 
+        // A finished tournament isn't "coming soon" — it already
+        // happened, and has real results worth seeing. Without this, the
+        // moment any tournament finishes, its card silently reverted to
+        // Coming Soon (implying the future) instead of showing it's over.
+        let finished = false;
+        if (!t) {
+          const finRes = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=finished`);
+          const finData = await finRes.json();
+          const finList = Array.isArray(finData) ? finData : (finData.tournaments || []);
+          t = finList[0];
+          finished = !!t;
+        }
+
         if (!t) {
           markCardComingSoon(card);
           return;
+        }
+
+        if (finished) {
+          markCardFinished(card);
         }
 
         const prizeEl = card.querySelector('.stat-value.prize');
@@ -1315,6 +1332,15 @@
     const btn = card.querySelector('.btn-enter');
     if (btn) { btn.textContent = 'Coming Soon'; }
     card.addEventListener('click', (e) => e.preventDefault());
+  }
+
+  function markCardFinished(card){
+    const statsRow = card.querySelector('.t-card-stats');
+    if (statsRow) statsRow.innerHTML = '<div style="width:100%; text-align:center; color:var(--gold); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;"><i class="fas fa-trophy"></i> Finished — See Results</div>';
+    const btn = card.querySelector('.btn-enter');
+    if (btn) { btn.textContent = 'View Results'; }
+    // Deliberately no click-prevention here, unlike Coming Soon — the
+    // card should stay clickable so people can actually go see who won.
   }
 
   document.addEventListener('DOMContentLoaded', loadNotifications);
