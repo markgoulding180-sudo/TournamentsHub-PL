@@ -430,6 +430,83 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Predictions per-user, week-by-week pick history — real data from
+      // the predictions table itself, which already permanently stores
+      // every pick with its match, result, and points. No separate
+      // snapshot table needed here, unlike Fantasy's squad-based scoring.
+      const predictionsUserHistory = params.get('predictions_user_history');
+      if (predictionsUserHistory === 'true') {
+        const userIdParam = params.get('user_id');
+        const predTournamentId = params.get('tournament_id');
+        if (!userIdParam) return res.status(400).json({ error: 'user_id is required' });
+
+        const { data: userRow } = await supabase
+          .from('users').select('username, display_name').eq('id', userIdParam).maybeSingle();
+        const playerName = userRow ? (userRow.display_name || userRow.username || 'Player') : 'Player';
+
+        let predQuery = supabase
+          .schema('predictions').from('predictions')
+          .select('gameweek, match_id, home_team, away_team, predicted_result, home_score, away_score, points_earned')
+          .eq('user_id', userIdParam)
+          .order('gameweek', { ascending: true });
+        const { data: allPreds } = await predQuery;
+
+        // Only count genuinely scored (finished) matches for stats — an
+        // unscored, still-upcoming pick shouldn't count as a real "0".
+        const scoredPreds = (allPreds || []).filter(p => p.points_earned !== null && p.points_earned !== undefined);
+
+        const byGameweek = {};
+        scoredPreds.forEach(p => {
+          if (!byGameweek[p.gameweek]) byGameweek[p.gameweek] = { gameweek: p.gameweek, total: 0, picks: [] };
+          byGameweek[p.gameweek].total += (p.points_earned || 0);
+          byGameweek[p.gameweek].picks.push(p);
+        });
+        // Include gameweeks with genuine picks even if none are scored
+        // yet, so an upcoming gameweek's picks are still visible.
+        (allPreds || []).forEach(p => {
+          if (!byGameweek[p.gameweek]) byGameweek[p.gameweek] = { gameweek: p.gameweek, total: 0, picks: [] };
+          if (!byGameweek[p.gameweek].picks.find(x => x.match_id === p.match_id)) {
+            byGameweek[p.gameweek].picks.push(p);
+          }
+        });
+
+        const gwList = Object.values(byGameweek).sort((a, b) => a.gameweek - b.gameweek);
+        const scoredGwList = gwList.filter(g => g.picks.some(p => p.points_earned !== null && p.points_earned !== undefined));
+
+        let bestGw = null, worstGw = null;
+        if (scoredGwList.length > 0) {
+          bestGw = scoredGwList.reduce((a, b) => (b.total > a.total ? b : a));
+          worstGw = scoredGwList.reduce((a, b) => (b.total < a.total ? b : a));
+        }
+
+        // Most-picked teams — counts every team named in a prediction
+        // (either side), regardless of whether that match has been
+        // scored yet.
+        const teamCounts = {};
+        (allPreds || []).forEach(p => {
+          // Only count the team actually backed, not both sides of every match.
+          let backedTeam = null;
+          if (p.predicted_result === 'H') backedTeam = p.home_team;
+          else if (p.predicted_result === 'A') backedTeam = p.away_team;
+          if (backedTeam) teamCounts[backedTeam] = (teamCounts[backedTeam] || 0) + 1;
+        });
+        const trendingTeams = Object.entries(teamCounts)
+          .map(([team, count]) => ({ team, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+
+        const totalPoints = scoredPreds.reduce((s, p) => s + (p.points_earned || 0), 0);
+
+        return res.status(200).json({
+          player_name: playerName,
+          total_points: totalPoints,
+          gameweeks: gwList,
+          best_gameweek: bestGw ? { gameweek: bestGw.gameweek, points: bestGw.total } : null,
+          worst_gameweek: worstGw ? { gameweek: worstGw.gameweek, points: worstGw.total } : null,
+          trending_teams: trendingTeams
+        });
+      }
+
 
       // Final results for a FINISHED tournament — separate from the live
       // leaderboard above since it reads the locked final_value snapshot,
