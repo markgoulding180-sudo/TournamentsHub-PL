@@ -273,8 +273,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
         // No more squad editing once the season's over — the enter
         // gate / squad panel don't apply anymore, just the results.
+        // Player Pool specifically only hides on mobile (class + media
+        // query below), not desktop, where there's room to keep browsing.
         if (els.enterGate) els.enterGate.style.display = 'none';
         if (els.squadPanel) els.squadPanel.style.display = 'none';
+        const playerPoolCard = document.getElementById('playerPoolCard');
+        if (playerPoolCard) playerPoolCard.classList.add('fm-hide-mobile-when-finished');
       } else if (els.finishedCard) {
         els.finishedCard.style.display = 'none';
       }
