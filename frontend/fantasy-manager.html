@@ -101,6 +101,7 @@
     .fm-status-badge.entered{background:rgba(34,197,94,0.12); border-color:var(--green); color:var(--green);}
 
     .fm-budget-bar{display:flex; gap:1rem; flex-wrap:wrap; margin:1.25rem 0 1.5rem;}
+    .fm-position-bar{display:flex; gap:1rem; flex-wrap:wrap; margin:0 0 1rem;}
     .fm-stat{background:var(--bg-panel); border:1px solid var(--border); border-radius:0.75rem; padding:.85rem 1.2rem; min-width:110px;}
     .fm-stat-label{font-size:.7rem; color:var(--text-faint); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.2rem;}
     .fm-stat-value{font-size:1.25rem; font-weight:700; font-family:var(--font-head);}
@@ -175,6 +176,11 @@
       .fm-stat-label{ font-size:.66rem; }
       .fm-stat-value{ font-size:1.1rem; }
       #fmDeadlineValue{ font-size:.92rem !important; }
+
+      .fm-position-bar{
+        display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;
+        margin:0 0 14px;
+      }
 
       /* Player pool & squad rows — on mobile, wrap the stats onto their
          own line instead of relying on horizontal scroll. A new user
@@ -368,22 +374,6 @@
         <div class="fm-stat-label">Squad</div>
         <div class="fm-stat-value" id="fmSquadCount">0 / 15</div>
       </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">GK</div>
-        <div class="fm-stat-value" id="fmCountGK">0 / 2</div>
-      </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">DEF</div>
-        <div class="fm-stat-value" id="fmCountDEF">0 / 5</div>
-      </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">MID</div>
-        <div class="fm-stat-value" id="fmCountMID">0 / 5</div>
-      </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">FWD</div>
-        <div class="fm-stat-value" id="fmCountFWD">0 / 3</div>
-      </div>
     </div>
 
     <div class="fm-layout">
@@ -408,6 +398,24 @@
 
       <!-- My squad -->
       <div>
+        <div class="fm-position-bar">
+          <div class="fm-stat">
+            <div class="fm-stat-label">GK</div>
+            <div class="fm-stat-value" id="fmCountGK">0 / 2</div>
+          </div>
+          <div class="fm-stat">
+            <div class="fm-stat-label">DEF</div>
+            <div class="fm-stat-value" id="fmCountDEF">0 / 5</div>
+          </div>
+          <div class="fm-stat">
+            <div class="fm-stat-label">MID</div>
+            <div class="fm-stat-value" id="fmCountMID">0 / 5</div>
+          </div>
+          <div class="fm-stat">
+            <div class="fm-stat-label">FWD</div>
+            <div class="fm-stat-value" id="fmCountFWD">0 / 3</div>
+          </div>
+        </div>
         <section class="fm-card" id="mySquadCard" style="margin-bottom:20px;">
           <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
             <span><i class="fas fa-shirt"></i> My Squad</span>
