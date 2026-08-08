@@ -37,11 +37,39 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: 'Failed to fetch players', details: error.message });
       }
 
+      // players.goals_scored/assists/yellow_cards/red_cards are never
+      // actually written to by the real scoring pipeline — they sit at 0
+      // regardless of what's genuinely happened. player_gameweek_stats
+      // does hold real per-gameweek events, so season totals are summed
+      // from there and merged in, overriding the always-zero columns.
+      // Confirmed as a real bug: every player showed 0 for all four
+      // stats despite a full season of real goals/assists/cards.
+      const { data: gwStats } = await supabase
+        .from('player_gameweek_stats')
+        .select('player_id, goals_scored, assists, yellow_cards, red_cards');
+
+      const seasonTotals = {};
+      (gwStats || []).forEach(row => {
+        if (!seasonTotals[row.player_id]) {
+          seasonTotals[row.player_id] = { goals_scored: 0, assists: 0, yellow_cards: 0, red_cards: 0 };
+        }
+        const t = seasonTotals[row.player_id];
+        t.goals_scored += row.goals_scored || 0;
+        t.assists += row.assists || 0;
+        t.yellow_cards += row.yellow_cards || 0;
+        t.red_cards += row.red_cards || 0;
+      });
+
+      const playersWithRealSeasonStats = (players || []).map(p => {
+        const totals = seasonTotals[p.id];
+        return totals ? { ...p, ...totals } : p;
+      });
+
       const { data: teams } = await supabase
         .from('teams')
         .select('id, name, short_name');
 
-      return res.status(200).json({ players: players || [], teams: teams || [] });
+      return res.status(200).json({ players: playersWithRealSeasonStats, teams: teams || [] });
     } catch (error) {
       console.error('Players list error:', error);
       return res.status(500).json({ error: 'Failed to fetch players', details: error.message });
