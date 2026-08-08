@@ -325,12 +325,13 @@
         <h1>Last Man Standing</h1>
         <div class="hero-sub">Pick One. Survive. Repeat.</div>
         <p class="hero-desc">Pick a Premier League team to win every gameweek. Get it wrong and you're out — and you can never use the same team twice. Last manager standing takes the pot.</p>
+        <div id="heroStatRow" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:18px;"></div>
       </div>
     </section>
 
+    <div class="finished-banner" id="finishedBanner"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
     <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
     <div class="out-banner" id="outBanner"><i class="fas fa-skull" style="font-size:20px;"></i> <span id="outText"></span></div>
-    <div class="finished-banner" id="finishedBanner"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
 
     <!-- How it works -->
     <div class="how-collapsible" id="howCollapsible">
@@ -524,11 +525,14 @@
 
       await loadLockStatus();
 
-      document.getElementById('statRow').innerHTML = `
+      const statRowHtml = `
         <div class="stat"><div class="label">Entries</div><div class="value">${tournament.current_entries||0}</div></div>
         <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((tournament.prize_pool||0)/100).toFixed(2)}</div></div>
         <div class="stat"><div class="label">Gameweek</div><div class="value">${currentGw ?? '--'}</div></div>
       `;
+      document.getElementById('statRow').innerHTML = statRowHtml;
+      const heroStatRow = document.getElementById('heroStatRow');
+      if (heroStatRow) heroStatRow.innerHTML = statRowHtml;
 
       await loadGameweekResults();
       await loadLmsState();
@@ -682,6 +686,14 @@
           outBanner.style.display = 'none';
           badge.className = 'status-badge entered';
           badge.innerHTML = `<i class="fas fa-trophy" style="color:var(--gold);"></i> Winner — £${(prizeAwarded/100).toFixed(2)}`;
+        } else if (tournamentFinished && data.is_eliminated) {
+          // Main finished banner already covers "it's over" — a second,
+          // full-size banner just for personal status is redundant
+          // clutter stacked right underneath it. The badge alone covers
+          // personal outcome once the tournament's genuinely finished.
+          outBanner.style.display = 'none';
+          badge.className = 'status-badge out';
+          badge.innerHTML = `<i class="fas fa-skull"></i> Eliminated GW${data.eliminated_gameweek}`;
         } else if (data.is_eliminated) {
           outBanner.style.display = 'flex';
           document.getElementById('outText').textContent = tournamentFinished
