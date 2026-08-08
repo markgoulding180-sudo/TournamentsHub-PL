@@ -103,9 +103,9 @@
     .lb-header .lb-name{ flex:1; }
     .lb-header .lb-value{ flex:none; width:72px; text-align:right; }
     .lb-header .lb-gain{ flex:none; width:66px; text-align:right; }
-    .lb-row{ display:flex; align-items:center; gap:8px; padding:9px 6px; border-top:1px solid var(--border); flex-wrap:wrap; }
+    .lb-row{ display:flex; align-items:center; gap:6px; padding:9px 6px; border-top:1px solid var(--border); flex-wrap:nowrap; }
     .lb-row .lb-rank{ width:22px; flex:none; font-weight:700; }
-    .lb-row .lb-name{ flex:1 1 140px; min-width:0; overflow-wrap:anywhere; }
+    .lb-row .lb-name{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .lb-row .lb-tag{ display:block; font-size:10px; text-transform:uppercase; color:var(--red); font-weight:700; margin-top:1px; }
     .lb-row .lb-value{ flex:none; width:72px; text-align:right; font-weight:700; white-space:nowrap; }
     .lb-row .lb-gain{ flex:none; width:66px; text-align:right; white-space:nowrap; }
