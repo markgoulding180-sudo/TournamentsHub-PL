@@ -288,7 +288,7 @@
           return `
             <div class="row ${rankClass}">
               <div class="rank ${rankClass}">${r.rank}</div>
-              <div class="name">${escapeHtml(name)}</div>
+              <div class="name"><a href="/fantasy-entry-history?entry_id=${r.id}" style="color:inherit; text-decoration:none;">${escapeHtml(name)}</a></div>
               <div class="points-col">
                 <span class="total">${r.entry_points || 0}</span>
                 <span class="gw">${r.gw_points || 0} this GW</span>

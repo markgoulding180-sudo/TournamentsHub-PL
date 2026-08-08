@@ -397,6 +397,31 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Fantasy per-user, week-by-week points history — real data, built
+      // from the same settlement step that locks in entry_points, not
+      // reconstructed or estimated after the fact.
+      const fantasyEntryHistory = params.get('fantasy_entry_history');
+      if (fantasyEntryHistory === 'true') {
+        const entryId = params.get('entry_id');
+        if (!entryId) return res.status(400).json({ error: 'entry_id is required' });
+
+        const { data: entry } = await supabase
+          .schema('fantasy').from('tournament_entries')
+          .select('id, user_id, entry_points, users:user_id(username, display_name)')
+          .eq('id', entryId).maybeSingle();
+        if (!entry) return res.status(404).json({ error: 'Entry not found' });
+
+        const { data: history } = await supabase
+          .schema('fantasy').from('entry_gameweek_history')
+          .select('gameweek, points').eq('entry_id', entryId).order('gameweek', { ascending: true });
+
+        return res.status(200).json({
+          player_name: entry.users ? (entry.users.display_name || entry.users.username) : 'Player',
+          total_points: entry.entry_points || 0,
+          history: history || []
+        });
+      }
+
 
       // Final results for a FINISHED tournament — separate from the live
       // leaderboard above since it reads the locked final_value snapshot,
@@ -5467,6 +5492,7 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
   (allPlayers || []).forEach(p => { eventPointsById[p.id] = p.event_points || 0; });
 
   const updateRows = [];
+  const historyRows = [];
   for (const t of liveFantasyTournaments) {
     // Atomic claim, same pattern as LMS's last_processed_gameweek — only
     // proceed if this tournament hasn't already been settled for this
@@ -5494,7 +5520,15 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
         gwScore += (pid === e.captain_id) ? pts * 2 : pts;
       });
       updateRows.push({ ...e, entry_points: (e.entry_points || 0) + gwScore, last_gw_points: gwScore });
+      historyRows.push({ tournament_id: t.id, entry_id: e.id, user_id: e.user_id, gameweek, points: gwScore });
     }
+  }
+
+  if (historyRows.length > 0) {
+    const { error: histErr } = await supabaseAdmin
+      .schema('fantasy').from('entry_gameweek_history')
+      .upsert(historyRows, { onConflict: 'entry_id,gameweek' });
+    if (histErr) console.error('Fantasy gameweek history upsert failed:', histErr);
   }
 
   if (updateRows.length > 0) {

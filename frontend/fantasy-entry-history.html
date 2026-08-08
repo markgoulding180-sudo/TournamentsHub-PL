@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gameweek History - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --silver:#c7cedb; --bronze:#d08a4f; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth; overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .back-link{ display:flex; align-items:center; gap:8px; font-family:var(--font-head); font-weight:600; font-size:14px; color:var(--text-dim); }
+    .back-link:hover{ color:var(--text); }
+
+    .wrap{ max-width:640px; margin:0 auto; padding:36px 20px 60px; position:relative; z-index:1; }
+
+    .header-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:28px 24px; text-align:center; margin-bottom:24px; }
+    .header-card .name{ font-family:var(--font-head); font-size:24px; font-weight:700; margin-bottom:6px; }
+    .header-card .sub{ color:var(--text-dim); font-size:13px; margin-bottom:16px; }
+    .header-card .total{ font-family:var(--font-display); font-size:40px; color:var(--accent-2); line-height:1; }
+    .header-card .total-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+
+    .chart-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 20px; }
+    .chart-card-title{ font-family:var(--font-head); font-weight:700; font-size:15px; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+
+    /* Each gameweek is a horizontal bar — the length is the story here,
+       since a fantasy season lives or dies on week-to-week swings, and a
+       bar chart makes a bad week and a great week equally obvious at a
+       glance without needing to read every number. */
+    .gw-row{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+    .gw-label{ flex:none; width:44px; font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--text-dim); }
+    .gw-bar-track{ flex:1 1 auto; background:var(--bg-card); border-radius:6px; height:26px; position:relative; overflow:hidden; }
+    .gw-bar-fill{ height:100%; background:linear-gradient(90deg, var(--accent-dim), var(--accent-2)); border-radius:6px; transition:width .4s ease; }
+    .gw-bar-fill.best{ background:linear-gradient(90deg, #b8860b, var(--gold)); }
+    .gw-bar-fill.worst{ background:linear-gradient(90deg, #7f1d1d, var(--red)); }
+    .gw-points{ flex:none; width:44px; text-align:right; font-family:var(--font-head); font-weight:700; font-size:14px; }
+
+    .empty{ text-align:center; padding:40px 20px; color:var(--text-dim); font-size:14px; }
+    .loading{ text-align:center; padding:40px 20px; color:var(--text-dim); }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <nav class="navbar">
+    <div class="logo">
+      <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;"></i></div>
+      <div class="logo-text">GB TOURNAMENTS<span class="sub">FANTASY</span></div>
+    </div>
+    <a href="/fantasy-leaderboard" class="back-link"><i class="fas fa-arrow-left"></i> Leaderboard</a>
+  </nav>
+
+  <div class="wrap">
+    <div id="content">
+      <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading gameweek history…</div>
+    </div>
+  </div>
+
+  <script>
+    async function load() {
+      const content = document.getElementById('content');
+      const params = new URLSearchParams(window.location.search);
+      const entryId = params.get('entry_id');
+      if (!entryId) {
+        content.innerHTML = '<div class="empty">No player selected. Go back to the leaderboard and click a name.</div>';
+        return;
+      }
+      try {
+        const res = await fetch(`/api/tournaments?fantasy_entry_history=true&entry_id=${entryId}`);
+        if (!res.ok) {
+          content.innerHTML = '<div class="empty">Couldn\'t find that player.</div>';
+          return;
+        }
+        const data = await res.json();
+        const history = data.history || [];
+
+        const headerHtml = `
+          <div class="header-card">
+            <div class="name">${escapeHtml(data.player_name)}</div>
+            <div class="sub">Gameweek-by-gameweek history</div>
+            <div class="total">${data.total_points || 0}</div>
+            <div class="total-label">Total Points</div>
+          </div>`;
+
+        if (history.length === 0) {
+          content.innerHTML = headerHtml + '<div class="chart-card"><div class="empty">No finished gameweeks recorded yet — check back once the season\'s underway.</div></div>';
+          return;
+        }
+
+        const maxPoints = Math.max(...history.map(h => h.points), 1);
+        const bestPoints = Math.max(...history.map(h => h.points));
+        const worstPoints = Math.min(...history.map(h => h.points));
+
+        const rowsHtml = history.map(h => {
+          const pct = Math.max(4, Math.round((h.points / maxPoints) * 100));
+          const barClass = h.points === bestPoints && bestPoints !== worstPoints ? 'best' : (h.points === worstPoints && bestPoints !== worstPoints ? 'worst' : '');
+          return `
+            <div class="gw-row">
+              <div class="gw-label">GW${h.gameweek}</div>
+              <div class="gw-bar-track"><div class="gw-bar-fill ${barClass}" style="width:${pct}%;"></div></div>
+              <div class="gw-points">${h.points}</div>
+            </div>`;
+        }).join('');
+
+        content.innerHTML = headerHtml + `
+          <div class="chart-card">
+            <div class="chart-card-title"><i class="fas fa-chart-simple" style="color:var(--accent-2);"></i> Points By Gameweek</div>
+            ${rowsHtml}
+          </div>`;
+      } catch (e) {
+        console.error('Failed to load entry history:', e);
+        content.innerHTML = '<div class="empty">Something went wrong loading this player\'s history.</div>';
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    load();
+  </script>
+</body>
+</html>
