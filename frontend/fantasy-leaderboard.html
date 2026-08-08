@@ -174,7 +174,13 @@
       <div class="record-card empty"><i class="fas fa-spinner fa-spin"></i>&nbsp; Loading records…</div>
     </div>
 
-    <div id="fmFinishedBanner" style="display:none; align-items:center; gap:12px; background:rgba(242,185,61,0.1); border:1px solid var(--gold); color:var(--gold); border-radius:12px; padding:18px 20px; margin-bottom:16px; font-size:15px; font-weight:600;"></div>
+    <div id="fmFinishedCard" style="display:none;">
+      <div class="board" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
+        <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+        <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Season Complete — Final Standings</h2>
+        <p style="max-width:460px; margin:0 auto; font-size:14px; color:var(--text-dim);" id="fmFinishedSummary">Loading final standings…</p>
+      </div>
+    </div>
 
     <div class="layout">
       <div class="board">
@@ -255,25 +261,24 @@
           return;
         }
 
-        const banner = document.getElementById('fmFinishedBanner');
-        if (banner) {
+        const finishedCard = document.getElementById('fmFinishedCard');
+        if (finishedCard) {
           if (tournament.status === 'finished') {
             const winners = rows.filter(r => (r.prize_awarded || 0) > 0);
-            banner.style.display = 'flex';
+            finishedCard.style.display = 'block';
+            const summaryEl = document.getElementById('fmFinishedSummary');
             if (winners.length === 1) {
               const w = winners[0];
               const name = w.users ? (w.users.display_name || w.users.username) : 'Player';
-              banner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i>
-                <span>Season finished! <strong>${escapeHtml(name)}</strong> wins with ${w.entry_points || 0} points — £${(w.prize_awarded/100).toFixed(2)} prize.</span>`;
+              summaryEl.textContent = `${name} wins with ${w.entry_points || 0} points — £${(w.prize_awarded/100).toFixed(2)} prize.`;
             } else if (winners.length > 1) {
               const names = winners.map(w => w.users ? (w.users.display_name || w.users.username) : 'Player');
-              banner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i>
-                <span>Season finished! ${names.length}-way tie at the top — ${names.map(escapeHtml).join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.</span>`;
+              summaryEl.textContent = `${names.length}-way tie at the top — ${names.join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.`;
             } else {
-              banner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i> <span>Season finished — final standings below.</span>`;
+              summaryEl.textContent = 'Final standings below.';
             }
           } else {
-            banner.style.display = 'none';
+            finishedCard.style.display = 'none';
           }
         }
 

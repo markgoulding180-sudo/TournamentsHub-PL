@@ -96,6 +96,26 @@
 
     .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
     .out-banner{ display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid var(--red); color:#fca5a5; border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; }
+    /* Final results — same classes/structure as Stock Market's final
+       standings, for consistent styling across every tournament type. */
+    .lb-header{ display:flex; align-items:center; gap:8px; padding:0 6px 6px; color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px; }
+    .lb-header .lb-rank{ width:22px; flex:none; }
+    .lb-header .lb-name{ flex:1; }
+    .lb-header .lb-value{ flex:none; width:72px; text-align:right; }
+    .lb-header .lb-gain{ flex:none; width:66px; text-align:right; }
+    .lb-row{ display:flex; align-items:center; gap:8px; padding:9px 6px; border-top:1px solid var(--border); flex-wrap:wrap; }
+    .lb-row .lb-rank{ width:22px; flex:none; font-weight:700; }
+    .lb-row .lb-name{ flex:1 1 140px; min-width:0; overflow-wrap:anywhere; }
+    .lb-row .lb-tag{ display:block; font-size:10px; text-transform:uppercase; color:var(--red); font-weight:700; margin-top:1px; }
+    .lb-row .lb-value{ flex:none; width:72px; text-align:right; font-weight:700; white-space:nowrap; }
+    .lb-row .lb-gain{ flex:none; width:66px; text-align:right; white-space:nowrap; }
+    .lb-row .lb-gain.up{ color:var(--green); }
+    .lb-row.faded{ opacity:0.55; }
+    @media (max-width:400px){
+      .lb-header .lb-value, .lb-row .lb-value{ width:60px; }
+      .lb-header .lb-gain, .lb-row .lb-gain{ width:56px; }
+    }
+
     .finished-banner{ display:none; align-items:center; gap:12px; background:rgba(242,185,61,0.1); border:1px solid var(--gold); color:var(--gold); border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; font-weight:600; }
 
     /* Enter gate */
@@ -332,7 +352,19 @@
       </div>
     </section>
 
-    <div class="finished-banner" id="finishedBanner"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
+    <div id="lmsFinalResultsCard" style="display:none;">
+      <div class="card" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
+        <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+        <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Tournament Complete — Final Standings</h2>
+        <p style="max-width:460px; margin:0 auto; font-size:14px; color:var(--text-dim);" id="lmsFinalResultsSummary">Loading final standings…</p>
+      </div>
+      <section class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fas fa-money-bill-trend-up" style="color:var(--gold);"></i> Final Standings</div>
+        <div id="lmsFinalResultsBody"><div class="loading">Loading…</div></div>
+      </section>
+    </div>
+
+    <div class="finished-banner" id="finishedBanner" style="display:none;"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
     <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
     <div class="out-banner" id="outBanner"><i class="fas fa-skull" style="font-size:20px;"></i> <span id="outText"></span></div>
 
@@ -851,52 +883,52 @@
           ? 'Tournament over'
           : `${data.alive_count ?? rows.filter(r => !r.is_eliminated).length} / ${rows.length} still in`;
 
-        // Prominent top-of-page banner announcing the result, once the
-        // tournament has actually ended — a real summary, not just a
-        // one-line notice, using the same leaderboard data already
-        // fetched for the survivors board below.
-        const finishedBanner = document.getElementById('finishedBanner');
+        // Old inline banner deprecated in favor of Stock Market's exact
+        // final-results structure, for consistent styling across every
+        // tournament type — keeping the same underlying narrative logic
+        // (rounds played, winner's final pick, split-pot breakdown),
+        // just rendered as the shared card layout instead of a banner.
+        document.getElementById('finishedBanner').style.display = 'none';
+        const finalCard = document.getElementById('lmsFinalResultsCard');
         const winners = rows.filter(r => (r.prize_awarded || 0) > 0);
         const totalEntrants = rows.length;
         const totalPrizePool = rows.reduce((s, r) => s + (r.prize_awarded || 0), 0);
         const roundsPlayed = Math.max(...rows.map(r => r.is_eliminated ? (r.eliminated_gameweek || 0) : (r.weeks_survived || 0)), 0);
 
-        if (tournamentFinished && winners.length > 0) {
-          finishedBanner.style.display = 'flex';
-          finishedBanner.style.flexDirection = 'column';
-          finishedBanner.style.alignItems = 'flex-start';
-          finishedBanner.style.gap = '10px';
-          const winnerFinalPick = winners[0].last_pick && winners[0].last_pick.team ? winners[0].last_pick.team : null;
+        if (tournamentFinished) {
+          finalCard.style.display = 'block';
+          const summaryEl = document.getElementById('lmsFinalResultsSummary');
+          const bodyEl = document.getElementById('lmsFinalResultsBody');
+
           if (winners.length === 1) {
             const name = winners[0].users?.display_name || winners[0].users?.username || 'Player';
-            finishedBanner.innerHTML = `
-              <div style="display:flex; align-items:center; gap:12px; font-size:17px; font-weight:700;">
-                <i class="fas fa-trophy" style="font-size:22px;"></i>
-                <span>${escapeHtml(name)} wins the tournament! — £${(winners[0].prize_awarded/100).toFixed(2)}</span>
-              </div>
-              <div style="font-size:13px; font-weight:500; opacity:0.85; padding-left:34px;">
-                Survived ${roundsPlayed} round${roundsPlayed === 1 ? '' : 's'} against ${totalEntrants} entrant${totalEntrants === 1 ? '' : 's'}
-                ${winnerFinalPick ? ` — sealed it backing ${escapeHtml(winnerFinalPick)} in the final round` : ''}.
-                Total prize pool: £${(totalPrizePool/100).toFixed(2)}.
-              </div>`;
-          } else {
+            const winnerFinalPick = winners[0].last_pick && winners[0].last_pick.team ? winners[0].last_pick.team : null;
+            summaryEl.textContent = `${escapeHtml(name)} wins! Survived ${roundsPlayed} round${roundsPlayed === 1 ? '' : 's'} against ${totalEntrants} entrants${winnerFinalPick ? `, sealing it backing ${winnerFinalPick}` : ''}. Total pot: £${(totalPrizePool/100).toFixed(2)}.`;
+          } else if (winners.length > 1) {
             const names = winners.map(w => w.users?.display_name || w.users?.username || 'Player');
-            finishedBanner.innerHTML = `
-              <div style="display:flex; align-items:center; gap:12px; font-size:17px; font-weight:700;">
-                <i class="fas fa-trophy" style="font-size:22px;"></i>
-                <span>Tournament finished — shared victory!</span>
-              </div>
-              <div style="font-size:13px; font-weight:500; opacity:0.85; padding-left:34px;">
-                ${names.length} players went out together in the same round after ${roundsPlayed} round${roundsPlayed === 1 ? '' : 's'} —
-                ${names.map(escapeHtml).join(', ')} split the £${(totalPrizePool/100).toFixed(2)} pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.
-                ${totalEntrants} entrants in total.
-              </div>`;
+            summaryEl.textContent = `${names.length} players went out together after ${roundsPlayed} round${roundsPlayed === 1 ? '' : 's'} and split the £${(totalPrizePool/100).toFixed(2)} pot — £${(winners[0].prize_awarded/100).toFixed(2)} each. ${totalEntrants} entrants in total.`;
+          } else {
+            summaryEl.textContent = `${totalEntrants} entrants — see final standings below.`;
           }
-        } else if (tournamentFinished) {
-          finishedBanner.style.display = 'flex';
-          finishedBanner.innerHTML = `<i class="fas fa-trophy" style="font-size:20px;"></i> <span>Tournament finished — see the final standings below.</span>`;
+
+          const medal = (rank) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+          const sortedRows = [...rows].sort((a, b) => (b.prize_awarded || 0) - (a.prize_awarded || 0) || (b.weeks_survived || 0) - (a.weeks_survived || 0));
+          bodyEl.innerHTML = `
+            <div class="lb-header"><div class="lb-rank"></div><div class="lb-name">Player</div><div class="lb-value">Prize</div><div class="lb-gain">Result</div></div>
+            ${sortedRows.map((r, i) => {
+              const name = r.users?.display_name || r.users?.username || 'Player';
+              const won = (r.prize_awarded || 0) > 0;
+              const result = won ? 'Winner' : `Out GW${r.eliminated_gameweek}`;
+              return `
+                <div class="lb-row ${won ? '' : 'faded'}">
+                  <div class="lb-rank">${won ? medal(i + 1) : ''}</div>
+                  <div class="lb-name">${escapeHtml(name)}</div>
+                  <div class="lb-value">${won ? `£${(r.prize_awarded/100).toFixed(2)}` : '—'}</div>
+                  <div class="lb-gain" style="${won ? 'color:var(--green);' : ''}">${result}</div>
+                </div>`;
+            }).join('')}`;
         } else {
-          finishedBanner.style.display = 'none';
+          finalCard.style.display = 'none';
         }
 
         body.innerHTML = rows.map(r => {
