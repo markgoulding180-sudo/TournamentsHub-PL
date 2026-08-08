@@ -168,13 +168,13 @@
         margin:1rem 0 1.25rem;
       }
       .fm-stat{
-        min-width:0; width:auto; padding:.65rem .5rem;
+        min-width:0 !important; width:auto !important; padding:.65rem .5rem;
         border-color:var(--accent-dim) !important;
         min-height:64px; display:flex; flex-direction:column; justify-content:center;
-        box-sizing:border-box;
+        box-sizing:border-box; overflow:hidden;
       }
-      .fm-stat-label{ font-size:.66rem; }
-      .fm-stat-value{ font-size:1.1rem; }
+      .fm-stat-label{ font-size:.66rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .fm-stat-value{ font-size:1.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       #fmDeadlineValue{ font-size:.92rem !important; }
 
       .fm-position-bar{
