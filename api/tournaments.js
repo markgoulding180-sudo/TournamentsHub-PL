@@ -413,7 +413,7 @@ module.exports = async (req, res) => {
 
         const { data: history } = await supabase
           .schema('fantasy').from('entry_gameweek_history')
-          .select('gameweek, points').eq('entry_id', entryId).order('gameweek', { ascending: true });
+          .select('gameweek, points, squad_snapshot').eq('entry_id', entryId).order('gameweek', { ascending: true });
 
         return res.status(200).json({
           player_name: entry.users ? (entry.users.display_name || entry.users.username) : 'Player',
@@ -5487,9 +5487,21 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
     .schema('fantasy').from('tournaments').select('id, last_settled_gameweek').eq('status', 'live');
   if (!liveFantasyTournaments || liveFantasyTournaments.length === 0) return result;
 
-  const { data: allPlayers } = await masterDb.from('players').select('id, event_points');
+  const { data: allPlayers } = await masterDb.from('players').select('id, web_name, team, element_type, event_points');
+  const playerById = {};
+  (allPlayers || []).forEach(p => { playerById[p.id] = p; });
   const eventPointsById = {};
   (allPlayers || []).forEach(p => { eventPointsById[p.id] = p.event_points || 0; });
+
+  // Real per-player stats for this specific gameweek (goals/assists/cards),
+  // needed to show what actually happened for each squad member, not just
+  // their point total.
+  const { data: gwStatsRows } = await masterDb
+    .from('player_gameweek_stats')
+    .select('player_id, goals_scored, assists, yellow_cards, red_cards, minutes')
+    .eq('gameweek', gameweek);
+  const gwStatsById = {};
+  (gwStatsRows || []).forEach(s => { gwStatsById[s.player_id] = s; });
 
   const updateRows = [];
   const historyRows = [];
@@ -5515,12 +5527,31 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
       const squad = e.squad_players || [];
       if (squad.length === 0) continue;
       let gwScore = 0;
-      squad.forEach(pid => {
+      const posLabel = { 1: 'GK', 2: 'DEF', 3: 'MID', 4: 'FWD' };
+      const squadSnapshot = squad.map(pid => {
         const pts = eventPointsById[pid] || 0;
-        gwScore += (pid === e.captain_id) ? pts * 2 : pts;
+        const isCaptain = pid === e.captain_id;
+        const finalPts = isCaptain ? pts * 2 : pts;
+        gwScore += finalPts;
+        const p = playerById[pid] || {};
+        const s = gwStatsById[pid] || {};
+        return {
+          player_id: pid,
+          name: p.web_name || 'Unknown',
+          team: p.team || null,
+          position: posLabel[p.element_type] || null,
+          is_captain: isCaptain,
+          points: finalPts,
+          base_points: pts,
+          goals: s.goals_scored || 0,
+          assists: s.assists || 0,
+          yellow_cards: s.yellow_cards || 0,
+          red_cards: s.red_cards || 0,
+          minutes: s.minutes || 0
+        };
       });
       updateRows.push({ ...e, entry_points: (e.entry_points || 0) + gwScore, last_gw_points: gwScore });
-      historyRows.push({ tournament_id: t.id, entry_id: e.id, user_id: e.user_id, gameweek, points: gwScore });
+      historyRows.push({ tournament_id: t.id, entry_id: e.id, user_id: e.user_id, gameweek, points: gwScore, squad_snapshot: squadSnapshot });
     }
   }
 

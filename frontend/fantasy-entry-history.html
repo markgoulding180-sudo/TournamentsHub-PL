@@ -48,13 +48,26 @@
        since a fantasy season lives or dies on week-to-week swings, and a
        bar chart makes a bad week and a great week equally obvious at a
        glance without needing to read every number. */
-    .gw-row{ display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+    .gw-row{ margin-bottom:10px; }
+    .gw-row-main{ display:flex; align-items:center; gap:12px; cursor:pointer; }
     .gw-label{ flex:none; width:44px; font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--text-dim); }
     .gw-bar-track{ flex:1 1 auto; background:var(--bg-card); border-radius:6px; height:26px; position:relative; overflow:hidden; }
     .gw-bar-fill{ height:100%; background:linear-gradient(90deg, var(--accent-dim), var(--accent-2)); border-radius:6px; transition:width .4s ease; }
     .gw-bar-fill.best{ background:linear-gradient(90deg, #b8860b, var(--gold)); }
     .gw-bar-fill.worst{ background:linear-gradient(90deg, #7f1d1d, var(--red)); }
-    .gw-points{ flex:none; width:44px; text-align:right; font-family:var(--font-head); font-weight:700; font-size:14px; }
+    .gw-points{ flex:none; width:52px; text-align:right; font-family:var(--font-head); font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:flex-end; gap:6px; }
+    .gw-chevron{ font-size:11px; color:var(--text-faint); transition:transform .2s; }
+    .gw-row.open .gw-chevron{ transform:rotate(180deg); }
+
+    .gw-detail{ display:none; margin:10px 0 4px 56px; padding:10px 12px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border); }
+    .gw-row.open .gw-detail{ display:block; }
+    .player-row{ display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12.5px; }
+    .player-row:last-child{ border-bottom:none; }
+    .player-pos{ flex:none; width:32px; font-size:10px; font-weight:700; color:var(--text-faint); }
+    .player-name{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+    .player-name .cap{ color:var(--gold); font-size:10px; margin-left:4px; }
+    .player-events{ flex:none; font-size:10.5px; color:var(--text-dim); display:flex; gap:6px; }
+    .player-pts{ flex:none; width:34px; text-align:right; font-weight:700; }
 
     .empty{ text-align:center; padding:40px 20px; color:var(--text-dim); font-size:14px; }
     .loading{ text-align:center; padding:40px 20px; color:var(--text-dim); }
@@ -111,20 +124,46 @@
         const bestPoints = Math.max(...history.map(h => h.points));
         const worstPoints = Math.min(...history.map(h => h.points));
 
-        const rowsHtml = history.map(h => {
+        const teamShirt = (team) => team ? `https://resources.premierleague.com/premierleague/badges/50/t${team}.png` : '';
+
+        const rowsHtml = history.map((h, idx) => {
           const pct = Math.max(4, Math.round((h.points / maxPoints) * 100));
           const barClass = h.points === bestPoints && bestPoints !== worstPoints ? 'best' : (h.points === worstPoints && bestPoints !== worstPoints ? 'worst' : '');
+          const squad = h.squad_snapshot || [];
+          const sortedSquad = [...squad].sort((a, b) => (b.points || 0) - (a.points || 0));
+          const detailHtml = squad.length === 0
+            ? `<div style="color:var(--text-faint); font-size:12px; padding:6px 0;">No player breakdown saved for this gameweek.</div>`
+            : sortedSquad.map(p => {
+                const events = [];
+                if (p.goals) events.push(`${p.goals}⚽`);
+                if (p.assists) events.push(`${p.assists}🅰️`);
+                if (p.yellow_cards) events.push(`${p.yellow_cards}🟨`);
+                if (p.red_cards) events.push(`${p.red_cards}🟥`);
+                if (p.minutes === 0) events.push('Did not play');
+                return `
+                  <div class="player-row">
+                    <div class="player-pos">${escapeHtml(p.position || '')}</div>
+                    <div class="player-name">${escapeHtml(p.name)}${p.is_captain ? '<span class="cap">C</span>' : ''}</div>
+                    <div class="player-events">${events.join(' ')}</div>
+                    <div class="player-pts">${p.points}</div>
+                  </div>`;
+              }).join('');
+
           return `
-            <div class="gw-row">
-              <div class="gw-label">GW${h.gameweek}</div>
-              <div class="gw-bar-track"><div class="gw-bar-fill ${barClass}" style="width:${pct}%;"></div></div>
-              <div class="gw-points">${h.points}</div>
+            <div class="gw-row" id="gwRow${idx}">
+              <div class="gw-row-main" onclick="document.getElementById('gwRow${idx}').classList.toggle('open')">
+                <div class="gw-label">GW${h.gameweek}</div>
+                <div class="gw-bar-track"><div class="gw-bar-fill ${barClass}" style="width:${pct}%;"></div></div>
+                <div class="gw-points">${h.points} <i class="fas fa-chevron-down gw-chevron"></i></div>
+              </div>
+              <div class="gw-detail">${detailHtml}</div>
             </div>`;
         }).join('');
 
         content.innerHTML = headerHtml + `
           <div class="chart-card">
             <div class="chart-card-title"><i class="fas fa-chart-simple" style="color:var(--accent-2);"></i> Points By Gameweek</div>
+            <div style="font-size:11.5px; color:var(--text-faint); margin:-10px 0 16px;">Tap a gameweek to see the full player breakdown</div>
             ${rowsHtml}
           </div>`;
       } catch (e) {
