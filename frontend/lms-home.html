@@ -417,7 +417,7 @@
       </section>
 
       <!-- All results for this gameweek -->
-      <section class="card results-card">
+      <section class="card results-card" id="resultsCardSection">
         <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
           <span><i class="fas fa-list-ol" style="color:var(--accent-2);"></i> <span id="resultsTitle">Gameweek Results</span></span>
           <div style="display:flex; gap:8px; align-items:center;">
@@ -532,6 +532,10 @@
           if (pickCard) pickCard.style.display = 'none';
           const survivorsSection = document.getElementById('survivorsSection');
           if (survivorsSection) survivorsSection.style.display = 'none';
+          const statRowEl = document.getElementById('statRow');
+          if (statRowEl) statRowEl.style.display = 'none';
+          const resultsCardEl = document.getElementById('resultsCardSection');
+          if (resultsCardEl) resultsCardEl.style.display = 'none';
           // Lock banner is force-hidden here as a safety net — the
           // per-gameweek lock logic further down also suppresses it,
           // but this ensures it never shows regardless of load order.
