@@ -666,14 +666,36 @@
       try {
         const res = await fetch('/api/tournaments?status=live');
         const data = await res.json();
-        const t = (data.tournaments || [])[0];
+        let t = (data.tournaments || [])[0];
+        let isFinished = false;
+
+        // Must also accept 'finished' — otherwise the moment the season
+        // genuinely finishes, this hero card shows "no tournament set up"
+        // instead of the real result, same bug already fixed on other
+        // pages/tournament types.
+        if (!t) {
+          const finRes = await fetch('/api/tournaments?status=finished');
+          const finData = await finRes.json();
+          t = (finData.tournaments || [])[0];
+          isFinished = !!t;
+        }
+
         if (!t) {
           ctaRow.innerHTML = '<div style="color:var(--text-dim); font-size:13px;">No tournament set up yet — check back soon.</div>';
           metaRow.innerHTML = '';
           return;
         }
         tournamentId = t.id;
-        document.getElementById('heroTournamentName').textContent = t.name || 'Predictions';
+        document.getElementById('heroTournamentName').textContent = isFinished ? 'Season Finished' : (t.name || 'Predictions');
+
+        if (isFinished) {
+          ctaRow.innerHTML = `<a href="/leaderboard" class="hero-enter-btn"><i class="fas fa-trophy"></i> See Final Standings</a>`;
+          metaRow.innerHTML = `
+            <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
+            <div class="hero-meta-item">Prize Pool <b>£${((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></div>
+          `;
+          return;
+        }
 
         const fee = ((t.entry_fee || 0) / 100).toFixed(2);
         // This USED to be a link to /tournaments, which just linked back to
