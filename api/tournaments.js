@@ -407,16 +407,24 @@ module.exports = async (req, res) => {
 
         const { data: entry } = await supabase
           .schema('fantasy').from('tournament_entries')
-          .select('id, user_id, entry_points, users:user_id(username, display_name)')
+          .select('id, user_id, entry_points')
           .eq('id', entryId).maybeSingle();
         if (!entry) return res.status(404).json({ error: 'Entry not found' });
+
+        // Fetch the username separately rather than relying on PostgREST's
+        // automatic FK-relationship embedding — already proven unreliable
+        // for this project's custom schemas elsewhere in this file.
+        let playerName = 'Player';
+        const { data: userRow } = await supabase
+          .from('users').select('username, display_name').eq('id', entry.user_id).maybeSingle();
+        if (userRow) playerName = userRow.display_name || userRow.username || 'Player';
 
         const { data: history } = await supabase
           .schema('fantasy').from('entry_gameweek_history')
           .select('gameweek, points, squad_snapshot').eq('entry_id', entryId).order('gameweek', { ascending: true });
 
         return res.status(200).json({
-          player_name: entry.users ? (entry.users.display_name || entry.users.username) : 'Player',
+          player_name: playerName,
           total_points: entry.entry_points || 0,
           history: history || []
         });
