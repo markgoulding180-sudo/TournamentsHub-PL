@@ -439,7 +439,7 @@
         </section>
 
         <!-- Survivors -->
-        <section class="card">
+        <section class="card" id="survivorsSection">
           <div class="card-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Survivors <span id="aliveCountTag" style="margin-left:auto; font-size:11px; font-weight:600; color:var(--green);"></span></div>
           <div id="survivorsBody"><div class="loading">Loading…</div></div>
         </section>
@@ -517,6 +517,26 @@
           tournamentFinished = !!t;
         } else {
           tournamentFinished = false;
+        }
+
+        // Once the tournament has genuinely finished, several sections
+        // stop making sense — "this gameweek's pick", the lock banner
+        // (which implies just one gameweek is locked, not the whole
+        // thing being over), and How It Works (nobody's joining a
+        // finished tournament). Hide them so the finished summary is
+        // the actual story, not buried under leftover "in progress" UI.
+        if (tournamentFinished) {
+          const howEl = document.getElementById('howCollapsible');
+          if (howEl) howEl.style.display = 'none';
+          const pickCard = document.querySelector('.pick-card');
+          if (pickCard) pickCard.style.display = 'none';
+          const survivorsSection = document.getElementById('survivorsSection');
+          if (survivorsSection) survivorsSection.style.display = 'none';
+          // Lock banner is force-hidden here as a safety net — the
+          // per-gameweek lock logic further down also suppresses it,
+          // but this ensures it never shows regardless of load order.
+          const lockEl = document.getElementById('lockBanner');
+          if (lockEl) lockEl.style.display = 'none';
         }
 
         if (!t) {
@@ -670,7 +690,7 @@
         const lock = await res.json();
         const banner = document.getElementById('lockBanner');
         locked = !!lock.locked;
-        if (lock.locked) {
+        if (lock.locked && !tournamentFinished) {
           banner.style.display = 'flex';
           document.getElementById('lockText').textContent = lock.reason || 'Picks are currently locked.';
         } else {
