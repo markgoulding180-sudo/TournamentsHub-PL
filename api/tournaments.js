@@ -2676,6 +2676,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
                 // THEN the bottom N get cut using their true, final value.
                 await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, leavingGw);
                 await applyDueStages(supabaseAdmin, t.id, leavingGw);
+                await checkAndFinishStockMarketTournament(supabaseAdmin, t.id, leavingGw);
                 stockMarketSettled++;
               }
 
@@ -4474,6 +4475,7 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
       debug.push(`processStockMarketGameweek returned: ${JSON.stringify(processResult)}`);
       console.log('[SM DEBUG post-process]', debug.join(' | '));
       await applyDueStages(supabaseAdmin, tournamentId, currentGW);
+      await checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, currentGW);
     } else {
       console.log('[SM DEBUG]', debug.join(' | '));
     }
@@ -5028,27 +5030,41 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     if (historyError) console.error('player_gw_history insert failed:', historyError);
   }
 
-  if (claimed.end_gameweek && gameweek >= claimed.end_gameweek) {
-    await supabaseAdmin.schema('stockmarket').from('tournaments').update({ status: 'finished' }).eq('id', tournamentId);
-
-    // Lock in the result permanently — every entry's current_value at this
-    // exact moment becomes their final_value, regardless of what happens
-    // to current_value afterward (there shouldn't be anything, since the
-    // tournament is now finished, but this makes the final result an
-    // explicit, unambiguous fact rather than "whatever current_value
-    // happens to still say if anyone looks later").
-    const { data: allFinalEntries } = await supabaseAdmin
-      .schema('stockmarket').from('tournament_entries')
-      .select('*').eq('tournament_id', tournamentId);
-    const finalRows = (allFinalEntries || []).map(e => ({ ...e, final_value: e.current_value }));
-    if (finalRows.length > 0) {
-      const { error: finalErr } = await supabaseAdmin
-        .schema('stockmarket').from('tournament_entries').upsert(finalRows, { onConflict: 'id' });
-      if (finalErr) console.error('Batch final_value upsert failed:', finalErr);
-    }
-  }
-
   return { ok: true, pairs: (matchupRowsExisting || []).filter(r => r.entry_id_2).length };
+}
+
+// Extracted from inside processHeadToHeadGameweek — must be called AFTER
+// applyDueStages, not before. Confirmed as a real bug: when this lived
+// inside processHeadToHeadGameweek (which runs before applyDueStages,
+// intentionally, per the settlement-before-relegation fix), it snapshotted
+// final_value from current_value before that same gameweek's relegation
+// had zeroed anyone being cut this round — leaving newly-relegated
+// entries with a nonzero final_value they shouldn't have. Calling it
+// after relegation instead means it always sees genuinely final numbers.
+async function checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, gameweek) {
+  const { data: claimed } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments')
+    .select('id, end_gameweek, status').eq('id', tournamentId).maybeSingle();
+  if (!claimed || claimed.status === 'finished') return;
+  if (!claimed.end_gameweek || gameweek < claimed.end_gameweek) return;
+
+  await supabaseAdmin.schema('stockmarket').from('tournaments').update({ status: 'finished' }).eq('id', tournamentId);
+
+  // Lock in the result permanently — every entry's current_value at this
+  // exact moment becomes their final_value, regardless of what happens
+  // to current_value afterward (there shouldn't be anything, since the
+  // tournament is now finished, but this makes the final result an
+  // explicit, unambiguous fact rather than "whatever current_value
+  // happens to still say if anyone looks later").
+  const { data: allFinalEntries } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('*').eq('tournament_id', tournamentId);
+  const finalRows = (allFinalEntries || []).map(e => ({ ...e, final_value: e.current_value }));
+  if (finalRows.length > 0) {
+    const { error: finalErr } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries').upsert(finalRows, { onConflict: 'id' });
+    if (finalErr) console.error('Batch final_value upsert failed:', finalErr);
+  }
 }
 
 // ================= RELEGATION STAGES =================
@@ -5304,6 +5320,7 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
     // performance before the bottom N get cut using their true value.
     await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, gameweek);
     await applyDueStages(supabaseAdmin, t.id, gameweek);
+    await checkAndFinishStockMarketTournament(supabaseAdmin, t.id, gameweek);
     result.stock_market_tournaments_settled++;
   }
 
