@@ -63,7 +63,7 @@
       background-repeat: no-repeat, no-repeat, no-repeat;
       background-position: center, center, right center;
       border:1px solid var(--border); overflow:hidden;
-      padding:58px 50px; margin-bottom:34px; min-height:360px;
+      padding:58px 50px; margin-bottom:16px; min-height:360px;
       display:flex; align-items:center;
     }
     .hero-graphic{
@@ -326,6 +326,9 @@
         <div class="hero-sub">Pick One. Survive. Repeat.</div>
         <p class="hero-desc">Pick a Premier League team to win every gameweek. Get it wrong and you're out — and you can never use the same team twice. Last manager standing takes the pot.</p>
         <div id="heroStatRow" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:18px;"></div>
+        <button type="button" onclick="document.getElementById('howCollapsible').classList.add('open'); document.getElementById('howCollapsible').scrollIntoView({behavior:'smooth', block:'start'});" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px; background:none; border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-size:13.5px; font-weight:700; padding:10px 18px; border-radius:8px; cursor:pointer;">
+          <i class="fas fa-circle-info" style="color:var(--accent-2);"></i> How It Works
+        </button>
       </div>
     </section>
 
