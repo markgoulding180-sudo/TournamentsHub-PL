@@ -38,7 +38,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     enterBtn: document.getElementById('fmEnterBtn'),
     mainContent: document.getElementById('fmMainContent'),
     lockBanner: document.getElementById('fmLockBanner'),
-    lockText: document.getElementById('fmLockText')
+    lockText: document.getElementById('fmLockText'),
+    finishedCard: document.getElementById('fmFinishedCard'),
+    finishedSummary: document.getElementById('fmMainFinishedSummary')
   };
 
   let hasEntered = false;
@@ -65,7 +67,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     try {
       const res = await fetch('/api/tournaments?status=live&tournament_type=fantasy');
       const data = await res.json();
-      const t = (data.tournaments || []).find(t => t.format === 'fantasy_squad');
+      let t = (data.tournaments || []).find(t => t.format === 'fantasy_squad');
+
+      // Must also accept 'finished' — otherwise the moment the Fantasy
+      // tournament genuinely finishes, this page shows "not set up yet"
+      // instead of the final result, same bug already fixed on the
+      // leaderboard page but missed here on the actual main page.
+      if (!t) {
+        const finRes = await fetch('/api/tournaments?status=finished&tournament_type=fantasy');
+        const finData = await finRes.json();
+        t = (finData.tournaments || []).find(t => t.format === 'fantasy_squad');
+      }
+
       if (!t) {
         els.statusBadge.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Fantasy Manager tournament not set up yet';
         return;
@@ -240,6 +253,32 @@ document.addEventListener('DOMContentLoaded', async function () {
       const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&leaderboard=true&tournament_type=fantasy`);
       const data = await res.json();
       const fullRows = data.leaderboard || [];
+
+      // Season-finished summary — uses the same leaderboard data already
+      // fetched here rather than a separate call. This page never had
+      // any finished-state awareness at all before, unlike the
+      // leaderboard page which was fixed earlier.
+      if (tournamentInfo && tournamentInfo.status === 'finished' && els.finishedCard) {
+        els.finishedCard.style.display = 'block';
+        const winners = fullRows.filter(r => (r.prize_awarded || 0) > 0);
+        if (winners.length === 1) {
+          const w = winners[0];
+          const name = w.users ? (w.users.display_name || w.users.username) : 'Player';
+          els.finishedSummary.textContent = `${name} wins with ${w.entry_points || 0} points — £${(w.prize_awarded/100).toFixed(2)} prize.`;
+        } else if (winners.length > 1) {
+          const names = winners.map(w => w.users ? (w.users.display_name || w.users.username) : 'Player');
+          els.finishedSummary.textContent = `${names.length}-way tie at the top — ${names.join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.`;
+        } else {
+          els.finishedSummary.textContent = `${fullRows.length} entrants — see final standings below.`;
+        }
+        // No more squad editing once the season's over — the enter
+        // gate / squad panel don't apply anymore, just the results.
+        if (els.enterGate) els.enterGate.style.display = 'none';
+        if (els.squadPanel) els.squadPanel.style.display = 'none';
+      } else if (els.finishedCard) {
+        els.finishedCard.style.display = 'none';
+      }
+
       const rows = fullRows.slice(0, 10);
       if (rows.length === 0) {
         els.leaderboard.innerHTML = '<p class="text-muted">No squads saved yet — be the first!</p>';
