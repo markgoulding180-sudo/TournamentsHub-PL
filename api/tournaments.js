@@ -2977,6 +2977,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           await supabaseAdmin.schema('stockmarket').from('tournaments')
             .update({ closes_at: new Date(Date.now() - 60000).toISOString() })
             .eq('id', closeTournamentId);
+
+          // Immediately initialize (lock squads, go live) rather than
+          // relying on the next real user's page visit to lazily trigger
+          // it — confirmed as a real bug: the button reported "market
+          // open" while squads sat genuinely unlocked and status stayed
+          // 'upcoming' until someone happened to load the live page.
+          await initializeStockMarket(supabaseAdmin, masterDb, closeTournamentId);
+
           return res.status(200).json({ success: true });
         } catch (err) {
           console.error('stockmarket_force_close error:', err);
