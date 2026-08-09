@@ -1674,7 +1674,8 @@ async function fullTestReset() {
   if (!confirm('This wipes EVERY Stock Market tournament, entry, and history record, and starts a brand new one at Gameweek 1. This cannot be undone. Continue?')) return;
 
   const name = document.getElementById('resetTournamentName').value.trim() || 'Test Stock Market';
-  const entryFee = parseInt(document.getElementById('resetEntryFee').value) || 2400;
+  const resetEntryFeeRaw = parseInt(document.getElementById('resetEntryFee').value);
+  const entryFee = isNaN(resetEntryFeeRaw) ? 2400 : resetEntryFeeRaw;
 
   resultEl.textContent = 'Resetting…';
   try {
@@ -1777,7 +1778,11 @@ async function launchTournament() {
     // Step 2: Create tournament
     log('Creating tournament...');
     const tournamentName = document.getElementById('tournament-name-input')?.value || `GW${currentGameweek} Tournament`;
-    const entryFee = parseInt(document.getElementById('tournament-fee-input')?.value) || 20;
+    // Explicit NaN check, not `|| 20` — that pattern treats a genuine 0
+    // as falsy and silently overrides it with the default, exactly the
+    // bug that turned an intended free-roll (£0 entry) into £20.
+    const entryFeeRaw = parseInt(document.getElementById('tournament-fee-input')?.value);
+    const entryFee = isNaN(entryFeeRaw) ? 20 : entryFeeRaw;
     const startGameweek = parseInt(document.getElementById('tournament-start-gw')?.value) || currentGameweek;
     const endGameweek = parseInt(document.getElementById('tournament-end-gw')?.value) || currentGameweek;
     
