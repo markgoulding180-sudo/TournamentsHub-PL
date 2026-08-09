@@ -216,6 +216,26 @@ module.exports = async (req, res) => {
     }
   }
 
+  // Read-only mode: GET /api/sync-players?id_change_log=true
+  // Surfaces the player-ID watchlist this sync already builds every run —
+  // previously logged silently with no admin-facing way to actually see
+  // it, which defeats the point of having the safeguard at all.
+  if (req.method === 'GET' && params.get('id_change_log') === 'true') {
+    try {
+      const { data: changes, error } = await supabase
+        .from('player_id_change_log')
+        .select('*')
+        .order('detected_at', { ascending: false })
+        .limit(100);
+      if (error) return res.status(500).json({ error: 'Failed to fetch change log', details: error.message });
+      return res.status(200).json({ changes: changes || [] });
+    } catch (error) {
+      console.error('ID change log fetch error:', error);
+      return res.status(500).json({ error: 'Failed to fetch change log', details: error.message });
+    }
+  }
+
+
   // Read-only mode: GET /api/sync-players?summary=123
   // Proxies FPL's per-gameweek history for one player (goals/assists/cards
   // etc *for that specific gameweek*, not season totals) — FPL blocks

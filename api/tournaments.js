@@ -2324,6 +2324,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             .from('wallet_transactions').delete({ count: 'exact' }).not('id', 'is', null);
           deletedCounts['wallet_transactions'] = walletErr ? `error: ${walletErr.message}` : (walletCount ?? 0);
 
+          // Admin broadcast messages — genuine leftover test/announcement
+          // content confirmed sitting here indefinitely with no other
+          // reset path ever touching it.
+          const { error: adminMsgErr, count: adminMsgCount } = await supabaseAdmin
+            .from('admin_messages').delete({ count: 'exact' }).not('id', 'is', null);
+          deletedCounts['admin_messages'] = adminMsgErr ? `error: ${adminMsgErr.message}` : (adminMsgCount ?? 0);
+
           // Legacy leaderboard field, confirmed disconnected from real
           // scoring but still worth zeroing so nothing stale shows anywhere.
           await supabaseAdmin.from('users').update({ total_points: 0, correct_scores: 0, current_streak: 0 }).not('id', 'is', null);

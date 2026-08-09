@@ -1821,6 +1821,32 @@ async function launchTournament() {
   }
 }
 
+async function loadPlayerIdChangeLog() {
+  const resultEl = document.getElementById('idChangeLogResult');
+  resultEl.textContent = 'Loading…';
+  try {
+    const res = await fetch('/api/sync-players?id_change_log=true');
+    const data = await res.json();
+    if (!res.ok) { resultEl.textContent = `Failed: ${data.error}`; return; }
+    const changes = data.changes || [];
+    if (changes.length === 0) {
+      resultEl.innerHTML = '<span class="text-green">No changes logged yet — nothing to check.</span>';
+      return;
+    }
+    resultEl.innerHTML = changes.map(c => {
+      const isSuspicious = c.change_type === 'possible_id_reassignment';
+      const label = isSuspicious ? '⚠️ Possible ID reassignment' : 'Transfer';
+      const color = isSuspicious ? 'var(--red, #ef4444)' : 'var(--text-secondary)';
+      const detail = isSuspicious
+        ? `ID ${c.player_id}: "${c.old_web_name}" → "${c.new_web_name}" (${c.old_team} → ${c.new_team})`
+        : `${c.new_web_name} (ID ${c.player_id}): ${c.old_team} → ${c.new_team}`;
+      return `<div style="padding:6px 0; border-top:1px solid var(--border-color); color:${color};"><strong>${label}</strong> — ${detail} <span style="opacity:0.6;">(${new Date(c.detected_at).toLocaleDateString()})</span></div>`;
+    }).join('');
+  } catch (e) {
+    resultEl.textContent = `Error: ${e.message}`;
+  }
+}
+
 async function syncEverything() {
   log('=== Sync Everything: starting ===');
   const token = localStorage.getItem('gbf_token');

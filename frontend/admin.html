@@ -174,6 +174,18 @@
       <button class="btn btn-primary btn-lg" onclick="syncEverything()" style="width: 100%;">
         <i class="fas fa-rotate"></i> Sync Everything Now
       </button>
+    </div>
+    <div class="admin-card">
+      <h3><i class="fas fa-triangle-exclamation"></i> Player ID Changes</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Every sync compares each FPL player ID against what it looked like last time. A name change on the same ID
+        is flagged as a possible reassignment (worth checking manually) — a team change alone with the same name
+        is just a normal transfer.
+      </p>
+      <button class="btn btn-secondary" onclick="loadPlayerIdChangeLog()" style="width: 100%; margin-bottom: 0.5rem;">
+        <i class="fas fa-list"></i> Check Change Log
+      </button>
+      <div id="idChangeLogResult" style="font-size:0.85rem;"></div>
     </div><div class="admin-card">
       <h3><i class="fas fa-info-circle"></i> Current Status</h3>
       <div class="admin-status" id="status-panel">
