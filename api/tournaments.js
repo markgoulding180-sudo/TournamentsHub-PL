@@ -21,7 +21,7 @@ function resolveSchema(tournament_type) {
 const TOURNAMENT_SCHEMA_TABLES = {
   predictions: ['gameweek_summary', 'prediction_history', 'predictions', 'tournament_entries', 'tournaments'],
   lms: ['picks', 'tournament_entries', 'tournaments'],
-  fantasy: ['tournament_entries', 'tournaments'],
+  fantasy: ['entry_gameweek_history', 'tournament_entries', 'tournaments'],
   stockmarket: ['audit_log', 'config', 'matchups', 'player_gw_history', 'player_market', 'tournament_entries', 'tournament_stages', 'tournaments', 'transactions']
 };
 
