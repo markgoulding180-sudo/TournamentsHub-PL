@@ -5024,10 +5024,37 @@ async function ensureMatchupsForGameweek(supabaseAdmin, tournamentId, gameweek) 
     .select('id').eq('tournament_id', tournamentId).eq('gameweek', gameweek).limit(1);
   if (existing && existing.length > 0) return { ok: true, alreadyPaired: true };
 
+  // Atomic claim BEFORE generating anything, same idiom as
+  // last_processed_gameweek elsewhere in this file. The check above is
+  // just a fast read-only skip for the common case (matchups already
+  // exist); this claim is what actually prevents the race — without it,
+  // two simultaneous calls (e.g. several users loading the page the
+  // instant a gameweek goes live) could both pass the check above before
+  // either INSERT lands, and each would generate a DIFFERENT random
+  // pairing for the same gameweek, corrupting matchup data. Only the
+  // request that wins this claim proceeds to generate/insert; the other
+  // returns immediately as "someone else is handling it".
+  const { data: claimed, error: claimErr } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments')
+    .update({ matchups_generated_gameweek: gameweek })
+    .eq('id', tournamentId)
+    .or(`matchups_generated_gameweek.is.null,matchups_generated_gameweek.lt.${gameweek}`)
+    .select('id')
+    .maybeSingle();
+  if (claimErr) { console.error('ensureMatchupsForGameweek claim error:', claimErr); return { ok: false, step: 'claim', error: claimErr.message }; }
+  if (!claimed) return { ok: true, alreadyPaired: true }; // another request already claimed/generated this gameweek
+
   const { data: entries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
     .select('id').eq('tournament_id', tournamentId).eq('squad_locked', true).eq('relegated', false);
-  if (!entries || entries.length === 0) return { ok: false, step: 'no entries' };
+  if (!entries || entries.length === 0) {
+    // Nothing to pair yet — roll back the claim so a later call (once
+    // entries actually exist) can still retry instead of being
+    // permanently locked out by the claim we just made above.
+    await supabaseAdmin.schema('stockmarket').from('tournaments')
+      .update({ matchups_generated_gameweek: null }).eq('id', tournamentId).eq('matchups_generated_gameweek', gameweek);
+    return { ok: false, step: 'no entries' };
+  }
 
   const pool = entries.map(e => e.id);
   for (let i = pool.length - 1; i > 0; i--) {
@@ -5209,13 +5236,27 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 // entries with a nonzero final_value they shouldn't have. Calling it
 // after relegation instead means it always sees genuinely final numbers.
 async function checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, gameweek) {
-  const { data: claimed } = await supabaseAdmin
+  const { data: tournament } = await supabaseAdmin
     .schema('stockmarket').from('tournaments')
     .select('id, end_gameweek, status').eq('id', tournamentId).maybeSingle();
-  if (!claimed || claimed.status === 'finished') return;
-  if (!claimed.end_gameweek || gameweek < claimed.end_gameweek) return;
+  if (!tournament || tournament.status === 'finished') return;
+  if (!tournament.end_gameweek || gameweek < tournament.end_gameweek) return;
 
-  await supabaseAdmin.schema('stockmarket').from('tournaments').update({ status: 'finished' }).eq('id', tournamentId);
+  // Atomic claim, same pattern as the other three tournament types —
+  // status flips 'live' -> 'finished' in the same UPDATE that checks
+  // it's still 'live'. Previously this was a separate SELECT-then-UPDATE,
+  // so two simultaneous calls could both pass the check and both run the
+  // final_value copy below. Harmless today (copying current_value into
+  // final_value is idempotent, not additive), but claiming first removes
+  // the race outright instead of relying on that happening to stay true.
+  const { data: claimed } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments')
+    .update({ status: 'finished' })
+    .eq('id', tournamentId)
+    .eq('status', 'live')
+    .select('id')
+    .maybeSingle();
+  if (!claimed) return; // already finished by another request
 
   // Lock in the result permanently — every entry's current_value at this
   // exact moment becomes their final_value, regardless of what happens
@@ -5598,6 +5639,26 @@ async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaNam
   for (const t of (liveTournaments || [])) {
     if (!t.end_gameweek || gameweek < t.end_gameweek) continue;
 
+    // Atomic claim, same pattern as LMS/Fantasy/Stock Market's
+    // last_processed_gameweek — status flips 'live' -> 'finished' in the
+    // same UPDATE that checks it's still 'live', so if two simultaneous
+    // calls both reach this point only one actually claims the tournament;
+    // the other's WHERE clause matches nothing and it safely skips ahead.
+    // Previously this table was only marked finished at the very end,
+    // after computing and writing winners — meaning two overlapping
+    // requests could both compute winners and both write prize_awarded
+    // for the same tournament. Harmless today only because prize_awarded
+    // is always a flat SET, never incremented — claiming first removes
+    // the risk entirely rather than relying on that happening to be true.
+    const { data: claimed } = await supabaseAdmin
+      .schema(schemaName).from('tournaments')
+      .update({ status: 'finished' })
+      .eq('id', t.id)
+      .eq('status', 'live')
+      .select('id')
+      .maybeSingle();
+    if (!claimed) continue; // already finished by another request
+
     const { data: entries } = await supabaseAdmin
       .schema(schemaName).from('tournament_entries')
       .select('id, entry_points')
@@ -5605,10 +5666,7 @@ async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaNam
       .order('entry_points', { ascending: false })
       .order('id', { ascending: true }); // deterministic tie-breaker, same reasoning as the relegation cutoff fix
 
-    if (!entries || entries.length === 0) {
-      await supabaseAdmin.schema(schemaName).from('tournaments').update({ status: 'finished' }).eq('id', t.id);
-      continue;
-    }
+    if (!entries || entries.length === 0) continue; // nothing to award — already marked finished above
 
     const topScore = entries[0].entry_points || 0;
     const winners = entries.filter(e => (e.entry_points || 0) === topScore);
@@ -5619,7 +5677,6 @@ async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaNam
       await supabaseAdmin.schema(schemaName).from('tournament_entries')
         .update({ prize_awarded: share }).eq('id', w.id);
     }
-    await supabaseAdmin.schema(schemaName).from('tournaments').update({ status: 'finished' }).eq('id', t.id);
   }
 }
 
