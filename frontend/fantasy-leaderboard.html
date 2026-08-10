@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root{
-      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730; --bg-card-2:#101a38;
       --border:#131f35; --border-hover:#3b82f6;
       --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
       --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
@@ -20,8 +20,7 @@
       --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
     *{margin:0;padding:0;box-sizing:border-box;}
-    html{scroll-behavior:smooth;}
-    html{ overflow-x:hidden; }
+    html{scroll-behavior:smooth; overflow-x:hidden;}
     body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
     a{color:inherit;text-decoration:none;}
     button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
@@ -34,29 +33,84 @@
     .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
     .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
     .nav-links{display:flex; gap:30px;}
-    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); }
     .nav-links a:hover{color:var(--text);}
-    .nav-links a.active{color:var(--text);}
-    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
     .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); text-decoration:none; }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
     .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
     .avatar-btn:hover{border-color:var(--border);}
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
-    .tourney-home-link{ order:1; }
-    .avatar-btn{ order:2; }
-    .wallet-icon-link{ order:3; }
-    .bell-btn{ order:4; }
-    #mobileMenuBtn{ order:6; }
+    .avatar-btn{ order:1; }
+    .wallet-icon-link{ order:2; }
+    .bell-btn{ order:3; }
+    #mobileMenuBtn{ order:5; }
 
-    main{ position:relative; z-index:1; max-width:1200px; margin:0 auto; padding:32px 24px 60px; }
-    .header{ margin-bottom:22px; }
-    .header h1{ font-family:var(--font-display); font-size:26px; letter-spacing:.4px; margin-bottom:6px; }
-    .header p{ color:var(--text-dim); font-size:14px; }
+    main{ position:relative; z-index:1; max-width:760px; margin:0 auto; padding:32px 24px 70px; }
 
-    .layout{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start; min-width:0; }
-    .layout > *{ min-width:0; overflow-x:auto; }
-    @media (max-width:900px){ .layout{ grid-template-columns:1fr; } }
-    /* Mobile hamburger drawer — standard across every page */
+    /* ============ HERO ============ */
+    .lb-hero{ text-align:center; margin-bottom:28px; }
+    .lb-hero-icon{
+      width:64px; height:64px; border-radius:50%; margin:0 auto 16px; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(circle, rgba(242,185,61,0.16) 0%, transparent 72%); border:1.5px dashed rgba(242,185,61,0.4);
+    }
+    .lb-hero-icon i{ font-size:26px; color:var(--gold); filter:drop-shadow(0 0 12px rgba(242,185,61,0.45)); }
+    .lb-hero h1{ font-family:var(--font-display); font-size:clamp(30px,5vw,40px); font-weight:400; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+    .lb-hero p{ color:var(--text-dim); font-size:14px; }
+
+    /* ============ LIST ============ */
+    .lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:20px; }
+    .lb-row{ display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border); }
+    .lb-row:last-child{ border-bottom:none; }
+    .lb-row.top1{ background:linear-gradient(90deg, rgba(242,185,61,0.08), transparent); }
+    .lb-row.top2{ background:linear-gradient(90deg, rgba(199,206,219,0.06), transparent); }
+    .lb-row.top3{ background:linear-gradient(90deg, rgba(208,138,79,0.07), transparent); }
+
+    .lb-rank{ flex-shrink:0; width:30px; text-align:center; font-family:var(--font-display); font-size:17px; color:var(--text-faint); }
+    .lb-rank.top1{ color:var(--gold); }
+    .lb-rank.top2{ color:var(--silver); }
+    .lb-rank.top3{ color:var(--bronze); }
+
+    .lb-avatar{
+      flex-shrink:0; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:var(--bg-card); border:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--accent-2);
+    }
+    .lb-row.top1 .lb-avatar{ border-color:var(--gold); color:var(--gold); }
+    .lb-row.top2 .lb-avatar{ border-color:var(--silver); color:var(--silver); }
+    .lb-row.top3 .lb-avatar{ border-color:var(--bronze); color:var(--bronze); }
+
+    .lb-name{ flex:1; min-width:0; font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lb-points{ flex-shrink:0; text-align:right; }
+    .lb-points .total{ font-family:var(--font-display); font-size:19px; color:var(--text); display:block; }
+    .lb-points .gw{ font-size:11px; color:var(--text-faint); font-weight:600; }
+
+    .empty, .loading{ text-align:center; color:var(--text-dim); padding:40px 20px; font-size:14px; }
+    .empty i{ display:block; font-size:26px; color:var(--text-faint); margin-bottom:10px; }
+
+    /* ============ Stat leader cards (below the main leaderboard) ============ */
+    .section-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; margin:28px 0 14px; display:flex; align-items:center; gap:9px; }
+    .stat-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:16px; }
+    .stat-card h3{ font-family:var(--font-head); font-size:14px; font-weight:700; letter-spacing:.3px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .stat-row{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+    .stat-row:last-child{ border-bottom:none; }
+    .stat-row .stat-rank{ width:18px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:13px; }
+    .stat-row .stat-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .stat-row .stat-team{ color:var(--text-faint); font-size:11.5px; display:block; }
+    .stat-row .stat-value{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
+    .note{ font-size:12px; color:var(--text-faint); margin-top:10px; line-height:1.5; }
+
+    /* ============ Records cards - moved to the bottom of the page ============ */
+    .records-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; }
+    .record-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
+    .record-card .rc-label{ font-family:var(--font-head); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+    .record-card .rc-name{ font-family:var(--font-head); font-size:19px; font-weight:700; margin-bottom:2px; }
+    .record-card .rc-meta{ font-size:12px; color:var(--text-dim); }
+    .record-card .rc-value{ font-family:var(--font-display); font-size:26px; color:var(--gold); margin-top:8px; }
+    .record-card.empty{ display:flex; align-items:center; justify-content:center; min-height:96px; color:var(--text-faint); font-size:13px; text-align:center; }
+
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
+
+    /* Mobile hamburger drawer - standard across every page */
     .icon-btn.menu-toggle{ display:none; }
     .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
     .mobile-nav-overlay.open{ display:block; }
@@ -70,64 +124,17 @@
     .mobile-nav-drawer a:hover{ background:var(--bg-card); color:var(--text); }
 
     @media (max-width:640px){
-      .navbar{ padding:12px 16px; flex-wrap:nowrap; align-items:center; }
-      .nav-left{ display:contents; }
-      .nav-right{ display:contents; }
-      .nav-links{ display:none; }
-      .logo{ order:1; gap:8px; }
-      .logo-mark{ width:32px; height:32px; }
+      .navbar{ padding:12px 16px; }
       .logo-text{ font-size:14px; }
       .logo-text .sub{ font-size:9px; letter-spacing:2px; }
-      .tourney-home-link{ display:flex; align-items:center; justify-content:center; width:34px; height:34px; margin-left:10px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
-      .avatar-btn{ margin-left:10px; padding:2px; }
+      .nav-links{ display:none; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
-      .wallet-icon-link{ margin-left:8px; }
-      .bell-btn{ margin-left:8px; }
-      .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
+      .icon-btn.menu-toggle{ display:flex; }
+      main{ padding:22px 14px 50px; }
+      .lb-row{ padding:12px 14px; gap:10px; }
+      .lb-name{ font-size:13.5px; }
     }
-
-    .board{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-    .board-head{ display:flex; align-items:center; gap:14px; padding:14px 22px; background:var(--bg-card); border-bottom:1px solid var(--border); font-family:var(--font-head); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); }
-    .col-rank{ width:40px; }
-    .col-name{ flex:1; }
-    .col-points{ width:90px; text-align:right; }
-
-    .row{ display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--border); }
-    .row:last-child{ border-bottom:none; }
-    .row:hover{ background:var(--bg-card); }
-    .row.top1{ background:linear-gradient(90deg, rgba(242,185,61,0.08), transparent); }
-    .row.top2{ background:linear-gradient(90deg, rgba(199,206,219,0.06), transparent); }
-    .row.top3{ background:linear-gradient(90deg, rgba(208,138,79,0.07), transparent); }
-    .rank{ width:40px; font-family:var(--font-head); font-weight:700; font-size:16px; color:var(--text-faint); }
-    .rank.top1{ color:var(--gold); }
-    .rank.top2{ color:var(--silver); }
-    .rank.top3{ color:var(--bronze); }
-    .name{ flex:1; font-size:15px; }
-    .points-col{ width:90px; text-align:right; }
-    .points-col .total{ font-family:var(--font-head); font-weight:700; font-size:16px; color:var(--gold); display:block; }
-    .points-col .gw{ font-size:11.5px; color:var(--text-faint); }
-
-    .stat-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:16px; }
-    .stat-card h3{ font-family:var(--font-head); font-size:14px; font-weight:700; letter-spacing:.3px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
-    .stat-row{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
-    .stat-row:last-child{ border-bottom:none; }
-    .stat-row .stat-rank{ width:18px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:13px; }
-    .stat-row .stat-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .stat-row .stat-team{ color:var(--text-faint); font-size:11.5px; display:block; }
-    .stat-row .stat-value{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
-    .note{ font-size:12px; color:var(--text-faint); margin-top:10px; line-height:1.5; }
-
-    .records-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:24px; }
-    .record-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
-    .record-card .rc-label{ font-family:var(--font-head); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint); margin-bottom:10px; display:flex; align-items:center; gap:7px; }
-    .record-card .rc-name{ font-family:var(--font-head); font-size:19px; font-weight:700; margin-bottom:2px; }
-    .record-card .rc-meta{ font-size:12px; color:var(--text-dim); }
-    .record-card .rc-value{ font-family:var(--font-display); font-size:26px; color:var(--gold); margin-top:8px; }
-    .record-card.empty{ display:flex; align-items:center; justify-content:center; min-height:96px; color:var(--text-faint); font-size:13px; text-align:center; }
-
-    .loading, .empty{ text-align:center; padding:50px 20px; color:var(--text-faint); }
-    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); margin-top:20px; }
   </style>
 </head>
 <body>
@@ -137,22 +144,20 @@
     <div class="nav-left">
       <a href="/" class="logo">
         <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
-        <div class="logo-text">GB TOURNAMENTS<span class="sub">PREDICT · WIN</span></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">FANTASY</span></div>
       </a>
       <nav class="nav-links">
         <a href="/">GB Hub</a>
         <a href="/fantasy-manager">Fantasy Manager</a>
-        <a href="/wallet">Wallet</a>
       </nav>
     </div>
     <div class="nav-right">
-      <a href="/fantasy-manager" class="tourney-home-link" title="Fantasy Manager Home"><i class="fas fa-house"></i></a>
-      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet" style="font-size:14px;color:var(--text-dim);"></i></a>
-      <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
       <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Ffantasy-leaderboard" title="Log in">
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
         <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
+      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet"></i></a>
+      <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
       <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
     </div>
   </header>
@@ -165,62 +170,55 @@
   </div>
 
   <main>
-    <div class="header">
-      <h1><i class="fas fa-chart-line" style="color:var(--gold);"></i> Fantasy Manager Leaderboard</h1>
+    <section class="lb-hero">
+      <div class="lb-hero-icon"><i class="fas fa-chart-line"></i></div>
+      <h1>Fantasy Leaderboard</h1>
       <p>Ranked by season total points. Captain's points are doubled.</p>
-    </div>
-
-    <div class="records-row" id="recordsRow">
-      <div class="record-card empty"><i class="fas fa-spinner fa-spin"></i>&nbsp; Loading records…</div>
-    </div>
+      <a href="/fantasy-manager" style="display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:9px 18px; border:1px solid var(--border); border-radius:8px; color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600;"><i class="fas fa-arrow-left"></i> Back to Fantasy Manager</a>
+    </section>
 
     <div id="fmFinishedCard" style="display:none;">
-      <div class="board" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
+      <div class="lb-card" style="text-align:center; padding:30px 24px;">
         <i class="fas fa-trophy" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
         <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Season Complete — Final Standings</h2>
         <p style="max-width:460px; margin:0 auto; font-size:14px; color:var(--text-dim);" id="fmFinishedSummary">Loading final standings…</p>
       </div>
     </div>
 
-    <div class="layout">
-      <div class="board">
-        <div class="board-head">
-          <div class="col-rank">#</div>
-          <div class="col-name">Player</div>
-          <div class="col-points">Points</div>
-        </div>
-        <div id="boardBody">
-          <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>
-        </div>
-      </div>
+    <div class="lb-card">
+      <div id="boardBody"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div></div>
+    </div>
 
-      <div>
-        <div class="stat-card">
-          <h3><i class="fas fa-bolt" style="color:var(--gold);"></i> Top Performer This Gameweek</h3>
-          <div id="statTopGw"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
-        </div>
+    <div class="section-title"><i class="fas fa-bolt" style="color:var(--gold);"></i> Top Performer This Gameweek</div>
+    <div class="stat-card" style="margin-bottom:0;">
+      <div id="statTopGw"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
 
-        <div class="stat-card">
-          <h3><i class="fas fa-futbol" style="color:var(--green);"></i> Most Goals (Season)</h3>
-          <div id="statGoals"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
-        </div>
+    <div class="section-title"><i class="fas fa-futbol" style="color:var(--green);"></i> Season Stat Leaders</div>
+    <div class="stat-card">
+      <h3><i class="fas fa-futbol" style="color:var(--green);"></i> Most Goals (Season)</h3>
+      <div id="statGoals"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+    <div class="stat-card">
+      <h3><i class="fas fa-shoe-prints" style="color:var(--accent-2);"></i> Most Assists (Season)</h3>
+      <div id="statAssists"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+    <div class="stat-card">
+      <h3><i class="fas fa-square" style="color:#eab308;"></i> Most Yellow Cards</h3>
+      <div id="statYellow"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+    <div class="stat-card" style="margin-bottom:0;">
+      <h3><i class="fas fa-square" style="color:var(--red);"></i> Most Red Cards</h3>
+      <div id="statRed"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
+      <p class="note">Season stats update as more gameweeks are played.</p>
+    </div>
 
-        <div class="stat-card">
-          <h3><i class="fas fa-shoe-prints" style="color:var(--accent-2);"></i> Most Assists (Season)</h3>
-          <div id="statAssists"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
-        </div>
-
-        <div class="stat-card">
-          <h3><i class="fas fa-square" style="color:#eab308;"></i> Most Yellow Cards</h3>
-          <div id="statYellow"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
-        </div>
-
-        <div class="stat-card">
-          <h3><i class="fas fa-square" style="color:var(--red);"></i> Most Red Cards</h3>
-          <div id="statRed"><div class="loading" style="padding:10px;"><i class="fas fa-spinner fa-spin"></i></div></div>
-          <p class="note">Season stats update as more gameweeks are played.</p>
-        </div>
-      </div>
+    <!-- Records cards - deliberately last on the page, separate from the
+         season stat leaders above, since they're single-gameweek highlights
+         rather than season totals. -->
+    <div class="section-title"><i class="fas fa-star" style="color:var(--gold);"></i> Records</div>
+    <div class="records-row" id="recordsRow">
+      <div class="record-card empty"><i class="fas fa-spinner fa-spin"></i>&nbsp; Loading records…</div>
     </div>
   </main>
 
@@ -235,10 +233,6 @@
     async function loadBoard() {
       const body = document.getElementById('boardBody');
       try {
-        // Must accept 'finished' too, not just 'live' — otherwise the
-        // moment the Fantasy tournament genuinely finishes, this finds
-        // nothing and the whole leaderboard page breaks instead of
-        // showing the final result.
         const tRes = await fetch('/api/tournaments?status=live&tournament_type=fantasy');
         const tData = await tRes.json();
         let tournament = (tData.tournaments || []).find(t => t.format === 'fantasy_squad');
@@ -264,16 +258,19 @@
         const finishedCard = document.getElementById('fmFinishedCard');
         if (finishedCard) {
           if (tournament.status === 'finished') {
-            const winners = rows.filter(r => (r.prize_awarded || 0) > 0);
+            const topScore = rows.length > 0 ? Math.max(...rows.map(r => r.entry_points || 0)) : 0;
+            const winners = rows.filter(r => (r.entry_points || 0) === topScore);
             finishedCard.style.display = 'block';
             const summaryEl = document.getElementById('fmFinishedSummary');
             if (winners.length === 1) {
               const w = winners[0];
               const name = w.users ? (w.users.display_name || w.users.username) : 'Player';
-              summaryEl.textContent = `${name} wins with ${w.entry_points || 0} points — £${(w.prize_awarded/100).toFixed(2)} prize.`;
+              const prizeText = (w.prize_awarded || 0) > 0 ? ` — £${(w.prize_awarded/100).toFixed(2)} prize.` : ' — free roll, no prize.';
+              summaryEl.textContent = `${name} wins with ${w.entry_points || 0} points${prizeText}`;
             } else if (winners.length > 1) {
               const names = winners.map(w => w.users ? (w.users.display_name || w.users.username) : 'Player');
-              summaryEl.textContent = `${names.length}-way tie at the top — ${names.join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.`;
+              const prizeText = (winners[0].prize_awarded || 0) > 0 ? ` split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.` : ' — free roll, no prize.';
+              summaryEl.textContent = `${names.length}-way tie at the top — ${names.join(', ')}${prizeText}`;
             } else {
               summaryEl.textContent = 'Final standings below.';
             }
@@ -285,11 +282,13 @@
         body.innerHTML = rows.map(r => {
           const rankClass = r.rank === 1 ? 'top1' : r.rank === 2 ? 'top2' : r.rank === 3 ? 'top3' : '';
           const name = r.users ? (r.users.display_name || r.users.username) : 'Player';
+          const initials = name.substring(0, 2).toUpperCase();
           return `
-            <div class="row ${rankClass}">
-              <div class="rank ${rankClass}">${r.rank}</div>
-              <div class="name"><a href="/fantasy-entry-history?entry_id=${r.id}" style="color:inherit; text-decoration:none;">${escapeHtml(name)}</a></div>
-              <div class="points-col">
+            <div class="lb-row ${rankClass}">
+              <div class="lb-rank ${rankClass}">${r.rank}</div>
+              <div class="lb-avatar">${escapeHtml(initials)}</div>
+              <div class="lb-name"><a href="/fantasy-entry-history?entry_id=${r.id}" style="color:inherit; text-decoration:none;">${escapeHtml(name)}</a></div>
+              <div class="lb-points">
                 <span class="total">${r.entry_points || 0}</span>
                 <span class="gw">${r.gw_points || 0} this GW</span>
               </div>
@@ -320,8 +319,6 @@
         btn.title = 'View profile';
       } catch (e) {}
     }
-
-    function fmtCost(n) { return (n / 10).toFixed(1); }
 
     function renderStatList(containerId, players, teamsById, statKey, unit) {
       const container = document.getElementById(containerId);
@@ -358,9 +355,6 @@
         renderStatList('statAssists', players, teamsById, 'assists');
         renderStatList('statYellow', players, teamsById, 'yellow_cards');
         renderStatList('statRed', players, teamsById, 'red_cards');
-
-        // "This gameweek" is the one thing we CAN show live without needing
-        // saved history — it's just each player's current event_points.
         renderStatList('statTopGw', players, teamsById, 'event_points', ' pts');
       } catch (e) {
         console.error('Failed to load stat leaders:', e);
@@ -410,7 +404,6 @@
             </div>`);
         }
 
-        // Runners-up for each, if we have them — extra context, same card style
         if (data.bestGameweeks && data.bestGameweeks.length > 1) {
           const runner = data.bestGameweeks[1];
           cards.push(`
@@ -440,18 +433,19 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      initAuthButton();
-      loadBoard();
-      loadStatLeaders();
-      loadRecords();
-    });
     function toggleMobileNav(open) {
       document.getElementById('mobileNavDrawer').classList.toggle('open', open);
       document.getElementById('mobileNavOverlay').classList.toggle('open', open);
     }
     document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAuthButton();
+      loadBoard();
+      loadStatLeaders();
+      loadRecords();
+    });
     window.addEventListener('gbf-data-refreshed', () => {
       loadBoard();
       loadStatLeaders();

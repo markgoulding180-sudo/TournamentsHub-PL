@@ -260,14 +260,20 @@ document.addEventListener('DOMContentLoaded', async function () {
       // leaderboard page which was fixed earlier.
       if (tournamentInfo && tournamentInfo.status === 'finished' && els.finishedCard) {
         els.finishedCard.style.display = 'block';
-        const winners = fullRows.filter(r => (r.prize_awarded || 0) > 0);
+        // Winner identified by top entry_points, not prize_awarded>0 —
+        // that check incorrectly finds nobody in a free-roll (£0 entry)
+        // tournament, where the genuine winner's real prize is £0.
+        const topScore = fullRows.length > 0 ? Math.max(...fullRows.map(r => r.entry_points || 0)) : 0;
+        const winners = fullRows.filter(r => (r.entry_points || 0) === topScore);
         if (winners.length === 1) {
           const w = winners[0];
           const name = w.users ? (w.users.display_name || w.users.username) : 'Player';
-          els.finishedSummary.textContent = `${name} wins with ${w.entry_points || 0} points — £${(w.prize_awarded/100).toFixed(2)} prize.`;
+          const prizeText = (w.prize_awarded || 0) > 0 ? ` — £${(w.prize_awarded/100).toFixed(2)} prize.` : ' — free roll, no prize.';
+          els.finishedSummary.textContent = `${name} wins with ${w.entry_points || 0} points${prizeText}`;
         } else if (winners.length > 1) {
           const names = winners.map(w => w.users ? (w.users.display_name || w.users.username) : 'Player');
-          els.finishedSummary.textContent = `${names.length}-way tie at the top — ${names.join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.`;
+          const prizeText = (winners[0].prize_awarded || 0) > 0 ? ` split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.` : ' — free roll, no prize.';
+          els.finishedSummary.textContent = `${names.length}-way tie at the top — ${names.join(', ')}${prizeText}`;
         } else {
           els.finishedSummary.textContent = `${fullRows.length} entrants — see final standings below.`;
         }

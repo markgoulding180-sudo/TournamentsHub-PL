@@ -2604,7 +2604,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
 
           const fantasyResult = await updateFantasyPointsForGameweek(masterDb, match.gameweek);
-          await checkAndFinishSeasonTournament(supabaseAdmin, masterDb, 'fantasy', match.gameweek);
+          // Deliberately NOT calling checkAndFinishSeasonTournament here —
+          // this only updates players.event_points, not
+          // tournament_entries.entry_points (that happens separately in
+          // settleFantasyGameweekScores, via finalizeGameweekIfComplete).
+          // Calling the finish-check here read stale entry_points and
+          // could mark the tournament finished with prize_awarded never
+          // set for anyone — confirmed as a real bug, not a one-off.
 
           return res.status(200).json({
             success: true, match_id: matchUpdate.id, gameweek: match.gameweek,
