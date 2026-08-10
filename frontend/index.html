@@ -162,6 +162,7 @@
   .layout{display:flex; position:relative; z-index:1;}
 
   .sidebar{
+    display:none;
     width:222px; min-width:222px;
     background:var(--bg-panel); border-right:1px solid var(--border);
     height:calc(100vh - 69px); position:sticky; top:69px;
@@ -470,6 +471,7 @@
     .nav-links{display:none;}
     .menu-toggle{display:flex;}
     .sidebar{
+      display:block;
       position:fixed; left:0; top:69px; z-index:90; height:calc(100vh - 69px);
       transform:translateX(-100%); transition:transform .25s ease;
       width:222px; min-width:222px; padding:22px 14px;
