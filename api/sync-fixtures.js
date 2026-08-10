@@ -40,6 +40,19 @@ module.exports = async (req, res) => {
       { global: { fetch: noCacheFetch } }
     );
 
+    // Read-only mode: GET /api/sync-fixtures?list=true
+    // Returns every fixture, for a plain read-only display page - no sync,
+    // no side effects, just the real matches data already in the DB.
+    if (params.get('list') === 'true') {
+      const { data: matches, error } = await masterDb
+        .from('matches')
+        .select('id, gameweek, home_team, away_team, home_score, away_score, status, kickoff_time, result, venue')
+        .order('gameweek', { ascending: true })
+        .order('kickoff_time', { ascending: true });
+      if (error) return res.status(500).json({ error: 'Failed to fetch fixtures', details: error.message });
+      return res.status(200).json({ matches: matches || [] });
+    }
+
     // Debounce: only active when called from the poll (?poll=true), same
     // protection as live-scores/sync-players — many concurrent users
     // polling every 2 minutes shouldn't mean many concurrent FPL fetches.

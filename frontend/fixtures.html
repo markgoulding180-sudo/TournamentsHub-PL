@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fixtures - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth; overflow-x:hidden;}
+    body{
+      background:
+        linear-gradient(180deg, rgba(6,11,30,0.88) 0%, rgba(6,11,30,0.94) 40%, var(--bg) 100%),
+        url('assets/fixtures-background.png');
+      background-size: cover, cover;
+      background-position: center, center top;
+      background-attachment: fixed, fixed;
+      background-repeat: no-repeat, no-repeat;
+      color: var(--text); font-family: var(--font-body); -webkit-font-smoothing:antialiased;
+      min-height: 100vh;
+    }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); }
+    .nav-links a:hover{color:var(--text);}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+
+    main{ position:relative; z-index:1; max-width:820px; margin:0 auto; padding:60px 24px 70px; }
+
+    .page-hero{ text-align:center; margin-bottom:36px; }
+    .page-hero h1{ font-family:var(--font-display); font-size:clamp(34px,6vw,52px); font-weight:400; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; text-shadow:0 4px 24px rgba(0,0,0,0.5); }
+    .page-hero p{ color:var(--text-dim); font-size:15px; text-shadow:0 2px 10px rgba(0,0,0,0.6); }
+
+    /* Gameweek tab bar - horizontally scrollable pills */
+    .gw-tabs{ display:flex; gap:8px; overflow-x:auto; padding:4px 2px 18px; margin-bottom:20px; scrollbar-width:none; }
+    .gw-tabs::-webkit-scrollbar{ display:none; }
+    .gw-tab{
+      flex:none; padding:9px 18px; border-radius:20px; font-family:var(--font-head); font-weight:700; font-size:13.5px;
+      background:rgba(10,18,38,0.75); border:1px solid var(--border); color:var(--text-dim); backdrop-filter:blur(6px);
+      transition:background .15s, border-color .15s, color .15s;
+    }
+    .gw-tab:hover{ color:var(--text); border-color:var(--border-hover); }
+    .gw-tab.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+    .gw-section{ display:none; }
+    .gw-section.active{ display:block; }
+
+    .fixture-row{
+      display:flex; align-items:center; gap:14px; padding:14px 18px; margin-bottom:10px;
+      background:rgba(10,18,38,0.82); backdrop-filter:blur(8px);
+      border:1px solid var(--border); border-radius:12px;
+    }
+    .fixture-team{ flex:1; min-width:0; font-size:14.5px; font-weight:600; }
+    .fixture-team.home{ text-align:right; }
+    .fixture-team.away{ text-align:left; }
+    .fixture-mid{ flex:none; text-align:center; min-width:74px; }
+    .fixture-score{ font-family:var(--font-display); font-size:19px; color:var(--text); }
+    .fixture-vs{ font-family:var(--font-head); font-size:12px; color:var(--text-faint); font-weight:700; }
+    .fixture-time{ font-size:11px; color:var(--text-faint); margin-top:2px; }
+    .fixture-status{ font-size:9.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; margin-top:3px; }
+    .fixture-status.live{ color:var(--red); }
+    .fixture-status.finished{ color:var(--green); }
+    .fixture-status.upcoming{ color:var(--text-faint); }
+
+    .empty, .loading{ text-align:center; color:var(--text-dim); padding:50px 20px; font-size:14px; }
+
+    footer{ position:relative; z-index:1; text-align:center; padding:26px; color:var(--text-faint); font-size:13px; border-top:1px solid var(--border); background:rgba(6,11,30,0.7); }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .nav-links{ display:none; }
+      main{ padding:40px 14px 50px; }
+      .fixture-row{ padding:12px 12px; gap:8px; }
+      .fixture-team{ font-size:12.5px; }
+      .fixture-mid{ min-width:60px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-futbol" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB TOURNAMENTS<span class="sub">FIXTURES</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+      </nav>
+    </div>
+    <a class="icon-btn" href="/" title="Back to Hub"><i class="fas fa-arrow-left"></i></a>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <h1>Premier League Fixtures</h1>
+      <p>Every match, every gameweek, real results as they finish.</p>
+    </section>
+
+    <div id="gwTabs" class="gw-tabs"></div>
+    <div id="fixturesContent">
+      <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading fixtures…</div>
+    </div>
+  </main>
+
+  <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
+
+  <script>
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function formatKickoff(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function loadFixtures() {
+      const tabsEl = document.getElementById('gwTabs');
+      const contentEl = document.getElementById('fixturesContent');
+      try {
+        const res = await fetch('/api/sync-fixtures?list=true');
+        const data = await res.json();
+        const matches = data.matches || [];
+
+        if (matches.length === 0) {
+          contentEl.innerHTML = '<div class="empty">No fixtures found.</div>';
+          return;
+        }
+
+        const byGw = {};
+        matches.forEach(m => {
+          if (!byGw[m.gameweek]) byGw[m.gameweek] = [];
+          byGw[m.gameweek].push(m);
+        });
+        const gws = Object.keys(byGw).map(Number).sort((a, b) => a - b);
+
+        // Default to the first gameweek that isn't fully finished yet, so
+        // returning visitors land on something relevant rather than GW1.
+        let defaultGw = gws.find(gw => byGw[gw].some(m => m.status !== 'finished'));
+        if (defaultGw === undefined) defaultGw = gws[gws.length - 1];
+
+        tabsEl.innerHTML = gws.map(gw =>
+          `<button class="gw-tab ${gw === defaultGw ? 'active' : ''}" data-gw="${gw}">GW${gw}</button>`
+        ).join('');
+
+        contentEl.innerHTML = gws.map(gw => {
+          const rows = byGw[gw].map(m => {
+            const isFinished = m.status === 'finished';
+            const isLive = m.status === 'live';
+            const hasScore = m.home_score !== null && m.home_score !== undefined;
+            const statusClass = isLive ? 'live' : (isFinished ? 'finished' : 'upcoming');
+            const statusText = isLive ? 'Live' : (isFinished ? 'Full Time' : 'Upcoming');
+            const midContent = hasScore
+              ? `<div class="fixture-score">${m.home_score} - ${m.away_score}</div>`
+              : `<div class="fixture-vs">VS</div><div class="fixture-time">${escapeHtml(formatKickoff(m.kickoff_time))}</div>`;
+            return `
+              <div class="fixture-row">
+                <div class="fixture-team home">${escapeHtml(m.home_team)}</div>
+                <div class="fixture-mid">
+                  ${midContent}
+                  <div class="fixture-status ${statusClass}">${statusText}</div>
+                </div>
+                <div class="fixture-team away">${escapeHtml(m.away_team)}</div>
+              </div>`;
+          }).join('');
+          return `<div class="gw-section ${gw === defaultGw ? 'active' : ''}" data-gw="${gw}">${rows}</div>`;
+        }).join('');
+
+        document.querySelectorAll('.gw-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            const gw = tab.getAttribute('data-gw');
+            document.querySelectorAll('.gw-tab').forEach(t => t.classList.toggle('active', t === tab));
+            document.querySelectorAll('.gw-section').forEach(s => s.classList.toggle('active', s.getAttribute('data-gw') === gw));
+          });
+        });
+
+        // Scroll the active tab into view on load, since the default
+        // gameweek might be well to the right of GW1 on a long season.
+        const activeTab = document.querySelector('.gw-tab.active');
+        if (activeTab) activeTab.scrollIntoView({ inline: 'center', block: 'nearest' });
+      } catch (e) {
+        console.error('Failed to load fixtures:', e);
+        contentEl.innerHTML = '<div class="empty">Couldn\'t load fixtures right now.</div>';
+      }
+    }
+
+    loadFixtures();
+  </script>
+</body>
+</html>
