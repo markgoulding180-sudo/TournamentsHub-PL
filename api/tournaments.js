@@ -4256,11 +4256,14 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
       .eq('status', 'finished');
     if (!finishedMatches || finishedMatches.length === 0) return result;
 
+    // Three-state, same reasoning as updateLmsPicksForGameweek — needed
+    // so a correction also writes the CORRECTED result onto picks.result,
+    // not just the corrected elimination status.
     const decidedTeams = new Map();
     finishedMatches.forEach(m => {
-      if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, true); decidedTeams.set(m.away_team, false); }
-      else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, true); decidedTeams.set(m.home_team, false); }
-      else { decidedTeams.set(m.home_team, false); decidedTeams.set(m.away_team, false); }
+      if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, 'win'); decidedTeams.set(m.away_team, 'lose'); }
+      else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, 'win'); decidedTeams.set(m.home_team, 'lose'); }
+      else { decidedTeams.set(m.home_team, 'draw'); decidedTeams.set(m.away_team, 'draw'); }
     });
 
     const { data: picks } = await supabaseAdmin
@@ -4281,10 +4284,13 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
 
     const toEliminate = [];
     const toRevive = [];
+    const resultGroups = { win: [], draw: [], lose: [] };
     for (const entry of (entries || [])) {
       const pickedTeam = pickByUser.get(entry.user_id);
       if (!pickedTeam || !decidedTeams.has(pickedTeam)) continue;
-      const won = decidedTeams.get(pickedTeam);
+      const pickResult = decidedTeams.get(pickedTeam);
+      resultGroups[pickResult].push(entry.user_id);
+      const won = pickResult === 'win';
 
       if (!won && !entry.is_eliminated) {
         toEliminate.push(entry.id);
@@ -4305,6 +4311,17 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
         .update({ is_eliminated: false, eliminated_gameweek: null }).in('id', toRevive);
       if (!error) result.revived = toRevive.length;
     }
+    // Backfill/correct picks.result for everyone affected by this
+    // correction, same reasoning as updateLmsPicksForGameweek.
+    for (const [resultValue, userIds] of Object.entries(resultGroups)) {
+      if (userIds.length === 0) continue;
+      const { error: resultErr } = await supabaseAdmin
+        .schema('lms').from('picks')
+        .update({ result: resultValue })
+        .eq('tournament_id', tournamentId).eq('gameweek', gameweek)
+        .in('user_id', userIds);
+      if (resultErr) console.error(`Failed to write corrected picks.result=${resultValue}:`, resultErr);
+    }
     console.log(`[LMS_CORRECTION] tournament=${tournamentId} gw=${gameweek}: eliminated=${result.eliminated}, revived=${result.revived}`);
   } catch (error) {
     console.error('recalculateLmsForGameweekCorrection error:', error);
@@ -4324,11 +4341,14 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
     if (!finishedMatches || finishedMatches.length === 0) return result;
 
     // A draw eliminates both teams' backers — nobody "won" that pick.
+    // Three-state now ('win'/'draw'/'lose') instead of a boolean, since
+    // this also feeds picks.result (display/audit only — elimination
+    // logic below still only cares about win vs not-win).
     const decidedTeams = new Map();
     finishedMatches.forEach(m => {
-      if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, true); decidedTeams.set(m.away_team, false); }
-      else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, true); decidedTeams.set(m.home_team, false); }
-      else { decidedTeams.set(m.home_team, false); decidedTeams.set(m.away_team, false); }
+      if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, 'win'); decidedTeams.set(m.away_team, 'lose'); }
+      else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, 'win'); decidedTeams.set(m.home_team, 'lose'); }
+      else { decidedTeams.set(m.home_team, 'draw'); decidedTeams.set(m.away_team, 'draw'); }
     });
 
     const { data: entries, error: entriesErr } = await supabaseAdmin
@@ -4349,15 +4369,18 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
 
     let checkedCount = 0, skippedNoPick = 0, skippedNotDecided = 0, survivedCount = 0;
     const idsToEliminate = [];
+    const resultGroups = { win: [], draw: [], lose: [] };
     for (const entry of entries) {
       checkedCount++;
       const pickedTeam = pickByUser.get(entry.user_id);
       if (!pickedTeam) { skippedNoPick++; continue; }
-      if (!decidedTeams.has(pickedTeam)) { skippedNotDecided++; continue; }
-      if (decidedTeams.get(pickedTeam) === false) {
-        idsToEliminate.push(entry.id);
-      } else {
+      const pickResult = decidedTeams.get(pickedTeam);
+      if (!pickResult) { skippedNotDecided++; continue; }
+      resultGroups[pickResult].push(entry.user_id);
+      if (pickResult === 'win') {
         survivedCount++;
+      } else {
+        idsToEliminate.push(entry.id);
       }
     }
     // One batch update instead of one .update() call per eliminated entry.
@@ -4368,6 +4391,19 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
         .in('id', idsToEliminate);
       if (!error) result.newly_eliminated = idsToEliminate.length;
       else console.error(`Failed to eliminate entries:`, error);
+    }
+    // Write the real result onto each pick row — was previously left
+    // permanently at its 'pending' default, misleading anyone reading
+    // the table directly. Purely additive: nothing currently reads this
+    // column, so backfilling it can't change any existing behavior.
+    for (const [resultValue, userIds] of Object.entries(resultGroups)) {
+      if (userIds.length === 0) continue;
+      const { error: resultErr } = await supabaseAdmin
+        .schema('lms').from('picks')
+        .update({ result: resultValue })
+        .eq('tournament_id', tournamentId).eq('gameweek', gameweek)
+        .in('user_id', userIds);
+      if (resultErr) console.error(`Failed to write picks.result=${resultValue}:`, resultErr);
     }
     console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: checked=${checkedCount}, skippedNoPick=${skippedNoPick}, skippedNotDecided=${skippedNotDecided}, survived=${survivedCount}, eliminated=${result.newly_eliminated}`);
   } catch (error) {
