@@ -402,7 +402,8 @@
   .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
   .card-row-3{grid-template-columns:repeat(3,1fr);}
   .t-card{
-    position:relative; background:var(--bg-card); border:1px solid rgba(59,130,246,0.35);
+    position:relative; background:rgba(13,23,48,0.82); backdrop-filter:blur(4px);
+    border:1.5px solid rgba(59,130,246,0.6);
     border-radius:var(--radius); overflow:hidden;
     transition:border-color .25s, transform .25s, box-shadow .25s;
     display:flex; flex-direction:column;
