@@ -367,6 +367,12 @@
   .pl-live-leaders .name{flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .pl-live-leaders .pts{font-family:var(--font-head); font-weight:700; color:var(--gold); letter-spacing:.3px;}
   .pl-live-empty{color:var(--text-faint); font-size:12.5px; padding:6px 2px;}
+
+  .quick-lb-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
+  .quick-lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .quick-lb-title{ font-family:var(--font-head); font-weight:700; font-size:14.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  @media (max-width:1080px){ .quick-lb-grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:640px){ .quick-lb-grid{ grid-template-columns:1fr; } }
   @media (max-width:760px){ .pl-live-grid{grid-template-columns:1fr;} }
   @media (max-width:640px){ .pl-fixture-chip{ min-width:calc(50% - 5px); } }
 
@@ -923,29 +929,29 @@
       </div>
     </section>
 
-    <!-- ================= TOP OF THE TABLE ================= -->
-    <section class="card" style="background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:14px; padding:20px 22px; margin-bottom:22px;">
-      <div class="pl-live-panel-title" style="margin-bottom:14px;">Top of the Table</div>
-      <ol class="pl-live-leaders" id="plLeaders">
-        <li class="pl-live-empty">Loading leaderboard…</li>
-      </ol>
-    </section>
-
-    <!-- ================= LEADERBOARD STRIP ================= -->
-    <section class="leaderboard-strip">
-      <div class="lb-left">
-        <div class="lb-icon"><svg class="icon"><use href="#i-trophy"/></svg></div>
-        <div>
-          <h3>Daily Leaderboard</h3>
-          <p>Compete every day and climb the ranks.</p>
-        </div>
+    <!-- ================= QUICK LOOK LEADERBOARDS ================= -->
+    <div class="section-title-group" style="margin-bottom:16px;">
+      <div class="section-icon"><svg class="icon"><use href="#i-trophy"/></svg></div>
+      <div class="section-title"><h2>Quick Look — Top 5</h2></div>
+    </div>
+    <div class="quick-lb-grid" id="quickLbGrid">
+      <div class="quick-lb-card">
+        <div class="quick-lb-title"><i class="fas fa-futbol" style="color:var(--accent-2);"></i> Predictions</div>
+        <ol class="pl-live-leaders" id="qlbPredictions"><li class="pl-live-empty">Loading…</li></ol>
       </div>
-      <div class="lb-mid">
-        <div class="stat-label">Top Prize</div>
-        <div class="amount">£25,000</div>
+      <div class="quick-lb-card">
+        <div class="quick-lb-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Last Man Standing</div>
+        <ol class="pl-live-leaders" id="qlbLms"><li class="pl-live-empty">Loading…</li></ol>
       </div>
-      <button class="btn-outline">View Leaderboard</button>
-    </section>
+      <div class="quick-lb-card">
+        <div class="quick-lb-title"><i class="fas fa-users" style="color:var(--green);"></i> Fantasy</div>
+        <ol class="pl-live-leaders" id="qlbFantasy"><li class="pl-live-empty">Loading…</li></ol>
+      </div>
+      <div class="quick-lb-card">
+        <div class="quick-lb-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Stock Market</div>
+        <ol class="pl-live-leaders" id="qlbStockmarket"><li class="pl-live-empty">Loading…</li></ol>
+      </div>
+    </div>
 
   </main>
 </div>
@@ -1070,7 +1076,7 @@
   }
 
   function renderPLLeaders(leaderboard){
-    const el = document.getElementById('plLeaders');
+    const el = document.getElementById('qlbPredictions');
     if (!leaderboard || leaderboard.length === 0){
       el.innerHTML = '<li class="pl-live-empty">No leaderboard data yet.</li>';
       return;
@@ -1081,6 +1087,138 @@
         <span class="name">${plEsc(entry.user?.display_name || entry.user?.username || 'Player')}</span>
         <span class="pts">${plEsc(entry.total_points ?? 0)} pts</span>
       </li>`).join('');
+  }
+
+  // Generic top-5 loader for LMS/Fantasy — same live-then-finished pattern
+  // used everywhere else this tournament finish logic touches, so a
+  // genuinely finished tournament still shows its real final standings
+  // here instead of silently going blank.
+  async function loadQuickLeaderboard(elId, tournamentType, formatFilter, pointsField){
+    const el = document.getElementById(elId);
+    try {
+      let res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=live`);
+      let data = await res.json();
+      let list = data.tournaments || [];
+      let t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
+      if (!t) {
+        res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=finished`);
+        data = await res.json();
+        list = data.tournaments || [];
+        t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
+      }
+      if (!t) {
+        el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
+        return;
+      }
+      const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${tournamentType}`);
+      const lbData = await lbRes.json();
+      const rows = (lbData.leaderboard || []).slice(0, 5);
+      if (rows.length === 0) {
+        el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
+        return;
+      }
+      el.innerHTML = rows.map((r, i) => {
+        const name = r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
+        return `
+          <li>
+            <span class="rank">${i + 1}</span>
+            <span class="name">${plEsc(name)}</span>
+            <span class="pts">${plEsc(r[pointsField] ?? 0)} pts</span>
+          </li>`;
+      }).join('');
+    } catch (e) {
+      console.error(`Quick leaderboard failed for ${tournamentType}:`, e);
+      el.innerHTML = '<li class="pl-live-empty">Couldn\'t load right now.</li>';
+    }
+  }
+
+  // LMS shows survival status, not points - "alive" or which gameweek
+  // they went out, since that's what's actually meaningful here.
+  async function loadQuickLms(){
+    const el = document.getElementById('qlbLms');
+    try {
+      let res = await fetch('/api/tournaments?tournament_type=lms&status=live');
+      let data = await res.json();
+      let t = (data.tournaments || [])[0];
+      if (!t) {
+        res = await fetch('/api/tournaments?tournament_type=lms&status=finished');
+        data = await res.json();
+        t = (data.tournaments || [])[0];
+      }
+      if (!t) {
+        el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
+        return;
+      }
+      const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=lms`);
+      const lbData = await lbRes.json();
+      const rows = (lbData.leaderboard || []).slice(0, 5);
+      if (rows.length === 0) {
+        el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
+        return;
+      }
+      el.innerHTML = rows.map((r, i) => {
+        const name = r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
+        const status = r.is_eliminated ? `Out GW${r.eliminated_gameweek}` : 'Alive';
+        return `
+          <li>
+            <span class="rank">${i + 1}</span>
+            <span class="name">${plEsc(name)}</span>
+            <span class="pts">${plEsc(status)}</span>
+          </li>`;
+      }).join('');
+    } catch (e) {
+      console.error('Quick leaderboard failed for lms:', e);
+      el.innerHTML = '<li class="pl-live-empty">Couldn\'t load right now.</li>';
+    }
+  }
+
+  // Stock Market shows real money (current_value), not points — the
+  // user's actual request: "top 5 users that have the most money".
+  async function loadQuickStockMarket(){
+    const el = document.getElementById('qlbStockmarket');
+    try {
+      let res = await fetch('/api/tournaments?tournament_type=stockmarket&status=live');
+      let data = await res.json();
+      let list = data.tournaments || [];
+      let t = list[0];
+      if (!t) {
+        res = await fetch('/api/tournaments?tournament_type=stockmarket&status=upcoming');
+        data = await res.json();
+        t = (data.tournaments || [])[0];
+      }
+      if (!t) {
+        res = await fetch('/api/tournaments?tournament_type=stockmarket&status=finished');
+        data = await res.json();
+        t = (data.tournaments || [])[0];
+      }
+      if (!t) {
+        el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
+        return;
+      }
+      const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
+      const lbData = await lbRes.json();
+      const rows = (lbData.leaderboard || [])
+        .filter(r => !r.relegated)
+        .sort((a, b) => (b.current_value || 0) - (a.current_value || 0))
+        .slice(0, 5);
+      if (rows.length === 0) {
+        el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
+        return;
+      }
+      el.innerHTML = rows.map((r, i) => {
+        const name = r.users ? (r.users.display_name || r.users.username) : 'Player';
+        const value = ((r.current_value || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `
+          <li>
+            <span class="rank">${i + 1}</span>
+            <span class="name">${plEsc(name)}</span>
+            <span class="pts">£${value}</span>
+          </li>`;
+      }).join('');
+    } catch (e) {
+      console.error('Quick leaderboard failed for stockmarket:', e);
+      el.innerHTML = '<li class="pl-live-empty">Couldn\'t load right now.</li>';
+    }
   }
 
   async function loadPLLive(){
@@ -1331,8 +1469,14 @@
 
   // Live data refresh is handled by the shared live-poll.js script — just
   // re-render this page's own live strip whenever it runs.
-  window.addEventListener('gbf-data-refreshed', loadPLLive);
-  loadPLLive();
+  function loadAllQuickLeaderboards(){
+    loadPLLive();
+    loadQuickLms();
+    loadQuickLeaderboard('qlbFantasy', 'fantasy', 'fantasy_squad', 'entry_points');
+    loadQuickStockMarket();
+  }
+  window.addEventListener('gbf-data-refreshed', loadAllQuickLeaderboards);
+  loadAllQuickLeaderboards();
   loadRealTournamentCardData();
 </script>
 
