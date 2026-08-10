@@ -225,16 +225,30 @@
   /* ================= HERO ================= */
   .hero{
     position:relative; border-radius:20px;
-    background:
+    border:1px solid var(--border); overflow:hidden;
+    min-height:360px; margin-bottom:34px;
+  }
+  .hero-slide{
+    position:absolute; inset:0; z-index:1;
+    display:flex; align-items:center; padding:58px 50px;
+    opacity:0; pointer-events:none; transition:opacity .9s ease;
+    background-size:cover, cover, auto 105%;
+    background-repeat:no-repeat, no-repeat, no-repeat;
+    background-position:center, center, right center;
+  }
+  .hero-slide.active{ opacity:1; pointer-events:auto; z-index:2; }
+  .hero-slide.slide-1{
+    background-image:
       radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
       linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
       url('assets/haaland-hero.jpg');
-    background-size: cover, cover, auto 105%;
-    background-repeat: no-repeat, no-repeat, no-repeat;
-    background-position: center, center, right center;
-    border:1px solid var(--border); overflow:hidden;
-    padding:58px 50px; margin-bottom:34px; min-height:360px;
-    display:flex; align-items:center;
+  }
+  .hero-slide.slide-2{
+    background-size:cover, cover;
+    background-position:center, center;
+    background-image:
+      linear-gradient(90deg, rgba(6,12,26,0.94) 0%, rgba(6,12,26,0.8) 35%, rgba(6,12,26,0.35) 65%, rgba(6,12,26,0.12) 100%),
+      url('assets/scoreboard.jpeg');
   }
   .hero-graphic{
     position:absolute; right:-40px; top:0; bottom:0; width:52%;
@@ -520,9 +534,10 @@
        side padding with matching negative margins — and sits directly
        under the navbar instead of leaving a gap above it. */
     .hero{
-      padding:36px 24px; min-height:auto; border-radius:0;
+      border-radius:0;
       margin-left:-20px; margin-right:-20px; margin-top:0; margin-bottom:0; width:auto;
     }
+    .hero-slide{ padding:36px 24px; }
     .hero h1{font-size:44px;}
     .hero-brand-heading{font-size:44px;}
     .hero-graphic{width:70%; opacity:0.5;}
@@ -680,41 +695,53 @@
 
     <!-- ================= HERO ================= -->
     <section class="hero">
-      <div class="hero-graphic">
-        <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
-          <defs>
-            <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#93c5fd"/>
-              <stop offset="100%" stop-color="#3b82f6"/>
-            </linearGradient>
-          </defs>
-          <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
-          <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
-          <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
-          <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
-          <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
-          <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
-          <g opacity="0.9">
-            <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
-          </g>
-          <g opacity="0.5">
-            <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
-          </g>
-          <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
-          <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
-        </svg>
+      <div class="hero-slide slide-1 active">
+        <div class="hero-graphic">
+          <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+            <defs>
+              <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#93c5fd"/>
+                <stop offset="100%" stop-color="#3b82f6"/>
+              </linearGradient>
+            </defs>
+            <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
+            <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
+            <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
+            <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
+            <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
+            <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
+            <g opacity="0.9">
+              <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
+            </g>
+            <g opacity="0.5">
+              <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
+            </g>
+            <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
+            <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
+          </svg>
+        </div>
+        <div class="hero-content">
+          <div class="hero-brand-heading">GB Tournaments</div>
+          <div class="hero-brand-tagline">Prove You're the Best</div>
+          <div class="hero-eyebrow"><span class="dot"></span>Live Tournaments Running Now</div>
+          <div class="hero-sub">Compete. Predict. Win.</div>
+          <p class="hero-desc">Choose your arena and prove you're the best. Football, darts, golf, stocks and more — enter, predict, and climb the leaderboard.</p>
+          <a href="/how-it-works" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>How It Works</a>
+        </div>
       </div>
-      <div class="hero-content">
-        <div class="hero-brand-heading">GB Tournaments</div>
-        <div class="hero-brand-tagline">Prove You're the Best</div>
-        <div class="hero-eyebrow"><span class="dot"></span>Live Tournaments Running Now</div>
-        <div class="hero-sub">Compete. Predict. Win.</div>
-        <p class="hero-desc">Choose your arena and prove you're the best. Football, darts, golf, stocks and more — enter, predict, and climb the leaderboard.</p>
-        <a href="/how-it-works" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>How It Works</a>
+
+      <div class="hero-slide slide-2">
+        <div class="hero-content">
+          <div class="hero-eyebrow"><span class="dot"></span>Premier League Predictions</div>
+          <div class="hero-brand-heading" style="font-size:56px;">Predict Team Wins &amp; Scores</div>
+          <div class="hero-sub">Earn Points</div>
+          <p class="hero-desc">Compete against other players. Win cash prizes.</p>
+          <a href="/predictions" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>Start Predicting</a>
+        </div>
       </div>
     </section>
 
@@ -1511,6 +1538,19 @@
   }
   window.addEventListener('gbf-data-refreshed', loadAllQuickLeaderboards);
   loadAllQuickLeaderboards();
+
+  // Hero slideshow — cycles through .hero-slide elements every 3s,
+  // cross-fading via the opacity transition already set on .hero-slide.
+  (function initHeroSlideshow(){
+    const slides = document.querySelectorAll('.hero-slide');
+    if (slides.length < 2) return;
+    let current = 0;
+    setInterval(() => {
+      slides[current].classList.remove('active');
+      current = (current + 1) % slides.length;
+      slides[current].classList.add('active');
+    }, 3000);
+  })();
   loadRealTournamentCardData();
 </script>
 
