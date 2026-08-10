@@ -278,6 +278,23 @@
 
   /* ================= SECTION HEADER ================= */
   .section{margin-bottom:38px; scroll-margin-top:90px;}
+
+  /* Distinct visual container per sport category, so Football/Darts/etc
+     are clearly separated rather than blending into one continuous page.
+     Each sport gets its own background image + dark overlay for legibility;
+     new sports just need their own .sport-container.<name> rule added here. */
+  .sport-container{
+    border-radius:20px; border:1px solid var(--border); overflow:hidden;
+    padding:28px 24px; margin-bottom:38px;
+    background-size:cover; background-position:center; background-repeat:no-repeat;
+  }
+  .sport-container.football{
+    background-image:
+      linear-gradient(180deg, rgba(6,11,30,0.90) 0%, rgba(6,11,30,0.94) 100%),
+      url('assets/tournament-football.webp');
+  }
+  .sport-container .section{ margin-bottom:0; }
+  .sport-container .section + .section{ margin-top:34px; }
   .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;}
   .pl-header-actions{display:flex; align-items:center; gap:18px;}
   @media (max-width:640px){
@@ -702,6 +719,7 @@
     </nav>
 
     <!-- ================= FOOTBALL ================= -->
+    <div class="sport-container football">
     <section class="section" id="pl-predictions">
       <div class="section-head">
         <div class="section-title-group">
@@ -814,6 +832,7 @@
         </a>
       </div>
     </section>
+    </div>
 
 
     <!-- ================= DARTS ================= -->
@@ -1197,13 +1216,16 @@
       }
       const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
       const lbData = await lbRes.json();
-      const rows = (lbData.leaderboard || []).slice(0, 5);
+      const rows = (lbData.leaderboard || [])
+        .filter(r => !r.relegated)
+        .sort((a, b) => (b.current_value || 0) - (a.current_value || 0))
+        .slice(0, 5);
       if (rows.length === 0) {
         el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
         return;
       }
       el.innerHTML = rows.map((r, i) => {
-        const name = r.player_name || 'Player';
+        const name = r.users ? (r.users.display_name || r.users.username) : 'Player';
         const value = ((r.current_value || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
           <li>
