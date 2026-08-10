@@ -71,9 +71,13 @@
       background:rgba(10,18,38,0.82); backdrop-filter:blur(8px);
       border:1px solid var(--border); border-radius:12px;
     }
-    .fixture-team{ flex:1; min-width:0; font-size:14.5px; font-weight:600; }
-    .fixture-team.home{ text-align:right; }
-    .fixture-team.away{ text-align:left; }
+    .fixture-team{ flex:1; min-width:0; font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:9px; }
+    .fixture-team.home{ justify-content:flex-end; text-align:right; }
+    .fixture-team.away{ justify-content:flex-start; text-align:left; }
+    .fixture-team .shirt{ width:26px; height:26px; object-fit:contain; flex-shrink:0; }
+    .fixture-team.home .shirt{ order:2; }
+    .team-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; box-shadow:0 0 6px currentColor; }
+    .fixture-team.home .team-dot{ order:1; }
     .fixture-mid{ flex:none; text-align:center; min-width:74px; }
     .fixture-score{ font-family:var(--font-display); font-size:19px; color:var(--text); }
     .fixture-vs{ font-family:var(--font-head); font-size:12px; color:var(--text-faint); font-weight:700; }
@@ -126,6 +130,48 @@
   <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
   <script>
+    function getTeamShirtName(teamName) {
+      const shirtMap = {
+        'Arsenal': 'arsenal', 'Aston Villa': 'aston villa', 'Bournemouth': 'bournmouth',
+        'Brentford': 'brentford', 'Brighton': 'brighton', 'Burnley': 'burnley',
+        'Chelsea': 'chelsea', 'Crystal Palace': 'crystal', 'Everton': 'everton',
+        'Fulham': 'fullham', 'Leeds': 'leeds', 'Liverpool': 'liverpool',
+        'Man City': 'man city', 'Man United': 'man u', 'Man Utd': 'man u',
+        'Manchester United': 'man u', 'Manchester Utd': 'man u',
+        'Newcastle': 'new castle', 'Newcastle United': 'new castle', 'Newcastle Utd': 'new castle',
+        "Nott'm Forest": 'nots forest', 'Nottingham Forest': 'nots forest', 'Notts Forest': 'nots forest',
+        'Spurs': 'spurs', 'Tottenham': 'spurs', 'Tottenham Hotspur': 'spurs',
+        'West Ham': 'west ham', 'West Ham United': 'west ham', 'West Ham Utd': 'west ham',
+        'Wolves': 'wovles temp', 'Wolverhampton': 'wovles temp', 'Wolverhampton Wanderers': 'wovles temp',
+        'Sunderland': 'sunderland'
+      };
+      return shirtMap[teamName] || teamName.toLowerCase();
+    }
+    function shirtSrc(team) {
+      return `shirts/${getTeamShirtName(team)}.webp`;
+    }
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+    // Real club primary colours, for the small accent dot next to each name.
+    const TEAM_COLORS = {
+      'Arsenal': '#EF0107', 'Aston Villa': '#95BFE5', 'Bournemouth': '#DA020E',
+      'Brentford': '#E30613', 'Brighton': '#0057B8', 'Burnley': '#6C1D45',
+      'Chelsea': '#034694', 'Crystal Palace': '#1B458F', 'Everton': '#003399',
+      'Fulham': '#CC0000', 'Coventry City': '#78D0F1', 'Hull City': '#F18A01',
+      'Ipswich Town': '#0044A9', 'Leeds': '#FFCD00', 'Liverpool': '#C8102E',
+      'Man City': '#6CABDD', 'Man United': '#DA291C', 'Man Utd': '#DA291C',
+      'Manchester United': '#DA291C', 'Manchester Utd': '#DA291C',
+      'Newcastle': '#241F20', 'Newcastle United': '#241F20', 'Newcastle Utd': '#241F20',
+      "Nott'm Forest": '#DD0000', 'Nottingham Forest': '#DD0000', 'Notts Forest': '#DD0000',
+      'Spurs': '#132257', 'Tottenham': '#132257', 'Tottenham Hotspur': '#132257',
+      'West Ham': '#7A263A', 'West Ham United': '#7A263A', 'West Ham Utd': '#7A263A',
+      'Wolves': '#FDB913', 'Wolverhampton': '#FDB913', 'Wolverhampton Wanderers': '#FDB913',
+      'Sunderland': '#EB172B'
+    };
+    function teamColor(team) {
+      return TEAM_COLORS[team] || '#4d5972';
+    }
+
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
@@ -178,12 +224,20 @@
               : `<div class="fixture-vs">VS</div><div class="fixture-time">${escapeHtml(formatKickoff(m.kickoff_time))}</div>`;
             return `
               <div class="fixture-row">
-                <div class="fixture-team home">${escapeHtml(m.home_team)}</div>
+                <div class="fixture-team home">
+                  <span class="team-name">${escapeHtml(m.home_team)}</span>
+                  <span class="team-dot" style="background:${teamColor(m.home_team)}; color:${teamColor(m.home_team)};"></span>
+                  <img class="shirt" src="${shirtSrc(m.home_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
+                </div>
                 <div class="fixture-mid">
                   ${midContent}
                   <div class="fixture-status ${statusClass}">${statusText}</div>
                 </div>
-                <div class="fixture-team away">${escapeHtml(m.away_team)}</div>
+                <div class="fixture-team away">
+                  <img class="shirt" src="${shirtSrc(m.away_team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
+                  <span class="team-dot" style="background:${teamColor(m.away_team)}; color:${teamColor(m.away_team)};"></span>
+                  <span class="team-name">${escapeHtml(m.away_team)}</span>
+                </div>
               </div>`;
           }).join('');
           return `<div class="gw-section ${gw === defaultGw ? 'active' : ''}" data-gw="${gw}">${rows}</div>`;
