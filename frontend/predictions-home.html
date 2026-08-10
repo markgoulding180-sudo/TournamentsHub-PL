@@ -98,26 +98,18 @@
     h1{ font-family:var(--font-display); font-size:28px; letter-spacing:.4px; margin-bottom:4px; }
     .subtitle{ color:var(--text-dim); font-size:14px; margin-bottom:24px; }
 
-    /* ================= HERO (matches Hub .hero exactly) ================= */
+    /* ================= HERO — full image, no text overlay ================= */
     .hero{
-      position:relative; border-radius:20px;
-      background:
-        radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
-        linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
-        url('assets/haaland-hero.jpg');
-      background-size: cover, cover, auto 105%;
-      background-repeat: no-repeat, no-repeat, no-repeat;
-      background-position: center, center, right center;
-      border:1px solid var(--border); overflow:hidden;
-      padding:58px 50px; margin-bottom:34px; min-height:360px;
-      display:flex; align-items:center;
+      position:relative; border-radius:20px; overflow:hidden;
+      border:1px solid var(--border); margin-bottom:20px;
     }
-    .hero-graphic{
-      position:absolute; right:-40px; top:0; bottom:0; width:52%;
-      display:flex; align-items:center; justify-content:center; opacity:0.95;
-      pointer-events:none;
+    .hero-image{
+      width:100%; height:260px; object-fit:contain; display:block; background:#0a1226;
     }
-    .hero-content{position:relative; z-index:2; max-width:540px;}
+    .hero-strip{
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;
+      padding:16px 22px; background:var(--bg-panel); border-top:1px solid var(--border);
+    }
     .hero-eyebrow{
       display:inline-flex; align-items:center; gap:8px; color:var(--accent-2);
       font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px;
@@ -129,8 +121,7 @@
       font-family:var(--font-display); font-size:76px; font-weight:400; line-height:0.92;
       letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase;
     }
-    .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:12px; letter-spacing:0.3px;}
-    .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:0; max-width:420px; line-height:1.55;}
+
     @media (max-width:640px){
       .hero::before{
         content:''; position:absolute; inset:0; z-index:1;
@@ -236,9 +227,7 @@
         margin-left:-14px; margin-right:-14px; margin-top:0; margin-bottom:12px; width:auto;
       }
       .hero h1{ font-size:42px; }
-      .hero-sub{ font-size:16px; }
-      .hero-desc{ font-size:13.5px; }
-      .hero-graphic{ display:none; }
+      .hero-strip{ padding:14px 16px; }
 
       .week-header{ flex-direction:column; align-items:flex-start; }
       .fixture-chip{ min-width:calc(50% - 5px); }
@@ -374,40 +363,9 @@
 
   <main>
     <section class="hero">
-      <div class="hero-graphic">
-        <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
-          <defs>
-            <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#93c5fd"/>
-              <stop offset="100%" stop-color="#3b82f6"/>
-            </linearGradient>
-          </defs>
-          <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
-          <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
-          <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
-          <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
-          <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
-          <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
-          <g opacity="0.9">
-            <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
-          </g>
-          <g opacity="0.5">
-            <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
-          </g>
-          <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
-          <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
-        </svg>
-      </div>
-      <div class="hero-content">
+      <img src="assets/Predictions.png" alt="Premier League Score Predictions" class="hero-image">
+      <div class="hero-strip">
         <div class="hero-eyebrow"><span class="dot"></span><span id="heroTournamentName">Gameweek Live Now</span></div>
-        <h1>Predictions</h1>
-        <div class="hero-sub">Predict. Score. Win.</div>
-        <p class="hero-desc">Predict every result and score. Climb the leaderboard. Win cash prizes.</p>
-
         <div class="hero-cta-row" id="heroCtaRow">
           <div class="loading" style="color:var(--text-dim); font-size:13px;">Loading tournament…</div>
         </div>
