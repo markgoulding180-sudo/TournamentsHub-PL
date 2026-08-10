@@ -4330,22 +4330,27 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
 }
 
 async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, gameweek) {
-  const result = { newly_eliminated: 0 };
+  const result = { newly_eliminated: 0, newly_eliminated_no_pick: 0 };
   try {
+    // Only used to resolve picks whose match has a real result — NOT used
+    // to gate whether this function runs at all. Every call site already
+    // guarantees the pick deadline has genuinely passed (first match of
+    // the gameweek has kicked off) before calling this, whether or not
+    // any match has actually finished yet — so a missed-pick elimination
+    // below must not wait on finishedMatches being non-empty.
     const { data: finishedMatches, error: finishedErr } = await masterDb
       .from('matches')
       .select('home_team, away_team, home_score, away_score')
       .eq('gameweek', gameweek)
       .eq('status', 'finished');
     console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: finishedMatches=${finishedMatches ? finishedMatches.length : 'null'}, error=${finishedErr ? finishedErr.message : 'none'}`);
-    if (!finishedMatches || finishedMatches.length === 0) return result;
 
     // A draw eliminates both teams' backers — nobody "won" that pick.
     // Three-state now ('win'/'draw'/'lose') instead of a boolean, since
     // this also feeds picks.result (display/audit only — elimination
     // logic below still only cares about win vs not-win).
     const decidedTeams = new Map();
-    finishedMatches.forEach(m => {
+    (finishedMatches || []).forEach(m => {
       if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, 'win'); decidedTeams.set(m.away_team, 'lose'); }
       else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, 'win'); decidedTeams.set(m.home_team, 'lose'); }
       else { decidedTeams.set(m.home_team, 'draw'); decidedTeams.set(m.away_team, 'draw'); }
@@ -4367,13 +4372,24 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
     console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: picks=${picks ? picks.length : 'null'}, error=${picksErr ? picksErr.message : 'none'}`);
     const pickByUser = new Map((picks || []).map(p => [p.user_id, p.team]));
 
-    let checkedCount = 0, skippedNoPick = 0, skippedNotDecided = 0, survivedCount = 0;
+    let checkedCount = 0, skippedNotDecided = 0, survivedCount = 0;
     const idsToEliminate = [];
+    const noPickUserIds = []; // missed the deadline entirely — separate from a real losing pick
     const resultGroups = { win: [], draw: [], lose: [] };
     for (const entry of entries) {
       checkedCount++;
       const pickedTeam = pickByUser.get(entry.user_id);
-      if (!pickedTeam) { skippedNoPick++; continue; }
+      if (!pickedTeam) {
+        // Standard LMS rule: every player must pick every week or it's
+        // unfair to everyone who did. Missing the deadline for the first
+        // game of the gameweek is a real elimination, same as a losing
+        // pick — not a free pass. This function only ever runs once that
+        // deadline has genuinely passed (see call sites), so reaching
+        // here with no pick on file means they're out.
+        idsToEliminate.push(entry.id);
+        noPickUserIds.push(entry.user_id);
+        continue;
+      }
       const pickResult = decidedTeams.get(pickedTeam);
       if (!pickResult) { skippedNotDecided++; continue; }
       resultGroups[pickResult].push(entry.user_id);
@@ -4389,8 +4405,21 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
         .schema('lms').from('tournament_entries')
         .update({ is_eliminated: true, eliminated_gameweek: gameweek })
         .in('id', idsToEliminate);
-      if (!error) result.newly_eliminated = idsToEliminate.length;
+      if (!error) { result.newly_eliminated = idsToEliminate.length; result.newly_eliminated_no_pick = noPickUserIds.length; }
       else console.error(`Failed to eliminate entries:`, error);
+    }
+    // Placeholder pick row for anyone eliminated by missing the deadline —
+    // picks.team is NOT NULL so a real pick row can't be left absent;
+    // this also gives a genuine audit trail distinguishing "never picked"
+    // from "picked and lost" when reading the table directly, same
+    // reasoning as backfilling picks.result below.
+    if (noPickUserIds.length > 0) {
+      const { error: noPickErr } = await supabaseAdmin
+        .schema('lms').from('picks')
+        .insert(noPickUserIds.map(user_id => ({
+          tournament_id: tournamentId, user_id, gameweek, team: 'NO_PICK', result: 'missed'
+        })));
+      if (noPickErr) console.error(`Failed to insert NO_PICK placeholder rows:`, noPickErr);
     }
     // Write the real result onto each pick row — was previously left
     // permanently at its 'pending' default, misleading anyone reading
@@ -4405,7 +4434,7 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
         .in('user_id', userIds);
       if (resultErr) console.error(`Failed to write picks.result=${resultValue}:`, resultErr);
     }
-    console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: checked=${checkedCount}, skippedNoPick=${skippedNoPick}, skippedNotDecided=${skippedNotDecided}, survived=${survivedCount}, eliminated=${result.newly_eliminated}`);
+    console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: checked=${checkedCount}, noPick=${noPickUserIds.length}, skippedNotDecided=${skippedNotDecided}, survived=${survivedCount}, eliminated=${result.newly_eliminated}`);
   } catch (error) {
     console.error('updateLmsPicksForGameweek error:', error);
   }
