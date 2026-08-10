@@ -262,7 +262,7 @@
     display:flex; align-items:center; justify-content:center; opacity:0.95;
     pointer-events:none;
   }
-  .hero-content{position:relative; z-index:2; max-width:540px;}
+  .hero-content{position:relative; z-index:2; max-width:540px; margin-top:10px;}
   .hero-eyebrow{
     display:inline-flex; align-items:center; gap:8px; color:var(--accent-2);
     font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px;
@@ -279,6 +279,7 @@
     letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase;
   }
   .hero-brand-tagline{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:22px; letter-spacing:0.3px;}
+  .hero-brand-heading.size-md{ font-size:56px; }
   .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:12px; letter-spacing:0.3px;}
   .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:28px; max-width:420px; line-height:1.55;}
   @media (max-width:640px){
@@ -547,6 +548,7 @@
     .hero-slide{ padding:36px 24px; }
     .hero h1{font-size:44px;}
     .hero-brand-heading{font-size:44px;}
+    .hero-brand-heading.size-md{font-size:32px;}
     .hero-graphic{width:70%; opacity:0.5;}
     /* Same full-bleed treatment for the nav bar directly below the hero —
        flush against it, no gap, no rounded corners, edge to edge. */
@@ -744,7 +746,7 @@
       <div class="hero-slide slide-2">
         <div class="hero-content">
           <div class="hero-eyebrow"><span class="dot"></span>Premier League Predictions</div>
-          <div class="hero-brand-heading" style="font-size:56px;">Predict Team Wins &amp; Scores</div>
+          <div class="hero-brand-heading size-md">Predict Team Wins &amp; Scores</div>
           <div class="hero-sub">Earn Points</div>
           <p class="hero-desc">Compete against other players. Win cash prizes.</p>
           <a href="/predictions" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>Start Predicting</a>
@@ -754,7 +756,7 @@
       <div class="hero-slide slide-3">
         <div class="hero-content">
           <div class="hero-eyebrow"><span class="dot"></span>Anywhere, Anytime</div>
-          <div class="hero-brand-heading" style="font-size:56px;">Play on Mobile Or Desktop</div>
+          <div class="hero-brand-heading size-md">Play on Mobile Or Desktop</div>
           <div class="hero-sub">Use Your Device to Enter and Predict Events</div>
           <p class="hero-desc">Challenge your friends.</p>
         </div>
