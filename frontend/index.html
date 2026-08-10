@@ -509,6 +509,13 @@
     .sidebar.collapsed{width:222px; min-width:222px; padding:22px 14px;}
     .sidebar.collapsed .sport-label, .sidebar.collapsed .sidebar-section-label, .sidebar.collapsed .toggle-label{display:block;}
     .main-content{padding:0 20px 20px;}
+    /* Same full-bleed treatment as the hero below - the sport container
+       (and everything inside it) should reach the screen edges on
+       mobile, not sit inset within main-content's own side padding. */
+    .sport-container{
+      border-radius:0; margin-left:-20px; margin-right:-20px; width:auto;
+      padding:22px 14px;
+    }
     /* Full-bleed to the screen edges — breaks out of main-content's own
        side padding with matching negative margins — and sits directly
        under the navbar instead of leaving a gap above it. */
