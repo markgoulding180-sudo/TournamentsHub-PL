@@ -2,8 +2,11 @@
 // Run this in browser console on the site
 
 async function debugJessPoints() {
-  const SUPABASE_URL = 'https://wnstucpqkqwuturdnvqj.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Induc3R1Y3Bxa3F3dXR1cmRudnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2NzE3ODcsImV4cCI6MjA2MTI0Nzc4N30.0QeR5w6z8f5z5z5z5z5z5z5z5z5z5z5z5z5z5z5z5z'; // anon key
+  // NOTE: this pointed at a Supabase project that no longer exists (confirmed deleted, Aug 2026).
+  // This is a browser-console script — paste your current project's URL/anon key here before running,
+  // e.g. copy them from Settings > API in the Supabase dashboard for whichever project you're debugging.
+  const SUPABASE_URL = 'PASTE_CURRENT_PROJECT_URL_HERE';
+  const SUPABASE_KEY = 'PASTE_CURRENT_ANON_KEY_HERE'; // anon key
   
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   

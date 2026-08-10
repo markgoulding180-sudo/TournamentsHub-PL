@@ -3,8 +3,11 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = 'https://wnstucpqkqwuturdnvqj.supabase.co';
-const SUPABASE_SECRET = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Induc3R1Y3Bxa3F3dXR1cmRudnFqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTY3MTc4NywiZXhwIjoyMDYxMjQ3Nzg3fQ.3wCFu3ZvBblj0hD8t0zKC_sJGDZf9cS7K3j8zKZ3Y2M';
+// NOTE: this pointed at a Supabase project that no longer exists (confirmed deleted, Aug 2026).
+// This is a service_role key — never hardcode it. Set SUPABASE_URL and SUPABASE_SECRET
+// as env vars before running, matching scripts/.env.example.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SECRET = process.env.SUPABASE_SECRET;
 
 async function recalculateTournamentPoints() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET);

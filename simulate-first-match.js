@@ -1,9 +1,10 @@
 // Simulate GW35 - First match only (Arsenal vs Bournemouth)
 const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = 'https://sdevgsxrmontdlysjwuq.supabase.co';
-// Need service role key for this - using anon for now to test
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZXZnc3hybW50ZGx5c2p3dXEiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0NTk1MTQ0MCwiZXhwIjoyMDYxNTI3NDQwfQ.qQ94OstBkCkrNrkZskU7MQ_QMkidT6A';
+// NOTE: this pointed at a Supabase project that no longer exists (confirmed deleted, Aug 2026).
+// Kept as a working template — set these env vars to point it at a real project before running.
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
