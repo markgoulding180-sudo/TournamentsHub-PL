@@ -322,6 +322,13 @@
   }
   .sport-container .section{ margin-bottom:0; }
   .sport-container .section + .section{ margin-top:34px; }
+  .sport-container-header{ text-align:center; margin-bottom:26px; }
+  .sport-container-header h2{
+    font-family:var(--font-display); font-size:clamp(28px,4vw,40px); font-weight:400;
+    text-transform:uppercase; letter-spacing:0.5px; color:#fff; margin-bottom:6px;
+    text-shadow:0 4px 20px rgba(0,0,0,0.5);
+  }
+  .sport-container-header p{ color:#fff; opacity:0.85; font-size:14px; text-shadow:0 2px 10px rgba(0,0,0,0.6); }
   .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;}
   .pl-header-actions{display:flex; align-items:center; gap:18px;}
   @media (max-width:640px){
@@ -550,6 +557,7 @@
     .hero-brand-heading{font-size:44px;}
     .hero-brand-heading.size-md{font-size:32px;}
     .hero-graphic{width:70%; opacity:0.5;}
+    .slide-1 .hero-desc, .slide-2 .hero-desc{ color:#fff; }
     /* Same full-bleed treatment for the nav bar directly below the hero —
        flush against it, no gap, no rounded corners, edge to edge. */
     .mobile-cat-strip{
@@ -778,6 +786,10 @@
 
     <!-- ================= FOOTBALL ================= -->
     <div class="sport-container football">
+    <div class="sport-container-header">
+      <h2>Football Tournaments</h2>
+      <p>Join below and start predicting.</p>
+    </div>
     <section class="section" id="pl-predictions">
       <div class="section-head">
         <div class="section-title-group">
@@ -895,6 +907,10 @@
 
     <!-- ================= DARTS ================= -->
     <div class="sport-container darts">
+    <div class="sport-container-header">
+      <h2>Darts Tournaments</h2>
+      <p>Join below and start predicting.</p>
+    </div>
     <section class="section" id="darts">
       <div class="section-head">
         <div class="section-title-group">
