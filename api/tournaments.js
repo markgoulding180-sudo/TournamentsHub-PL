@@ -4911,23 +4911,14 @@ function redistributeTwoTier(prices, targetPid, delta, totalPot, matchSharePct, 
   }
 }
 
-// Rarity tiers based on FPL points this season — self-adjusts as the
-// season progresses (everyone's "Bronze" early on, proven performers
-// migrate to Gold pools later). Matches the original pack system's model.
-// Tiers by real FPL valuation (now_cost, tenths of £m) rather than
-// season points. Points-based tiers are empty by definition at the start
-// of every season — real or test — since nobody has points yet; cost is
-// meaningful from day one and doesn't need the season to have progressed.
-// Thresholds are per-position because forwards/midfielders start ~£0.5m
-// pricier than defenders/keepers in real FPL — one flat range across all
-// four positions left Bronze completely empty for FWD and MID, confirmed
-// against the real cost distribution rather than assumed.
-const RARITY_THRESHOLDS = {
-  gk:  { Bronze: { min: 0, max: 44 }, Silver: { min: 45, max: 49 }, Gold: { min: 50, max: 9999 } },
-  def: { Bronze: { min: 0, max: 44 }, Silver: { min: 45, max: 49 }, Gold: { min: 50, max: 9999 } },
-  mid: { Bronze: { min: 0, max: 49 }, Silver: { min: 50, max: 54 }, Gold: { min: 55, max: 9999 } },
-  fwd: { Bronze: { min: 0, max: 49 }, Silver: { min: 50, max: 59 }, Gold: { min: 60, max: 9999 } }
-};
+// Rarity is driven by players.rank_tier (GOLD/SILVER/BRONZE), not price.
+// rank_tier is computed from real minutes/points within each position,
+// split into even thirds, with promoted-club players (no FPL PL history
+// to judge by) spread evenly throughout rather than clustered — see
+// fetchRarityPool below. Confirmed against real data this session: price
+// bands left several buckets (GK/DEF/FWD Bronze) with only a handful of
+// genuine candidates, some completely empty; rank-based thirds instead
+// guarantee an even, healthy pool size in every single bucket.
 
 // How many of each rarity/position slot a STARTER pack offers, scaled
 // down from the original 16-man matrix for a 6-man squad.
@@ -6463,20 +6454,18 @@ async function syncGameweekStatsFromFPL(masterDb, gameweek, allowDebounce) {
 }
 
 async function fetchRarityPool(masterDb, rarity, positionKey) {
-  const threshold = RARITY_THRESHOLDS[positionKey][rarity];
   const elementType = POSITION_ELEMENT_TYPE[positionKey];
   const { data, error } = await masterDb
     .from('players')
     .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified, custom_photo_url')
     .eq('element_type', elementType)
-    .gte('now_cost', threshold.min)
-    .lte('now_cost', threshold.max)
+    .eq('rank_tier', rarity.toUpperCase())
     // Only exclude players CONFIRMED (by the photo verification tool) to
     // have no real photo on FPL's CDN. Anyone not yet checked (NULL) still
     // shows up as normal — this can never accidentally empty the pool just
     // because verification hasn't been run yet.
     .or('photo_verified.is.null,photo_verified.eq.true')
-    .order('now_cost', { ascending: false })
+    .order('total_points', { ascending: false })
     .limit(200);
   if (error) { console.error('fetchRarityPool error:', error); return []; }
   return data || [];
