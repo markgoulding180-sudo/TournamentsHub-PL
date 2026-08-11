@@ -6457,16 +6457,17 @@ async function fetchRarityPool(masterDb, rarity, positionKey) {
   const elementType = POSITION_ELEMENT_TYPE[positionKey];
   const isBronze = rarity.toUpperCase() === 'BRONZE';
 
+  // No photo_verified filter here — confirmed redundant. The frontend
+  // (stockmarket-draft.html) already falls back to a real team shirt
+  // image whenever a player has no photo, or when a photo URL exists
+  // but fails to load. Filtering on photo_verified here only ever
+  // shrank the real pool (confirmed: GK Bronze went from 12 candidates
+  // down to 5) for a problem that's already solved on the display side.
   const baseSelect = () => masterDb
     .from('players')
     .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified, custom_photo_url')
     .eq('element_type', elementType)
     .neq('status', 'u')
-    // Only exclude players CONFIRMED (by the photo verification tool) to
-    // have no real photo on FPL's CDN. Anyone not yet checked (NULL) still
-    // shows up as normal — this can never accidentally empty the pool just
-    // because verification hasn't been run yet.
-    .or('photo_verified.is.null,photo_verified.eq.true')
     .order('total_points', { ascending: false })
     .limit(200);
 
