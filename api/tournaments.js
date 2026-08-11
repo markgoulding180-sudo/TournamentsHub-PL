@@ -6455,11 +6455,13 @@ async function syncGameweekStatsFromFPL(masterDb, gameweek, allowDebounce) {
 
 async function fetchRarityPool(masterDb, rarity, positionKey) {
   const elementType = POSITION_ELEMENT_TYPE[positionKey];
-  const { data, error } = await masterDb
+  const isBronze = rarity.toUpperCase() === 'BRONZE';
+
+  const baseSelect = () => masterDb
     .from('players')
     .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified, custom_photo_url')
     .eq('element_type', elementType)
-    .eq('rank_tier', rarity.toUpperCase())
+    .neq('status', 'u')
     // Only exclude players CONFIRMED (by the photo verification tool) to
     // have no real photo on FPL's CDN. Anyone not yet checked (NULL) still
     // shows up as normal — this can never accidentally empty the pool just
@@ -6467,8 +6469,29 @@ async function fetchRarityPool(masterDb, rarity, positionKey) {
     .or('photo_verified.is.null,photo_verified.eq.true')
     .order('total_points', { ascending: false })
     .limit(200);
-  if (error) { console.error('fetchRarityPool error:', error); return []; }
-  return data || [];
+
+  if (!isBronze) {
+    const { data, error } = await baseSelect().eq('rank_tier', rarity.toUpperCase());
+    if (error) { console.error('fetchRarityPool error:', error); return []; }
+    return data || [];
+  }
+
+  // Bronze also catches genuinely new signings (rank_tier never computed
+  // for them yet) — without this, a real player who transfers in after
+  // the ranking was last run would have rank_tier=NULL and be invisible
+  // to every single pack, permanently, until someone remembers to
+  // manually re-run the ranking. Silver/Gold stay strict — being new
+  // and unproven is a Bronze-level bet, not a Silver/Gold one. Two
+  // separate simple queries, merged here, rather than one query stacking
+  // two .or() calls — no precedent anywhere else in this codebase for
+  // that pattern, so not worth risking on something this important.
+  const [confirmedBronze, newSignings] = await Promise.all([
+    baseSelect().eq('rank_tier', 'BRONZE'),
+    baseSelect().is('rank_tier', null)
+  ]);
+  if (confirmedBronze.error) { console.error('fetchRarityPool error (confirmed):', confirmedBronze.error); }
+  if (newSignings.error) { console.error('fetchRarityPool error (new signings):', newSignings.error); }
+  return [...(confirmedBronze.data || []), ...(newSignings.data || [])];
 }
 
 function candidateCard(p, teamNameById, rarity, position) {
