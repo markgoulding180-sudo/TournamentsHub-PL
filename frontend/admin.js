@@ -1936,8 +1936,19 @@ async function syncEverything() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
-    const total = (data.created || 0) + (data.updated || 0);
-    log(`Fixtures: ${total} matches synced (${data.created || 0} new, ${data.updated || 0} updated)`, 'success');
+    // Real response nests these under data.results — confirmed as a real,
+    // live bug: this always read data.created/data.updated directly,
+    // which never existed, so it silently showed "0 matches synced"
+    // every single time regardless of what actually happened. The real
+    // sync was working correctly the whole time; only this readout was wrong.
+    const created = data.results?.created || 0;
+    const updated = data.results?.updated || 0;
+    const total = created + updated;
+    if (data.error) {
+      log(`Fixtures sync error: ${data.error}`, 'error');
+    } else {
+      log(`Fixtures: ${total} matches synced (${created} new, ${updated} updated)`, 'success');
+    }
   } catch (error) {
     log(`Fixtures sync failed: ${error.message}`, 'error');
   }
@@ -1978,10 +1989,15 @@ async function syncFixtures() {
     }
     
     const data = await response.json();
-    const total = (data.created || 0) + (data.updated || 0);
-    log(`Synced ${total} matches (${data.created || 0} new, ${data.updated || 0} updated)`, 'success');
-    if (data.errors && data.errors.length > 0) {
-      log(`${data.errors.length} fixtures had errors — check server logs`, 'error');
+    // Same fix as syncEverything() — real response nests these under
+    // data.results, confirmed as a real, live display bug affecting
+    // this button too.
+    const created = data.results?.created || 0;
+    const updated = data.results?.updated || 0;
+    const total = created + updated;
+    log(`Synced ${total} matches (${created} new, ${updated} updated)`, 'success');
+    if (data.results?.errors && data.results.errors.length > 0) {
+      log(`${data.results.errors.length} fixtures had errors — check server logs`, 'error');
     }
     refreshStatus();
     
