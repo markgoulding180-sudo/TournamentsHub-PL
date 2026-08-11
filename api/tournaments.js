@@ -5599,7 +5599,10 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
 
       const MAX_ATTEMPTS = 4;
       let finalStillMissing = [];
+      let attemptsUsed = 1;
+      let stragglersEverFound = false;
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        attemptsUsed = attempt;
         // Don't trust the write call's lack of an error — read the real
         // persisted state back to find out who is GENUINELY still not
         // relegated, and only retry those specific stragglers.
@@ -5614,6 +5617,7 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
           break;
         }
 
+        stragglersEverFound = true;
         console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: attempt ${attempt}/${MAX_ATTEMPTS} — ${stillMissing.length} entr${stillMissing.length === 1 ? 'y' : 'ies'} still not relegated (${JSON.stringify(stillMissing)}). ${attempt < MAX_ATTEMPTS ? 'Retrying.' : 'OUT OF RETRIES — needs manual review immediately, their share was already redistributed to survivors.'}`);
 
         if (attempt === MAX_ATTEMPTS) break;
@@ -5628,13 +5632,15 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
         await logPlatformEvent(supabaseAdmin, {
           tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek: currentGW, event_type: 'relegation_incomplete', severity: 'error',
           message: `GW${currentGW} relegation (stage ${stage.stage_number}): ${finalStillMissing.length} of ${relegatedEntries.length} entries STILL not confirmed relegated after ${MAX_ATTEMPTS} attempts. Their share was already given to survivors — needs manual fixing now, this will not self-heal.`,
-          details: { still_missing_entry_ids: finalStillMissing, total_to_relegate: relegatedEntries.length, pot }
+          details: { still_missing_entry_ids: finalStillMissing, total_to_relegate: relegatedEntries.length, pot, attempts_used: attemptsUsed }
         });
       } else {
         await logPlatformEvent(supabaseAdmin, {
           tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek: currentGW, event_type: 'relegation_applied',
-          message: `GW${currentGW} relegation (stage ${stage.stage_number}): ${relegatedEntries.length} entries cut, £${(pot / 100).toFixed(2)} pot spread across ${survivors.length} survivors.`,
-          details: { relegated_count: relegatedEntries.length, pot, survivor_count: survivors.length }
+          message: stragglersEverFound
+            ? `GW${currentGW} relegation (stage ${stage.stage_number}): ${relegatedEntries.length} entries cut, £${(pot / 100).toFixed(2)} pot spread across ${survivors.length} survivors. Needed ${attemptsUsed} attempts — the retry safety net genuinely caught a straggler here, not a clean first try.`
+            : `GW${currentGW} relegation (stage ${stage.stage_number}): ${relegatedEntries.length} entries cut, £${(pot / 100).toFixed(2)} pot spread across ${survivors.length} survivors. Clean on the first attempt, no retries needed.`,
+          details: { relegated_count: relegatedEntries.length, pot, survivor_count: survivors.length, attempts_used: attemptsUsed, needed_retry: stragglersEverFound }
         });
       }
     }
