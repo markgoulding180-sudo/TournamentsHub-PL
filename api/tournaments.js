@@ -5428,11 +5428,25 @@ async function checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, 
 
   const activeFinal = finalRows.filter(e => !e.relegated);
   const topValue = activeFinal.length > 0 ? Math.max(...activeFinal.map(e => e.final_value || 0)) : 0;
-  const totalPot = finalRows.reduce((s, e) => s + Math.round(e.relegated ? (e.value_at_relegation || 0) : (e.final_value || 0)), 0);
+  // The real, currently-circulating pot is just what the active survivors
+  // hold — relegated entries correctly sit at £0 now, their value having
+  // already been redistributed away in past gameweeks. Summing their
+  // historical value_at_relegation on TOP of that double-counts money
+  // that's already living inside the survivors' totals — confirmed as a
+  // real bug in this exact log message, caught by comparing it against
+  // the actual current_value sum (which was correct the whole time).
+  const currentPot = activeFinal.reduce((s, e) => s + Math.round(e.final_value || 0), 0);
+  const { data: tForFeeCheck } = await supabaseAdmin
+    .schema('stockmarket').from('tournaments').select('entry_fee').eq('id', tournamentId).maybeSingle();
+  const totalEntryFeesCollected = (tForFeeCheck?.entry_fee || 0) * finalRows.length;
+  const zeroSumOk = currentPot === totalEntryFeesCollected;
   await logPlatformEvent(supabaseAdmin, {
     tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek, event_type: 'tournament_finished',
-    message: `Stock Market finished GW${gameweek} — ${activeFinal.length} still active at the end, top value £${(topValue / 100).toFixed(2)}. Total pot across everyone (active + relegated): £${(totalPot / 100).toFixed(2)}.`,
-    details: { active_survivors: activeFinal.length, top_final_value: topValue, total_pot_incl_relegated: totalPot }
+    severity: zeroSumOk ? 'info' : 'error',
+    message: zeroSumOk
+      ? `Stock Market finished GW${gameweek} — ${activeFinal.length} still active at the end, top value £${(topValue / 100).toFixed(2)}. Final pot in play: £${(currentPot / 100).toFixed(2)}, matches total entry fees collected exactly.`
+      : `Stock Market finished GW${gameweek} — pot mismatch: final pot is £${(currentPot / 100).toFixed(2)} but total entry fees collected was £${(totalEntryFeesCollected / 100).toFixed(2)}. Real value has leaked somewhere across the tournament.`,
+    details: { active_survivors: activeFinal.length, top_final_value: topValue, current_pot: currentPot, total_entry_fees_collected: totalEntryFeesCollected, zero_sum_ok: zeroSumOk }
   });
 }
 
