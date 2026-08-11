@@ -40,6 +40,16 @@ module.exports = async (req, res) => {
       { global: { fetch: noCacheFetch } }
     );
 
+    // The request's own ?gameweek= is only for filtering which fixtures
+    // to fetch from FPL (can legitimately be absent — the real ?poll=true
+    // call never sends one, meaning "sync everything"). Scoring needs one
+    // definite, reliable gameweek number, so it's sourced from
+    // master_clock instead — same robust source live-scores.js already
+    // uses — rather than trusting a possibly-absent request param.
+    const { data: clockForScoring } = await masterDb
+      .from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+    const currentGWForScoring = clockForScoring?.current_gameweek || null;
+
     // Read-only mode: GET /api/sync-fixtures?list=true
     // Returns every fixture, for a plain read-only display page - no sync,
     // no side effects, just the real matches data already in the DB.
@@ -239,9 +249,32 @@ module.exports = async (req, res) => {
       }
     }
 
-    // If any matches were updated with results, trigger scoring
-    if (results.updated > 0) {
-      await calculatePointsForGameweek(localDb, masterDb, gameweek);
+    // If any matches were updated with results, trigger scoring — uses
+    // the reliably-sourced current gameweek, not the request's own
+    // (possibly absent) ?gameweek= param.
+    if (results.updated > 0 && currentGWForScoring) {
+      await calculatePointsForGameweek(localDb, masterDb, currentGWForScoring);
+
+      // Same full settlement chain wired into live-scores.js — kept
+      // consistent here too since this is a second, independent real-data
+      // poll path (../frontend/live-poll.js) that can just as easily be
+      // the one to first detect a real match update. Every function here
+      // is self-guarding (atomic claim or allFinished check), so calling
+      // it from both poll paths is safe, not a double-application risk.
+      try {
+        await updateFantasyPointsForGameweek(masterDb, currentGWForScoring);
+
+        const { data: liveLmsTournaments } = await localDb
+          .schema('lms').from('tournaments').select('id').eq('status', 'live');
+        for (const t of (liveLmsTournaments || [])) {
+          await updateLmsPicksForGameweek(masterDb, localDb, t.id, currentGWForScoring);
+        }
+
+        await checkAndFinishSeasonTournament(localDb, masterDb, 'predictions', currentGWForScoring);
+        await finalizeGameweekIfComplete(masterDb, localDb, currentGWForScoring);
+      } catch (settlementErr) {
+        console.error('sync-fixtures settlement chain error (non-fatal, match data already saved):', settlementErr);
+      }
     }
 
     return res.status(200).json({
@@ -292,3 +325,9 @@ function calculateResult(homeScore, awayScore) {
 // API reports a real match update, so the broken version was genuinely
 // reachable, not dead code.
 const { calculatePointsForGameweek } = require('./live-scores.js');
+const {
+  checkAndFinishSeasonTournament,
+  updateFantasyPointsForGameweek,
+  updateLmsPicksForGameweek,
+  finalizeGameweekIfComplete
+} = require('./tournaments.js');

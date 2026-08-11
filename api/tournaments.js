@@ -6899,3 +6899,14 @@ async function processStockMarketGameweek(supabaseAdmin, masterDb, tournamentId,
 }
 
 module.exports.recalculateLmsForGameweekCorrection = recalculateLmsForGameweekCorrection;
+
+// Exported so live-scores.js (the real polling endpoint) can drive the
+// SAME full settlement chain the admin's "Mark Games Finished" tool
+// already proves correct — Fantasy and LMS previously only ever updated
+// via a manual admin click, with no automatic trigger at all once real
+// users are live. Not a reimplementation: these are the exact same
+// functions, same order, already exercised across a full 8-gameweek test.
+module.exports.checkAndFinishSeasonTournament = checkAndFinishSeasonTournament;
+module.exports.updateFantasyPointsForGameweek = updateFantasyPointsForGameweek;
+module.exports.updateLmsPicksForGameweek = updateLmsPicksForGameweek;
+module.exports.finalizeGameweekIfComplete = finalizeGameweekIfComplete;

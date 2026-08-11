@@ -2,6 +2,12 @@
 // GET/POST /api/live-scores
 
 const { createClient } = require('@supabase/supabase-js');
+const {
+  checkAndFinishSeasonTournament,
+  updateFantasyPointsForGameweek,
+  updateLmsPicksForGameweek,
+  finalizeGameweekIfComplete
+} = require('./tournaments.js');
 
 const FPL_FIXTURES_URL = 'https://fantasy.premierleague.com/api/fixtures/';
 const FPL_BOOTSTRAP_URL = 'https://fantasy.premierleague.com/api/bootstrap-static/';
@@ -241,6 +247,33 @@ module.exports = async (req, res) => {
       console.log(`Recalculating points for ${provisionalToFinishedCount} matches that transitioned provisional→finished`);
       await calculatePointsForGameweek(localDb, masterDb, currentGW);
       results.provisionalToFinished = provisionalToFinishedCount;
+    }
+
+    // Same full chain the admin's "Mark Games Finished" tool already
+    // proves correct — Predictions was previously the only tournament
+    // type that ever updated automatically from real match data. Fantasy
+    // and LMS had no automatic trigger at all (only page-load for LMS,
+    // nothing for Fantasy); Stock Market and both tournaments' own
+    // finish/payout steps were admin-click-only. Every function called
+    // here already has its own atomic claim or allFinished gate, so this
+    // is always safe to call on every poll — genuinely nothing happens
+    // if the gameweek isn't actually complete yet, or if another
+    // concurrent poll already claimed the same step.
+    if (results.updated > 0) {
+      try {
+        await updateFantasyPointsForGameweek(masterDb, currentGW);
+
+        const { data: liveLmsTournaments } = await localDb
+          .schema('lms').from('tournaments').select('id').eq('status', 'live');
+        for (const t of (liveLmsTournaments || [])) {
+          await updateLmsPicksForGameweek(masterDb, localDb, t.id, currentGW);
+        }
+
+        await checkAndFinishSeasonTournament(localDb, masterDb, 'predictions', currentGW);
+        await finalizeGameweekIfComplete(masterDb, localDb, currentGW);
+      } catch (settlementErr) {
+        console.error('Live-scores settlement chain error (non-fatal, match data already saved):', settlementErr);
+      }
     }
 
     return res.status(200).json({
