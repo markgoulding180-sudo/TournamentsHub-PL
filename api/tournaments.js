@@ -6399,7 +6399,15 @@ async function syncGameweekStatsFromFPL(masterDb, gameweek, allowDebounce) {
     const elements = liveData.elements || [];
 
     if (elements.length === 0) {
-      return { status: 404, body: { error: `No data returned for GW${gameweek} — it may not have been played yet` } };
+      // Genuinely normal, not an error — this fires every 2 minutes for
+      // the entire pre-season window, correctly reporting "nothing to
+      // sync yet" since FPL has no live event data until the gameweek
+      // actually kicks off. A 404 here looked exactly like a real
+      // failure in the browser console and Vercel's logs, confirmed as
+      // a real point of confusion. Every other sync function in this
+      // file already uses a calm 200 {skipped: true} for its own
+      // "nothing to do yet" case — this brings the same consistency here.
+      return { status: 200, body: { skipped: true, reason: `No live data for GW${gameweek} yet — it may not have been played yet` } };
     }
 
     // Snapshot each player's team, name AND photo RIGHT NOW, at sync
