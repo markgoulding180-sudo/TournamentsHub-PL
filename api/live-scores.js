@@ -4,7 +4,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const {
   checkAndFinishSeasonTournament,
-  updateFantasyPointsForGameweek,
   updateLmsPicksForGameweek,
   finalizeGameweekIfComplete
 } = require('./tournaments.js');
@@ -259,10 +258,24 @@ module.exports = async (req, res) => {
     // is always safe to call on every poll — genuinely nothing happens
     // if the gameweek isn't actually complete yet, or if another
     // concurrent poll already claimed the same step.
+    //
+    // Deliberately NOT calling updateFantasyPointsForGameweek here — that
+    // writes players.event_points using our own simplified scoring
+    // formula, but sync-players.js (elsewhere in the same 2-minute poll
+    // cycle) already writes FPL's own real, official event_points to the
+    // exact same column. Both racing for the same field meant Fantasy
+    // Manager's real payouts depended on which one happened to run last,
+    // not a deliberate source of truth. Decided: FPL's own real scoring
+    // wins — it's genuinely more accurate (bonus points, defensive
+    // contributions, appearance thresholds) than a simplified
+    // reimplementation. finalizeGameweekIfComplete still runs below and
+    // still calls settleFantasyGameweekScores, which reads whatever's
+    // currently in event_points — now correctly always FPL's real number
+    // for real production. updateFantasyPointsForGameweek is still used
+    // (unchanged) by the admin test tools, since fake/simulated matches
+    // never appear in FPL's real feed and need their own computation.
     if (results.updated > 0) {
       try {
-        await updateFantasyPointsForGameweek(masterDb, currentGW);
-
         const { data: liveLmsTournaments } = await localDb
           .schema('lms').from('tournaments').select('id').eq('status', 'live');
         for (const t of (liveLmsTournaments || [])) {

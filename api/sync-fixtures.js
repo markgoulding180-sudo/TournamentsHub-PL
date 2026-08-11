@@ -261,9 +261,12 @@ module.exports = async (req, res) => {
       // the one to first detect a real match update. Every function here
       // is self-guarding (atomic claim or allFinished check), so calling
       // it from both poll paths is safe, not a double-application risk.
+      //
+      // Deliberately NOT calling updateFantasyPointsForGameweek — same
+      // reasoning as live-scores.js: sync-players.js's real, official FPL
+      // event_points is the decided source of truth for Fantasy Manager,
+      // not our own simplified formula competing for the same column.
       try {
-        await updateFantasyPointsForGameweek(masterDb, currentGWForScoring);
-
         const { data: liveLmsTournaments } = await localDb
           .schema('lms').from('tournaments').select('id').eq('status', 'live');
         for (const t of (liveLmsTournaments || [])) {
@@ -327,7 +330,6 @@ function calculateResult(homeScore, awayScore) {
 const { calculatePointsForGameweek } = require('./live-scores.js');
 const {
   checkAndFinishSeasonTournament,
-  updateFantasyPointsForGameweek,
   updateLmsPicksForGameweek,
   finalizeGameweekIfComplete
 } = require('./tournaments.js');
