@@ -5416,38 +5416,10 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
       console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: configured to cut ${cutCount}, but extended to ${actualCutCount} to include everyone tied at the boundary value.`);
     }
 
-    let actuallyRelegated = [];
-    if (relegatedEntries.length > 0) {
-      // current_value must be zeroed for real zero-sum pot accounting —
-      // their whole value is about to be redistributed to survivors
-      // below. But value_at_relegation preserves their real final
-      // number for display, so the leaderboard can still show their
-      // actual gain/loss instead of an identical -£60 for everyone
-      // regardless of how differently they'd actually performed.
-      //
-      // Every write is checked and only CONFIRMED successes feed the pot
-      // below — confirmed as a real, live bug: an earlier version discarded
-      // each update's result silently, and when 2 of 6 writes failed here,
-      // their un-zeroed value stayed on the books AND their share still
-      // got redistributed to survivors, inflating the total pot by exactly
-      // their combined value. Real money, not a rounding artifact.
-      for (const e of relegatedEntries) {
-        const { error: relegateErr } = await supabaseAdmin
-          .schema('stockmarket').from('tournament_entries')
-          .update({ relegated: true, relegated_at_gameweek: currentGW, value_at_relegation: e.current_value, current_value: 0 })
-          .eq('id', e.id);
-        if (relegateErr) {
-          console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: FAILED to relegate entry ${e.id} — excluding from pot to preserve zero-sum. Error:`, relegateErr);
-        } else {
-          actuallyRelegated.push(e);
-        }
-      }
-      if (actuallyRelegated.length < relegatedEntries.length) {
-        console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: only ${actuallyRelegated.length}/${relegatedEntries.length} relegation writes succeeded — this needs manual review, not just a silent partial application.`);
-      }
-    }
-
-    const pot = actuallyRelegated.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+    // Pot is calculated from who SHOULD be cut, not from write confirmation
+    // — this makes the redistribution correct and final immediately,
+    // regardless of whether the zeroing writes below succeed first try.
+    const pot = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
 
     if (pot > 0 && survivors.length > 0) {
       // Every non-empty player slot across every surviving squad gets an
@@ -5473,14 +5445,73 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
           const newTotal = Math.round(squad.reduce((s, p) => s + (p.empty ? 0 : (p.value || 0)), 0));
           return { ...e, squad_players: squad, current_value: newTotal };
         });
-        // One batch upsert instead of one .update() call per survivor.
+        // One batch upsert — genuinely atomic as a single request.
         const { error: survErr } = await supabaseAdmin
           .schema('stockmarket').from('tournament_entries').upsert(survivorUpdateRows, { onConflict: 'id' });
-        if (survErr) console.error('Batch pot-redistribution upsert failed:', survErr);
+        if (survErr) console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: pot redistribution to survivors failed:`, survErr);
       }
     }
-    console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegated ${relegatedEntries.length}, pot ${pot}p spread across ${survivors.length} survivors.`);
+
+    if (relegatedEntries.length > 0) {
+      // current_value must be zeroed for real zero-sum pot accounting —
+      // their whole value was JUST redistributed to survivors above, so
+      // leaving it un-zeroed here would double-count it. value_at_relegation
+      // preserves their real final number for display, so the leaderboard
+      // can still show their actual gain/loss.
+      //
+      // Confirmed as a real, live bug once already: a write silently
+      // failed for 2 of 6 entries here, and because nothing rechecked the
+      // actual persisted state afterward, their un-zeroed value sat there
+      // permanently while their share had already been given away —
+      // inflating the total pot by exactly their combined value. A write
+      // call not returning an error isn't proof it landed, so this now
+      // re-reads the real database state afterward and keeps retrying
+      // any straggler until it's genuinely confirmed relegated, rather
+      // than trusting the first attempt.
+      const relegateWrite = async (e) => supabaseAdmin
+        .schema('stockmarket').from('tournament_entries')
+        .update({ relegated: true, relegated_at_gameweek: currentGW, value_at_relegation: e.current_value, current_value: 0 })
+        .eq('id', e.id);
+
+      for (const e of relegatedEntries) {
+        const { error } = await relegateWrite(e);
+        if (error) console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: initial relegate write failed for entry ${e.id}, will verify and retry:`, error);
+      }
+
+      const relegatedIds = relegatedEntries.map(e => e.id);
+      const byId = {};
+      relegatedEntries.forEach(e => { byId[e.id] = e; });
+
+      const MAX_ATTEMPTS = 4;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        // Don't trust the write call's lack of an error — read the real
+        // persisted state back to find out who is GENUINELY still not
+        // relegated, and only retry those specific stragglers.
+        const { data: verifyRows } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, relegated').in('id', relegatedIds);
+        const stillMissing = (verifyRows || []).filter(r => !r.relegated).map(r => r.id);
+
+        if (stillMissing.length === 0) {
+          if (attempt > 1) console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: all stragglers confirmed relegated after ${attempt} attempt(s).`);
+          break;
+        }
+
+        console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: attempt ${attempt}/${MAX_ATTEMPTS} — ${stillMissing.length} entr${stillMissing.length === 1 ? 'y' : 'ies'} still not relegated (${JSON.stringify(stillMissing)}). ${attempt < MAX_ATTEMPTS ? 'Retrying.' : 'OUT OF RETRIES — needs manual review immediately, their share was already redistributed to survivors.'}`);
+
+        if (attempt === MAX_ATTEMPTS) break;
+        await new Promise(r => setTimeout(r, 500 * attempt)); // brief backoff between attempts
+        for (const id of stillMissing) {
+          const { error } = await relegateWrite(byId[id]);
+          if (error) console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: retry write failed for entry ${id}:`, error);
+        }
+      }
+    }
+
+    console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegated ${relegatedEntries.length}, pot spread across ${survivors.length} survivors.`);
   }
+
+
 
   if (stage.cost_multiplier) {
     await supabaseAdmin.schema('stockmarket').from('tournaments')
