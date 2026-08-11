@@ -5416,6 +5416,7 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
       console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: configured to cut ${cutCount}, but extended to ${actualCutCount} to include everyone tied at the boundary value.`);
     }
 
+    let actuallyRelegated = [];
     if (relegatedEntries.length > 0) {
       // current_value must be zeroed for real zero-sum pot accounting —
       // their whole value is about to be redistributed to survivors
@@ -5423,15 +5424,30 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
       // number for display, so the leaderboard can still show their
       // actual gain/loss instead of an identical -£60 for everyone
       // regardless of how differently they'd actually performed.
+      //
+      // Every write is checked and only CONFIRMED successes feed the pot
+      // below — confirmed as a real, live bug: an earlier version discarded
+      // each update's result silently, and when 2 of 6 writes failed here,
+      // their un-zeroed value stayed on the books AND their share still
+      // got redistributed to survivors, inflating the total pot by exactly
+      // their combined value. Real money, not a rounding artifact.
       for (const e of relegatedEntries) {
-        await supabaseAdmin
+        const { error: relegateErr } = await supabaseAdmin
           .schema('stockmarket').from('tournament_entries')
           .update({ relegated: true, relegated_at_gameweek: currentGW, value_at_relegation: e.current_value, current_value: 0 })
           .eq('id', e.id);
+        if (relegateErr) {
+          console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: FAILED to relegate entry ${e.id} — excluding from pot to preserve zero-sum. Error:`, relegateErr);
+        } else {
+          actuallyRelegated.push(e);
+        }
+      }
+      if (actuallyRelegated.length < relegatedEntries.length) {
+        console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: only ${actuallyRelegated.length}/${relegatedEntries.length} relegation writes succeeded — this needs manual review, not just a silent partial application.`);
       }
     }
 
-    const pot = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+    const pot = actuallyRelegated.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
 
     if (pot > 0 && survivors.length > 0) {
       // Every non-empty player slot across every surviving squad gets an
