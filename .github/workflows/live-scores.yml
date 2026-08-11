@@ -21,7 +21,7 @@ jobs:
       - name: Call Live Scores API
         run: |
           echo "Calling live scores API at $(date -u)"
-          curl -X POST https://gb-fantasy-app.vercel.app/api/live-scores \
+          curl -X POST https://tournaments-hub-pl.vercel.app/api/live-scores \
             -H 'Content-Type: application/json' \
             --max-time 45 \
             -v

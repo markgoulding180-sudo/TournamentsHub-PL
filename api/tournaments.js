@@ -5257,7 +5257,32 @@ async function ensureMatchupsForGameweek(supabaseAdmin, tournamentId, gameweek) 
 
   if (rows.length > 0) {
     const { error } = await supabaseAdmin.schema('stockmarket').from('matchups').insert(rows);
-    if (error) { console.error('ensureMatchupsForGameweek insert failed:', error); return { ok: false, step: 'insert', error: error.message }; }
+    if (error) {
+      console.error('ensureMatchupsForGameweek insert failed — rolling back claim so a later call can retry:', error);
+      // Same reasoning as relegation's rollback: a failed write must not
+      // leave a permanent claim behind, or this gameweek's pairing would
+      // be stuck forever with no way to ever retry it. Confirmed as a
+      // real gap by external audit — the claim was already correctly
+      // atomic against DOUBLE generation, but not against a genuine
+      // write failure after a successful claim.
+      await supabaseAdmin.schema('stockmarket').from('tournaments')
+        .update({ matchups_generated_gameweek: null }).eq('id', tournamentId).eq('matchups_generated_gameweek', gameweek);
+      return { ok: false, step: 'insert', error: error.message };
+    }
+
+    // Don't trust the insert call's lack of an error — verify the rows
+    // are genuinely there before declaring success, same discipline as
+    // the relegation fix.
+    const { count: verifyCount } = await supabaseAdmin
+      .schema('stockmarket').from('matchups')
+      .select('id', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId).eq('gameweek', gameweek);
+    if ((verifyCount || 0) < rows.length) {
+      console.error(`ensureMatchupsForGameweek: insert reported success but only ${verifyCount || 0}/${rows.length} rows verified present — rolling back claim.`);
+      await supabaseAdmin.schema('stockmarket').from('tournaments')
+        .update({ matchups_generated_gameweek: null }).eq('id', tournamentId).eq('matchups_generated_gameweek', gameweek);
+      return { ok: false, step: 'verify', error: `only ${verifyCount || 0}/${rows.length} rows confirmed` };
+    }
   }
   return { ok: true, alreadyPaired: false, pairs: rows.length };
 }
@@ -5810,6 +5835,31 @@ async function finalizeGameweekIfComplete(masterDb, supabaseAdmin, gameweek) {
   }
 
   const result = { fired: true, stock_market_tournaments_settled: 0, lms_tournaments_settled: 0 };
+
+  // Force a genuinely fresh FPL pull right before Fantasy's one-shot
+  // lock-in — don't trust whatever's already in players.event_points
+  // from earlier in the same poll cycle. Confirmed as a real risk by
+  // external audit: the automatic poll sequence can trigger this
+  // settlement chain (via live-scores) BEFORE that same cycle's
+  // sync-players call has refreshed real FPL data — and since this
+  // lock-in only ever fires once per gameweek (atomic claim below),
+  // a stale or FPL-provisional value locked in this way would never
+  // be revisited. Failure here is logged but non-fatal — Stock Market
+  // and LMS settlement below don't depend on this and should still run.
+  try {
+    const { syncPlayersFromFPL } = require('./sync-players.js');
+    const syncResult = await syncPlayersFromFPL(masterDb, { force: true });
+    if (syncResult.skipped) {
+      console.log(`[finalizeGameweekIfComplete] GW${gameweek}: forced player sync skipped (${syncResult.reason}) — proceeding with whatever's already synced.`);
+    }
+  } catch (syncErr) {
+    console.error(`[finalizeGameweekIfComplete] GW${gameweek}: forced player sync before Fantasy lock-in failed — proceeding with existing data, may be stale:`, syncErr);
+    await logPlatformEvent(supabaseAdmin, {
+      tournament_type: 'fantasy', gameweek, event_type: 'error', severity: 'warning',
+      message: `GW${gameweek}: couldn't force a fresh FPL player sync before locking in Fantasy scores — settled using whatever data was already there, which may be stale or provisional.`,
+      details: { error: syncErr.message }
+    });
+  }
 
   // Same reasoning as the Advance Gameweek path — this used to only fire
   // on an incidental Fantasy Manager page visit, easy to miss entirely.

@@ -280,25 +280,53 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Debounce: if this ran within the last 90 seconds (from any user's
-    // poll), skip straight to a no-op response instead of hitting FPL
-    // again. Without this, N concurrent users polling every 2 minutes
-    // means N near-simultaneous fetches of the same data.
-    const { data: lastSync } = await supabase
-      .from('sync_debounce').select('last_synced_at').eq('sync_name', 'sync_players').maybeSingle();
-    if (lastSync && lastSync.last_synced_at) {
-      const ageMs = Date.now() - new Date(lastSync.last_synced_at).getTime();
-      if (ageMs < 90000) {
-        return res.status(200).json({ skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) });
-      }
-    }
-    await supabase.from('sync_debounce').upsert({ sync_name: 'sync_players', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
+    const forceResult = await syncPlayersFromFPL(supabase, { force: false });
+    if (forceResult.skipped) return res.status(200).json(forceResult);
+    return res.status(200).json({ message: 'Players synced successfully', total: forceResult.total, results: forceResult.results });
+  } catch (error) {
+    console.error('Sync players error:', error);
+    return res.status(500).json({ error: 'Failed to sync players', details: error.message });
+  }
+};
 
-    // Testing safety switch — same as live-scores/sync-fixtures.
+// Extracted so the settlement chain can force a genuinely fresh FPL pull
+// immediately before Fantasy Manager's one-shot gameweek lock-in, instead
+// of trusting whatever's already sitting in players.event_points from an
+// earlier point in the same poll cycle. Confirmed as a real risk by
+// external audit: the real poll sequence runs live-scores (which can
+// trigger Fantasy settlement) BEFORE sync-players refreshes real FPL
+// data in that same cycle — settlement's one-shot atomic claim means a
+// stale or FPL-provisional (not yet fully confirmed) value locked in
+// this way would never be revisited. force:true skips the normal
+// 90-second debounce (correctness matters more than rate-limit
+// conservatism at this one-time, real-money moment) but still respects
+// polling_paused — if the admin is deliberately testing with fake data,
+// forcing a real FPL fetch here would be wrong, not just unnecessary.
+async function syncPlayersFromFPL(supabase, { force = false } = {}) {
+    if (!force) {
+      // Debounce: if this ran within the last 90 seconds (from any user's
+      // poll), skip straight to a no-op response instead of hitting FPL
+      // again. Without this, N concurrent users polling every 2 minutes
+      // means N near-simultaneous fetches of the same data.
+      const { data: lastSync } = await supabase
+        .from('sync_debounce').select('last_synced_at').eq('sync_name', 'sync_players').maybeSingle();
+      if (lastSync && lastSync.last_synced_at) {
+        const ageMs = Date.now() - new Date(lastSync.last_synced_at).getTime();
+        if (ageMs < 90000) {
+          return { skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) };
+        }
+      }
+      await supabase.from('sync_debounce').upsert({ sync_name: 'sync_players', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
+    }
+
+    // Testing safety switch — same as live-scores/sync-fixtures. Always
+    // respected, force or not — a forced sync during deliberate testing
+    // with fake data would fetch irrelevant real-world data and corrupt
+    // the test setup, not just be redundant.
     const { data: pauseClock } = await supabase
       .from('master_clock').select('polling_paused').eq('id', 'current').maybeSingle();
     if (pauseClock?.polling_paused) {
-      return res.status(200).json({ skipped: true, reason: 'Live polling is paused for testing — resume it in /admin.' });
+      return { skipped: true, reason: 'Live polling is paused for testing — resume it in /admin.' };
     }
 
     // Fetch from FPL API
@@ -448,14 +476,7 @@ module.exports = async (req, res) => {
       console.error('[sync-players] watchlist check failed (non-fatal):', watchErr);
     }
 
-    return res.status(200).json({
-      message: 'Players synced successfully',
-      total: players.length,
-      results
-    });
+    return { total: players.length, results };
+}
 
-  } catch (error) {
-    console.error('Sync players error:', error);
-    return res.status(500).json({ error: 'Failed to sync players', details: error.message });
-  }
-};
+module.exports.syncPlayersFromFPL = syncPlayersFromFPL;
