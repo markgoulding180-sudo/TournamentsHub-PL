@@ -3206,6 +3206,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema('stockmarket').from('tournament_entries')
               .upsert(entryRows, { onConflict: 'tournament_id,user_id' });
             if (upsertErr) throw upsertErr;
+            await syncEntryCount(supabaseAdmin, 'stockmarket', seedTournamentId);
           }
 
           return res.status(200).json({ success: true, seeded: results.length, already_had_squad_skipped: alreadySeededCount, results });
@@ -3254,6 +3255,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema('predictions').from('tournament_entries')
               .upsert(entryRows, { onConflict: 'tournament_id,user_id', ignoreDuplicates: true });
             if (entryErr) throw entryErr;
+            await syncEntryCount(supabaseAdmin, 'predictions', predTournamentId);
           }
 
           const predictionRows = [];
@@ -3338,6 +3340,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema('lms').from('tournament_entries')
               .upsert(newEntryRows, { onConflict: 'tournament_id,user_id', ignoreDuplicates: true });
             if (entryErr) throw entryErr;
+            await syncEntryCount(supabaseAdmin, 'lms', lmsTournamentId);
           }
 
           const pickRows = [];
@@ -3464,6 +3467,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema('fantasy').from('tournament_entries')
               .upsert(entryRows, { onConflict: 'tournament_id,user_id' });
             if (upsertErr) throw upsertErr;
+            await syncEntryCount(supabaseAdmin, 'fantasy', fmTournamentId);
           }
 
           return res.status(200).json({ success: true, seeded: results.length, already_had_squad_skipped: alreadyHasSquad.size, results });
@@ -3660,11 +3664,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .select()
               .single());
           } else if (!entryError) {
-            // Brand-new entry — bump the tournament's entry count
-            await supabaseAdmin
-              .schema(schemaName).from('tournaments')
-              .update({ current_entries: tournament.current_entries + 1 })
-              .eq('id', tournament_id);
+            // Recompute from the real table instead of incrementing a
+            // cached number — correct even if two people join at the
+            // exact same moment, unlike a naive +1 which could race.
+            await syncEntryCount(supabaseAdmin, schemaName, tournament_id);
 
             // Charge the entry fee to the user's wallet ledger — a "promise
             // to pay" record, not a real payment. No money moves here; this
@@ -4956,6 +4959,35 @@ const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 // out what went wrong after the fact. Never allowed to break the real
 // operation it's describing: a logging failure is swallowed and printed
 // to console, nothing more.
+// current_entries used to only ever be updated by the normal "Enter Now"
+// join flow's fragile +1 increment — any other path that creates entries
+// directly (every seed/test tool) silently bypassed it, so the stored
+// count drifted from reality the moment any seeding tool ran. Confirmed
+// as a real, live drift: after seeding 33 test accounts, the column
+// still said 1 while the real count was 34. The display layer already
+// recomputes real counts when listing tournaments, so this was never
+// visibly wrong to a user browsing normally — but the raw column itself
+// was still incorrect for anyone reading the database directly. This
+// recomputes from the real table instead of trusting/incrementing a
+// cached number, so it can never drift no matter which path created
+// the entries.
+async function syncEntryCount(supabaseAdmin, schemaName, tournamentId) {
+  try {
+    const { count, error: countErr } = await supabaseAdmin
+      .schema(schemaName).from('tournament_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId);
+    if (countErr) { console.error(`syncEntryCount count failed (${schemaName}):`, countErr); return; }
+    const { error: updateErr } = await supabaseAdmin
+      .schema(schemaName).from('tournaments')
+      .update({ current_entries: count || 0 })
+      .eq('id', tournamentId);
+    if (updateErr) console.error(`syncEntryCount update failed (${schemaName}):`, updateErr);
+  } catch (err) {
+    console.error(`syncEntryCount threw (${schemaName}):`, err);
+  }
+}
+
 async function logPlatformEvent(supabaseAdmin, { tournament_type, tournament_id = null, gameweek = null, event_type, severity = 'info', message, details = null }) {
   try {
     const { error } = await supabaseAdmin.from('platform_event_log').insert({

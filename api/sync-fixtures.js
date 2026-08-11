@@ -280,130 +280,15 @@ function calculateResult(homeScore, awayScore) {
   return 'D';
 }
 
-async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
-  // Get all finished matches for this gameweek (master project)
-  const { data: matches } = await masterDb
-    .from('matches')
-    .select('*')
-    .eq('gameweek', gameweek)
-    .eq('status', 'finished')
-    .not('result', 'is', null);
 
-  if (!matches || matches.length === 0) return;
-
-  // Track which users need their tournament entries updated
-  const usersToUpdate = new Set();
-
-  for (const match of matches) {
-    // Get all predictions for this match
-    const { data: predictions } = await localDb
-      .schema('predictions').from('predictions')
-      .select('*')
-      .eq('match_id', match.id);
-
-    if (!predictions) continue;
-
-    for (const pred of predictions) {
-      let points = 0;
-
-      // 10 points for correct result
-      if (pred.predicted_result === match.result) {
-        points += 10;
-
-        // Additional 10 points for correct score
-        if (pred.home_score === match.home_score && pred.away_score === match.away_score) {
-          points += 10;
-        }
-      }
-
-      // Update prediction with points
-      await localDb
-        .schema('predictions').from('predictions')
-        .update({ points_earned: points })
-        .eq('id', pred.id);
-      
-      // Track user for tournament entry update
-      usersToUpdate.add(pred.user_id);
-    }
-  }
-
-  // Update user totals
-  const { data: users } = await localDb
-    .from('users')
-    .select('id');
-
-  for (const user of users) {
-    const { data: userPreds } = await localDb
-      .schema('predictions').from('predictions')
-      .select('points_earned, home_score, away_score')
-      .eq('user_id', user.id);
-
-    const totalPoints = userPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0);
-    const correctScores = userPreds.filter(p => p.points_earned === 20).length;
-
-    await localDb
-      .from('users')
-      .update({ 
-        total_points: totalPoints,
-        correct_scores: correctScores,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
-  }
-  
-  // Update tournament entries for affected users
-  // Get all tournaments for this gameweek
-  const { data: tournaments } = await localDb
-    .schema('predictions').from('tournaments')
-    .select('id')
-    .eq('gameweek', gameweek);
-  
-  if (tournaments && tournaments.length > 0) {
-    for (const userId of usersToUpdate) {
-      for (const tournament of tournaments) {
-        // Check if user is entered in this tournament
-        const { data: entries } = await localDb
-          .schema('predictions').from('tournament_entries')
-          .select('id')
-          .eq('tournament_id', tournament.id)
-          .eq('user_id', userId);
-        
-        if (!entries || entries.length === 0) continue;
-        
-        // Get all predictions for matches in this gameweek for this user
-        const { data: userGameweekPreds } = await localDb
-          .schema('predictions').from('predictions')
-          .select('points_earned')
-          .eq('user_id', userId)
-          .eq('gameweek', gameweek);
-        
-        const gameweekPoints = userGameweekPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0);
-        
-        // Update the tournament entry with new points
-        await localDb
-          .schema('predictions').from('tournament_entries')
-          .update({ entry_points: gameweekPoints })
-          .eq('tournament_id', tournament.id)
-          .eq('user_id', userId);
-      }
-    }
-    
-    // Recalculate ranks for all tournaments
-    for (const tournament of tournaments) {
-      const { data: entries } = await localDb
-        .schema('predictions').from('tournament_entries')
-        .select('id, entry_points')
-        .eq('tournament_id', tournament.id)
-        .order('entry_points', { ascending: false });
-      
-      if (entries) {
-        for (let i = 0; i < entries.length; i++) {
-          await localDb
-            .schema('predictions').from('tournament_entries')
-            .update({ rank: i + 1 })
-            .eq('id', entries[i].id);
-        }
-      }
-    }
-  }
-}
+// Uses the SAME canonical scoring function live-scores.js already exports
+// for exactly this purpose — this file used to maintain its own separate
+// copy, which had a real, active bug: it only summed the CURRENT
+// gameweek's points and overwrote entry_points with just that, silently
+// discarding every other gameweek's contribution to the season total.
+// live-scores.js's version correctly sums across the tournament's whole
+// gameweek range every time. Confirmed as a real risk, not hypothetical:
+// this file's own poll path runs live in production every time the FPL
+// API reports a real match update, so the broken version was genuinely
+// reachable, not dead code.
+const { calculatePointsForGameweek } = require('./live-scores.js');
