@@ -4466,6 +4466,14 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
       if (resultErr) console.error(`Failed to write picks.result=${resultValue}:`, resultErr);
     }
     console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: checked=${checkedCount}, noPick=${noPickUserIds.length}, skippedNotDecided=${skippedNotDecided}, survived=${survivedCount}, eliminated=${result.newly_eliminated}`);
+    if (result.newly_eliminated > 0) {
+      const realLosses = result.newly_eliminated - result.newly_eliminated_no_pick;
+      await logPlatformEvent(supabaseAdmin, {
+        tournament_type: 'lms', tournament_id: tournamentId, gameweek, event_type: 'eliminations',
+        message: `GW${gameweek}: ${result.newly_eliminated} eliminated (${realLosses} lost their pick, ${result.newly_eliminated_no_pick} missed the deadline entirely). ${survivedCount} survived this round.`,
+        details: { survived: survivedCount, real_losses: realLosses, missed_deadline: result.newly_eliminated_no_pick }
+      });
+    }
   } catch (error) {
     console.error('updateLmsPicksForGameweek error:', error);
   }
@@ -4526,6 +4534,12 @@ async function finalizeLmsRoundIfComplete(supabaseAdmin, tournamentId, gameweek)
         .eq('id', tournamentId);
       if (finishError) console.error(`Failed to mark tournament ${tournamentId} finished:`, finishError);
 
+      await logPlatformEvent(supabaseAdmin, {
+        tournament_type: 'lms', tournament_id: tournamentId, gameweek, event_type: 'tournament_finished',
+        message: `LMS finished GW${gameweek} — last person standing wins the full pot of £${(prizePool / 100).toFixed(2)}.`,
+        details: { prize_pool: prizePool, winner_entry_id: survivors[0].id }
+      });
+
     } else if (survivors && survivors.length === 0) {
       // Everyone went out — split the pot among whoever was eliminated
       // specifically THIS gameweek (not everyone ever eliminated), same
@@ -4553,6 +4567,12 @@ async function finalizeLmsRoundIfComplete(supabaseAdmin, tournamentId, gameweek)
         .update({ status: 'finished' })
         .eq('id', tournamentId);
       if (finishError) console.error(`Failed to mark tournament ${tournamentId} finished:`, finishError);
+
+      await logPlatformEvent(supabaseAdmin, {
+        tournament_type: 'lms', tournament_id: tournamentId, gameweek, event_type: 'tournament_finished',
+        message: `LMS finished GW${gameweek} — everyone still in was eliminated the same round, so the £${(prizePool / 100).toFixed(2)} pot was split ${pool.length} ways (£${(share / 100).toFixed(2)} each).`,
+        details: { prize_pool: prizePool, split_between: pool.length, share_each: share, entry_ids: pool.map(p => p.id) }
+      });
     }
     // Otherwise more than one survivor remains — tournament continues.
 
@@ -4875,6 +4895,22 @@ const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 // transfer between two matched squads: whatever one gains, the other
 // loses, by construction — guaranteed zero-sum, no rounding-drift
 // corrections needed anywhere.
+// Permanent, queryable record of what actually happened, when — replaces
+// digging through ad-hoc SQL and ephemeral server console logs to work
+// out what went wrong after the fact. Never allowed to break the real
+// operation it's describing: a logging failure is swallowed and printed
+// to console, nothing more.
+async function logPlatformEvent(supabaseAdmin, { tournament_type, tournament_id = null, gameweek = null, event_type, severity = 'info', message, details = null }) {
+  try {
+    const { error } = await supabaseAdmin.from('platform_event_log').insert({
+      tournament_type, tournament_id, gameweek, event_type, severity, message, details
+    });
+    if (error) console.error('logPlatformEvent insert failed:', error, { tournament_type, event_type, message });
+  } catch (err) {
+    console.error('logPlatformEvent threw:', err, { tournament_type, event_type, message });
+  }
+}
+
 const FLAT_REWARDS = {
   goal: 300, assist: 150, yellow_card: -150, red_card: -300,
   clean_sheet: 125, save: 30, save_cap: 5,
@@ -5333,6 +5369,15 @@ async function checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, 
       .schema('stockmarket').from('tournament_entries').upsert(finalRows, { onConflict: 'id' });
     if (finalErr) console.error('Batch final_value upsert failed:', finalErr);
   }
+
+  const activeFinal = finalRows.filter(e => !e.relegated);
+  const topValue = activeFinal.length > 0 ? Math.max(...activeFinal.map(e => e.final_value || 0)) : 0;
+  const totalPot = finalRows.reduce((s, e) => s + Math.round(e.relegated ? (e.value_at_relegation || 0) : (e.final_value || 0)), 0);
+  await logPlatformEvent(supabaseAdmin, {
+    tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek, event_type: 'tournament_finished',
+    message: `Stock Market finished GW${gameweek} — ${activeFinal.length} still active at the end, top value £${(topValue / 100).toFixed(2)}. Total pot across everyone (active + relegated): £${(totalPot / 100).toFixed(2)}.`,
+    details: { active_survivors: activeFinal.length, top_final_value: topValue, total_pot_incl_relegated: totalPot }
+  });
 }
 
 // ================= RELEGATION STAGES =================
@@ -5483,6 +5528,7 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
       relegatedEntries.forEach(e => { byId[e.id] = e; });
 
       const MAX_ATTEMPTS = 4;
+      let finalStillMissing = [];
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         // Don't trust the write call's lack of an error — read the real
         // persisted state back to find out who is GENUINELY still not
@@ -5491,6 +5537,7 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
           .schema('stockmarket').from('tournament_entries')
           .select('id, relegated').in('id', relegatedIds);
         const stillMissing = (verifyRows || []).filter(r => !r.relegated).map(r => r.id);
+        finalStillMissing = stillMissing;
 
         if (stillMissing.length === 0) {
           if (attempt > 1) console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: all stragglers confirmed relegated after ${attempt} attempt(s).`);
@@ -5506,9 +5553,47 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
           if (error) console.error(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: retry write failed for entry ${id}:`, error);
         }
       }
+
+      if (finalStillMissing.length > 0) {
+        await logPlatformEvent(supabaseAdmin, {
+          tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek: currentGW, event_type: 'relegation_incomplete', severity: 'error',
+          message: `GW${currentGW} relegation (stage ${stage.stage_number}): ${finalStillMissing.length} of ${relegatedEntries.length} entries STILL not confirmed relegated after ${MAX_ATTEMPTS} attempts. Their share was already given to survivors — needs manual fixing now, this will not self-heal.`,
+          details: { still_missing_entry_ids: finalStillMissing, total_to_relegate: relegatedEntries.length, pot }
+        });
+      } else {
+        await logPlatformEvent(supabaseAdmin, {
+          tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek: currentGW, event_type: 'relegation_applied',
+          message: `GW${currentGW} relegation (stage ${stage.stage_number}): ${relegatedEntries.length} entries cut, £${(pot / 100).toFixed(2)} pot spread across ${survivors.length} survivors.`,
+          details: { relegated_count: relegatedEntries.length, pot, survivor_count: survivors.length }
+        });
+      }
     }
 
     console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: relegated ${relegatedEntries.length}, pot spread across ${survivors.length} survivors.`);
+
+    // Real zero-sum audit — the check the dead processStockMarketGameweek
+    // function was always supposed to provide but never actually ran.
+    // Confirms the WHOLE tournament's pot, not just this stage's math, is
+    // exactly where it should be right now.
+    const { data: allEntriesNow } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries')
+      .select('current_value').eq('tournament_id', tournamentId);
+    const { data: tForAudit } = await supabaseAdmin
+      .schema('stockmarket').from('tournaments')
+      .select('entry_fee').eq('id', tournamentId).maybeSingle();
+    const actualTotal = (allEntriesNow || []).reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+    const { count: totalEntryCount } = await supabaseAdmin
+      .schema('stockmarket').from('tournament_entries')
+      .select('id', { count: 'exact', head: true }).eq('tournament_id', tournamentId);
+    const expectedPot = (tForAudit?.entry_fee || 0) * (totalEntryCount || 0);
+    const drift = actualTotal - expectedPot;
+    if (drift !== 0) {
+      await logPlatformEvent(supabaseAdmin, {
+        tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek: currentGW, event_type: 'zero_sum_drift', severity: 'error',
+        message: `GW${currentGW} zero-sum check FAILED after stage ${stage.stage_number}: pot should be £${(expectedPot / 100).toFixed(2)} but is actually £${(actualTotal / 100).toFixed(2)} (drift £${(drift / 100).toFixed(2)}). Real value has leaked somewhere.`,
+        details: { expected_pot: expectedPot, actual_total: actualTotal, drift }
+      });
+    }
   }
 
 
@@ -5784,6 +5869,12 @@ async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaNam
       await supabaseAdmin.schema(schemaName).from('tournament_entries')
         .update({ prize_awarded: share }).eq('id', w.id);
     }
+
+    await logPlatformEvent(supabaseAdmin, {
+      tournament_type: schemaName, tournament_id: t.id, gameweek, event_type: 'tournament_finished',
+      message: `${schemaName === 'predictions' ? 'Predictions' : 'Fantasy'} finished GW${gameweek} — top score ${topScore}pts, ${winners.length} winner${winners.length === 1 ? '' : 's'} splitting £${(prizePool / 100).toFixed(2)} (£${(share / 100).toFixed(2)} each).`,
+      details: { top_score: topScore, winner_count: winners.length, prize_pool: prizePool, share_each: share, winner_entry_ids: winners.map(w => w.id) }
+    });
   }
 }
 
@@ -5811,6 +5902,7 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
 
   const updateRows = [];
   const historyRows = [];
+  const entryCountByTournament = {};
   for (const t of liveFantasyTournaments) {
     // Atomic claim, same pattern as LMS's last_processed_gameweek — only
     // proceed if this tournament hasn't already been settled for this
@@ -5858,6 +5950,7 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
       });
       updateRows.push({ ...e, entry_points: (e.entry_points || 0) + gwScore, last_gw_points: gwScore });
       historyRows.push({ tournament_id: t.id, entry_id: e.id, user_id: e.user_id, gameweek, points: gwScore, squad_snapshot: squadSnapshot });
+      entryCountByTournament[t.id] = (entryCountByTournament[t.id] || 0) + 1;
     }
   }
 
@@ -5871,8 +5964,23 @@ async function settleFantasyGameweekScores(masterDb, supabaseAdmin, gameweek) {
   if (updateRows.length > 0) {
     const { error } = await supabaseAdmin
       .schema('fantasy').from('tournament_entries').upsert(updateRows, { onConflict: 'id' });
-    if (error) console.error('settleFantasyGameweekScores upsert failed:', error);
-    else result.fantasy_entries_settled = updateRows.length;
+    if (error) {
+      console.error('settleFantasyGameweekScores upsert failed:', error);
+      await logPlatformEvent(supabaseAdmin, {
+        tournament_type: 'fantasy', gameweek, event_type: 'error', severity: 'error',
+        message: `GW${gameweek} Fantasy settlement failed to write — scores were calculated but never saved.`,
+        details: { error: error.message, entries_affected: updateRows.length }
+      });
+    } else {
+      result.fantasy_entries_settled = updateRows.length;
+      for (const [tournamentId, count] of Object.entries(entryCountByTournament)) {
+        await logPlatformEvent(supabaseAdmin, {
+          tournament_type: 'fantasy', tournament_id: tournamentId, gameweek, event_type: 'scoring_complete',
+          message: `GW${gameweek} Fantasy scores locked in for ${count} entries.`,
+          details: { entries_settled: count }
+        });
+      }
+    }
   }
   return result;
 }
