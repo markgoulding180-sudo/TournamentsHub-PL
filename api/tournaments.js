@@ -2478,10 +2478,33 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             .from('matches').select('id, gameweek, home_score, away_score').in('id', matchIds);
           if (fetchErr) return res.status(500).json({ error: fetchErr.message });
 
-          const gameweeksTouched = new Set();
+          // A match with no real score yet must never be flipped to
+          // 'finished' — comparing null > null silently falls through to
+          // "draw" everywhere downstream (LMS elimination, Predictions
+          // result scoring), producing a confident-looking wrong answer
+          // instead of an error. Confirmed as a real, non-hypothetical
+          // bug this session: 4 real LMS eliminations and 12 real
+          // Predictions scores were computed from a null-derived fake
+          // draw before Seed Season Data had ever been run for that
+          // gameweek — they only happened to be correct because the real
+          // regenerated result also turned out to be a genuine draw.
+          const readyToMark = [];
+          const skippedNoScore = [];
           for (const m of (matchesToMark || [])) {
-            const hs = m.home_score ?? 0;
-            const as = m.away_score ?? 0;
+            if (m.home_score === null || m.away_score === null) {
+              skippedNoScore.push(m.id);
+            } else {
+              readyToMark.push(m);
+            }
+          }
+          if (skippedNoScore.length > 0) {
+            console.warn(`[MARK_MATCHES_FINISHED] Skipping match_ids with no real score yet (run Seed Season Data first): ${JSON.stringify(skippedNoScore)}`);
+          }
+
+          const gameweeksTouched = new Set();
+          for (const m of readyToMark) {
+            const hs = m.home_score;
+            const as = m.away_score;
             const result = hs > as ? 'H' : as > hs ? 'A' : 'D';
             await masterDb.from('matches').update({ status: 'finished', result }).eq('id', m.id);
             gameweeksTouched.add(m.gameweek);
@@ -2536,7 +2559,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
 
           return res.status(200).json({
-            success: true, matches_marked: (matchesToMark || []).length,
+            success: true, matches_marked: readyToMark.length,
+            skipped_no_score: skippedNoScore.length > 0 ? skippedNoScore : undefined,
+            skipped_reason: skippedNoScore.length > 0 ? 'These matches have no real score yet — run Seed Season Data for this gameweek first, then mark them finished.' : undefined,
             predictions_scored: predictionsScored, gameweek_results: gameweekResults
           });
         } catch (err) {
@@ -4261,6 +4286,7 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
     // not just the corrected elimination status.
     const decidedTeams = new Map();
     finishedMatches.forEach(m => {
+      if (m.home_score === null || m.away_score === null) return;
       if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, 'win'); decidedTeams.set(m.away_team, 'lose'); }
       else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, 'win'); decidedTeams.set(m.home_team, 'lose'); }
       else { decidedTeams.set(m.home_team, 'draw'); decidedTeams.set(m.away_team, 'draw'); }
@@ -4351,6 +4377,11 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
     // logic below still only cares about win vs not-win).
     const decidedTeams = new Map();
     (finishedMatches || []).forEach(m => {
+      // Belt-and-braces: mark_matches_finished now refuses to flip a
+      // match to 'finished' without real scores, but this guards against
+      // any other path ever reaching here with one anyway — null vs null
+      // must never silently resolve to "draw".
+      if (m.home_score === null || m.away_score === null) return;
       if (m.home_score > m.away_score) { decidedTeams.set(m.home_team, 'win'); decidedTeams.set(m.away_team, 'lose'); }
       else if (m.away_score > m.home_score) { decidedTeams.set(m.away_team, 'win'); decidedTeams.set(m.home_team, 'lose'); }
       else { decidedTeams.set(m.home_team, 'draw'); decidedTeams.set(m.away_team, 'draw'); }
