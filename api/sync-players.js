@@ -405,6 +405,15 @@ async function syncPlayersFromFPL(supabase, { force = false } = {}) {
       creativity: parseFloat(player.creativity) || 0,
       threat: parseFloat(player.threat) || 0,
       ict_index: parseFloat(player.ict_index) || 0,
+      // Real games actually STARTED — the cleanest available signal for
+      // "genuine regular starter" vs "makes occasional appearances."
+      // Confirmed against real FPL data: Arsenal's Raya (clear #1 keeper)
+      // shows starts=37, their emergency third keeper shows starts=1 —
+      // a much sharper signal than price or even raw minutes, which
+      // doesn't distinguish a genuine starter from someone who
+      // accumulated minutes mostly as a late substitute.
+      starts: player.starts || 0,
+      starts_per_90: parseFloat(player.starts_per_90) || 0,
       updated_at: new Date().toISOString()
     }));
 
