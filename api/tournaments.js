@@ -1646,6 +1646,39 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ transactions: transactions || [] });
       }
 
+      // Admin-only: unacknowledged warning/error entries from
+      // platform_event_log — what the admin dashboard banner reads to
+      // show "X issues need attention" without anyone needing to
+      // remember to ask about it. Info-severity events aren't surfaced
+      // here (they're routine, not something needing action) but stay
+      // queryable directly for anyone digging deeper into what happened.
+      const eventLogSummary = params.get('event_log_summary');
+      if (eventLogSummary === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: elsUser } } = await supabaseAdmin.auth.getUser(token);
+        if (!elsUser) return res.status(401).json({ error: 'Invalid token' });
+        const { data: elsCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', elsUser.id).maybeSingle();
+        if (!elsCaller || !elsCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: issues, error: issuesErr } = await supabaseAdmin
+          .from('platform_event_log')
+          .select('*')
+          .eq('acknowledged', false)
+          .in('severity', ['warning', 'error'])
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (issuesErr) return res.status(500).json({ error: issuesErr.message });
+
+        return res.status(200).json({
+          count: (issues || []).length,
+          error_count: (issues || []).filter(i => i.severity === 'error').length,
+          warning_count: (issues || []).filter(i => i.severity === 'warning').length,
+          issues: issues || []
+        });
+      }
+
       // Notification bell: active admin broadcast messages, plus real
       // pending-action items computed from the user's actual state in
       // each tournament they're entered in (clears itself automatically
@@ -2201,6 +2234,29 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
 
         return res.status(200).json({ success: true });
+      }
+
+      // ADMIN: dismiss one or more issues from the event-log banner once
+      // they've been reviewed. Doesn't delete the record — it stays in
+      // platform_event_log permanently for later digging — just stops it
+      // showing as "needs attention".
+      if (action === 'event_log_acknowledge') {
+        const { data: elaCaller } = await supabaseAdmin
+          .from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!elaCaller || !elaCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { event_ids } = req.body;
+        if (!Array.isArray(event_ids) || event_ids.length === 0) {
+          return res.status(400).json({ error: 'event_ids (array) is required' });
+        }
+
+        const { error: ackErr } = await supabaseAdmin
+          .from('platform_event_log')
+          .update({ acknowledged: true })
+          .in('id', event_ids);
+        if (ackErr) return res.status(500).json({ error: ackErr.message });
+
+        return res.status(200).json({ success: true, acknowledged: event_ids.length });
       }
 
 

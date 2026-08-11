@@ -145,6 +145,7 @@ function verifyPin() {
 async function refreshStatus() {
   try {
     loadBroadcastMessages();
+    loadEventLogSummary();
     loadWalletList();
     loadPollingStatus();
     const response = await fetch('/api/admin-stats');
@@ -444,6 +445,65 @@ async function recordWalletPayment(userId, selectId) {
 // ================= MESSAGE CENTER =================
 function escapeHtmlBroadcast(str) {
   return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadEventLogSummary() {
+  const banner = document.getElementById('eventLogBanner');
+  if (!banner) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?event_log_summary=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    const issues = data.issues || [];
+
+    if (issues.length === 0) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = 'block';
+    const parts = [];
+    if (data.error_count > 0) parts.push(`${data.error_count} error${data.error_count === 1 ? '' : 's'}`);
+    if (data.warning_count > 0) parts.push(`${data.warning_count} warning${data.warning_count === 1 ? '' : 's'}`);
+    document.getElementById('eventLogBannerTitle').textContent = `${parts.join(', ')} need${data.count === 1 ? 's' : ''} your attention`;
+
+    const detail = document.getElementById('eventLogDetail');
+    detail.innerHTML = issues.map(i => `
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:0.6rem 0; border-bottom:1px solid var(--border-color);">
+        <div>
+          <span style="text-transform:uppercase; font-size:0.7rem; font-weight:700; color:${i.severity === 'error' ? '#ef4444' : '#f2b93d'};">${escapeHtmlBroadcast(i.severity)}</span>
+          <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem;">${new Date(i.created_at).toLocaleString()}</span>
+          <div>${escapeHtmlBroadcast(i.message)}</div>
+        </div>
+        <button class="btn btn-sm" onclick="acknowledgeEventLogIssue('${i.id}')" title="Dismiss — I've dealt with this"><i class="fas fa-check"></i></button>
+      </div>`).join('');
+  } catch (error) {
+    console.error('loadEventLogSummary error:', error);
+  }
+}
+
+function toggleEventLogDetail() {
+  const detail = document.getElementById('eventLogDetail');
+  const label = document.getElementById('eventLogToggleLabel');
+  const showing = detail.style.display !== 'none';
+  detail.style.display = showing ? 'none' : 'block';
+  label.textContent = showing ? 'Show details' : 'Hide details';
+}
+
+async function acknowledgeEventLogIssue(eventId) {
+  try {
+    const token = localStorage.getItem('gbf_token');
+    await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'event_log_acknowledge', event_ids: [eventId] })
+    });
+    loadEventLogSummary();
+  } catch (error) {
+    console.error('acknowledgeEventLogIssue error:', error);
+  }
 }
 
 async function loadBroadcastMessages() {
