@@ -1919,7 +1919,7 @@ async function syncEverything() {
   // 1. Players (teams + players, full FPL bulk sync)
   try {
     log('Syncing players and teams…');
-    const res = await fetch('/api/sync-players');
+    const res = await fetch('/api/sync-players?force=true');
     const data = await res.json();
     log(`Players: ${data.results?.teams_synced || 0} teams, ${data.results?.players_synced || 0} players synced`, 'success');
     if (data.results?.errors?.length > 0) {

@@ -280,7 +280,17 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const forceResult = await syncPlayersFromFPL(supabase, { force: false });
+    // A deliberate admin click (?force=true, from "Sync Everything")
+    // should never silently no-op just because background polling
+    // happened to sync recently — confirmed as a real, live problem:
+    // once polling is active, it syncs often enough that the debounce
+    // window can genuinely still be open when an admin clicks the
+    // button moments later, making the click appear to do nothing.
+    // Routine automatic polling (no param) still respects the debounce,
+    // since that's what actually protects against excessive real FPL
+    // API calls from many concurrent users polling at once.
+    const forceRequested = params.get('force') === 'true';
+    const forceResult = await syncPlayersFromFPL(supabase, { force: forceRequested });
     if (forceResult.skipped) return res.status(200).json(forceResult);
     return res.status(200).json({ message: 'Players synced successfully', total: forceResult.total, results: forceResult.results });
   } catch (error) {
