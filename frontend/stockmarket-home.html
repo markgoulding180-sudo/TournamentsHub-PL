@@ -89,9 +89,70 @@
     details.card summary::-webkit-details-marker{ display:none; }
     details.card summary::after{ content:'\f078'; font-family:'Font Awesome 6 Free'; font-weight:900; margin-left:auto; color:var(--text-faint); transition:transform .2s ease; }
     details.card[open] summary::after{ transform:rotate(180deg); }
-    .history-link{ display:inline-flex; align-items:center; gap:6px; font-family:var(--font-head); font-size:11.5px; font-weight:700; letter-spacing:.2px; text-transform:none; color:var(--accent-2); background:rgba(59,130,246,0.1); border:1px solid var(--accent-dim); padding:6px 12px; border-radius:20px; transition:background .2s, border-color .2s; }
+    .history-link{ display:inline-flex; align-items:center; gap:6px; font-family:var(--font-head); font-size:11.5px; font-weight:700; letter-spacing:.2px; text-transform:none; color:var(--accent-2); background:rgba(59,130,246,0.1); border:1px solid var(--accent-dim); padding:6px 12px; border-radius:20px; transition:background .2s, border-color .2s; white-space:nowrap; flex:none; }
     .history-link:hover{ background:rgba(59,130,246,0.2); border-color:var(--accent-2); }
-    #opponentSummaryCard{ background:linear-gradient(160deg, rgba(59,130,246,0.07), var(--bg-panel) 65%); border-color:var(--red); }
+
+    /* HUD-style summary cards (User Stock Market / Opponent) — angular
+       clipped corner, real photo backgrounds, glowing edge. Scoped to
+       these two specific cards by ID, so nothing else on the page using
+       the plain .card class is affected. */
+    #userStockMarketCard, #opponentSummaryCard{
+      position:relative; background:var(--bg-panel) url('assets/summary-card-bg-blue.png') center/cover no-repeat;
+      clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
+      box-shadow: 0 0 18px -6px var(--accent-glow), inset 0 0 30px -20px var(--accent-glow);
+    }
+    #userStockMarketCard::before, #opponentSummaryCard::before{
+      content:''; position:absolute; top:0; right:0; width:26px; height:26px;
+      background:linear-gradient(135deg, transparent 49%, var(--accent) 50%, transparent 51%); opacity:.9;
+    }
+    #opponentSummaryCard{
+      background:var(--bg-panel) url('assets/summary-card-bg-red.png') center/cover no-repeat;
+      border-color:var(--red);
+      box-shadow: 0 0 18px -6px var(--red-glow, rgba(239,68,68,0.55)), inset 0 0 30px -20px var(--red-glow, rgba(239,68,68,0.55));
+    }
+    #opponentSummaryCard::before{ background:linear-gradient(135deg, transparent 49%, var(--red) 50%, transparent 51%); }
+    #opponentSummaryCard .history-link{ color:#fca5a5; border-color:var(--red); background:rgba(239,68,68,0.08); }
+    #opponentSummaryCard .history-link:hover{ background:rgba(239,68,68,0.18); border-color:#fca5a5; }
+
+    .card-header-row{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .card-header-row .card-title{ margin-bottom:0; font-size:18px; }
+    .header-portfolio-value{ text-align:right; }
+    .header-portfolio-value .label{ font-size:10px; text-transform:uppercase; color:var(--text-faint); letter-spacing:.4px; margin-bottom:2px; }
+    .header-portfolio-value .value{ font-family:var(--font-head); font-size:24px; font-weight:800; color:var(--text); }
+
+    .stat-row{ display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+    .stat{ flex:1; min-width:120px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px; letter-spacing:.3px; }
+    .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
+    .stat .value.up{ color:var(--green); }
+    .stat .value.down{ color:var(--red); }
+    .vs-divider{ position:relative; text-align:center; margin:6px 0 20px; }
+    .vs-caption{ font-size:12px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+    .vs-big{ font-family:var(--font-head); font-weight:800; font-size:32px; color:var(--accent-2); letter-spacing:2px; text-shadow:0 0 16px var(--accent-glow); }
+    .summary-vs-grid{ display:grid; grid-template-columns:1fr auto 1fr; gap:18px; align-items:center; margin-bottom:20px; }
+    .summary-vs-grid .vs-divider{ margin:0; width:90px; display:flex; align-items:center; justify-content:center; }
+    .summary-vs-grid .vs-divider::before{
+      content:''; position:absolute; top:-30px; bottom:-30px; left:50%; width:3px;
+      background:linear-gradient(180deg, transparent, var(--accent-2), var(--red), transparent);
+      transform:rotate(18deg); box-shadow:0 0 16px var(--accent-glow);
+    }
+    .summary-vs-grid .vs-caption{ display:none; }
+    .summary-vs-grid .vs-big{ position:relative; z-index:2; background:var(--bg); padding:4px 10px; }
+    .summary-vs-grid .stat-row{ flex-wrap:nowrap; gap:8px; }
+    .summary-vs-grid .stat{
+      position:relative; min-width:0; padding:8px 6px; overflow:hidden;
+      background-image: radial-gradient(circle, rgba(96,165,250,0.16) 1px, transparent 1px);
+      background-size: 7px 7px;
+    }
+    #opponentSummaryCard .stat{ background-image: radial-gradient(circle, rgba(239,68,68,0.16) 1px, transparent 1px); background-size: 7px 7px; }
+    .summary-vs-grid .stat::before, .summary-vs-grid .stat::after{ content:''; position:absolute; width:8px; height:8px; }
+    .summary-vs-grid .stat::before{ top:-1px; left:-1px; border-top:2px solid var(--accent-2); border-left:2px solid var(--accent-2); }
+    .summary-vs-grid .stat::after{ bottom:-1px; right:-1px; border-bottom:2px solid var(--accent-2); border-right:2px solid var(--accent-2); }
+    #opponentSummaryCard .stat::before, #opponentSummaryCard .stat::after{ border-color:#fca5a5 !important; }
+    .summary-vs-grid .stat .label{ font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .summary-vs-grid .stat .value{ font-size:15px; white-space:nowrap; }
+    @media (max-width:900px){ .summary-vs-grid .stat-row{ flex-wrap:wrap; } .summary-vs-grid .stat{ min-width:100px; padding:10px 12px; } .summary-vs-grid .stat .label{ font-size:11px; } .summary-vs-grid .stat .value{ font-size:16px; } }
+    @media (max-width:900px){ .summary-vs-grid{ grid-template-columns:1fr; } .summary-vs-grid .vs-divider{ margin:6px 0; } .summary-vs-grid .vs-divider::before{ display:none; } }
 
     .status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1.1rem; border-radius:2rem; font-size:.85rem; font-weight:600; background:rgba(34,197,94,0.08); border:1.5px solid var(--green); color:var(--green); max-width:100%;}
     .status-badge.pending{background:rgba(242,185,61,0.1); border-color:var(--gold); color:var(--gold);}
@@ -100,24 +161,6 @@
     .btn-primary{ display:inline-flex; align-items:center; gap:9px; background:linear-gradient(135deg, var(--green), #16a34a); color:#04120a; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.4px; padding:12px 26px; border-radius:10px; transition:filter .2s, transform .2s; }
     .btn-primary:hover{ filter:brightness(1.1); transform:translateY(-1px); }
     .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
-
-    .stat-row{ display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
-    .stat{ flex:1; min-width:120px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
-    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px; letter-spacing:.3px; }
-    .stat .value{ font-family:var(--font-head); font-size:20px; font-weight:700; }
-    .stat .value.up{ color:var(--green); }
-    .stat .value.down{ color:var(--red); }
-    .vs-divider{ text-align:center; margin:6px 0 20px; }
-    .vs-caption{ font-size:12px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
-    .vs-big{ font-family:var(--font-head); font-weight:800; font-size:32px; color:var(--accent-2); letter-spacing:2px; text-shadow:0 0 16px var(--accent-glow); }
-    .summary-vs-grid{ display:grid; grid-template-columns:1fr auto 1fr; gap:18px; align-items:center; margin-bottom:20px; }
-    .summary-vs-grid .vs-divider{ margin:0; }
-    .summary-vs-grid .stat-row{ flex-wrap:nowrap; gap:8px; }
-    .summary-vs-grid .stat{ min-width:0; padding:8px 6px; }
-    .summary-vs-grid .stat .label{ font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .summary-vs-grid .stat .value{ font-size:15px; white-space:nowrap; }
-    @media (max-width:900px){ .summary-vs-grid .stat-row{ flex-wrap:wrap; } .summary-vs-grid .stat{ min-width:100px; padding:10px 12px; } .summary-vs-grid .stat .label{ font-size:11px; } .summary-vs-grid .stat .value{ font-size:16px; } }
-    @media (max-width:900px){ .summary-vs-grid{ grid-template-columns:1fr; } .summary-vs-grid .vs-divider{ margin:6px 0; } }
     .stat-link{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:none; width:96px; background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:12px 10px; font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:.2px; color:var(--accent-2); text-align:center; transition:background .2s, border-color .2s; }
     .stat-link:hover{ background:rgba(59,130,246,0.16); border-color:var(--accent-2); }
     .stat-link i{ font-size:16px; }
@@ -447,14 +490,18 @@
       <div id="relegatedNotice" style="display:none; margin-bottom:20px;"></div>
       <div id="transferDeadlineBanner" style="display:none; margin-bottom:16px; padding:12px 16px; border-radius:10px; background:rgba(59,130,246,0.12); border:1px solid var(--accent-2); text-align:center; font-weight:600;"></div>
       <div class="summary-vs-grid">
-        <section class="card" id="userStockMarketCard" style="background:var(--bg-card); margin-bottom:0;">
-          <div class="card-title" style="justify-content:space-between; font-size:20px;">
-            <span><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</span>
-            <span style="display:flex; gap:8px; flex-wrap:wrap;">
-              <a href="#your-squad-section" class="history-link"><i class="fas fa-briefcase"></i> Your Squad</a>
-              <a href="#leaderboard-section" class="history-link"><i class="fas fa-trophy"></i> Leaderboard</a>
-              <a href="/stock-market-history" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
-            </span>
+        <section class="card" id="userStockMarketCard" style="margin-bottom:0;">
+          <div class="card-header-row">
+            <div class="card-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> User Stock Market</div>
+            <div class="header-portfolio-value">
+              <div class="label">Portfolio Value</div>
+              <div class="value" id="headerPortfolioValue">£0.00</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; margin-bottom:16px;">
+            <a href="#your-squad-section" class="history-link"><i class="fas fa-briefcase"></i> Your Squad</a>
+            <a href="#leaderboard-section" class="history-link"><i class="fas fa-trophy"></i> Leaderboard</a>
+            <a href="/stock-market-history" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
           </div>
           <div class="stat-row" id="statRow"></div>
         </section>
@@ -465,12 +512,16 @@
         </div>
 
         <section class="card" id="opponentSummaryCard" style="display:none; margin-bottom:0;">
-          <div class="card-title" style="justify-content:space-between;">
-            <span><i class="fas fa-swords" style="color:var(--accent-2);"></i> <span id="opponentSummaryTitle">This Week's Opponent</span></span>
-            <span style="display:flex; gap:8px; flex-wrap:wrap;">
-              <a href="#opponent-squad-section" class="history-link"><i class="fas fa-people-group"></i> View Squad</a>
-              <a href="#" id="opponentSummaryHistoryLink" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
-            </span>
+          <div class="card-header-row">
+            <div class="card-title"><i class="fas fa-swords" style="color:#fca5a5;"></i> <span id="opponentSummaryTitle">Opponent</span></div>
+            <div class="header-portfolio-value">
+              <div class="label">Portfolio Value</div>
+              <div class="value" id="opponentHeaderPortfolioValue">£0.00</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; margin-bottom:16px;">
+            <a href="#opponent-squad-section" class="history-link"><i class="fas fa-people-group"></i> View Squad</a>
+            <a href="#" id="opponentSummaryHistoryLink" class="history-link"><i class="fas fa-clock-rotate-left"></i> Full History</a>
           </div>
           <div class="stat-row" id="opponentStatRow"></div>
         </section>
@@ -847,8 +898,8 @@
         myTotalReceived = mySquadArr.reduce((s, p) => s + (p.empty ? 0 : ((p.last_gw_breakdown && p.last_gw_breakdown.win_bonus) || 0)), 0);
       }
       const myNet = myTotalReceived - myTotalPaid;
+      document.getElementById('headerPortfolioValue').textContent = money(displayValue);
       document.getElementById('statRow').innerHTML = `
-        <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(displayValue)}</div></div>
         <div class="stat"><div class="label">Earned</div><div class="value up">+${money(myTotalReceived)}</div></div>
         <div class="stat"><div class="label">Paid Out</div><div class="value down">-${money(myTotalPaid)}</div></div>
         <div class="stat"><div class="label">Net This Gameweek (GW${data.gameweek ?? '?'})</div><div class="value ${myNet >= 0 ? 'up' : 'down'}">${myNet >= 0 ? '+' : ''}${money(myNet)}</div></div>
@@ -1107,11 +1158,11 @@
         const oppNet = oppTotalReceived - oppTotalPaid;
 
         document.getElementById('opponentSummaryCard').style.display = 'block';
-        document.getElementById('opponentSummaryTitle').textContent = `Your opponent is ${data.opponent_name || 'Opponent'}`;
+        document.getElementById('opponentSummaryTitle').textContent = `Opponent — ${data.opponent_name || 'Opponent'}`;
         document.getElementById('opponentSummaryHistoryLink').href = `/stock-market-player?tournament_id=${tournamentId}&entry_id=${opp.id}`;
         document.getElementById('opponentSquadHistoryLink').href = `/stock-market-player?tournament_id=${tournamentId}&entry_id=${opp.id}`;
+        document.getElementById('opponentHeaderPortfolioValue').textContent = money(oppEnd);
         document.getElementById('opponentStatRow').innerHTML = `
-          <div class="stat"><div class="label">Portfolio Value</div><div class="value">${money(oppEnd)}</div></div>
           <div class="stat"><div class="label">Earned</div><div class="value up">+${money(oppTotalReceived)}</div></div>
           <div class="stat"><div class="label">Paid Out</div><div class="value down">-${money(oppTotalPaid)}</div></div>
           <div class="stat"><div class="label">Net This Gameweek</div><div class="value ${oppNet >= 0 ? 'up' : 'down'}">${oppNet >= 0 ? '+' : ''}${money(oppNet)}</div></div>
