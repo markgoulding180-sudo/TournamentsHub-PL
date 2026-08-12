@@ -2901,6 +2901,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
                 await processHeadToHeadGameweek(supabaseAdmin, masterDb, t.id, leavingGw);
                 await applyDueStages(supabaseAdmin, t.id, leavingGw);
                 await checkAndFinishStockMarketTournament(supabaseAdmin, t.id, leavingGw);
+                await forceSellDepartedPlayers(supabaseAdmin, masterDb, t.id, leavingGw);
                 stockMarketSettled++;
               }
 
@@ -5463,6 +5464,69 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 // had zeroed anyone being cut this round — leaving newly-relegated
 // entries with a nonzero final_value they shouldn't have. Calling it
 // after relegation instead means it always sees genuinely final numbers.
+// A player with status='u' has left the Premier League entirely (not
+// just switched clubs — a genuine PL club-to-club transfer just updates
+// their team field and their stats keep counting normally, confirmed
+// separately). FPL will never generate real stats for them again, so
+// their card value would otherwise freeze forever with no way for the
+// user to do anything about it — through no fault of their own. This
+// force-sells them into a reserved, empty slot (identical shape to a
+// normal manual sell) so the user can freely buy a replacement whenever
+// they choose. Deliberately does NOT set last_transfer_gameweek — this
+// is a system action, not a user one, and must never consume their own
+// personal weekly transfer.
+async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, gameweek) {
+  const { data: entries } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('id, squad_players').eq('tournament_id', tournamentId).eq('relegated', false);
+  if (!entries || entries.length === 0) return { forced: 0 };
+
+  const allPlayerIds = new Set();
+  entries.forEach(e => (e.squad_players || []).forEach(s => { if (!s.empty && s.player_id) allPlayerIds.add(s.player_id); }));
+  if (allPlayerIds.size === 0) return { forced: 0 };
+
+  const { data: statusRows } = await masterDb.from('players').select('id, status').in('id', Array.from(allPlayerIds));
+  const departedIds = new Set((statusRows || []).filter(p => p.status === 'u').map(p => p.id));
+  if (departedIds.size === 0) return { forced: 0 };
+
+  let forcedCount = 0;
+  for (const entry of entries) {
+    const squad = entry.squad_players || [];
+    let changed = false;
+    const forcedOutNames = [];
+    for (let i = 0; i < squad.length; i++) {
+      const s = squad[i];
+      if (!s.empty && departedIds.has(s.player_id)) {
+        const soldValue = s.value || 0;
+        const positionKey = POSITION_KEY[s.position] || s.position;
+        forcedOutNames.push(s.name || 'Unknown player');
+        squad[i] = { empty: true, position: positionKey, reserved_value: soldValue };
+        changed = true;
+
+        const { error: logErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+          tournament_id: tournamentId, entry_id: entry.id, gameweek, type: 'force_sell',
+          player_id: s.player_id, player_name: s.name || null, position: positionKey, amount: soldValue
+        });
+        if (logErr) console.error('[TRANSACTION LOG FAILED - force_sell]', logErr.message);
+      }
+    }
+    if (changed) {
+      const newTotal = await recomputeEntryValue(supabaseAdmin, tournamentId, squad);
+      await supabaseAdmin
+        .schema('stockmarket').from('tournament_entries')
+        .update({ squad_players: squad, current_value: newTotal })
+        .eq('id', entry.id);
+      forcedCount++;
+      await logPlatformEvent(supabaseAdmin, {
+        tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek, event_type: 'force_sell', severity: 'info',
+        message: `GW${gameweek}: ${forcedOutNames.join(', ')} left the Premier League — automatically sold, slot reserved (£${(squad.filter(s=>s.empty).reduce((sum,s)=>sum+(s.reserved_value||0),0)/100).toFixed(2)} banked). Doesn't count against their weekly transfer.`,
+        details: { entry_id: entry.id, forced_out: forcedOutNames }
+      });
+    }
+  }
+  return { forced: forcedCount };
+}
+
 async function checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, gameweek) {
   const { data: tournament } = await supabaseAdmin
     .schema('stockmarket').from('tournaments')
