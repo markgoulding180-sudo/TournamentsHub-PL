@@ -5095,7 +5095,8 @@ function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplie
       gwStats: {
         goals: stats.goals_scored || 0, assists: stats.assists || 0, yellow_cards: stats.yellow_cards || 0,
         red_cards: stats.red_cards || 0, clean_sheets: stats.clean_sheets || 0,
-        goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded, saves: stats.saves || 0
+        goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded, saves: stats.saves || 0,
+        minutes: stats.minutes || 0
       },
       received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub,
       ownEventReceived: 0, ownEventPaid: 0 // this player's OWN events only — not funding credits from the opponent

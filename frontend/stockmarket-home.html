@@ -208,6 +208,13 @@
       background:linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('assets/player-card-bg.jpg?v=2') center/cover no-repeat, #05070d;
     }
     .portfolio-card.opp{ border-color:var(--red); }
+    .portfolio-card .p-played-badge{
+      position:absolute; top:8px; left:8px; z-index:7; display:flex; align-items:center; gap:4px;
+      font-size:10px; font-weight:700; letter-spacing:.2px; padding:4px 8px; border-radius:12px;
+      background:rgba(4,8,18,0.85);
+    }
+    .portfolio-card .p-played-badge.played{ color:var(--green); border:1px solid var(--green); }
+    .portfolio-card .p-played-badge.not-played{ color:var(--red); border:1px solid var(--red); }
     .portfolio-card .p-photo-wrap{
       position:absolute; top:0; left:10%; right:10%; height:42%; z-index:2; overflow:hidden;
     }
@@ -1058,8 +1065,20 @@
           ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`
           : `<div class="no-photo"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`;
 
+        // "Played" badge — only meaningful once real gameweek data exists.
+        // A new signing with no bd.stats yet shows neither (genuinely
+        // unknown, not the same as "confirmed didn't play").
+        let playedBadgeHtml = '';
+        if (bd && bd.stats) {
+          const minutes = bd.stats.minutes || 0;
+          playedBadgeHtml = minutes > 0
+            ? `<div class="p-played-badge played"><i class="fas fa-circle-check"></i> Played</div>`
+            : `<div class="p-played-badge not-played"><i class="fas fa-circle-xmark"></i> Did not play</div>`;
+        }
+
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
+          ${playedBadgeHtml}
           <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-overlay-stack">
             <div class="p-name-overlay">
