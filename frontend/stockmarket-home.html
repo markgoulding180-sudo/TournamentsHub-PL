@@ -238,6 +238,9 @@
       width:100%; aspect-ratio:1054/1641;
       background:linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('assets/player-card-bg.jpg?v=2') center/cover no-repeat, #05070d;
     }
+    .portfolio-card.rarity-Bronze{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-bronze.jpg') center/cover no-repeat, #05070d; }
+    .portfolio-card.rarity-Silver{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-silver.jpg') center/cover no-repeat, #05070d; }
+    .portfolio-card.rarity-Gold{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-gold.jpg') center/cover no-repeat, #05070d; }
     .portfolio-card.opp{ border-color:var(--red); }
     .portfolio-card .p-played-badge{
       position:absolute; top:8px; left:8px; z-index:7; display:flex; flex-direction:column; gap:2px;
@@ -1146,8 +1149,18 @@
           injuryBadgeHtml = `<div class="p-injury-badge" title="${tooltip}"><i class="fas fa-triangle-exclamation"></i> ${injuryLabels[p.status]}</div>`;
         }
 
+        // rank_tier is stored uppercase (GOLD/SILVER/BRONZE) on the
+        // backend; normalize to the title-case rarity-X class convention
+        // already used on the pack-opening cards, so the same background
+        // images apply here too. Anything unrecognized (new signing
+        // never evaluated, or a genuinely excluded player who somehow
+        // ended up drafted) just falls back to no rarity class at all —
+        // the base .portfolio-card style still applies fine on its own.
+        const rarityMap = { GOLD: 'Gold', SILVER: 'Silver', BRONZE: 'Bronze' };
+        const rarityClass = rarityMap[p.rank_tier] ? `rarity-${rarityMap[p.rank_tier]}` : '';
+
         return `
-        <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
+        <div class="portfolio-card ${isMine ? 'mine' : 'opp'} ${rarityClass}">
           ${injuryBadgeHtml}
           ${playedBadgeHtml}
           <div class="p-photo-wrap">${photoHtml}</div>

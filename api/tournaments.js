@@ -726,17 +726,17 @@ module.exports = async (req, res) => {
         const oppIds = opponentEntry ? (opponentEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id) : [];
         const photoIds = [...new Set([...myIds, ...oppIds])];
         const { data: photoRows } = photoIds.length > 0
-          ? await masterDb.from('players').select('id, photo, custom_photo_url, status, news, starts').in('id', photoIds)
+          ? await masterDb.from('players').select('id, photo, custom_photo_url, status, news, starts, rank_tier').in('id', photoIds)
           : { data: [] };
         const photoByPid = {};
         const bioByPid = {};
         (photoRows || []).forEach(p => {
           photoByPid[p.id] = p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null);
-          bioByPid[p.id] = { status: p.status || 'a', news: p.news || '', appearances: p.starts || 0 };
+          bioByPid[p.id] = { status: p.status || 'a', news: p.news || '', appearances: p.starts || 0, rank_tier: p.rank_tier || null };
         });
         const withPhotos = (squad) => (squad || []).map(s => s.empty ? s : {
           ...s, photo: photoByPid[s.player_id] || null,
-          ...(bioByPid[s.player_id] || { status: 'a', news: '', appearances: 0 })
+          ...(bioByPid[s.player_id] || { status: 'a', news: '', appearances: 0, rank_tier: null })
         });
 
         // Real match status per team this gameweek — needed to tell apart
