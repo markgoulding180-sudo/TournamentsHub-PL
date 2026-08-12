@@ -217,6 +217,11 @@
     .portfolio-card .p-played-badge .p-played-mins{ font-size:9px; font-weight:600; opacity:.8; }
     .portfolio-card .p-played-badge.played{ color:var(--green); border:1px solid var(--green); }
     .portfolio-card .p-played-badge.not-played{ color:var(--red); border:1px solid var(--red); }
+    .portfolio-card .p-injury-badge{
+      position:absolute; top:8px; right:8px; z-index:7; display:flex; align-items:center; gap:4px;
+      font-size:9px; font-weight:700; letter-spacing:.2px; padding:4px 8px; border-radius:8px;
+      background:rgba(4,8,18,0.85); color:var(--gold); border:1px solid var(--gold); cursor:help;
+    }
     .portfolio-card .p-photo-wrap{
       position:absolute; top:0; left:10%; right:10%; height:42%; z-index:2; overflow:hidden;
     }
@@ -1070,16 +1075,30 @@
         // "Played" badge — only meaningful once real gameweek data exists.
         // A new signing with no bd.stats yet shows neither (genuinely
         // unknown, not the same as "confirmed didn't play").
+        const appearances = p.appearances || 0;
         let playedBadgeHtml = '';
         if (bd && bd.stats) {
           const minutes = bd.stats.minutes || 0;
           playedBadgeHtml = minutes > 0
-            ? `<div class="p-played-badge played"><div class="p-played-line"><i class="fas fa-circle-check"></i> Played</div><div class="p-played-mins">${minutes} min${minutes === 1 ? '' : 's'}</div></div>`
-            : `<div class="p-played-badge not-played"><div class="p-played-line"><i class="fas fa-circle-xmark"></i> Did not play</div></div>`;
+            ? `<div class="p-played-badge played"><div class="p-played-line"><i class="fas fa-circle-check"></i> Played</div><div class="p-played-mins">${minutes} min${minutes === 1 ? '' : 's'} · ${appearances} app${appearances === 1 ? '' : 's'}</div></div>`
+            : `<div class="p-played-badge not-played"><div class="p-played-line"><i class="fas fa-circle-xmark"></i> Did not play</div><div class="p-played-mins">${appearances} app${appearances === 1 ? '' : 's'} this season</div></div>`;
+        } else if (appearances > 0) {
+          playedBadgeHtml = `<div class="p-played-badge played"><div class="p-played-mins">${appearances} app${appearances === 1 ? '' : 's'} this season</div></div>`;
+        }
+
+        // Injury/availability badge — only shown for a genuinely
+        // non-available status, real text pulled from FPL's own reported
+        // reason where available.
+        const injuryLabels = { i: 'Injured', d: 'Doubtful', s: 'Suspended', u: 'Unavailable' };
+        let injuryBadgeHtml = '';
+        if (p.status && injuryLabels[p.status]) {
+          const tooltip = p.news ? escapeHtml(p.news) : injuryLabels[p.status];
+          injuryBadgeHtml = `<div class="p-injury-badge" title="${tooltip}"><i class="fas fa-triangle-exclamation"></i> ${injuryLabels[p.status]}</div>`;
         }
 
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
+          ${injuryBadgeHtml}
           ${playedBadgeHtml}
           <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-overlay-stack">

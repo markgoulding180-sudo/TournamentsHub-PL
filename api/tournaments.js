@@ -726,13 +726,18 @@ module.exports = async (req, res) => {
         const oppIds = opponentEntry ? (opponentEntry.squad_players || []).filter(s => !s.empty).map(s => s.player_id) : [];
         const photoIds = [...new Set([...myIds, ...oppIds])];
         const { data: photoRows } = photoIds.length > 0
-          ? await masterDb.from('players').select('id, photo, custom_photo_url').in('id', photoIds)
+          ? await masterDb.from('players').select('id, photo, custom_photo_url, status, news, starts').in('id', photoIds)
           : { data: [] };
         const photoByPid = {};
+        const bioByPid = {};
         (photoRows || []).forEach(p => {
           photoByPid[p.id] = p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null);
+          bioByPid[p.id] = { status: p.status || 'a', news: p.news || '', appearances: p.starts || 0 };
         });
-        const withPhotos = (squad) => (squad || []).map(s => s.empty ? s : { ...s, photo: photoByPid[s.player_id] || null });
+        const withPhotos = (squad) => (squad || []).map(s => s.empty ? s : {
+          ...s, photo: photoByPid[s.player_id] || null,
+          ...(bioByPid[s.player_id] || { status: 'a', news: '', appearances: 0 })
+        });
 
         const mySquadWithComparison = withPhotos(myEntry.squad_players);
         if (opponentEntry) opponentEntry.squad_players = withPhotos(opponentEntry.squad_players);
