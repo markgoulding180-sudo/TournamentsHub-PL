@@ -110,13 +110,13 @@
     .carousel-stage{ position:relative; width:260px; height:340px; perspective:1000px; touch-action:pan-y; }
     .player-card{
       position:absolute; inset:0; border-radius:18px; overflow:hidden;
-      background-image:url('assets/player-card-bg.jpg?v=2'); background-size:cover; background-position:center;
+      background-size:cover; background-position:center;
       border:2px solid #ffffff; transition:transform .35s ease, opacity .35s ease;
       transform-style:preserve-3d; cursor:pointer;
     }
-    .player-card.rarity-Bronze{ box-shadow:0 0 30px rgba(217,119,87,0.25); }
-    .player-card.rarity-Silver{ box-shadow:0 0 30px rgba(192,200,214,0.2); }
-    .player-card.rarity-Gold{ box-shadow:0 0 40px rgba(242,185,61,0.4); }
+    .player-card.rarity-Bronze{ background-image:url('assets/card-bg-bronze.jpg'); box-shadow:0 0 30px rgba(217,119,87,0.25); }
+    .player-card.rarity-Silver{ background-image:url('assets/card-bg-silver.jpg'); box-shadow:0 0 30px rgba(192,200,214,0.2); }
+    .player-card.rarity-Gold{ background-image:url('assets/card-bg-gold.jpg'); box-shadow:0 0 40px rgba(242,185,61,0.4); }
     .player-card.flip-in{ animation:cardFlipIn .5s ease forwards; }
     @keyframes cardFlipIn{
       0%{ transform:rotateY(90deg) scale(0.9); opacity:0; }
