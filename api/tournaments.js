@@ -739,8 +739,23 @@ module.exports = async (req, res) => {
           ...(bioByPid[s.player_id] || { status: 'a', news: '', appearances: 0 })
         });
 
-        const mySquadWithComparison = withPhotos(myEntry.squad_players);
-        if (opponentEntry) opponentEntry.squad_players = withPhotos(opponentEntry.squad_players);
+        // Real match status per team this gameweek — needed to tell apart
+        // "hasn't kicked off yet", "match live right now", and "match
+        // finished" for each player, not just their final minutes.
+        const { data: gwMatches } = currentGw
+          ? await masterDb.from('matches').select('home_team, away_team, status').eq('gameweek', currentGw)
+          : { data: [] };
+        const matchStatusByTeam = {};
+        (gwMatches || []).forEach(m => {
+          matchStatusByTeam[m.home_team] = m.status;
+          matchStatusByTeam[m.away_team] = m.status;
+        });
+        const withMatchStatus = (squad) => (squad || []).map(s => s.empty ? s : {
+          ...s, match_status: matchStatusByTeam[s.team] || null
+        });
+
+        const mySquadWithComparison = withMatchStatus(withPhotos(myEntry.squad_players));
+        if (opponentEntry) opponentEntry.squad_players = withMatchStatus(withPhotos(opponentEntry.squad_players));
 
         // If this week's matchup exists but hasn't been finally settled
         // yet, compute a LIVE, provisional view — every event funds
