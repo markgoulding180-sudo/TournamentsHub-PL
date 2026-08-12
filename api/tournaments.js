@@ -4920,12 +4920,19 @@ function redistributeTwoTier(prices, targetPid, delta, totalPot, matchSharePct, 
 // genuine candidates, some completely empty; rank-based thirds instead
 // guarantee an even, healthy pool size in every single bucket.
 
-// How many of each rarity/position slot a STARTER pack offers, scaled
-// down from the original 16-man matrix for a 6-man squad.
+// How many of each rarity/position slot a STARTER pack offers. Rebalanced
+// from the original price-era matrix: Gold previously had zero GK slots,
+// meaning a Gold-tier keeper was literally impossible to draft — the real
+// squad-confirmation code requires exactly 1 GK, and none of the 3 GK
+// candidates ever came from Gold. Bronze was also trimmed from over half
+// the pack down to about a third, since real users skip weak filler
+// cards regardless of how many are shown — more of the pack now goes to
+// tiers people actually want to choose between. Same 20 total candidates
+// and same per-position totals as before, just reshuffled across tiers.
 const STARTER_PACK_MATRIX = {
-  Bronze: { gk: 2, def: 4, mid: 3, fwd: 2 },
-  Silver: { gk: 1, def: 2, mid: 2, fwd: 1 },
-  Gold: { gk: 0, def: 1, mid: 1, fwd: 1 }
+  Bronze: { gk: 2, def: 2, mid: 2, fwd: 1 },
+  Silver: { gk: 1, def: 3, mid: 3, fwd: 2 },
+  Gold: { gk: 1, def: 1, mid: 1, fwd: 1 }
 };
 
 // Public-facing pages (leaderboard, opponent view, player history) show
