@@ -261,6 +261,11 @@
       font-size:9px; font-weight:700; letter-spacing:.2px; padding:4px 8px; border-radius:8px;
       background:rgba(4,8,18,0.85); color:var(--gold); border:1px solid var(--gold); cursor:help;
     }
+    .portfolio-card .p-neutral-warning{
+      position:absolute; left:6px; right:6px; top:42%; z-index:6; margin-top:6px;
+      font-size:10px; font-weight:600; line-height:1.35; text-align:center; color:var(--gold);
+      background:rgba(4,8,18,0.9); border:1px solid var(--gold); border-radius:8px; padding:8px 10px;
+    }
     .portfolio-card .p-photo-wrap{
       position:absolute; top:0; left:10%; right:10%; height:42%; z-index:2; overflow:hidden;
     }
@@ -1159,10 +1164,24 @@
         const rarityMap = { GOLD: 'Gold', SILVER: 'Silver', BRONZE: 'Bronze' };
         const rarityClass = rarityMap[p.rank_tier] ? `rarity-${rarityMap[p.rank_tier]}` : '';
 
+        // The neutral fallback background is a deliberate signal, not a
+        // bug — but a plain color change alone doesn't explain WHY to
+        // someone looking at it. Two genuinely different real reasons
+        // need two different real explanations, not one generic message.
+        let neutralWarningHtml = '';
+        if (!rarityClass && isMine) {
+          if (p.status === 'u') {
+            neutralWarningHtml = `<div class="p-neutral-warning">This player has left the Premier League — will be auto-replaced next gameweek, won't use your transfer.</div>`;
+          } else if (!p.rank_tier) {
+            neutralWarningHtml = `<div class="p-neutral-warning">Not yet rated in our system — real data will catch up on the next sync.</div>`;
+          }
+        }
+
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'} ${rarityClass}">
           ${injuryBadgeHtml}
           ${playedBadgeHtml}
+          ${neutralWarningHtml}
           <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-overlay-stack">
             <div class="p-name-overlay">
