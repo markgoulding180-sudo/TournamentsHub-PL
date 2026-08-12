@@ -215,16 +215,13 @@
     }
     .portfolio-card .p-played-badge .p-played-line{ display:flex; align-items:center; gap:4px; }
     .portfolio-card .p-played-badge .p-played-mins{ font-size:9px; font-weight:600; opacity:.8; }
+    .portfolio-card .p-played-badge .p-played-apps{ font-size:9px; font-weight:600; opacity:.65; }
     .portfolio-card .p-played-badge.played{ color:var(--green); border:1px solid var(--green); }
     .portfolio-card .p-played-badge.benched{ color:var(--text-dim); border:1px solid var(--text-faint); }
     .portfolio-card .p-played-badge.live{ color:var(--gold); border:1px solid var(--gold); }
     .portfolio-card .p-played-badge.live .fa-circle{ color:var(--red); animation:livePulse 1.4s ease-in-out infinite; }
+    .portfolio-card .p-played-badge.upcoming{ color:var(--text-dim); border:1px solid var(--border); }
     @keyframes livePulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
-    .portfolio-card .p-apps-badge{
-      position:absolute; bottom:calc(58% + 8px); left:8px; z-index:7;
-      font-size:9px; font-weight:600; letter-spacing:.2px; padding:3px 8px; border-radius:8px;
-      background:rgba(4,8,18,0.85); color:var(--text-dim); border:1px solid var(--border);
-    }
     .portfolio-card .p-injury-badge{
       position:absolute; top:8px; right:8px; z-index:7; display:flex; align-items:center; gap:4px;
       font-size:9px; font-weight:700; letter-spacing:.2px; padding:4px 8px; border-radius:8px;
@@ -1088,18 +1085,18 @@
         // anything, and nothing shown if we can't find their match at
         // all this gameweek (bye, postponed).
         const minutes = (bd && bd.stats) ? (bd.stats.minutes || 0) : 0;
+        const appearances = p.appearances || 0;
+        const appsLine = `<div class="p-played-apps">${appearances} match${appearances === 1 ? '' : 'es'}</div>`;
         let playedBadgeHtml = '';
         if (p.match_status === 'live') {
-          playedBadgeHtml = `<div class="p-played-badge live"><div class="p-played-line"><i class="fas fa-circle" style="font-size:7px;"></i> Live</div>${minutes > 0 ? `<div class="p-played-mins">${minutes} min${minutes === 1 ? '' : 's'} so far</div>` : ''}</div>`;
+          playedBadgeHtml = `<div class="p-played-badge live"><div class="p-played-line"><i class="fas fa-circle" style="font-size:7px;"></i> Live</div>${minutes > 0 ? `<div class="p-played-mins">${minutes} min${minutes === 1 ? '' : 's'} so far</div>` : ''}${appsLine}</div>`;
         } else if (p.match_status === 'finished') {
           playedBadgeHtml = minutes > 0
-            ? `<div class="p-played-badge played"><div class="p-played-line"><i class="fas fa-circle-check"></i> Played</div><div class="p-played-mins">${minutes} min${minutes === 1 ? '' : 's'}</div></div>`
-            : `<div class="p-played-badge benched"><div class="p-played-line"><i class="fas fa-chair"></i> Benched</div></div>`;
+            ? `<div class="p-played-badge played"><div class="p-played-line"><i class="fas fa-circle-check"></i> Played</div><div class="p-played-mins">${minutes} min${minutes === 1 ? '' : 's'}</div>${appsLine}</div>`
+            : `<div class="p-played-badge benched"><div class="p-played-line"><i class="fas fa-chair"></i> Benched</div>${appsLine}</div>`;
+        } else {
+          playedBadgeHtml = `<div class="p-played-badge upcoming">${appsLine}</div>`;
         }
-
-        const appearances = p.appearances || 0;
-        const appsBadgeHtml = `<div class="p-apps-badge">${appearances} app${appearances === 1 ? '' : 's'} this season</div>`;
-
         // Injury/availability badge — only shown for a genuinely
         // non-available status, real text pulled from FPL's own reported
         // reason where available.
@@ -1114,7 +1111,6 @@
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'}">
           ${injuryBadgeHtml}
           ${playedBadgeHtml}
-          ${appsBadgeHtml}
           <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-overlay-stack">
             <div class="p-name-overlay">
