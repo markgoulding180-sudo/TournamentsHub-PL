@@ -97,7 +97,7 @@
        these two specific cards by ID, so nothing else on the page using
        the plain .card class is affected. */
     #userStockMarketCard, #opponentSummaryCard{
-      position:relative; background:var(--bg-panel) url('assets/summary-card-bg-blue.png') center/cover no-repeat;
+      position:relative; background:var(--bg-panel);
       clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
       box-shadow: 0 0 18px -6px var(--accent-glow), inset 0 0 30px -20px var(--accent-glow);
     }
@@ -106,7 +106,7 @@
       background:linear-gradient(135deg, transparent 49%, var(--accent) 50%, transparent 51%); opacity:.9;
     }
     #opponentSummaryCard{
-      background:var(--bg-panel) url('assets/summary-card-bg-red.png') center/cover no-repeat;
+      background:var(--bg-panel);
       border-color:var(--red);
       box-shadow: 0 0 18px -6px var(--red-glow, rgba(239,68,68,0.55)), inset 0 0 30px -20px var(--red-glow, rgba(239,68,68,0.55));
     }
