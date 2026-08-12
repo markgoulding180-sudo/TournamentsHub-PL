@@ -87,6 +87,13 @@
     .hero-sub{font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--green); margin-bottom:12px; letter-spacing:0.3px;}
     .hero-desc{font-size:15px; color:#ffffff; margin-bottom:0; max-width:460px; line-height:1.55;}
 
+    .portfolio-section-header{
+      font-family:var(--font-head); font-size:24px; font-weight:700; letter-spacing:.3px;
+      color:#ffffff; margin-bottom:16px;
+    }
+    .portfolio-section-header .name-highlight{ color:var(--green); }
+    @media (max-width:600px){ .portfolio-section-header{ font-size:19px; } }
+
     .hero-controls{ display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:20px; }
     .hero-how-it-works summary{
       list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
@@ -533,6 +540,7 @@
 
     <div id="mainContent" style="display:none;">
       <div id="relegatedNotice" style="display:none; margin-bottom:20px;"></div>
+      <h2 class="portfolio-section-header" id="portfolioSectionHeader">Your Portfolio & Match This Week</h2>
       <div class="summary-vs-grid">
         <section class="card" id="userStockMarketCard" style="margin-bottom:0;">
           <div class="card-header-row">
@@ -1813,6 +1821,10 @@
         btn.classList.add('logged-in');
         btn.href = '/profile';
         btn.title = 'View profile';
+        const portfolioHeader = document.getElementById('portfolioSectionHeader');
+        if (portfolioHeader) {
+          portfolioHeader.innerHTML = `<span class="name-highlight">${escapeHtml(name)}</span> — Your Portfolio & Match This Week`;
+        }
       } catch (e) {}
     }
 
