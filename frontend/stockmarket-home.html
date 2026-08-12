@@ -937,8 +937,7 @@
         }
         const benchedHtml = p.is_sub ? `<div class="weeks-badge sub">Benched — excluded this week</div>` : '';
         const actions = isMine
-          ? `<span class="stat-pill action-pill" onclick="toggleSub(${p.player_id}, ${!p.is_sub})">${p.is_sub ? 'Unbench' : 'Bench'}</span>
-             <span class="stat-pill action-pill danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</span>`
+          ? `<span class="stat-pill action-pill danger" onclick="sellPlayer(${p.player_id}, '${escapeHtml(p.name)}')">Sell</span>`
           : '';
 
         const bd = p.last_gw_breakdown;
@@ -1244,21 +1243,6 @@
       }
     }
 
-    async function toggleSub(playerId, newIsSub) {
-      try {
-        const res = await fetch('/api/tournaments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
-          body: JSON.stringify({ action: 'stockmarket_toggle_sub', tournament_id: tournamentId, player_id: playerId, is_sub: newIsSub })
-        });
-        const data = await res.json();
-        if (!res.ok) { showToast(data.error || 'Failed to update', 'error'); return; }
-        await loadTournament();
-      } catch (e) {
-        console.error('toggleSub failed:', e);
-        showToast("Couldn't update that right now.", "error");
-      }
-    }
 
     async function openTransferPack(position, packType) {
       const poolEl = document.getElementById(`transfer-pool-${position}`);
