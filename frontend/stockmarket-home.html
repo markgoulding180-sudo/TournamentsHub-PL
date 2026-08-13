@@ -1356,6 +1356,16 @@
     async function openTransferPack(position, packType) {
       const poolEl = document.getElementById(`transfer-pool-${position}`);
       if (!poolEl) return;
+
+      // Hide the force-sold explanation once the user is actively
+      // picking a replacement — it's already served its purpose (they
+      // clicked a pack button, so they've read it), and keeping it
+      // visible was pushing the actual candidate list down far enough
+      // to get cut off at the bottom of the card.
+      const card = poolEl.closest('.portfolio-card');
+      const notice = card ? card.querySelector('.p-force-sold-notice') : null;
+      if (notice) notice.style.display = 'none';
+
       poolEl.innerHTML = '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
 
       try {
