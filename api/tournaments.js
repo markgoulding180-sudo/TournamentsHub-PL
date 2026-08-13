@@ -4922,15 +4922,29 @@ async function getStockMarketLockStatus(masterDb, supabaseAdmin, tournamentId) {
 // permanently locks every squad.
 async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
   try {
-    const { data: tournament, error: tError } = await supabaseAdmin
+    // Atomic claim, not a check-then-act read — confirmed as a real gap
+    // otherwise: two near-simultaneous calls (e.g. two overlapping cron
+    // triggers right as the deadline passes) could both read status as
+    // still 'upcoming' before either had written 'live', and both would
+    // proceed to initialize. The UPDATE itself is the claim here: only
+    // one call can ever have this succeed, since the WHERE clause
+    // requires status still be 'upcoming' at the moment it runs. Safe to
+    // flip status this early — confirmed the transfer-window check
+    // depends entirely on real match data, not this field, and buy/sell
+    // is separately gated by squad_locked, set per-entry further below
+    // in this same function, unaffected by this earlier status flip.
+    const { data: claimedRows, error: claimErr } = await supabaseAdmin
       .schema('stockmarket').from('tournaments')
-      .select('id, entry_fee, status, gameweek')
+      .update({ status: 'live' })
       .eq('id', tournamentId)
-      .maybeSingle();
+      .eq('status', 'upcoming')
+      .select('id, entry_fee, gameweek');
 
-    if (tError || !tournament || tournament.status === 'live' || tournament.status === 'finished') {
-      return; // already initialized, or doesn't exist
+    if (claimErr) { console.error('initializeStockMarket claim error:', claimErr.message); return; }
+    if (!claimedRows || claimedRows.length === 0) {
+      return; // already initialized (or being initialized right now) by another call, or doesn't exist
     }
+    const tournament = claimedRows[0];
 
     const { data: entries, error: entriesError } = await supabaseAdmin
       .schema('stockmarket').from('tournament_entries')
@@ -4939,9 +4953,7 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
       .not('squad_players', 'is', null);
 
     if (entriesError || !entries || entries.length === 0) {
-      // Nothing to initialize — just flip status so we don't retry forever.
-      await supabaseAdmin.schema('stockmarket').from('tournaments')
-        .update({ status: 'live' }).eq('id', tournamentId);
+      // Status is already 'live' from the claim above — nothing more to do.
       return;
     }
 
@@ -4970,8 +4982,9 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
         .eq('id', entry.id);
     }
 
+    // status was already set to 'live' by the atomic claim above.
     await supabaseAdmin.schema('stockmarket').from('tournaments')
-      .update({ status: 'live', current_entries: entries.length })
+      .update({ current_entries: entries.length })
       .eq('id', tournamentId);
 
     // Backfill player_market from the real, final drafted squads —
