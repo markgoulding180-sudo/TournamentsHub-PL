@@ -3945,6 +3945,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const isForceSoldSlot = squad[emptyIdx].force_sold_reason === 'left_premier_league';
           const packFee = isForceSoldSlot ? 0 : packPriceFor(config, pack_type);
 
+          // Real enforcement, not just a frontend suggestion — the
+          // replacement must match the departed player's own rarity.
+          // A locked tier of null means we never rated them, so any
+          // tier is fine; anything else must match exactly.
+          if (isForceSoldSlot && squad[emptyIdx].force_sold_tier && pack_type !== squad[emptyIdx].force_sold_tier) {
+            return res.status(400).json({ error: `This replacement must be ${squad[emptyIdx].force_sold_tier} tier — that's what the departed player was.` });
+          }
+
           const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
           const currentGW = clock ? clock.current_gameweek : null;
 
@@ -5506,9 +5514,17 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
   entries.forEach(e => (e.squad_players || []).forEach(s => { if (!s.empty && s.player_id) allPlayerIds.add(s.player_id); }));
   if (allPlayerIds.size === 0) return { forced: 0 };
 
-  const { data: statusRows } = await masterDb.from('players').select('id, status').in('id', Array.from(allPlayerIds));
+  const { data: statusRows } = await masterDb.from('players').select('id, status, rank_tier').in('id', Array.from(allPlayerIds));
   const departedIds = new Set((statusRows || []).filter(p => p.status === 'u').map(p => p.id));
   if (departedIds.size === 0) return { forced: 0 };
+  const tierById = {};
+  (statusRows || []).forEach(p => { tierById[p.id] = p.rank_tier; });
+
+  // rank_tier is stored uppercase (GOLD/SILVER/BRONZE); pack_type
+  // elsewhere in the app is title-case (Gold/Silver/Bronze) — normalize
+  // once here so the lock matches what buy/preview actually compare
+  // against.
+  const tierToPackType = { GOLD: 'Gold', SILVER: 'Silver', BRONZE: 'Bronze' };
 
   let forcedCount = 0;
   for (const entry of entries) {
@@ -5521,7 +5537,17 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
         const soldValue = s.value || 0;
         const positionKey = POSITION_KEY[s.position] || s.position;
         forcedOutNames.push(s.name || 'Unknown player');
-        squad[i] = { empty: true, position: positionKey, reserved_value: soldValue, force_sold_reason: 'left_premier_league', force_sold_player_name: s.name || 'Unknown player' };
+        // Replacement is locked to the SAME rarity the departed player
+        // had — a Bronze departure gets replaced with a free Bronze
+        // pick, not an unrestricted choice across all three tiers.
+        // Falls back to null (any tier) only if we genuinely never
+        // rated them — nothing to lock to in that case.
+        const lockedTier = tierToPackType[tierById[s.player_id]] || null;
+        squad[i] = {
+          empty: true, position: positionKey, reserved_value: soldValue,
+          force_sold_reason: 'left_premier_league', force_sold_player_name: s.name || 'Unknown player',
+          force_sold_tier: lockedTier
+        };
         changed = true;
 
         const { error: logErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({

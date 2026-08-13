@@ -1005,18 +1005,18 @@
 
       const renderPlayerCard = (p, isMine, costMultiplier) => {
         if (!p || p.empty) {
+          const lockedTier = p && p.force_sold_reason === 'left_premier_league' ? p.force_sold_tier : null;
+          const tiersToShow = lockedTier ? [lockedTier] : ['Bronze', 'Silver', 'Gold'];
           const packButtons = isMine ? `
             <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
-              <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Bronze')">Bronze</button>
-              <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Silver')">Silver</button>
-              <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Gold')">Gold</button>
+              ${tiersToShow.map(tier => `<button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','${tier}')">${tier}</button>`).join('')}
             </div>
             <div id="transfer-pool-${p ? p.position : ''}"></div>` : '';
           const forceSoldNoticeHtml = (isMine && p && p.force_sold_reason === 'left_premier_league') ? `
             <div class="p-force-sold-notice">
               <i class="fas fa-triangle-exclamation"></i>
               <strong>${escapeHtml(p.force_sold_player_name || 'Your player')} left the Premier League</strong>
-              <span>We automatically sold them and banked their full value here. Pick any replacement below — it's completely free, and it won't use your transfer for this gameweek if you haven't used it already.</span>
+              <span>We automatically sold them and banked their full value here. ${lockedTier ? `Pick a free ${lockedTier} replacement below` : 'Pick any replacement below'} — it's completely free, and it won't use your transfer for this gameweek if you haven't used it already.</span>
             </div>` : '';
           return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body">${forceSoldNoticeHtml}<div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
         }
