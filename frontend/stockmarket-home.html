@@ -266,6 +266,14 @@
       font-size:10px; font-weight:600; line-height:1.35; text-align:center; color:var(--gold);
       background:rgba(4,8,18,0.9); border:1px solid var(--gold); border-radius:8px; padding:8px 10px;
     }
+    .p-force-sold-notice{
+      display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
+      font-size:10px; color:var(--gold); background:rgba(242,185,61,0.1); border:1px solid var(--gold);
+      border-radius:8px; padding:10px; margin-bottom:10px;
+    }
+    .p-force-sold-notice i{ font-size:16px; margin-bottom:2px; }
+    .p-force-sold-notice strong{ font-size:11px; }
+    .p-force-sold-notice span{ font-weight:500; line-height:1.4; opacity:.9; }
     .portfolio-card .p-photo-wrap{
       position:absolute; top:0; left:10%; right:10%; height:42%; z-index:2; overflow:hidden;
     }
@@ -1004,7 +1012,13 @@
               <button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','Gold')">Gold</button>
             </div>
             <div id="transfer-pool-${p ? p.position : ''}"></div>` : '';
-          return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
+          const forceSoldNoticeHtml = (isMine && p && p.force_sold_reason === 'left_premier_league') ? `
+            <div class="p-force-sold-notice">
+              <i class="fas fa-triangle-exclamation"></i>
+              <strong>${escapeHtml(p.force_sold_player_name || 'Your player')} left the Premier League</strong>
+              <span>We automatically sold them and banked their full value here. Pick any replacement below — it's completely free, and it won't use your transfer for this gameweek if you haven't used it already.</span>
+            </div>` : '';
+          return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body">${forceSoldNoticeHtml}<div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
         }
         const benchedHtml = p.is_sub ? `<div class="weeks-badge sub">Benched — excluded this week</div>` : '';
         const actions = isMine

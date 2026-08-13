@@ -5506,7 +5506,7 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
         const soldValue = s.value || 0;
         const positionKey = POSITION_KEY[s.position] || s.position;
         forcedOutNames.push(s.name || 'Unknown player');
-        squad[i] = { empty: true, position: positionKey, reserved_value: soldValue };
+        squad[i] = { empty: true, position: positionKey, reserved_value: soldValue, force_sold_reason: 'left_premier_league', force_sold_player_name: s.name || 'Unknown player' };
         changed = true;
 
         const { error: logErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
