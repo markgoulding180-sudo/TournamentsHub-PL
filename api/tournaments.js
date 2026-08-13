@@ -3906,24 +3906,31 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           squad[sellIdx] = { empty: true, position: positionKey, reserved_value: soldValue };
 
           const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
-          // Conditional write — only succeeds if squad_players still
-          // matches exactly what we read moments ago. Confirmed real risk
-          // otherwise: a double-click or second tab could both read the
-          // same starting state and the second write would silently
-          // overwrite the first's changes. Purely additive — no new
-          // columns, no migration, just a stricter WHERE clause.
-          const { data: sellUpdateResult, error: sellUpdateErr } = await supabaseAdmin
-            .schema('stockmarket').from('tournament_entries')
-            .update({ squad_players: squad, last_transfer_gameweek: currentGW, current_value: newTotal })
-            .eq('id', entry.id)
-            .eq('squad_players', originalSquadSnapshot)
-            .select('id');
-          if (sellUpdateErr) {
-            console.error('[SELL CONCURRENCY UPDATE FAILED]', sellUpdateErr.message);
+          // Real atomic transaction via a database function — confirmed
+          // via live logs that the earlier .eq('squad_players', ...)
+          // approach genuinely failed on every attempt with "invalid
+          // input syntax for type json", not just concurrent ones.
+          // PostgREST's .eq() filter isn't built for comparing full
+          // JSONB objects this way. This uses the same proven, tested
+          // pattern already validated for buy — a real row lock and
+          // comparison inside the database itself.
+          const { error: sellRpcError } = await supabaseAdmin.schema('stockmarket').rpc('apply_sell_atomic', {
+            p_entry_id: entry.id,
+            p_expected_squad: originalSquadSnapshot,
+            p_new_squad: squad,
+            p_new_current_value: newTotal,
+            p_current_gw: currentGW
+          });
+          if (sellRpcError) {
+            const sellRpcMessage = sellRpcError.message || '';
+            if (sellRpcMessage.includes('CONCURRENCY_CONFLICT')) {
+              return res.status(409).json({ error: 'Your squad changed right as this was processing — please refresh and try again.' });
+            }
+            if (sellRpcMessage.includes('ENTRY_NOT_FOUND')) {
+              return res.status(404).json({ error: 'Entry not found' });
+            }
+            console.error('[SELL ATOMIC TRANSACTION FAILED]', sellRpcMessage);
             return res.status(500).json({ error: 'Failed to sell that player right now — please try again.' });
-          }
-          if (!sellUpdateResult || sellUpdateResult.length === 0) {
-            return res.status(409).json({ error: 'Your squad changed right as this was processing — please refresh and try again.' });
           }
 
           const { error: sellLogErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
