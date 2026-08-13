@@ -1007,9 +1007,10 @@
         if (!p || p.empty) {
           const lockedTier = p && p.force_sold_reason === 'left_premier_league' ? p.force_sold_tier : null;
           const tiersToShow = lockedTier ? [lockedTier] : ['Bronze', 'Silver', 'Gold'];
+          const reservedValue = p ? (p.reserved_value || 0) : 0;
           const packButtons = isMine ? `
             <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
-              ${tiersToShow.map(tier => `<button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','${tier}')">${tier}</button>`).join('')}
+              ${tiersToShow.map(tier => `<button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','${tier}',${reservedValue})">${tier}</button>`).join('')}
             </div>
             <div id="transfer-pool-${p ? p.position : ''}"></div>` : '';
           const forceSoldNoticeHtml = (isMine && p && p.force_sold_reason === 'left_premier_league') ? `
@@ -1353,7 +1354,7 @@
     }
 
 
-    async function openTransferPack(position, packType) {
+    async function openTransferPack(position, packType, reservedValue) {
       const poolEl = document.getElementById(`transfer-pool-${position}`);
       if (!poolEl) return;
 
@@ -1378,11 +1379,19 @@
         if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to load')}</div>`; return; }
 
         const candidates = data.candidates || [];
-        const feeNote = data.pack_fee === 0
+        const packFee = data.pack_fee || 0;
+        // Real, exact shortfall — not a vague heads-up. If this specific
+        // fee costs more than what's actually reserved from the sale,
+        // the difference comes out of the other 5 players, split evenly
+        // — confirmed real behavior in the backend. Worth naming the
+        // exact amount here, since a generic warning wouldn't tell the
+        // user whether THIS tier is actually the risky one.
+        const shortfall = Math.max(0, packFee - (reservedValue || 0));
+        const feeNote = packFee === 0
           ? `<div style="font-size:11px; color:var(--green); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-check"></i> Free — this slot was force-vacated, not a normal upgrade.</div>`
-          : data.pack_fee !== null && data.pack_fee !== undefined
-          ? `<div style="font-size:11px; color:var(--gold); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Costs ${money(data.pack_fee)} — comes off your reserve first, then your squad if needed. The fee itself goes to every other entrant in the tournament, split evenly.</div>`
-          : '';
+          : shortfall > 0
+          ? `<div style="font-size:11px; color:var(--red); margin-top:6px; margin-bottom:4px;"><i class="fas fa-triangle-exclamation"></i> Costs ${money(packFee)}, but only ${money(reservedValue || 0)} is reserved — the other ${money(shortfall)} will come out of your other 5 players, split evenly.</div>`
+          : `<div style="font-size:11px; color:var(--gold); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Costs ${money(packFee)} — comes off your reserve first, then your squad if needed. The fee itself goes to every other entrant in the tournament, split evenly.</div>`;
 
         if (candidates.length === 0) {
           poolEl.innerHTML = feeNote + '<div style="font-size:11px; color:var(--text-faint); margin-top:6px;">No eligible players right now.</div>';
@@ -1392,7 +1401,7 @@
         poolEl.innerHTML = feeNote + candidates.map(c => `
           <div class="transfer-pool-item">
             <span>${escapeHtml(c.name)} <span style="color:var(--text-faint);">(${c.total_points || 0} pts)</span></span>
-            <button onclick="buyReplacement(${c.id}, '${position}', ${data.pack_fee || 0}, '${escapeHtml(c.name)}', '${packType}')">Buy</button>
+            <button onclick="buyReplacement(${c.id}, '${position}', ${packFee}, '${escapeHtml(c.name)}', '${packType}', ${shortfall})">Buy</button>
           </div>`).join('');
       } catch (e) {
         console.error('openTransferPack failed:', e);
@@ -1401,10 +1410,12 @@
     }
 
     let buyInFlight = false;
-    async function buyReplacement(playerId, position, packFee, playerName, packType) {
+    async function buyReplacement(playerId, position, packFee, playerName, packType, shortfall) {
       if (buyInFlight) return;
       const confirmMsg = packFee === 0
         ? `Buy ${playerName} to fill this slot? It's completely free — this slot was force-vacated, not a normal transfer.`
+        : shortfall > 0
+        ? `Buy ${playerName} for ${money(packFee)}? Your reserve doesn't fully cover this — ${money(shortfall)} will come out of your other 5 players, split evenly. The whole fee goes to every other entrant in the tournament.`
         : `Buy ${playerName} for ${money(packFee)}? That fee goes to every other entrant in the tournament, split evenly — not back into your own squad.`;
       if (!confirm(confirmMsg)) return;
       buyInFlight = true;
