@@ -517,6 +517,10 @@
               <div class="how-item"><span class="how-num">3</span><div><strong>Zero-sum, always.</strong> The total pot never grows or shrinks — it only moves between players. Pick well, profit off the market.</div></div>
             </div>
           </details>
+          <details class="hero-how-it-works" id="relegationZonesDetails" style="display:none;">
+            <summary><i class="fas fa-skull-crossbones"></i> Relegation Zones</summary>
+            <div class="how-list" id="relegationZonesList"></div>
+          </details>
           <div id="transferDeadlineBanner" class="hero-transfer-pill" style="display:none;"></div>
         </div>
       </div>
@@ -885,6 +889,25 @@
       document.getElementById('draftPromptCard').style.display = 'none';
       const res = await fetch(`/api/tournaments?stockmarket_matchup=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
       const data = await res.json();
+
+      const relegationDetails = document.getElementById('relegationZonesDetails');
+      const relegationList = document.getElementById('relegationZonesList');
+      if (data.relegation_stages && data.relegation_stages.length > 0) {
+        const currentGw = data.gameweek || 1;
+        const nextStage = data.relegation_stages.find(s => !s.applied);
+        relegationList.innerHTML = data.relegation_stages.map(s => {
+          const isNext = nextStage && s.stage_number === nextStage.stage_number;
+          const statusText = s.applied
+            ? `<span style="color:var(--text-faint);">Already applied</span>`
+            : isNext
+              ? `<span style="color:var(--red); font-weight:700;">Next — ${s.trigger_gameweek - currentGw <= 0 ? 'due now' : `in ${s.trigger_gameweek - currentGw} gameweek${s.trigger_gameweek - currentGw === 1 ? '' : 's'}`}</span>`
+              : `<span style="color:var(--text-dim);">Upcoming</span>`;
+          return `<div class="how-item"><span class="how-num">${s.stage_number}</span><div><strong>Gameweek ${s.trigger_gameweek}</strong> — bottom ${s.relegate_count} portfolio${s.relegate_count === 1 ? '' : 's'} cut. ${statusText}</div></div>`;
+        }).join('');
+        relegationDetails.style.display = 'block';
+      } else {
+        relegationDetails.style.display = 'none';
+      }
 
       if (!data.entry) {
         document.getElementById('enterGate').style.display = 'block';

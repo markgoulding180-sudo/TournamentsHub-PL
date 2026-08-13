@@ -812,12 +812,18 @@ module.exports = async (req, res) => {
           }
         }
 
+        const { data: relegationStages } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_stages')
+          .select('stage_number, trigger_gameweek, relegate_count, applied')
+          .eq('tournament_id', tournamentId).order('stage_number', { ascending: true });
+
         return res.status(200).json({
           entry: { ...myEntry, squad_players: mySquadWithComparison },
           opponent: opponentEntry,
           matchup: matchup || null,
           live_debug: liveDebug,
           gameweek: currentGw,
+          relegation_stages: relegationStages || [],
           live: liveMine ? { mine: liveMine, opponent: liveOpponent } : null,
           opponent_name: opponentName,
           cost_multiplier: costMultiplier,
