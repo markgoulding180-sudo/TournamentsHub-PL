@@ -3752,7 +3752,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const candidates = await buildCandidatePool(supabaseAdmin, masterDb, tournament_id, config || {},
             mode === 'starter' ? { mode: 'starter' } : { mode: 'transfer', packType: pack_type, position });
 
-          const packFee = mode === 'transfer' ? packPriceFor(config, pack_type) : null;
+          // Same waiver check as the actual buy — the preview needs to
+          // show the real £0 fee before the user commits, not just
+          // charge £0 silently after the confirm dialog already told
+          // them the wrong (normal) price.
+          let packFee = mode === 'transfer' ? packPriceFor(config, pack_type) : null;
+          if (mode === 'transfer' && user && user.id) {
+            const { data: myEntryForFee } = await supabaseAdmin
+              .schema('stockmarket').from('tournament_entries')
+              .select('squad_players').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+            const mySlot = (myEntryForFee && myEntryForFee.squad_players || []).find(s => s.empty && s.position === position);
+            if (mySlot && mySlot.force_sold_reason === 'left_premier_league') packFee = 0;
+          }
 
           return res.status(200).json({ candidates, mode, pack_fee: packFee });
         } catch (err) {
@@ -3928,7 +3939,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             .schema('stockmarket').from('config')
             .select('*').eq('tournament_id', tournament_id).maybeSingle();
           const slotValue = (config && config.slot_value) || 0;
-          const packFee = packPriceFor(config, pack_type);
+          // A force-sold slot (player genuinely left the Premier League)
+          // is a system-caused vacancy, not a voluntary upgrade — the
+          // whole point of this mechanic is it costs the user nothing.
+          const isForceSoldSlot = squad[emptyIdx].force_sold_reason === 'left_premier_league';
+          const packFee = isForceSoldSlot ? 0 : packPriceFor(config, pack_type);
 
           const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
           const currentGW = clock ? clock.current_gameweek : null;

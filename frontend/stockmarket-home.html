@@ -1378,7 +1378,9 @@
         if (!res.ok) { poolEl.innerHTML = `<div style="font-size:11px; color:var(--red); margin-top:6px;">${escapeHtml(data.error || 'Failed to load')}</div>`; return; }
 
         const candidates = data.candidates || [];
-        const feeNote = data.pack_fee !== null && data.pack_fee !== undefined
+        const feeNote = data.pack_fee === 0
+          ? `<div style="font-size:11px; color:var(--green); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-check"></i> Free — this slot was force-vacated, not a normal upgrade.</div>`
+          : data.pack_fee !== null && data.pack_fee !== undefined
           ? `<div style="font-size:11px; color:var(--gold); margin-top:6px; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Costs ${money(data.pack_fee)} — comes off your reserve first, then your squad if needed. The fee itself goes to every other entrant in the tournament, split evenly.</div>`
           : '';
 
@@ -1401,7 +1403,10 @@
     let buyInFlight = false;
     async function buyReplacement(playerId, position, packFee, playerName, packType) {
       if (buyInFlight) return;
-      if (!confirm(`Buy ${playerName} for ${money(packFee)}? That fee goes to every other entrant in the tournament, split evenly — not back into your own squad.`)) return;
+      const confirmMsg = packFee === 0
+        ? `Buy ${playerName} to fill this slot? It's completely free — this slot was force-vacated, not a normal transfer.`
+        : `Buy ${playerName} for ${money(packFee)}? That fee goes to every other entrant in the tournament, split evenly — not back into your own squad.`;
+      if (!confirm(confirmMsg)) return;
       buyInFlight = true;
       try {
         const res = await fetch('/api/tournaments', {
