@@ -4035,43 +4035,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
-          // Claim the buyer's own entry FIRST, before touching anyone
-          // else — conditional on the squad still matching exactly what
-          // we read moments ago. Confirmed real risk otherwise: a
-          // double-click or second tab could both read the same starting
-          // squad, and if this check ran only at the very end (after fee
-          // redistribution to other entrants), a detected race here would
-          // leave the fee already paid out with no player actually
-          // received — a worse, newly-introduced inconsistency. Claiming
-          // first means a detected conflict happens before any other
-          // entry is touched at all.
-          const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
-          const { data: buyUpdateResult, error: buyUpdateErr } = await supabaseAdmin
-            .schema('stockmarket').from('tournament_entries')
-            .update({ squad_players: squad, current_value: newTotal })
-            .eq('id', entry.id)
-            .eq('squad_players', originalBuySquadSnapshot)
-            .select('id');
-          if (buyUpdateErr) {
-            console.error('[BUY CONCURRENCY UPDATE FAILED]', buyUpdateErr.message);
-            return res.status(500).json({ error: 'Failed to buy that player right now — please try again.' });
-          }
-          if (!buyUpdateResult || buyUpdateResult.length === 0) {
-            return res.status(409).json({ error: 'Your squad changed right as this was processing — please refresh and try again.' });
-          }
-
           // The fee itself leaves your squad's economy entirely and
           // spreads as a small, real bump across every OTHER entrant's
           // own players — a genuine tournament-wide cost for upgrading,
           // not an internal shuffle. Distributed pence-exact: no leak,
-          // however many entrants or players it's split across. Only
-          // reached once the buyer's own claim above has genuinely
-          // succeeded.
+          // however many entrants or players it's split across.
           const { data: otherEntries } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
             .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true).eq('relegated', false);
 
           let feeRecipients = 0;
+          const otherUpdatesForRpc = [];
           if (otherEntries && otherEntries.length > 0 && packFee > 0) {
             // Flatten to one list of every player across every other
             // entrant — dividing once across this flat list (instead of
@@ -4097,10 +4071,39 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               for (const other of otherEntries) {
                 const otherSquad = other.squad_players || [];
                 const otherTotal = Math.round(otherSquad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
-                await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-                  .update({ squad_players: otherSquad, current_value: otherTotal }).eq('id', other.id);
+                otherUpdatesForRpc.push({ id: other.id, squad_players: otherSquad, current_value: otherTotal });
               }
             }
+          }
+
+          // Genuine atomic transaction — the buyer's own update and every
+          // other entrant's fee-bump update all happen together, inside a
+          // single real database transaction, with a row lock and the
+          // same concurrency check as before built directly into it.
+          // Confirmed with a real, deliberate rollback test against the
+          // live database before wiring this in: if any part fails
+          // partway through, everything rolls back together, including
+          // whatever had already succeeded — no way to end up with the
+          // fee paid out but no player received, or some entrants
+          // credited and others not.
+          const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
+          const { error: rpcError } = await supabaseAdmin.schema('stockmarket').rpc('apply_buy_atomic', {
+            p_buyer_entry_id: entry.id,
+            p_expected_squad: originalBuySquadSnapshot,
+            p_new_buyer_squad: squad,
+            p_new_buyer_value: newTotal,
+            p_other_updates: otherUpdatesForRpc
+          });
+          if (rpcError) {
+            const rpcMessage = rpcError.message || '';
+            if (rpcMessage.includes('CONCURRENCY_CONFLICT')) {
+              return res.status(409).json({ error: 'Your squad changed right as this was processing — please refresh and try again.' });
+            }
+            if (rpcMessage.includes('ENTRY_NOT_FOUND')) {
+              return res.status(404).json({ error: 'Entry not found' });
+            }
+            console.error('[BUY ATOMIC TRANSACTION FAILED]', rpcMessage);
+            return res.status(500).json({ error: 'Failed to buy that player right now — nothing was changed, please try again.' });
           }
 
           const { error: buyLogErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
