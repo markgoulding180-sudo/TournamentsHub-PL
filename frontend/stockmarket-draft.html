@@ -361,6 +361,7 @@
         const data = await res.json();
         const entry = data.entry;
         if (!entry || !entry.squad_players || entry.squad_players.length === 0) return;
+        clearDraftProgress();
 
         // Once you've drafted, that's it — no re-rolling, no swapping
         // slots. Whatever came out of your one pack opening is final
@@ -390,6 +391,45 @@
       if (t) tournamentId = t.id;
     }
 
+    // Draft-in-progress persistence — confirmed as a real gap: squadSlots
+    // was pure in-memory state with nothing saved until the single final
+    // "Save Squad" click. Losing the page mid-draft (refresh, crash,
+    // closed tab) meant losing everything, including the specific
+    // candidates that were randomly offered — not just "redo the last
+    // pick," a full restart with a fresh random draw. This covers the
+    // common real case (same device, lost session) via localStorage;
+    // switching devices entirely would need real server-side partial
+    // saves, a bigger change than this.
+    function draftProgressKey() { return `gbf_stockmarket_draft_${tournamentId}`; }
+    function saveDraftProgress() {
+      if (!tournamentId) return;
+      try {
+        localStorage.setItem(draftProgressKey(), JSON.stringify({
+          candidates,
+          picks: squadSlots.map(s => ({ type: s.type, playerId: s.player ? s.player.id : null })),
+          savedAt: Date.now()
+        }));
+      } catch (e) { /* localStorage full or unavailable — not fatal, just no resume */ }
+    }
+    function clearDraftProgress() {
+      if (!tournamentId) return;
+      try { localStorage.removeItem(draftProgressKey()); } catch (e) {}
+    }
+    function loadDraftProgress() {
+      if (!tournamentId) return null;
+      try {
+        const raw = localStorage.getItem(draftProgressKey());
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        // Stale beyond a day isn't worth restoring — the pack pool has
+        // likely moved on (ownership caps, real match events) enough
+        // that resuming a day-old candidate list would be confusing
+        // rather than helpful.
+        if (!parsed.candidates || !parsed.picks || (Date.now() - (parsed.savedAt || 0)) > 24 * 60 * 60 * 1000) return null;
+        return parsed;
+      } catch (e) { return null; }
+    }
+
     async function openPack() {
       if (!localStorage.getItem('gbf_token')) {
         window.location.href = '/login?redirect=%2Fstock-market-draft';
@@ -398,6 +438,28 @@
       await ensureTournamentId();
       if (!tournamentId) {
         showToast('No Stock Market tournament is open right now.', 'error');
+        return;
+      }
+
+      // Restore an interrupted draft instead of opening a brand new pack
+      // — same real candidates you were actually offered, same picks,
+      // rather than a fresh random draw that might not even include the
+      // players you'd already chosen.
+      const saved = loadDraftProgress();
+      if (saved) {
+        candidates = saved.candidates;
+        saved.picks.forEach((p, i) => {
+          if (p.playerId && squadSlots[i]) {
+            squadSlots[i].player = candidates.find(c => c.id === p.playerId) || null;
+          }
+        });
+        document.getElementById('preOpenCard').style.display = 'none';
+        document.getElementById('pickCard').style.display = 'grid';
+        document.getElementById('carouselWrap').style.display = 'flex';
+        renderCard(true);
+        renderChecklist();
+        renderSlots();
+        showToast('Restored your draft in progress.', 'success');
         return;
       }
 
@@ -433,6 +495,7 @@
         renderCard(true);
         renderChecklist();
         renderSlots();
+        saveDraftProgress();
       } catch (e) {
         console.error('openPack failed:', e);
         showToast("Couldn't open a pack right now.", "error");
@@ -526,6 +589,7 @@
         renderCard(false);
         renderChecklist();
         renderSlots();
+        saveDraftProgress();
         return;
       }
 
@@ -541,6 +605,7 @@
       renderCard(false);
       renderChecklist();
       renderSlots();
+      saveDraftProgress();
     }
 
     function removePlayer(playerId) {
@@ -550,6 +615,7 @@
       renderCard(false);
       renderChecklist();
       renderSlots();
+      saveDraftProgress();
     }
 
     function startReplace(slotIdx) {
@@ -558,6 +624,7 @@
       slot.player = null;
       renderChecklist();
       renderSlots(true);
+      saveDraftProgress();
     }
 
     async function openReplacementPack(slotIdx, position, packType) {
@@ -741,6 +808,7 @@
           btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
           return;
         }
+        clearDraftProgress();
         window.location.href = '/stock-market';
       } catch (e) {
         console.error('saveSquad failed:', e);

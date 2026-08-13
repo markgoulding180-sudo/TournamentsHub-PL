@@ -2413,6 +2413,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             .from('admin_messages').delete({ count: 'exact' }).not('id', 'is', null);
           deletedCounts['admin_messages'] = adminMsgErr ? `error: ${adminMsgErr.message}` : (adminMsgCount ?? 0);
 
+          // Platform event log (the admin alert banner) — confirmed live,
+          // real confusion: errors from a bug already fixed kept showing
+          // on this banner across every reset since, since nothing else
+          // ever cleared it. Lives outside every tournament schema, so
+          // needs its own explicit delete here.
+          const { error: eventLogErr, count: eventLogCount } = await supabaseAdmin
+            .from('platform_event_log').delete({ count: 'exact' }).not('id', 'is', null);
+          deletedCounts['platform_event_log'] = eventLogErr ? `error: ${eventLogErr.message}` : (eventLogCount ?? 0);
+
           // Legacy leaderboard field, confirmed disconnected from real
           // scoring but still worth zeroing so nothing stale shows anywhere.
           await supabaseAdmin.from('users').update({ total_points: 0, correct_scores: 0, current_streak: 0 }).not('id', 'is', null);
@@ -3534,6 +3543,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           if (!entriesOpen) {
             return res.status(400).json({ error: 'Tournament is not open for entries' });
+          }
+
+          // Real, explicit deadline guard — confirmed as a genuine gap: a
+          // brand-new user (no existing entry row) submitting a squad for
+          // the first time has no squad_locked value to check, so the
+          // check above alone would have let a late FIRST draft through
+          // even after the market already went live. The one-time
+          // initializeStockMarket pass (which sets everyone's real
+          // starting value) never runs again, so a late entry accepted
+          // here would be silently and permanently stuck at £0.00 across
+          // every player, with no error ever shown. A fresh draft
+          // specifically must land while the tournament is still
+          // genuinely 'upcoming' — squad EDITS to an already-drafted
+          // entry are separately protected by the squad_locked check
+          // just below, so this only blocks a first-time late draft.
+          if (schemaName === 'stockmarket' && squad_players !== undefined && tournament.status !== 'upcoming') {
+            return res.status(403).json({ error: 'The draft window has closed — this tournament is already live.' });
           }
 
           const entryPayload = {
