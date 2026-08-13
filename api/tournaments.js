@@ -5498,12 +5498,23 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 // their team field and their stats keep counting normally, confirmed
 // separately). FPL will never generate real stats for them again, so
 // their card value would otherwise freeze forever with no way for the
-// user to do anything about it — through no fault of their own. This
-// force-sells them into a reserved, empty slot (identical shape to a
-// normal manual sell) so the user can freely buy a replacement whenever
-// they choose. Deliberately does NOT set last_transfer_gameweek — this
-// is a system action, not a user one, and must never consume their own
-// personal weekly transfer.
+// user to do anything about it — through no fault of their own.
+//
+// Sells AND buys a real replacement in the same pass — deliberately not
+// left as an empty reserved slot for the user to fill themselves. An
+// inactive user, one missed week, or simply not checking the app was
+// enough to leave a reserved slot sitting open indefinitely, and that
+// open window is exactly what let a separate, real accounting bug (in
+// applyRelegationStage's survivor recalculation, fixed the same session
+// this was rebuilt) silently drop real money if a relegation stage ran
+// while it was open. Buying a real replacement immediately removes that
+// whole window rather than just tolerating it. Deliberately does NOT
+// set last_transfer_gameweek — this is a system action, not a user one,
+// and must never consume their own personal weekly transfer. The
+// replacement costs nothing (fee waived, matching the manual-fill path)
+// and is locked to the same rarity the departed player had — defaults
+// to Bronze only if we genuinely never rated them, since there's
+// nothing real to lock to in that case.
 async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, gameweek) {
   const { data: entries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
@@ -5526,35 +5537,68 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
   // against.
   const tierToPackType = { GOLD: 'Gold', SILVER: 'Silver', BRONZE: 'Bronze' };
 
+  const { data: config } = await supabaseAdmin
+    .schema('stockmarket').from('config')
+    .select('*').eq('tournament_id', tournamentId).maybeSingle();
+  const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+  const currentGW = clock ? clock.current_gameweek : gameweek;
+
   let forcedCount = 0;
   for (const entry of entries) {
     const squad = entry.squad_players || [];
     let changed = false;
-    const forcedOutNames = [];
+    const replacedNames = [];
+    const stillEmptyNames = [];
     for (let i = 0; i < squad.length; i++) {
       const s = squad[i];
       if (!s.empty && departedIds.has(s.player_id)) {
         const soldValue = s.value || 0;
         const positionKey = POSITION_KEY[s.position] || s.position;
-        forcedOutNames.push(s.name || 'Unknown player');
-        // Replacement is locked to the SAME rarity the departed player
-        // had — a Bronze departure gets replaced with a free Bronze
-        // pick, not an unrestricted choice across all three tiers.
-        // Falls back to null (any tier) only if we genuinely never
-        // rated them — nothing to lock to in that case.
-        const lockedTier = tierToPackType[tierById[s.player_id]] || null;
-        squad[i] = {
-          empty: true, position: positionKey, reserved_value: soldValue,
-          force_sold_reason: 'left_premier_league', force_sold_player_name: s.name || 'Unknown player',
-          force_sold_tier: lockedTier
-        };
+        const departedName = s.name || 'Unknown player';
+        const lockedTier = tierToPackType[tierById[s.player_id]] || 'Bronze';
         changed = true;
 
-        const { error: logErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+        await supabaseAdmin.schema('stockmarket').from('transactions').insert({
           tournament_id: tournamentId, entry_id: entry.id, gameweek, type: 'force_sell',
-          player_id: s.player_id, player_name: s.name || null, position: positionKey, amount: soldValue
+          player_id: s.player_id, player_name: departedName, position: positionKey, amount: soldValue
         });
-        if (logErr) console.error('[TRANSACTION LOG FAILED - force_sell]', logErr.message);
+
+        // Real candidates, same proven pool logic the manual buy flow
+        // uses — never already owned by THIS entry.
+        const ownedIds = new Set(squad.filter(x => !x.empty).map(x => x.player_id));
+        let candidates = [];
+        try {
+          candidates = await buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config || {},
+            { mode: 'transfer', packType: lockedTier, position: positionKey });
+        } catch (poolErr) {
+          console.error('[FORCE-BUY] candidate pool failed:', poolErr.message);
+        }
+        const eligible = candidates.filter(c => !ownedIds.has(c.id));
+
+        if (eligible.length > 0) {
+          const chosen = eligible[Math.floor(Math.random() * eligible.length)];
+          squad[i] = {
+            player_id: chosen.id, position: positionKey, name: chosen.name, team: chosen.team,
+            value: soldValue, acquired_gameweek: currentGW, is_sub: false
+          };
+          replacedNames.push(`${departedName} → ${chosen.name}`);
+          await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+            tournament_id: tournamentId, entry_id: entry.id, gameweek, type: 'force_buy',
+            player_id: chosen.id, player_name: chosen.name, position: positionKey, amount: 0, pack_type: lockedTier
+          });
+        } else {
+          // Genuinely no eligible replacement exists right now (pool
+          // exhausted by ownership caps) — falls back to the old
+          // reserved-empty-slot behavior as a safety net, clearly
+          // flagged so it's visible this needs a human look rather than
+          // silently sitting there indistinguishable from the normal case.
+          squad[i] = {
+            empty: true, position: positionKey, reserved_value: soldValue,
+            force_sold_reason: 'left_premier_league', force_sold_player_name: departedName,
+            force_sold_tier: lockedTier
+          };
+          stillEmptyNames.push(departedName);
+        }
       }
     }
     if (changed) {
@@ -5565,9 +5609,14 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
         .eq('id', entry.id);
       forcedCount++;
       await logPlatformEvent(supabaseAdmin, {
-        tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek, event_type: 'force_sell', severity: 'info',
-        message: `GW${gameweek}: ${forcedOutNames.join(', ')} left the Premier League — automatically sold, slot reserved (£${(squad.filter(s=>s.empty).reduce((sum,s)=>sum+(s.reserved_value||0),0)/100).toFixed(2)} banked). Doesn't count against their weekly transfer.`,
-        details: { entry_id: entry.id, forced_out: forcedOutNames }
+        tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek,
+        event_type: stillEmptyNames.length > 0 ? 'force_sell' : 'force_replace',
+        severity: stillEmptyNames.length > 0 ? 'warning' : 'info',
+        message: [
+          replacedNames.length > 0 ? `GW${gameweek}: auto-replaced ${replacedNames.join(', ')} — free, no transfer used.` : '',
+          stillEmptyNames.length > 0 ? `GW${gameweek}: ${stillEmptyNames.join(', ')} left the Premier League but NO eligible replacement was found (pool exhausted) — slot left reserved, needs a look.` : ''
+        ].filter(Boolean).join(' '),
+        details: { entry_id: entry.id, replaced: replacedNames, still_empty: stillEmptyNames }
       });
     }
   }
@@ -5744,7 +5793,7 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
 
         const survivorUpdateRows = survivors.map(e => {
           const squad = squadCopies[e.id];
-          const newTotal = Math.round(squad.reduce((s, p) => s + (p.empty ? 0 : (p.value || 0)), 0));
+          const newTotal = Math.round(squad.reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : (p.value || 0)), 0));
           return { ...e, squad_players: squad, current_value: newTotal };
         });
         // One batch upsert — genuinely atomic as a single request.
