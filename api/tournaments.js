@@ -3888,6 +3888,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
 
           const squad = entry.squad_players || [];
+          // Captured BEFORE any mutation, as a real snapshot for the
+          // optimistic-concurrency check below — squad and
+          // entry.squad_players are the same array reference, so this
+          // must happen before squad[sellIdx] is reassigned.
+          const originalSquadSnapshot = JSON.parse(JSON.stringify(squad));
           const sellIdx = squad.findIndex(s => s.player_id === player_id);
           if (sellIdx === -1) return res.status(404).json({ error: 'That player is not in your squad' });
           if (squad[sellIdx].empty) return res.status(400).json({ error: 'That slot is already empty' });
@@ -3901,10 +3906,25 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           squad[sellIdx] = { empty: true, position: positionKey, reserved_value: soldValue };
 
           const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
-          await supabaseAdmin
+          // Conditional write — only succeeds if squad_players still
+          // matches exactly what we read moments ago. Confirmed real risk
+          // otherwise: a double-click or second tab could both read the
+          // same starting state and the second write would silently
+          // overwrite the first's changes. Purely additive — no new
+          // columns, no migration, just a stricter WHERE clause.
+          const { data: sellUpdateResult, error: sellUpdateErr } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
             .update({ squad_players: squad, last_transfer_gameweek: currentGW, current_value: newTotal })
-            .eq('id', entry.id);
+            .eq('id', entry.id)
+            .eq('squad_players', originalSquadSnapshot)
+            .select('id');
+          if (sellUpdateErr) {
+            console.error('[SELL CONCURRENCY UPDATE FAILED]', sellUpdateErr.message);
+            return res.status(500).json({ error: 'Failed to sell that player right now — please try again.' });
+          }
+          if (!sellUpdateResult || sellUpdateResult.length === 0) {
+            return res.status(409).json({ error: 'Your squad changed right as this was processing — please refresh and try again.' });
+          }
 
           const { error: sellLogErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
             tournament_id, entry_id: entry.id, gameweek: currentGW, type: 'sell',
@@ -3949,6 +3969,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
 
           const squad = entry.squad_players || [];
+          // Captured immediately, before any mutation — used as the
+          // optimistic-concurrency check on the final write below.
+          const originalBuySquadSnapshot = JSON.parse(JSON.stringify(squad));
           const emptyIdx = squad.findIndex(s => s.empty && s.position === position);
           if (emptyIdx === -1) {
             const squadDebug = squad.map(s => s.empty ? { empty: true, position: s.position } : { player_id: s.player_id, position: s.position });
@@ -4012,11 +4035,38 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
+          // Claim the buyer's own entry FIRST, before touching anyone
+          // else — conditional on the squad still matching exactly what
+          // we read moments ago. Confirmed real risk otherwise: a
+          // double-click or second tab could both read the same starting
+          // squad, and if this check ran only at the very end (after fee
+          // redistribution to other entrants), a detected race here would
+          // leave the fee already paid out with no player actually
+          // received — a worse, newly-introduced inconsistency. Claiming
+          // first means a detected conflict happens before any other
+          // entry is touched at all.
+          const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
+          const { data: buyUpdateResult, error: buyUpdateErr } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .update({ squad_players: squad, current_value: newTotal })
+            .eq('id', entry.id)
+            .eq('squad_players', originalBuySquadSnapshot)
+            .select('id');
+          if (buyUpdateErr) {
+            console.error('[BUY CONCURRENCY UPDATE FAILED]', buyUpdateErr.message);
+            return res.status(500).json({ error: 'Failed to buy that player right now — please try again.' });
+          }
+          if (!buyUpdateResult || buyUpdateResult.length === 0) {
+            return res.status(409).json({ error: 'Your squad changed right as this was processing — please refresh and try again.' });
+          }
+
           // The fee itself leaves your squad's economy entirely and
           // spreads as a small, real bump across every OTHER entrant's
           // own players — a genuine tournament-wide cost for upgrading,
           // not an internal shuffle. Distributed pence-exact: no leak,
-          // however many entrants or players it's split across.
+          // however many entrants or players it's split across. Only
+          // reached once the buyer's own claim above has genuinely
+          // succeeded.
           const { data: otherEntries } = await supabaseAdmin
             .schema('stockmarket').from('tournament_entries')
             .select('id, squad_players').eq('tournament_id', tournament_id).neq('user_id', user.id).eq('squad_locked', true).eq('relegated', false);
@@ -4052,10 +4102,6 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               }
             }
           }
-
-          const newTotal = await recomputeEntryValue(supabaseAdmin, tournament_id, squad);
-          await supabaseAdmin.schema('stockmarket').from('tournament_entries')
-            .update({ squad_players: squad, current_value: newTotal }).eq('id', entry.id);
 
           const { error: buyLogErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
             tournament_id, entry_id: entry.id, gameweek: currentGW, type: 'buy',
@@ -4927,6 +4973,65 @@ async function initializeStockMarket(supabaseAdmin, masterDb, tournamentId) {
     await supabaseAdmin.schema('stockmarket').from('tournaments')
       .update({ status: 'live', current_entries: entries.length })
       .eq('id', tournamentId);
+
+    // Backfill player_market from the real, final drafted squads —
+    // confirmed as a genuine gap: ownership_count was previously only
+    // ever populated lazily from later transfers, meaning the ownership
+    // cap gave zero protection during the initial draft itself (every
+    // user drafted in parallel against an empty table). This makes the
+    // real ownership counts accurate from the moment the market goes
+    // live, so the cap genuinely applies to every transfer from here on.
+    try {
+      const ownershipCounts = {};
+      const playerMeta = {};
+      entries.forEach(entry => {
+        (entry.squad_players || []).forEach(p => {
+          if (p.empty || !p.player_id) return;
+          ownershipCounts[p.player_id] = (ownershipCounts[p.player_id] || 0) + 1;
+          if (!playerMeta[p.player_id]) playerMeta[p.player_id] = { name: p.name, position: p.position, team: p.team };
+        });
+      });
+
+      const { data: existingMarketRows } = await supabaseAdmin
+        .schema('stockmarket').from('player_market')
+        .select('player_id').eq('tournament_id', tournamentId);
+      const existingIds = new Set((existingMarketRows || []).map(r => r.player_id));
+
+      const positionLabel = { gk: 'Goalkeeper', def: 'Defender', mid: 'Midfielder', fwd: 'Forward' };
+      for (const [playerIdStr, count] of Object.entries(ownershipCounts)) {
+        const playerId = Number(playerIdStr);
+        const meta = playerMeta[playerId] || {};
+        if (existingIds.has(playerId)) {
+          await supabaseAdmin.schema('stockmarket').from('player_market')
+            .update({ ownership_count: count })
+            .eq('tournament_id', tournamentId).eq('player_id', playerId);
+        } else {
+          await supabaseAdmin.schema('stockmarket').from('player_market').insert({
+            tournament_id: tournamentId, player_id: playerId, name: meta.name || '',
+            position: positionLabel[meta.position] || '', team: meta.team || '',
+            ownership_count: count, current_value: slotValue * count, last_week_value: slotValue * count
+          });
+        }
+      }
+
+      // Informational only — never blocks or rejects an already-committed
+      // squad, since that would be a disruptive, confusing thing to do
+      // to a user after the fact for something the system itself didn't
+      // enforce at draft time. Just real visibility for the admin.
+      const divisor = 4; // matches the default in getMaxCopiesAllowed
+      const realMaxCopies = Math.max(1, Math.floor(entries.length / divisor));
+      const overConcentrated = Object.entries(ownershipCounts).filter(([, count]) => count > realMaxCopies);
+      if (overConcentrated.length > 0) {
+        const summary = overConcentrated.map(([pid, count]) => `${playerMeta[pid]?.name || pid} (${count}/${entries.length})`).join(', ');
+        await logPlatformEvent(supabaseAdmin, {
+          tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek: tournament.gameweek, event_type: 'ownership_concentration', severity: 'warning',
+          message: `Draft closed with ${overConcentrated.length} player(s) more concentrated than the normal cap (${realMaxCopies}) would allow — nothing enforced this during the parallel draft: ${summary}`,
+          details: { over_concentrated: overConcentrated, max_copies: realMaxCopies }
+        });
+      }
+    } catch (backfillErr) {
+      console.error('[player_market backfill error]', backfillErr.message);
+    }
 
     console.log(`Stock Market ${tournamentId} initialized: ${entries.length} entrants, slot value ${slotValue}p each, head-to-head model`);
   } catch (error) {
