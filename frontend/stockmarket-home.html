@@ -160,6 +160,8 @@
     .vs-caption{ font-size:12px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
     .vs-big{ font-family:var(--font-head); font-weight:800; font-size:32px; color:var(--accent-2); letter-spacing:2px; text-shadow:0 0 16px var(--accent-glow); }
     .summary-vs-grid{ display:grid; grid-template-columns:1fr auto 1fr; gap:18px; align-items:center; margin-bottom:20px; }
+    .summary-vs-grid.drafting-mode{ grid-template-columns:1fr; }
+    .summary-vs-grid.drafting-mode .vs-divider{ display:none; }
     .summary-vs-grid .vs-divider{ margin:0; width:90px; display:flex; align-items:center; justify-content:center; }
     .summary-vs-grid .vs-divider::before{
       content:''; position:absolute; top:-30px; bottom:-30px; left:50%; width:3px;
@@ -849,6 +851,10 @@
         document.getElementById('enterGate').style.display = 'none';
         document.getElementById('mainContent').style.display = 'block';
         checkTransferDeadline();
+        // Full width, no VS divider — there's no real opponent to show
+        // yet during drafting, so the split layout just left a large,
+        // empty, oddly-balanced gap next to the user's own card.
+        document.querySelector('.summary-vs-grid').classList.add('drafting-mode');
 
         const entry = stateData.entry;
         const portfolio = stateData.portfolio || [];
@@ -967,6 +973,9 @@
       document.getElementById('enterGate').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
       checkTransferDeadline();
+      // Market is genuinely live now — restore the normal side-by-side
+      // VS layout, since there's a real opponent to show.
+      document.querySelector('.summary-vs-grid').classList.remove('drafting-mode');
 
       const entry = data.entry;
       const liveTotalNow = data.live && data.live.mine ? Math.round(data.live.mine.reduce((s, p) => s + p.liveValue, 0)) : null;
