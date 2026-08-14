@@ -440,11 +440,18 @@ module.exports = async (req, res) => {
         const predTournamentId = params.get('tournament_id');
         if (!userIdParam) return res.status(400).json({ error: 'user_id is required' });
 
-        const { data: userRow } = await supabase
+        // Confirmed real bug: RLS is enabled on predictions.predictions,
+        // and this request is unauthenticated (viewing a leaderboard
+        // name's public history, not your own account) — the regular
+        // client would silently return zero rows for anyone other than
+        // whoever's actually logged in, regardless of the user_id
+        // requested. This is a legitimate public feature, so it needs
+        // the admin client to genuinely bypass RLS here.
+        const { data: userRow } = await supabaseAdmin
           .from('users').select('username, display_name').eq('id', userIdParam).maybeSingle();
         const playerName = userRow ? (userRow.display_name || userRow.username || 'Player') : 'Player';
 
-        let predQuery = supabase
+        let predQuery = supabaseAdmin
           .schema('predictions').from('predictions')
           .select('gameweek, match_id, home_team, away_team, predicted_result, home_score, away_score, points_earned')
           .eq('user_id', userIdParam)
