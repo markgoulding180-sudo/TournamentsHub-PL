@@ -201,8 +201,12 @@
     /* Sticky navbar sits on top of the page — without this, jumping to an
        anchor (like the "Your Predictions" nav bar link) lands the target's
        heading directly behind the navbar instead of visibly below it. */
-    #yourPredictionsCard{ scroll-margin-top: 90px; }
-    @media (max-width:640px){ #yourPredictionsCard{ scroll-margin-top: 90px; } }
+    @media (max-width:640px){
+      #yourPredictionsCard{ scroll-margin-top: 90px; }
+      #yourPredictionsCard .card-title{ flex-wrap:nowrap; }
+      #yourPredictionsCard .card-title > span:first-child{ min-width:0; overflow:hidden; }
+      #yourPredictionsTitle{ font-size:15px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:100%; vertical-align:middle; }
+    }
     #leaderboardCard{ scroll-margin-top: 90px; }
     @media (max-width:640px){ #leaderboardCard{ scroll-margin-top: 90px; } }
 
