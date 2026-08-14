@@ -104,9 +104,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Determine match status
         const isFinished = match.status === 'finished';
         const isLive = match.status === 'live';
-        const statusText = isFinished ? 'Full Time' : isLive ? 'In Play' : 'Not Played';
-        const disabled = isFinished || isLive ? 'disabled' : '';
-        const finishedClass = isFinished ? 'fixture-finished' : '';
+        // Also check the real kickoff time directly, not just status —
+        // confirmed as a real gap: status only flips once polling catches
+        // up, which isn't instant. In that window a match has genuinely
+        // started (the backend already correctly rejects it using this
+        // same real-time check) but the frontend was still showing it as
+        // freely editable, only to silently reject the save afterward.
+        const hasKickedOff = kickoffDate.getTime() <= Date.now();
+        const statusText = isFinished ? 'Full Time' : isLive ? 'In Play' : hasKickedOff ? 'Kicked Off' : 'Not Played';
+        const disabled = isFinished || isLive || hasKickedOff ? 'disabled' : '';
+        const finishedClass = isFinished || isLive || hasKickedOff ? 'fixture-finished' : '';
         
         // Find existing prediction if any
         const existingPred = data.predictions?.find(p => p.match_id === match.id);
