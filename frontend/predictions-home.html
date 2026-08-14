@@ -161,6 +161,7 @@
 
     .pred-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13.5px; flex-wrap:wrap; }
     .pred-row:last-child{ border-bottom:none; }
+    .pred-line1, .pred-line2{ display:contents; }
     .pred-row .pred-teams{ flex:1; min-width:140px; font-weight:600; }
     .pred-row .pred-pick{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
     .pred-row .pred-result{ font-size:11px; text-transform:uppercase; letter-spacing:.3px; padding:3px 9px; border-radius:2rem; font-weight:700; }
@@ -247,15 +248,16 @@
       .week-header{ flex-direction:column; align-items:flex-start; }
       .fixture-chip{ min-width:calc(50% - 5px); }
 
-      .pred-row{ flex-direction:column; align-items:flex-start; gap:6px; padding:12px 0; }
-      .pred-row .pred-teams{ min-width:0; width:100%; font-size:13px; }
+      .pred-row{ flex-direction:column; align-items:flex-start; gap:4px; padding:10px 0; }
+      .pred-row .pred-teams{ min-width:0; width:auto; font-size:13px; }
       .pred-row .pred-pick{ font-size:13px; }
       .pred-row .pred-result{ font-size:10px; padding:3px 8px; }
       .pred-row .pred-points{ font-size:10px; padding:3px 8px; }
+      .pred-line1, .pred-line2{ display:flex; align-items:center; gap:8px; width:100%; }
       .week-points-summary{ padding:10px 14px; }
       .week-points-summary .value{ font-size:19px; }
-      .week-complete-banner{ padding:10px 14px; font-size:12.5px; }
-      .week-complete-banner .value{ font-size:17px; width:100%; text-align:right; margin-left:0; }
+      .week-complete-banner{ padding:10px 14px; font-size:12px; }
+      .week-complete-banner .value{ font-size:17px; width:100%; text-align:center; margin-left:0; }
     }
 
     .t-stat-row{ display:flex; gap:14px; margin-bottom:14px; }
@@ -603,8 +605,7 @@
       } else if (allFinished) {
         summary.innerHTML = `
           <div class="week-complete-banner">
-            <i class="fas fa-circle-check"></i>
-            <span>Gameweek complete — every match has been calculated.</span>
+            <span class="week-complete-text"><i class="fas fa-circle-check"></i> Gameweek complete — every match has been calculated.</span>
             <span class="value">${totalPoints} pts</span>
           </div>`;
       } else {
@@ -650,10 +651,14 @@
 
         return `
           <div class="pred-row">
-            <div class="pred-teams">${escapeHtml(m.home_team)} v ${escapeHtml(m.away_team)}</div>
-            <div class="pred-pick">${pred.home_score}-${pred.away_score}</div>
-            ${resultTag}
-            ${pointsTag}
+            <div class="pred-line1">
+              <div class="pred-teams">${escapeHtml(m.home_team)} v ${escapeHtml(m.away_team)}</div>
+              <div class="pred-pick">${pred.home_score}-${pred.away_score}</div>
+            </div>
+            <div class="pred-line2">
+              ${resultTag}
+              ${pointsTag}
+            </div>
           </div>`;
       }).join('');
     }
