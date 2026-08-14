@@ -368,7 +368,9 @@ module.exports = async (req, res) => {
           gameweek: parseInt(gameweek),
           predicted_result: pred.predicted_result,
           home_score: homeScore,
-          away_score: awayScore
+          away_score: awayScore,
+          home_team: match ? match.home_team : null,
+          away_team: match ? match.away_team : null
         });
       }
 

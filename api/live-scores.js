@@ -344,7 +344,16 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
           points += 10;
         }
       }
-      predictionUpdateRows.push({ ...pred, points_earned: points });
+      predictionUpdateRows.push({
+        ...pred, points_earned: points,
+        // Self-healing safety net — confirmed as a real, systemic bug
+        // upstream (the actual submission endpoint never set these),
+        // backfilling here too so settlement can never leave a
+        // prediction with missing team names, regardless of how it got
+        // saved without them.
+        home_team: pred.home_team || match.home_team,
+        away_team: pred.away_team || match.away_team
+      });
       usersToUpdate.add(pred.user_id);
       totalPredictionsScored++;
       totalPointsAwarded += points;
