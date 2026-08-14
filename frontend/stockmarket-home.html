@@ -1935,6 +1935,26 @@
       loadTournament();
     });
     window.addEventListener('gbf-data-refreshed', loadTournament);
+
+    // Periodic auto-refresh — confirmed as a real gap: relegation stages
+    // and the tournament finishing both happen automatically on the
+    // backend the moment matches are marked finished, but nothing on
+    // this page ever picked that up without a manual refresh. Reuses the
+    // exact same, already-proven loadTournament function on a timer,
+    // rather than any new logic — and only polls while the tab is
+    // actually visible, so it doesn't keep hitting the server for a page
+    // nobody's looking at.
+    let stockMarketPollInterval = null;
+    function startStockMarketPolling() {
+      if (stockMarketPollInterval) return;
+      stockMarketPollInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') loadTournament();
+      }, 60000);
+    }
+    document.addEventListener('DOMContentLoaded', startStockMarketPolling);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') loadTournament();
+    });
   </script>
 </body>
 </html>
