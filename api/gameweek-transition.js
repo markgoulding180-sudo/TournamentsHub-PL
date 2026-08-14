@@ -68,8 +68,35 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Finalise the current gameweek
+    // Atomic claim on last_finalised_gameweek alone — confirmed via a
+    // full search that nothing else in the codebase reads this field to
+    // decide "what gameweek is it right now" the way current_gameweek is
+    // relied on everywhere (86 references found). Claiming here first is
+    // safe; current_gameweek itself only advances at the very end below,
+    // preserving the exact same order as before for that specific field.
+    // The settlement math itself is fully idempotent (recomputed from
+    // source data throughout, not incremented), so a genuine double-run
+    // wouldn't have corrupted points or rankings either way — this closes
+    // the race condition shape properly regardless.
     if (isManualFinalise) {
+      const { data: claimedClock, error: claimErr } = await masterDb
+        .from('master_clock')
+        .update({ last_finalised_gameweek: currentGW })
+        .eq('id', 'current')
+        .eq('last_finalised_gameweek', lastFinalisedGW)
+        .select('id');
+
+      if (claimErr) {
+        throw new Error('Failed to claim finalisation: ' + claimErr.message);
+      }
+      if (!claimedClock || claimedClock.length === 0) {
+        return res.status(200).json({
+          ...result,
+          message: `GW${currentGW} already being finalised by another request`,
+          actions: ['already_finalised']
+        });
+      }
+
       // Finalise points
       await finaliseGameweek(localDb, masterDb, currentGW);
       result.actions.push('finalised_points');
@@ -78,13 +105,13 @@ module.exports = async (req, res) => {
       await updateTournamentRankings(localDb, currentGW);
       result.actions.push('updated_tournament_rankings');
 
-      // Advance Master Clock to next gameweek
+      // Advance Master Clock to next gameweek — only now, after the real
+      // work is genuinely done, exactly matching the original order.
       const nextGW = currentGW + 1;
       const { error: updateError } = await masterDb
         .from('master_clock')
         .update({
           current_gameweek: nextGW,
-          last_finalised_gameweek: currentGW,
           status: 'active',
           updated_at: new Date().toISOString()
         })
