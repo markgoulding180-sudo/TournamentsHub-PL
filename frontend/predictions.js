@@ -307,14 +307,26 @@ document.addEventListener('DOMContentLoaded', async function() {
         throw new Error(data.error || 'Failed to submit predictions');
       }
       
-      showToast('Predictions saved successfully!', 'success');
+      // The backend already tells us exactly which matches were skipped
+      // (already kicked off) and how many were actually saved — confirmed
+      // as a real gap that this was being computed correctly server-side
+      // but never once reached the user, who'd see the exact same
+      // generic "saved successfully" message whether everything saved or
+      // only some of it did.
+      if (data.skipped && data.skipped.length > 0) {
+        const savedCount = (data.predictions || []).length;
+        showToast(`${savedCount} prediction${savedCount === 1 ? '' : 's'} saved. ${data.skipped.length} match${data.skipped.length === 1 ? '' : 'es'} already kicked off and couldn't be changed.`, 'info');
+      } else {
+        showToast('Predictions saved successfully!', 'success');
+      }
 
-      // Give the toast a moment to actually be seen before navigating away,
-      // and go back to the Predictions home page — not Profile, which has
-      // nothing to do with what was just submitted.
+      // Give the toast enough time to actually be read before navigating
+      // away — longer for the partial-save case specifically, since it's
+      // a longer, more important message than a plain success confirmation.
+      const hasSkipped = data.skipped && data.skipped.length > 0;
       setTimeout(() => {
         window.location.href = '/predictions';
-      }, 1200);
+      }, hasSkipped ? 3500 : 1200);
       
     } catch (error) {
       console.error('Error submitting predictions:', error);
