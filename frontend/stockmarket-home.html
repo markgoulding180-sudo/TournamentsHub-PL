@@ -296,18 +296,18 @@
     .p-force-sold-notice strong{ font-size:11px; }
     .p-force-sold-notice span{ font-weight:500; line-height:1.4; opacity:.9; }
     .portfolio-card .p-photo-wrap{
-      position:absolute; top:0; left:10%; right:10%; height:32%; z-index:2; overflow:hidden;
+      position:absolute; top:3%; left:6%; right:6%; height:30%; z-index:2; overflow:hidden; border-radius:8px;
     }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:40px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
     .p-overlay-stack{
-      position:absolute; z-index:6; top:28%; left:9%; right:9%;
-      display:flex; flex-direction:column; gap:6px;
+      position:absolute; z-index:6; top:28%; left:5%; right:5%;
+      display:flex; flex-direction:column; gap:4px;
     }
     .p-name-overlay{
-      text-align:center; padding:5px 6px;
+      text-align:center; padding:4px 6px;
       background:#0a1428; border-radius:6px; border:1px solid #d4af37;
-      display:flex; flex-direction:column; align-items:center; gap:1px;
+      display:flex; flex-direction:column; align-items:center; gap:0px;
     }
     .p-action-pill{
       background:#0a1428; border:1px solid #3b82f6; border-radius:6px;
@@ -1071,12 +1071,24 @@
 
         let breakdownHtml = '', detailPanelHtml = '';
         let pillsHtml = '', totalHtml = '';
-        const zeroPills = `
+        const zeroPills = showSV ? `
+            <div class="p-stats-row">
+              <span class="stat-pill" title="Goals">GL 0</span>
+              <span class="stat-pill" title="Assists">AS 0</span>
+              <span class="stat-pill" title="Clean Sheets">CS 0</span>
+            </div>
+            <div class="p-stats-row" style="margin-top:4px;">
+              <span class="stat-pill" title="Saves">SV 0</span>
+              <span class="stat-pill" title="Yellow Cards">YC 0</span>
+              <span class="stat-pill" title="Red Cards">RC 0</span>
+            </div>
+            <div class="p-stats-row" style="margin-top:4px;">
+              ${showGC ? `<span class="stat-pill" title="Goals Conceded (team)">GC 0</span>` : ''}
+            </div>` : `
             <div class="p-stats-row">
               <span class="stat-pill" title="Goals">GL 0</span>
               <span class="stat-pill" title="Assists">AS 0</span>
               ${showCS ? `<span class="stat-pill" title="Clean Sheets">CS 0</span>` : ''}
-              ${showSV ? `<span class="stat-pill" title="Saves">SV 0</span>` : ''}
             </div>
             <div class="p-stats-row" style="margin-top:4px;">
               <span class="stat-pill" title="Yellow Cards">YC 0</span>
@@ -1101,12 +1113,24 @@
             </div>`;
         } else if (bd && bd.stats) {
           const s = bd.stats;
-          pillsHtml = `
+          pillsHtml = showSV ? `
+            <div class="p-stats-row">
+              <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
+              <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
+              <span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>
+            </div>
+            <div class="p-stats-row" style="margin-top:4px;">
+              <span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>
+              <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
+              <span class="stat-pill ${s.red_cards > 0 ? 'active-bad' : ''}" title="Red Cards">RC ${s.red_cards}</span>
+            </div>
+            <div class="p-stats-row" style="margin-top:4px;">
+              ${showGC ? `<span class="stat-pill ${s.goals_conceded > 0 ? 'active-bad' : ''}" title="Goals Conceded (team)">GC ${s.goals_conceded}</span>` : ''}
+            </div>` : `
             <div class="p-stats-row">
               <span class="stat-pill ${s.goals > 0 ? 'active' : ''}" title="Goals">GL ${s.goals}</span>
               <span class="stat-pill ${s.assists > 0 ? 'active' : ''}" title="Assists">AS ${s.assists}</span>
               ${showCS ? `<span class="stat-pill ${s.clean_sheets > 0 ? 'active' : ''}" title="Clean Sheets">CS ${s.clean_sheets}</span>` : ''}
-              ${showSV ? `<span class="stat-pill ${s.saves > 0 ? 'active' : ''}" title="Saves">SV ${s.saves}</span>` : ''}
             </div>
             <div class="p-stats-row" style="margin-top:4px;">
               <span class="stat-pill ${s.yellow_cards > 0 ? 'active-bad' : ''}" title="Yellow Cards">YC ${s.yellow_cards}</span>
