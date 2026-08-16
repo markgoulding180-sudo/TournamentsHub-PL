@@ -1753,8 +1753,27 @@ async function downloadExcelReport() {
     // --- Users & Wallet ---
     const users = (b.public.users || []).map(u => ({ Name: u.display_name || u.username, Username: u.username, Email: u.email, Admin: u.is_admin ? 'Yes' : '', 'Joined': u.created_at }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(users), 'Users');
-    const wallet = (b.public.wallet_transactions || []).map(w => ({ User: nameOf(w.user_id), Type: w.type, Amount: money(w.amount), Description: w.description, Date: w.created_at }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wallet), 'Wallet');
+    // tournament_id -> real entry_fee, across all 4 types, used to
+    // independently verify each entry_fee charge actually matches what
+    // that tournament should have charged.
+    const entryFeeByTournamentId = {};
+    [...(b.predictions.tournaments || []), ...(b.lms.tournaments || []), ...(b.stockmarket.tournaments || []), ...(b.fantasy.tournaments || [])]
+      .forEach(t => { entryFeeByTournamentId[t.id] = t.entry_fee; });
+
+    const walletData = (b.public.wallet_transactions || []).map(w => [
+      nameOf(w.user_id), w.type, money(w.amount), w.tournament_type || '',
+      w.tournament_id && entryFeeByTournamentId[w.tournament_id] != null ? money(entryFeeByTournamentId[w.tournament_id]) : '',
+      w.description, w.created_at
+    ]);
+    const walletSheet = XLSX.utils.aoa_to_sheet([['User', 'Type', 'Amount', 'Tournament Type', 'Real Entry Fee', 'Match?', 'Description', 'Date']]);
+    walletData.forEach((row, i) => {
+      const r = i + 2;
+      // Description and Date shift right one column to make room for
+      // the Match? formula column right after the amounts being compared.
+      XLSX.utils.sheet_add_aoa(walletSheet, [[row[0], row[1], row[2], row[3], row[4], '', row[5], row[6]]], { origin: `A${r}` });
+      walletSheet[`F${r}`] = { f: `IF(OR(B${r}<>"entry_fee",E${r}=""),"n/a",IF(VALUE(C${r})=VALUE(E${r}),"OK","MISMATCH"))` };
+    });
+    XLSX.utils.book_append_sheet(wb, walletSheet, 'Wallet');
 
     // --- Predictions: predicted vs real result side by side, plus a
     // real formula recalculating expected points, so any discrepancy
@@ -1795,21 +1814,50 @@ async function downloadExcelReport() {
       const outcome = m.result === 'D' ? 'Draw' : (m.result === 'H') === isHome ? 'Win' : 'Loss';
       return { match: `${m.home_team} ${m.home_score}-${m.away_score} ${m.away_team}`, realOutcome: outcome };
     };
-    const lmsPicks = (b.lms.picks || []).map(p => {
+    const lmsPicksData = (b.lms.picks || []).map(p => {
       const real = findRealResultForTeam(p.team, p.gameweek);
-      return { User: nameOf(p.user_id), Gameweek: p.gameweek, Team: p.team, 'Recorded Result': p.result, 'Real Match': real.match, 'Real Outcome': real.realOutcome };
+      return [nameOf(p.user_id), p.gameweek, p.team, p.result, real.match, real.realOutcome];
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lmsPicks), 'LMS Picks');
+    const lmsPicksSheet = XLSX.utils.aoa_to_sheet([['User', 'Gameweek', 'Team', 'Recorded Result', 'Real Match', 'Real Outcome', 'Match?']]);
+    lmsPicksData.forEach((row, i) => {
+      const r = i + 2;
+      XLSX.utils.sheet_add_aoa(lmsPicksSheet, [row], { origin: `A${r}` });
+      // Real formula check — flags any row where the database's own
+      // recorded result disagrees with what actually happened, rather
+      // than just showing both columns for the reader to eyeball.
+      lmsPicksSheet[`G${r}`] = { f: `IF(F${r}="","pending",IF(EXACT(LOWER(D${r}),LOWER(F${r})),"OK","MISMATCH"))` };
+    });
+    XLSX.utils.book_append_sheet(wb, lmsPicksSheet, 'LMS Picks');
     const lmsEntries = (b.lms.tournament_entries || []).map(e => ({ User: nameOf(e.user_id), 'Still In?': e.is_eliminated ? 'Eliminated' : 'Alive', 'Eliminated GW': e.eliminated_gameweek || '', Points: e.entry_points, Prize: money(e.prize_awarded) }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lmsEntries), 'LMS Standings');
 
-    // --- Stock Market: squad value, relegation status ---
-    const stockEntries = (b.stockmarket.tournament_entries || []).map(e => ({
-      User: nameOf(e.user_id), 'Squad Locked?': e.squad_locked ? 'Yes' : 'No',
-      'Start Value': money(e.start_value), 'Current Value': money(e.current_value),
-      Relegated: e.relegated ? `Yes (GW${e.relegated_at_gameweek})` : 'No', 'Final Value': e.final_value != null ? money(e.final_value) : ''
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockEntries), 'Stock Market');
+    // --- Stock Market: squad value, relegation status, plus a real
+    // zero-sum verification — the actual property this whole platform's
+    // financial integrity depends on, checked here with a real formula
+    // rather than just trusted from the stored numbers.
+    const stockTournamentById = {};
+    (b.stockmarket.tournaments || []).forEach(t => { stockTournamentById[t.id] = t; });
+    const stockEntriesData = (b.stockmarket.tournament_entries || []).map(e => {
+      const t = stockTournamentById[e.tournament_id] || {};
+      return [nameOf(e.user_id), t.name || e.tournament_id, e.squad_locked ? 'Yes' : 'No', money(e.start_value), (e.current_value || 0) / 100, e.relegated ? `Yes (GW${e.relegated_at_gameweek})` : 'No', e.final_value != null ? money(e.final_value) : ''];
+    });
+    const stockSheet = XLSX.utils.aoa_to_sheet([['User', 'Tournament', 'Squad Locked?', 'Start Value', 'Current Value', 'Relegated', 'Final Value']]);
+    XLSX.utils.sheet_add_aoa(stockSheet, stockEntriesData, { origin: 'A2' });
+
+    const lastEntryRow = stockEntriesData.length + 1;
+    const summaryStart = lastEntryRow + 3;
+    XLSX.utils.sheet_add_aoa(stockSheet, [['ZERO-SUM CHECK — pot should never drift']], { origin: `A${summaryStart}` });
+    XLSX.utils.sheet_add_aoa(stockSheet, [['Tournament', 'Entries', 'Entry Fee', 'Expected Pot (formula)', 'Actual Total (formula)', 'Match?']], { origin: `A${summaryStart + 1}` });
+    (b.stockmarket.tournaments || []).forEach((t, i) => {
+      const r = summaryStart + 2 + i;
+      const entriesFormula = `COUNTIF($B$2:$B$${lastEntryRow},A${r})`;
+      XLSX.utils.sheet_add_aoa(stockSheet, [[t.name, '', (t.entry_fee || 0) / 100]], { origin: `A${r}` });
+      stockSheet[`B${r}`] = { f: entriesFormula };
+      stockSheet[`D${r}`] = { f: `B${r}*C${r}` };
+      stockSheet[`E${r}`] = { f: `SUMIF($B$2:$B$${lastEntryRow},A${r},$E$2:$E$${lastEntryRow})` };
+      stockSheet[`F${r}`] = { f: `IF(ROUND(D${r},2)=ROUND(E${r},2),"OK","DRIFT!")` };
+    });
+    XLSX.utils.book_append_sheet(wb, stockSheet, 'Stock Market');
 
     // --- Fantasy: squad points, rank, prize ---
     const fantasyEntries = (b.fantasy.tournament_entries || []).map(e => ({ User: e.username || nameOf(e.user_id), 'Total Points': e.entry_points, 'Last GW Points': e.last_gw_points, Rank: e.rank, Prize: money(e.prize_awarded) }));
