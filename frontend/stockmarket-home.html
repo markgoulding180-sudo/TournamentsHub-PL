@@ -459,6 +459,14 @@
       .lb-header .lb-value, .lb-row .lb-value{ width:60px; }
       .lb-header .lb-gain, .lb-row .lb-gain{ width:56px; }
     }
+    @media (max-width:640px){
+      .lb-row{ flex-wrap:nowrap !important; gap:4px !important; padding:8px 4px !important; }
+      .lb-row .lb-rank{ width:18px !important; font-size:12px; }
+      .lb-row .lb-name{ flex:1 1 auto !important; min-width:0 !important; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .lb-row .lb-name a{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; max-width:100%; vertical-align:bottom; }
+      .lb-row .lb-value{ width:56px !important; font-size:12px; }
+      .lb-row .lb-gain{ width:50px !important; font-size:11px; }
+    }
 
     /* Mobile hamburger drawer — standard across every page */
     .icon-btn.menu-toggle{ display:none; }
