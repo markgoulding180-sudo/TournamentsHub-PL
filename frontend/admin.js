@@ -1760,18 +1760,17 @@ async function downloadExcelReport() {
     [...(b.predictions.tournaments || []), ...(b.lms.tournaments || []), ...(b.stockmarket.tournaments || []), ...(b.fantasy.tournaments || [])]
       .forEach(t => { entryFeeByTournamentId[t.id] = t.entry_fee; });
 
-    const walletData = (b.public.wallet_transactions || []).map(w => [
-      nameOf(w.user_id), w.type, money(w.amount), w.tournament_type || '',
-      w.tournament_id && entryFeeByTournamentId[w.tournament_id] != null ? money(entryFeeByTournamentId[w.tournament_id]) : '',
-      w.description, w.created_at
-    ]);
+    const walletData = (b.public.wallet_transactions || []).map(w => {
+      const realFee = w.tournament_id && entryFeeByTournamentId[w.tournament_id] != null ? entryFeeByTournamentId[w.tournament_id] : null;
+      return [nameOf(w.user_id), w.type, money(w.amount), w.tournament_type || '', realFee != null ? money(realFee) : '', w.description, w.created_at, w.type === 'entry_fee' && realFee != null ? (w.amount === realFee ? 'OK' : 'MISMATCH') : 'n/a'];
+    });
     const walletSheet = XLSX.utils.aoa_to_sheet([['User', 'Type', 'Amount', 'Tournament Type', 'Real Entry Fee', 'Match?', 'Description', 'Date']]);
     walletData.forEach((row, i) => {
       const r = i + 2;
       // Description and Date shift right one column to make room for
       // the Match? formula column right after the amounts being compared.
       XLSX.utils.sheet_add_aoa(walletSheet, [[row[0], row[1], row[2], row[3], row[4], '', row[5], row[6]]], { origin: `A${r}` });
-      walletSheet[`F${r}`] = { f: `IF(OR(B${r}<>"entry_fee",E${r}=""),"n/a",IF(VALUE(C${r})=VALUE(E${r}),"OK","MISMATCH"))` };
+      walletSheet[`F${r}`] = { t: 's', v: row[7], f: `IF(OR(B${r}<>"entry_fee",E${r}=""),"n/a",IF(VALUE(C${r})=VALUE(E${r}),"OK","MISMATCH"))` };
     });
     XLSX.utils.book_append_sheet(wb, walletSheet, 'Wallet');
 
@@ -1795,9 +1794,17 @@ async function downloadExcelReport() {
       ]], { origin: `A${row}` });
       // Real formula, not a hardcoded value — 10 for correct result, +10
       // more for the exact score too, mirroring the actual scoring rule.
-      // Blank while the real match hasn't finished yet (F/G columns
-      // empty), same as the stored points_earned would be.
+      // Blank while the real match hasn't finished yet. The value is
+      // computed here in JS and written alongside the formula, so it
+      // shows the right number the instant the file opens — some
+      // viewers don't auto-recalculate a formula-only cell.
+      const predScoreStr = `${p.home_score}-${p.away_score}`;
+      let expectedPoints = '';
+      if (m.result) {
+        expectedPoints = (m.result === p.predicted_result ? 10 : 0) + (realScore && realScore === predScoreStr ? 10 : 0);
+      }
       predsSheet[`J${row}`] = {
+        t: expectedPoints === '' ? 's' : 'n', v: expectedPoints,
         f: `IF(F${row}="","",IF(F${row}=D${row},10,0)+IF(AND(G${row}<>"",G${row}=E${row}),10,0))`
       };
     });
@@ -1823,9 +1830,13 @@ async function downloadExcelReport() {
       const r = i + 2;
       XLSX.utils.sheet_add_aoa(lmsPicksSheet, [row], { origin: `A${r}` });
       // Real formula check — flags any row where the database's own
-      // recorded result disagrees with what actually happened, rather
-      // than just showing both columns for the reader to eyeball.
-      lmsPicksSheet[`G${r}`] = { f: `IF(F${r}="","pending",IF(EXACT(LOWER(D${r}),LOWER(F${r})),"OK","MISMATCH"))` };
+      // recorded result disagrees with what actually happened. Value
+      // computed here in JS and written alongside the formula, so it's
+      // correct the instant the file opens.
+      const recorded = String(row[3] || '').toLowerCase();
+      const real = String(row[5] || '').toLowerCase();
+      const matchVal = !row[5] ? 'pending' : (recorded === real ? 'OK' : 'MISMATCH');
+      lmsPicksSheet[`G${r}`] = { t: 's', v: matchVal, f: `IF(F${r}="","pending",IF(EXACT(LOWER(D${r}),LOWER(F${r})),"OK","MISMATCH"))` };
     });
     XLSX.utils.book_append_sheet(wb, lmsPicksSheet, 'LMS Picks');
     const lmsEntries = (b.lms.tournament_entries || []).map(e => ({ User: nameOf(e.user_id), 'Still In?': e.is_eliminated ? 'Eliminated' : 'Alive', 'Eliminated GW': e.eliminated_gameweek || '', Points: e.entry_points, Prize: money(e.prize_awarded) }));
@@ -1851,11 +1862,22 @@ async function downloadExcelReport() {
     (b.stockmarket.tournaments || []).forEach((t, i) => {
       const r = summaryStart + 2 + i;
       const entriesFormula = `COUNTIF($B$2:$B$${lastEntryRow},A${r})`;
-      XLSX.utils.sheet_add_aoa(stockSheet, [[t.name, '', (t.entry_fee || 0) / 100]], { origin: `A${r}` });
-      stockSheet[`B${r}`] = { f: entriesFormula };
-      stockSheet[`D${r}`] = { f: `B${r}*C${r}` };
-      stockSheet[`E${r}`] = { f: `SUMIF($B$2:$B$${lastEntryRow},A${r},$E$2:$E$${lastEntryRow})` };
-      stockSheet[`F${r}`] = { f: `IF(ROUND(D${r},2)=ROUND(E${r},2),"OK","DRIFT!")` };
+      // Real values computed directly from the actual entries for this
+      // tournament, not just formula strings with nothing behind them —
+      // written alongside each formula so the file shows the correct
+      // numbers immediately in any viewer.
+      const realEntries = (b.stockmarket.tournament_entries || []).filter(e => e.tournament_id === t.id);
+      const realEntryCount = realEntries.length;
+      const realFee = (t.entry_fee || 0) / 100;
+      const realExpectedPot = realEntryCount * realFee;
+      const realActualTotal = realEntries.reduce((sum, e) => sum + (e.current_value || 0) / 100, 0);
+      const realMatch = Math.round(realExpectedPot * 100) === Math.round(realActualTotal * 100) ? 'OK' : 'DRIFT!';
+
+      XLSX.utils.sheet_add_aoa(stockSheet, [[t.name, '', realFee]], { origin: `A${r}` });
+      stockSheet[`B${r}`] = { t: 'n', v: realEntryCount, f: entriesFormula };
+      stockSheet[`D${r}`] = { t: 'n', v: realExpectedPot, f: `B${r}*C${r}` };
+      stockSheet[`E${r}`] = { t: 'n', v: realActualTotal, f: `SUMIF($B$2:$B$${lastEntryRow},A${r},$E$2:$E$${lastEntryRow})` };
+      stockSheet[`F${r}`] = { t: 's', v: realMatch, f: `IF(ROUND(D${r},2)=ROUND(E${r},2),"OK","DRIFT!")` };
     });
     XLSX.utils.book_append_sheet(wb, stockSheet, 'Stock Market');
 
