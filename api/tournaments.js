@@ -1177,11 +1177,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             supabaseAdmin.schema('fantasy').from('entry_gameweek_history').select('*')
           ]);
 
+          // Real football data — separate database, but including it here
+          // means the same report can cross-check predictions/picks
+          // against actual results without needing two files.
+          const [masterTeams, masterPlayers, masterMatches] = await Promise.all([
+            masterDb.from('teams').select('*'),
+            masterDb.from('players').select('*'),
+            masterDb.from('matches').select('*')
+          ]);
+
           const backup = {
             backup_created_at: new Date().toISOString(),
             public: {
               users: users.data, wallet_transactions: walletTx.data,
               admin_messages: adminMessages.data, master_clock: masterClock.data
+            },
+            master_data: {
+              teams: masterTeams.data, players: masterPlayers.data, matches: masterMatches.data
             },
             predictions: {
               tournaments: predTournaments.data, tournament_entries: predEntries.data,

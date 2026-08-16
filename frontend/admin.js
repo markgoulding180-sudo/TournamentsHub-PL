@@ -1731,22 +1731,74 @@ async function downloadExcelReport() {
     (b.fantasy.tournaments || []).forEach(t => overview.push({ Type: 'Fantasy', Name: t.name, Status: t.status, Gameweek: t.gameweek, 'End GW': t.end_gameweek, 'Entry Fee': money(t.entry_fee), Entries: t.current_entries }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(overview), 'Overview');
 
+    // --- Real football data, for cross-checking everything above ---
+    const matches = (b.master_data.matches || []).map(m => ({
+      Gameweek: m.gameweek, Home: m.home_team, Away: m.away_team,
+      'Home Score': m.home_score, 'Away Score': m.away_score, Result: m.result, Status: m.status, Kickoff: m.kickoff_time
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(matches), 'Real Matches');
+
+    const teams = (b.master_data.teams || []).map(t => ({ Name: t.name, 'Short Name': t.short_name }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(teams), 'Real Teams');
+
+    // Most relevant columns only, not all 30+ raw fields — kept readable
+    // rather than dumping everything.
+    const players = (b.master_data.players || []).map(p => ({
+      Name: p.web_name, Team: p.team, Position: p.element_type, Status: p.status,
+      Points: p.total_points, Goals: p.goals_scored, Assists: p.assists,
+      'Clean Sheets': p.clean_sheets, Minutes: p.minutes
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(players), 'Real Players');
+
     // --- Users & Wallet ---
     const users = (b.public.users || []).map(u => ({ Name: u.display_name || u.username, Username: u.username, Email: u.email, Admin: u.is_admin ? 'Yes' : '', 'Joined': u.created_at }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(users), 'Users');
     const wallet = (b.public.wallet_transactions || []).map(w => ({ User: nameOf(w.user_id), Type: w.type, Amount: money(w.amount), Description: w.description, Date: w.created_at }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wallet), 'Wallet');
 
-    // --- Predictions: what each user predicted, points earned ---
-    const preds = (b.predictions.predictions || []).map(p => ({
-      User: nameOf(p.user_id), Gameweek: p.gameweek, Match: `${p.home_team || '?'} v ${p.away_team || '?'}`,
-      'Predicted Result': p.predicted_result, 'Predicted Score': `${p.home_score}-${p.away_score}`,
-      'Points Earned': p.points_earned
-    }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(preds), 'Predictions');
+    // --- Predictions: predicted vs real result side by side, plus a
+    // real formula recalculating expected points, so any discrepancy
+    // against the stored points_earned is immediately visible rather
+    // than needing to trust the database's own number.
+    const matchById = {};
+    (b.master_data.matches || []).forEach(m => { matchById[m.id] = m; });
+    const predsSheet = XLSX.utils.aoa_to_sheet([
+      ['User', 'Gameweek', 'Match', 'Predicted Result', 'Predicted Score', 'Real Result', 'Real Score', 'Match Status', 'Points Earned (stored)', 'Expected Points (formula)']
+    ]);
+    (b.predictions.predictions || []).forEach((p, i) => {
+      const row = i + 2; // 1-indexed, +1 for header
+      const m = matchById[p.match_id] || {};
+      const realScore = (m.home_score != null && m.away_score != null) ? `${m.home_score}-${m.away_score}` : '';
+      XLSX.utils.sheet_add_aoa(predsSheet, [[
+        nameOf(p.user_id), p.gameweek, `${p.home_team || '?'} v ${p.away_team || '?'}`,
+        p.predicted_result, `${p.home_score}-${p.away_score}`,
+        m.result || '', realScore, m.status || '', p.points_earned
+      ]], { origin: `A${row}` });
+      // Real formula, not a hardcoded value — 10 for correct result, +10
+      // more for the exact score too, mirroring the actual scoring rule.
+      // Blank while the real match hasn't finished yet (F/G columns
+      // empty), same as the stored points_earned would be.
+      predsSheet[`J${row}`] = {
+        f: `IF(F${row}="","",IF(F${row}=D${row},10,0)+IF(AND(G${row}<>"",G${row}=E${row}),10,0))`
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, predsSheet, 'Predictions');
 
-    // --- LMS: pick, result, elimination status ---
-    const lmsPicks = (b.lms.picks || []).map(p => ({ User: nameOf(p.user_id), Gameweek: p.gameweek, Team: p.team, Result: p.result }));
+    // --- LMS: pick, real match result cross-referenced, elimination status ---
+    // Picks don't store a match_id directly, just a team name — find the
+    // real match for that team in that gameweek, then work out the
+    // actual result from that team's own perspective (home or away).
+    const findRealResultForTeam = (team, gameweek) => {
+      const m = (b.master_data.matches || []).find(mm => mm.gameweek === gameweek && (mm.home_team === team || mm.away_team === team));
+      if (!m || m.result == null) return { match: '', realOutcome: '' };
+      const isHome = m.home_team === team;
+      const outcome = m.result === 'D' ? 'Draw' : (m.result === 'H') === isHome ? 'Win' : 'Loss';
+      return { match: `${m.home_team} ${m.home_score}-${m.away_score} ${m.away_team}`, realOutcome: outcome };
+    };
+    const lmsPicks = (b.lms.picks || []).map(p => {
+      const real = findRealResultForTeam(p.team, p.gameweek);
+      return { User: nameOf(p.user_id), Gameweek: p.gameweek, Team: p.team, 'Recorded Result': p.result, 'Real Match': real.match, 'Real Outcome': real.realOutcome };
+    });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lmsPicks), 'LMS Picks');
     const lmsEntries = (b.lms.tournament_entries || []).map(e => ({ User: nameOf(e.user_id), 'Still In?': e.is_eliminated ? 'Eliminated' : 'Alive', 'Eliminated GW': e.eliminated_gameweek || '', Points: e.entry_points, Prize: money(e.prize_awarded) }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lmsEntries), 'LMS Standings');
