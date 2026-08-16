@@ -376,22 +376,6 @@
         <div class="fm-stat-label">Squad</div>
         <div class="fm-stat-value" id="fmSquadCount">0 / 15</div>
       </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">GK</div>
-        <div class="fm-stat-value" id="fmCountGK">0 / 2</div>
-      </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">DEF</div>
-        <div class="fm-stat-value" id="fmCountDEF">0 / 5</div>
-      </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">MID</div>
-        <div class="fm-stat-value" id="fmCountMID">0 / 5</div>
-      </div>
-      <div class="fm-stat">
-        <div class="fm-stat-label">FWD</div>
-        <div class="fm-stat-value" id="fmCountFWD">0 / 3</div>
-      </div>
     </div>
 
     <div class="fm-layout">
@@ -408,6 +392,29 @@
           <button class="fm-filter-btn" data-pos="2">DEF</button>
           <button class="fm-filter-btn" data-pos="3">MID</button>
           <button class="fm-filter-btn" data-pos="4">FWD</button>
+        </div>
+        <!-- Positioned here, above the scrollable list, so it stays
+             visible the whole time you're browsing players — same
+             structural placement already confirmed working for the
+             search bar and filters above it. Always shows exactly
+             what's left to fill without needing to scroll back up. -->
+        <div class="fm-position-bar" id="fmPositionBar">
+          <div class="fm-stat">
+            <div class="fm-stat-label">GK</div>
+            <div class="fm-stat-value" id="fmCountGK">0 / 2</div>
+          </div>
+          <div class="fm-stat">
+            <div class="fm-stat-label">DEF</div>
+            <div class="fm-stat-value" id="fmCountDEF">0 / 5</div>
+          </div>
+          <div class="fm-stat">
+            <div class="fm-stat-label">MID</div>
+            <div class="fm-stat-value" id="fmCountMID">0 / 5</div>
+          </div>
+          <div class="fm-stat">
+            <div class="fm-stat-label">FWD</div>
+            <div class="fm-stat-value" id="fmCountFWD">0 / 3</div>
+          </div>
         </div>
         <div class="fm-player-list" id="fmPlayerList">
           <p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading players…</p>
