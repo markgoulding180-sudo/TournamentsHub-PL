@@ -1696,6 +1696,44 @@ async function saveRelegationStages() {
   }
 }
 
+async function downloadPlatformBackup() {
+  const resultEl = document.getElementById('backupResult');
+  resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Building backup…</span>';
+  log('Starting full platform backup...', 'info');
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?admin_full_platform_backup=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`;
+      log(`Backup failed: ${data.error}`, 'error');
+      return;
+    }
+
+    // Trigger a real file download — a Blob and a synthetic link click,
+    // the standard browser technique for saving fetched JSON as a file
+    // rather than just displaying it.
+    const blob = new Blob([JSON.stringify(data.backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.href = url;
+    a.download = `gb-tournaments-backup-${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    resultEl.innerHTML = `<span style="color:var(--accent-green);">Done — ${data.row_count} rows saved to your downloads.</span>`;
+    log(`Full platform backup complete — ${data.row_count} rows.`, 'success');
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+    log(`Backup error: ${error.message}`, 'error');
+  }
+}
+
 async function fullPlatformReset() {
   const resultEl = document.getElementById('fullResetResult');
   const typed = prompt('This wipes EVERY tournament, entry, wallet transaction, match result, and player stat across the ENTIRE platform — both databases, all four tournament types. This cannot be undone.\n\nType RESET EVERYTHING (exactly, in capitals) to confirm:');

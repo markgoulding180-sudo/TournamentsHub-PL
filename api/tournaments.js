@@ -1126,6 +1126,89 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       }
 
 
+      const platformBackup = params.get('admin_full_platform_backup');
+      if (platformBackup === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: backupUser }, error: backupAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (backupAuthError || !backupUser) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: backupCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', backupUser.id).maybeSingle();
+        if (!backupCaller || !backupCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        try {
+          // Every table holding real, irreplaceable user data — accounts,
+          // money, and every tournament type's entries and picks. Not
+          // included: public.teams/players/matches (confirmed empty,
+          // real football data lives in the separate master project and
+          // is re-syncable from the FPL API if ever needed, unlike
+          // anything here).
+          const [
+            users, walletTx, adminMessages, masterClock,
+            predTournaments, predEntries, predictions, predHistory, gwSummary,
+            lmsTournaments, lmsEntries, lmsPicks,
+            stockTournaments, stockEntries, stockMarket, stockConfig, stockStages, stockTx, stockAudit, stockMatchups, stockHistory,
+            fantasyTournaments, fantasyEntries, fantasyHistory
+          ] = await Promise.all([
+            supabaseAdmin.from('users').select('*'),
+            supabaseAdmin.from('wallet_transactions').select('*'),
+            supabaseAdmin.from('admin_messages').select('*'),
+            supabaseAdmin.from('master_clock').select('*'),
+            supabaseAdmin.schema('predictions').from('tournaments').select('*'),
+            supabaseAdmin.schema('predictions').from('tournament_entries').select('*'),
+            supabaseAdmin.schema('predictions').from('predictions').select('*'),
+            supabaseAdmin.schema('predictions').from('prediction_history').select('*'),
+            supabaseAdmin.schema('predictions').from('gameweek_summary').select('*'),
+            supabaseAdmin.schema('lms').from('tournaments').select('*'),
+            supabaseAdmin.schema('lms').from('tournament_entries').select('*'),
+            supabaseAdmin.schema('lms').from('picks').select('*'),
+            supabaseAdmin.schema('stockmarket').from('tournaments').select('*'),
+            supabaseAdmin.schema('stockmarket').from('tournament_entries').select('*'),
+            supabaseAdmin.schema('stockmarket').from('player_market').select('*'),
+            supabaseAdmin.schema('stockmarket').from('config').select('*'),
+            supabaseAdmin.schema('stockmarket').from('tournament_stages').select('*'),
+            supabaseAdmin.schema('stockmarket').from('transactions').select('*'),
+            supabaseAdmin.schema('stockmarket').from('audit_log').select('*'),
+            supabaseAdmin.schema('stockmarket').from('matchups').select('*'),
+            supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*'),
+            supabaseAdmin.schema('fantasy').from('tournaments').select('*'),
+            supabaseAdmin.schema('fantasy').from('tournament_entries').select('*'),
+            supabaseAdmin.schema('fantasy').from('entry_gameweek_history').select('*')
+          ]);
+
+          const backup = {
+            backup_created_at: new Date().toISOString(),
+            public: {
+              users: users.data, wallet_transactions: walletTx.data,
+              admin_messages: adminMessages.data, master_clock: masterClock.data
+            },
+            predictions: {
+              tournaments: predTournaments.data, tournament_entries: predEntries.data,
+              predictions: predictions.data, prediction_history: predHistory.data, gameweek_summary: gwSummary.data
+            },
+            lms: { tournaments: lmsTournaments.data, tournament_entries: lmsEntries.data, picks: lmsPicks.data },
+            stockmarket: {
+              tournaments: stockTournaments.data, tournament_entries: stockEntries.data,
+              player_market: stockMarket.data, config: stockConfig.data, tournament_stages: stockStages.data,
+              transactions: stockTx.data, audit_log: stockAudit.data, matchups: stockMatchups.data,
+              player_gw_history: stockHistory.data
+            },
+            fantasy: { tournaments: fantasyTournaments.data, tournament_entries: fantasyEntries.data, entry_gameweek_history: fantasyHistory.data }
+          };
+
+          const rowCount = Object.values(backup).reduce((sum, section) => {
+            if (typeof section !== 'object' || section === null) return sum;
+            return sum + Object.values(section).reduce((s, arr) => s + (Array.isArray(arr) ? arr.length : 0), 0);
+          }, 0);
+
+          return res.status(200).json({ success: true, row_count: rowCount, backup });
+        } catch (err) {
+          console.error('admin_full_platform_backup error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       const stockmarketFullExport = params.get('stockmarket_full_export');
       if (stockmarketFullExport === 'true' && tournamentId) {
         const authHeader = req.headers.authorization;
