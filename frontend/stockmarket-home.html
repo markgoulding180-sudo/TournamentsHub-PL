@@ -1108,6 +1108,7 @@
           breakdownHtml = `<span class="stat-pill why-pill" onclick="document.getElementById('${detailId}').classList.toggle('open');">?</span>`;
           detailPanelHtml = `
             <div id="${detailId}" class="p-why-overlay">
+              <button class="p-why-close" onclick="document.getElementById('${detailId}').classList.remove('open');">✕</button>
               <div class="p-why-overlay-inner">
                 <div class="p-why-player-name">${escapeHtml(p.name)}</div>
                 <span style="color:var(--text-dim);">Just brought into the team — no gameweek data yet.</span>
