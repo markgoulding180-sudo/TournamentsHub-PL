@@ -252,7 +252,7 @@
     .mini-stat-value{ font-weight:700; font-size:13px; }
     .portfolio-card{
       border:3px solid #ffffff; border-radius:14px; overflow:hidden; text-align:center; position:relative;
-      width:100%; aspect-ratio:1054/1641;
+      width:100%; aspect-ratio:1054/1900;
       background:linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('assets/player-card-bg.jpg?v=2') center/cover no-repeat, #05070d;
     }
     .portfolio-card.rarity-Bronze{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-bronze.png?v=2') center/cover no-repeat, #05070d; }
@@ -651,6 +651,9 @@
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn-primary" onclick="seedEverythingAndOpenMarket()" id="seedEverythingBtn">
             <i class="fas fa-bolt"></i> Seed Everything + Open Market
+          </button>
+          <button class="btn-primary" onclick="forceCloseWindow()" id="closeWindowBtn" style="background:var(--accent-2);">
+            <i class="fas fa-lock"></i> Force Close Draft Window
           </button>
           <button class="btn-primary" onclick="advanceGameweek()" id="advanceGwBtn" style="background:var(--gold); color:#000;">
             <i class="fas fa-forward"></i> Advance Gameweek
