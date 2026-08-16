@@ -267,14 +267,12 @@
        base rule above. */
     @media (min-width:641px){
       .portfolio-card{ aspect-ratio:1054/1550; }
-      /* The shorter card means the same 30% photo height gives far
-         fewer real pixels than on mobile — confirmed as a real bug,
-         cropping down to just the player's head. Desktop gets real,
-         extra room here specifically. */
-      .portfolio-card .p-photo-wrap{ height:42%; }
-      .p-overlay-stack{ top:38%; bottom:8%; justify-content:flex-start; }
-      .p-overlay-stack .p-action-pill{ margin-top:auto; }
-      .portfolio-card .p-badge-row{ margin-top:2px; }
+      /* Bigger photo, more of the player actually visible - the name
+         box and Sell box now start lower and sit close together right
+         above the matches/injury badge, instead of starting high up
+         with a big gap eating into where the photo could be. */
+      .portfolio-card .p-photo-wrap{ height:56%; }
+      .p-overlay-stack{ top:52%; }
     }
     .portfolio-card .p-badge-row{
       display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:6px;
