@@ -253,7 +253,7 @@
     .mini-stat-value{ font-weight:700; font-size:13px; }
     .portfolio-card{
       border:3px solid #ffffff; border-radius:14px; overflow:hidden; text-align:center; position:relative;
-      width:100%; aspect-ratio:1054/2900;
+      width:100%; aspect-ratio:1054/2250;
       background:linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('assets/player-card-bg.jpg?v=2') center/cover no-repeat, #05070d;
     }
     .portfolio-card.rarity-Bronze{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-bronze.png?v=2') center/cover no-repeat, #05070d; }
@@ -311,16 +311,16 @@
     }
     .p-action-pill{
       background:#0a1428; border:1px solid #3b82f6; border-radius:6px;
-      padding:6px; display:flex; gap:8px; justify-content:center; align-items:center;
+      padding:4px; display:flex; gap:6px; justify-content:center; align-items:center;
     }
-    .p-action-pill .action-pill{ background:transparent; border:none; color:#7ab8ff; font-size:16px; }
+    .p-action-pill .action-pill{ background:transparent; border:none; color:#7ab8ff; font-size:13px; }
     .p-action-pill .action-pill.danger{ color:#ff8080; }
-    .p-name-overlay .p-name-line{ font-weight:700; font-size:17px; color:#fff; }
-    .p-name-overlay .p-club-line{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:2px; }
-    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:19px; color:#fff; }
-    .p-name-overlay .p-total-inline{ font-size:16px; }
-    .p-name-overlay .stat-pill{ font-size:14px; padding:2px 6px; min-width:40px; }
-    .p-name-overlay .why-pill{ min-width:32px; width:32px; height:32px; }
+    .p-name-overlay .p-name-line{ font-weight:700; font-size:14px; color:#fff; }
+    .p-name-overlay .p-club-line{ font-size:9px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:1px; }
+    .p-name-overlay .p-value-line{ font-family:var(--font-head); font-weight:700; font-size:15px; color:#fff; }
+    .p-name-overlay .p-total-inline{ font-size:13px; }
+    .p-name-overlay .stat-pill{ font-size:10px; padding:2px 5px; min-width:32px; }
+    .p-name-overlay .why-pill{ min-width:24px; width:24px; height:24px; }
     .p-name-overlay .p-total-pills-row{ margin-top:1px; gap:2px; }
     .portfolio-card .p-card-text{
       position:relative; z-index:6; padding:18px 14px 2px;
@@ -350,6 +350,7 @@
     .portfolio-card .p-total.down{ color:var(--red); }
     .portfolio-card .p-total.flat{ color:var(--text-dim); }
     .stat-pill{ display:inline-flex; align-items:center; justify-content:center; gap:3px; font-size:12px; font-weight:700; padding:5px 8px; min-width:44px; border-radius:8px; background:var(--bg-panel); border:1px solid var(--accent-dim); color:var(--text-dim); }
+    .p-action-pill .stat-pill{ font-size:10px; padding:3px 6px; min-width:30px; }
     .stat-pill.action-pill{ cursor:pointer; color:var(--text); border-color:#fff; }
     .stat-pill.action-pill.danger{ color:#ff8080; }
     .stat-pill.why-pill{ cursor:pointer; color:var(--text); border-color:#fff; border-radius:50%; min-width:26px; width:26px; height:26px; padding:0; }
@@ -469,7 +470,7 @@
       .avatar-btn .avatar{ width:34px; height:34px; }
       .bell-btn{ margin-left:0; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
-      main{ padding:0 14px 80px; }
+      main{ padding:0 10px 80px; }
 
       /* Full-bleed to the screen edges — breaks out of main's own side
          padding with matching negative margins — and sits directly under
