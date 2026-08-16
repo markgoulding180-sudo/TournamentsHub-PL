@@ -112,6 +112,13 @@
       display:inline-flex; align-items:center; gap:7px; font-family:var(--font-head); font-size:12.5px;
       font-weight:700; letter-spacing:.2px; padding:9px 16px; border-radius:20px; cursor:help;
     }
+    .hero-pill-link{
+      display:inline-flex; align-items:center; gap:7px; cursor:pointer;
+      font-family:var(--font-head); font-size:12.5px; font-weight:700; letter-spacing:.2px;
+      color:var(--accent-2); background:rgba(59,130,246,0.12); border:1px solid var(--accent-dim);
+      padding:9px 16px; border-radius:20px; transition:background .2s, border-color .2s;
+    }
+    .hero-pill-link:hover{ background:rgba(59,130,246,0.22); border-color:var(--accent-2); }
 
     .card{ background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:var(--radius); padding:20px 22px; }
     .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; flex-wrap:wrap; row-gap:8px; }
@@ -540,6 +547,7 @@
             <div class="how-list" id="relegationZonesList"></div>
           </details>
           <div id="transferDeadlineBanner" class="hero-transfer-pill" style="display:none;"></div>
+          <a href="/injuries" class="hero-pill-link"><i class="fas fa-kit-medical"></i> Injuries</a>
         </div>
       </div>
     </section>
