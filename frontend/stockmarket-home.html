@@ -267,6 +267,12 @@
        base rule above. */
     @media (min-width:641px){
       .portfolio-card{ aspect-ratio:1054/1550; }
+      /* The shorter card means the same 30% photo height gives far
+         fewer real pixels than on mobile — confirmed as a real bug,
+         cropping down to just the player's head. Desktop gets real,
+         extra room here specifically. */
+      .portfolio-card .p-photo-wrap{ height:42%; }
+      .p-overlay-stack{ top:38%; bottom:3%; justify-content:space-between; }
     }
     .portfolio-card .p-badge-row{
       display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:6px;
