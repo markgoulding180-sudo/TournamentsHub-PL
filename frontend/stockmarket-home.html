@@ -896,10 +896,14 @@
           `
           : `<div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>`;
 
+        // Same rarity mapping already proven working on the live matchup
+        // cards, applied here too — this drafting-phase template never
+        // had it at all, confirmed as the real gap.
+        const rarityMap = { GOLD: 'Gold', SILVER: 'Silver', BRONZE: 'Bronze' };
         const cards = portfolio.map(p => p.empty ? `
           <div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>${p.reserved_value ? `<div style="font-size:12px; color:var(--text-faint); margin-top:4px;">${money(p.reserved_value)} reserved — pick your replacement</div>` : ''}</div></div>
         ` : `
-          <div class="portfolio-card">
+          <div class="portfolio-card ${rarityMap[p.rank_tier] ? `rarity-${rarityMap[p.rank_tier]}` : ''}">
             <div class="p-photo-wrap">${p.photo
               ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`
               : `<div class="no-photo"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`}</div>

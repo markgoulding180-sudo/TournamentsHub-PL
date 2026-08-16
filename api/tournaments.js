@@ -1514,11 +1514,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           const filledIds = squad.filter(s => !s.empty).map(s => s.player_id);
           const { data: photoRows } = filledIds.length > 0
-            ? await masterDb.from('players').select('id, photo, custom_photo_url').in('id', filledIds)
+            ? await masterDb.from('players').select('id, photo, custom_photo_url, rank_tier').in('id', filledIds)
             : { data: [] };
           const photoByPid = {};
+          const rankTierByPid = {};
           (photoRows || []).forEach(p => {
             photoByPid[p.id] = p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null);
+            rankTierByPid[p.id] = p.rank_tier || null;
           });
 
           // If the real market hasn't initialized yet (still drafting),
@@ -1578,6 +1580,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               position: m.position || posLabel || '',
               team: m.team || s.team || '',
               photo: photoByPid[s.player_id] || null,
+              rank_tier: rankTierByPid[s.player_id] || null,
               ownership_count: ownership,
               your_value: yourValue,
               value_change: (yourValue !== null && yourLastWeekValue !== null) ? yourValue - yourLastWeekValue : null,
