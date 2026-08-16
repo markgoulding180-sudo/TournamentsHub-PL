@@ -266,17 +266,17 @@
        content. Mobile's own sizing is untouched, inherited from the
        base rule above. */
     @media (min-width:641px){
-      .portfolio-card{ aspect-ratio:1054/1550; }
-      /* Much bigger photo this time - the previous increase clearly
-         wasn't enough. Content group compacted tighter too (smaller
-         internal gaps/padding), so it takes less room and can sit
-         lower, anchored at the bottom, leaving real extra room above
-         it for the photo. */
-      .portfolio-card .p-photo-wrap{ height:68%; }
-      .p-overlay-stack{ top:66%; gap:2px; }
-      .p-overlay-stack .p-name-overlay{ padding:2px 5px; gap:0px; }
-      .p-overlay-stack .p-action-pill{ padding:2px; }
-      .portfolio-card .p-badge-row{ margin-top:2px; }
+      .portfolio-card{ aspect-ratio:1054/1550 !important; }
+      /* !important on every property here — confirmed the real cause of
+         nothing visibly changing: these selectors are identical to the
+         base rules defined later in this same file, so on equal
+         specificity, the later base rule was silently winning every
+         single time, regardless of what this media query said. */
+      .portfolio-card .p-photo-wrap{ height:68% !important; top:3% !important; }
+      .p-overlay-stack{ top:66% !important; gap:2px !important; }
+      .p-overlay-stack .p-name-overlay{ padding:2px 5px !important; gap:0px !important; }
+      .p-overlay-stack .p-action-pill{ padding:2px !important; }
+      .portfolio-card .p-badge-row{ margin-top:2px !important; }
     }
     .portfolio-card .p-badge-row{
       display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:6px;
