@@ -260,6 +260,14 @@
     .portfolio-card.rarity-Silver{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-silver.png?v=2') center/cover no-repeat, #05070d; }
     .portfolio-card.rarity-Gold{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-gold.png?v=2') center/cover no-repeat, #05070d; }
     .portfolio-card.opp{ border-color:var(--red); }
+    /* Desktop only — cards here are already much wider in absolute
+       pixels (same 2-column grid, but a far wider container than
+       mobile), so they need proportionally less height for the same
+       content. Mobile's own sizing is untouched, inherited from the
+       base rule above. */
+    @media (min-width:641px){
+      .portfolio-card{ aspect-ratio:1054/1550; }
+    }
     .portfolio-card .p-badge-row{
       display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:6px;
     }
