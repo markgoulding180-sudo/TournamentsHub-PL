@@ -64,7 +64,10 @@
 
     .slot-item{ display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:var(--bg-card); border:1.5px dashed var(--border); margin-bottom:8px; }
     .slot-item.filled{ border-style:solid; border-color:var(--accent); background:rgba(59,130,246,0.06); }
-    .slot-item .slot-photo{ width:42px; height:42px; border-radius:8px; background:var(--bg-panel); display:flex; align-items:center; justify-content:center; flex:none; overflow:hidden; }
+    .slot-item .slot-photo{ width:42px; height:42px; border-radius:8px; background:var(--bg-panel); display:flex; align-items:center; justify-content:center; flex:none; overflow:hidden; border:2px solid transparent; box-sizing:border-box; }
+    .slot-item .slot-photo.rarity-Bronze{ border-color:var(--bronze); box-shadow:0 0 8px rgba(217,119,87,0.4); }
+    .slot-item .slot-photo.rarity-Silver{ border-color:var(--silver); box-shadow:0 0 8px rgba(192,200,214,0.35); }
+    .slot-item .slot-photo.rarity-Gold{ border-color:var(--gold); box-shadow:0 0 8px rgba(242,185,61,0.5); }
     .slot-item .slot-photo img{ width:100% !important; height:100% !important; object-fit:cover; object-position:top; }
     .slot-item .slot-photo i{ color:var(--text-faint); font-size:16px; }
     .slot-item .slot-info{ flex:1; min-width:0; }
@@ -720,7 +723,7 @@
           : '';
         return `
         <div class="slot-item filled" id="slot-editor-${idx}">
-          <div class="slot-photo">
+          <div class="slot-photo rarity-${p.rarity}">
             ${p.photo ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="window.swapToShirtFallback(this, '${escapeHtml(p.team || '')}')">` : shirtFallbackHtml(p.team, 70)}
           </div>
           <div class="slot-info">
