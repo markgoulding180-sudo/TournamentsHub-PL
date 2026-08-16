@@ -252,15 +252,18 @@
     .mini-stat-value{ font-weight:700; font-size:13px; }
     .portfolio-card{
       border:3px solid #ffffff; border-radius:14px; overflow:hidden; text-align:center; position:relative;
-      width:100%; aspect-ratio:1054/1900;
+      width:100%; aspect-ratio:1054/2150;
       background:linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('assets/player-card-bg.jpg?v=2') center/cover no-repeat, #05070d;
     }
     .portfolio-card.rarity-Bronze{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-bronze.png?v=2') center/cover no-repeat, #05070d; }
     .portfolio-card.rarity-Silver{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-silver.png?v=2') center/cover no-repeat, #05070d; }
     .portfolio-card.rarity-Gold{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-gold.png?v=2') center/cover no-repeat, #05070d; }
     .portfolio-card.opp{ border-color:var(--red); }
+    .portfolio-card .p-badge-row{
+      display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:6px;
+    }
     .portfolio-card .p-played-badge{
-      position:absolute; top:8px; left:8px; z-index:7; display:flex; flex-direction:column; gap:2px;
+      display:flex; flex-direction:column; gap:2px; align-items:center;
       font-size:10px; font-weight:700; letter-spacing:.2px; padding:4px 8px; border-radius:8px;
       background:rgba(4,8,18,0.85);
     }
@@ -274,7 +277,7 @@
     .portfolio-card .p-played-badge.upcoming{ color:var(--text-dim); border:1px solid var(--border); }
     @keyframes livePulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
     .portfolio-card .p-injury-badge{
-      position:absolute; top:8px; right:8px; z-index:7; display:flex; align-items:center; gap:4px;
+      display:flex; align-items:center; gap:4px;
       font-size:9px; font-weight:700; letter-spacing:.2px; padding:4px 8px; border-radius:8px;
       background:rgba(4,8,18,0.85); color:var(--gold); border:1px solid var(--gold); cursor:help;
     }
@@ -1249,8 +1252,6 @@
 
         return `
         <div class="portfolio-card ${isMine ? 'mine' : 'opp'} ${rarityClass}">
-          ${injuryBadgeHtml}
-          ${playedBadgeHtml}
           ${neutralWarningHtml}
           <div class="p-photo-wrap">${photoHtml}</div>
           <div class="p-overlay-stack">
@@ -1262,6 +1263,7 @@
               ${pillsHtml}
             </div>
             ${isMine ? `<div class="p-action-pill">${actions}${breakdownHtml}</div>` : `<div class="p-action-pill">${breakdownHtml}</div>`}
+            ${(injuryBadgeHtml || playedBadgeHtml) ? `<div class="p-badge-row">${injuryBadgeHtml}${playedBadgeHtml}</div>` : ''}
           </div>
           ${detailPanelHtml}
         </div>`;
