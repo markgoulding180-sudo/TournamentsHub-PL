@@ -676,61 +676,6 @@
         <div id="leaderboardBody"><div class="loading">Loading…</div></div>
       </section>
 
-      <!-- TEMPORARY TEST TOOL — delete after testing. Seeds the other 3
-           known test users' squads randomly, never touches your own. -->
-      <div class="card" style="border-color:var(--gold); margin-top:24px;">
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn-primary" onclick="seedEverythingAndOpenMarket()" id="seedEverythingBtn">
-            <i class="fas fa-bolt"></i> Seed Everything + Open Market
-          </button>
-          <button class="btn-primary" onclick="forceCloseWindow()" id="closeWindowBtn" style="background:var(--accent-2);">
-            <i class="fas fa-lock"></i> Force Close Draft Window
-          </button>
-          <button class="btn-primary" onclick="advanceGameweek()" id="advanceGwBtn" style="background:var(--gold); color:#000;">
-            <i class="fas fa-forward"></i> Advance Gameweek
-          </button>
-          <button class="btn-primary" onclick="resumeLivePolling()" id="resumePollingBtn" style="background:var(--green);">
-            <i class="fas fa-play"></i> Resume Live Polling
-          </button>
-        </div>
-        <div id="seedResults" style="margin-top:10px; font-size:12.5px; color:var(--text-faint);"></div>
-      </div>
-
-      <!-- TEMPORARY TEST TOOL — delete after testing. Same tool as the
-           admin page's "Mark Games Finished" — kept here too so testing
-           doesn't mean constantly switching pages. Trusts whatever
-           result/stats data already exists (e.g. your own SQL) rather
-           than generating anything. -->
-      <div class="card" style="border-color:var(--gold); margin-top:16px;">
-        <h3 style="margin-bottom:10px;"><i class="fas fa-futbol"></i> Mark Games Finished</h3>
-        <p style="font-size:12.5px; color:var(--text-faint); margin-bottom:10px;">
-          Select matches, mark them finished. Uses whatever data already exists for them. Once every match in a gameweek is finished, Stock Market/LMS/Fantasy all finalize automatically.
-        </p>
-        <div style="display:flex; gap:8px; margin-bottom:10px;">
-          <input type="number" id="simGwInput" min="1" max="38" placeholder="GW e.g. 1" value="1"
-            style="flex:1; padding:8px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
-          <button class="btn-primary" onclick="loadSimulateMatches()"><i class="fas fa-rotate"></i> Load Matches</button>
-        </div>
-        <div style="overflow-x:auto;">
-          <table style="width:100%; border-collapse:collapse; font-size:13px;">
-            <thead>
-              <tr style="text-align:left; border-bottom:1px solid var(--border);">
-                <th style="padding:6px;"><input type="checkbox" id="simSelectAll" onclick="toggleSelectAllMatches(this)"></th>
-                <th style="padding:6px;">Fixture</th>
-                <th style="padding:6px;">Status</th>
-                <th style="padding:6px;">Score</th>
-              </tr>
-            </thead>
-            <tbody id="simulateMatchesBody">
-              <tr><td colspan="4" style="padding:10px; color:var(--text-faint);">Enter a gameweek and click Load Matches.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <button class="btn-primary" style="background:var(--green); margin-top:10px;" onclick="markSelectedMatchesFinished()" id="markFinishedBtn">
-          <i class="fas fa-check"></i> Mark Selected as Finished
-        </button>
-        <div id="simulateResultMsg" style="margin-top:8px; font-size:12.5px; color:var(--text-faint);"></div>
-      </div>
     </div>
   </main>
 
