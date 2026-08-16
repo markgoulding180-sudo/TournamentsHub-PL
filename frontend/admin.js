@@ -1696,6 +1696,88 @@ async function saveRelegationStages() {
   }
 }
 
+async function downloadExcelReport() {
+  const resultEl = document.getElementById('excelResult');
+  resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Building report…</span>';
+  log('Building Excel report...', 'info');
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?admin_full_platform_backup=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`;
+      log(`Excel report failed: ${data.error}`, 'error');
+      return;
+    }
+
+    const b = data.backup;
+    const money = c => ((c || 0) / 100).toFixed(2);
+    // user_id -> readable name, used throughout every sheet below instead
+    // of raw UUIDs, since the whole point of this report is to actually
+    // be readable at a glance.
+    const nameById = {};
+    (b.public.users || []).forEach(u => { nameById[u.id] = u.display_name || u.username || u.id; });
+    const nameOf = id => nameById[id] || id || '';
+
+    const wb = XLSX.utils.book_new();
+
+    // --- Overview: one row per tournament across all 4 types ---
+    const overview = [];
+    (b.predictions.tournaments || []).forEach(t => overview.push({ Type: 'Predictions', Name: t.name, Status: t.status, Gameweek: t.gameweek, 'End GW': t.end_gameweek, 'Entry Fee': money(t.entry_fee), Entries: t.current_entries }));
+    (b.lms.tournaments || []).forEach(t => overview.push({ Type: 'LMS', Name: t.name, Status: t.status, Gameweek: t.gameweek, 'End GW': t.end_gameweek, 'Entry Fee': money(t.entry_fee), Entries: t.current_entries }));
+    (b.stockmarket.tournaments || []).forEach(t => overview.push({ Type: 'Stock Market', Name: t.name, Status: t.status, Gameweek: t.gameweek, 'End GW': t.end_gameweek, 'Entry Fee': money(t.entry_fee), Entries: t.current_entries }));
+    (b.fantasy.tournaments || []).forEach(t => overview.push({ Type: 'Fantasy', Name: t.name, Status: t.status, Gameweek: t.gameweek, 'End GW': t.end_gameweek, 'Entry Fee': money(t.entry_fee), Entries: t.current_entries }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(overview), 'Overview');
+
+    // --- Users & Wallet ---
+    const users = (b.public.users || []).map(u => ({ Name: u.display_name || u.username, Username: u.username, Email: u.email, Admin: u.is_admin ? 'Yes' : '', 'Joined': u.created_at }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(users), 'Users');
+    const wallet = (b.public.wallet_transactions || []).map(w => ({ User: nameOf(w.user_id), Type: w.type, Amount: money(w.amount), Description: w.description, Date: w.created_at }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wallet), 'Wallet');
+
+    // --- Predictions: what each user predicted, points earned ---
+    const preds = (b.predictions.predictions || []).map(p => ({
+      User: nameOf(p.user_id), Gameweek: p.gameweek, Match: `${p.home_team || '?'} v ${p.away_team || '?'}`,
+      'Predicted Result': p.predicted_result, 'Predicted Score': `${p.home_score}-${p.away_score}`,
+      'Points Earned': p.points_earned
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(preds), 'Predictions');
+
+    // --- LMS: pick, result, elimination status ---
+    const lmsPicks = (b.lms.picks || []).map(p => ({ User: nameOf(p.user_id), Gameweek: p.gameweek, Team: p.team, Result: p.result }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lmsPicks), 'LMS Picks');
+    const lmsEntries = (b.lms.tournament_entries || []).map(e => ({ User: nameOf(e.user_id), 'Still In?': e.is_eliminated ? 'Eliminated' : 'Alive', 'Eliminated GW': e.eliminated_gameweek || '', Points: e.entry_points, Prize: money(e.prize_awarded) }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lmsEntries), 'LMS Standings');
+
+    // --- Stock Market: squad value, relegation status ---
+    const stockEntries = (b.stockmarket.tournament_entries || []).map(e => ({
+      User: nameOf(e.user_id), 'Squad Locked?': e.squad_locked ? 'Yes' : 'No',
+      'Start Value': money(e.start_value), 'Current Value': money(e.current_value),
+      Relegated: e.relegated ? `Yes (GW${e.relegated_at_gameweek})` : 'No', 'Final Value': e.final_value != null ? money(e.final_value) : ''
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockEntries), 'Stock Market');
+
+    // --- Fantasy: squad points, rank, prize ---
+    const fantasyEntries = (b.fantasy.tournament_entries || []).map(e => ({ User: e.username || nameOf(e.user_id), 'Total Points': e.entry_points, 'Last GW Points': e.last_gw_points, Rank: e.rank, Prize: money(e.prize_awarded) }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fantasyEntries), 'Fantasy');
+
+    // Reasonable column widths so this is actually readable on open,
+    // not just correct data crammed into default-width columns.
+    Object.keys(wb.Sheets).forEach(name => { wb.Sheets[name]['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]; });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    XLSX.writeFile(wb, `gb-tournaments-report-${timestamp}.xlsx`);
+
+    resultEl.innerHTML = '<span style="color:var(--accent-green);">Done — Excel report downloaded.</span>';
+    log('Excel report complete.', 'success');
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+    log(`Excel report error: ${error.message}`, 'error');
+  }
+}
+
 async function downloadPlatformBackup() {
   const resultEl = document.getElementById('backupResult');
   resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Building backup…</span>';
