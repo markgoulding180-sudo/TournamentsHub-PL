@@ -187,9 +187,10 @@
          own line instead of relying on horizontal scroll. A new user
          would never think to scroll a card sideways to find the Add
          button, so everything now stays visible without scrolling. */
-      .fm-player-row{ min-width:0 !important; flex-wrap:wrap; }
-      .fm-player-name{ min-width:0 !important; flex-basis:0; }
-      .fm-player-meta{ flex-basis:100%; justify-content:flex-end; order:5; margin-top:2px; }
+      .fm-player-row{ min-width:0 !important; flex-wrap:nowrap; gap:.4rem; }
+      .fm-player-name{ min-width:0 !important; flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .fm-player-meta{ flex:none; flex-basis:auto; justify-content:flex-end; order:0; margin-top:0; gap:.5rem; font-size:.7rem; }
+      .fm-player-meta span{ min-width:0 !important; }
       .fm-squad-slot{ min-width:0 !important; flex-wrap:wrap; }
       .fm-squad-slot .fm-cap-btn{ order:1; }
       .fm-squad-slot .fm-player-name{ order:2; flex-basis:0; }
