@@ -179,6 +179,21 @@
       </button>
       <div id="excelResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
     </div>
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Delete a single test tournament (safe — everything else untouched)</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">For testing something specific (like new card designs) without wiping real users' data in other tournaments. Only deletes the one Stock Market tournament you pick.</p>
+<div class="admin-card" style="border: 2px solid var(--accent-amber, #f59e0b); grid-column: 1 / -1;">
+      <h3 style="color: var(--accent-amber, #f59e0b);"><i class="fas fa-trash-can"></i> Delete One Stock Market Tournament</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Removes that tournament and all its entries, squads, transactions, and stages — genuinely scoped to just this one, confirmed via its own direct tournament_id on every table. No other Stock Market tournament, and no other tournament type (Predictions, LMS, Fantasy), is touched at all.
+      </p>
+      <select id="deleteSingleStockSelect" style="width:100%; padding:0.6rem; margin-bottom:0.75rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px;">
+        <option value="">Loading tournaments…</option>
+      </select>
+      <button class="btn" onclick="deleteSingleStockTournament()" style="width:100%; background:var(--accent-amber, #f59e0b); color:#000; font-weight:700;">
+        <i class="fas fa-trash-can"></i> Delete This Tournament Only
+      </button>
+      <div id="deleteSingleStockResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
     <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Step 0 — Clean Slate (first-time real launch only)</h2>
     <p class="text-muted mb-2" style="font-size: 0.85rem;">Wipes everything and starts fresh. Skip this if this is genuinely the first time anyone's used the platform.</p>
 <div class="admin-card" style="border: 3px solid var(--accent-red, #ef4444); background: rgba(239,68,68,0.06); grid-column: 1 / -1;">

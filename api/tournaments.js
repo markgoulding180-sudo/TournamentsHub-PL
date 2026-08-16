@@ -2480,6 +2480,45 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // needing hand-run SQL every time. Requires typing the exact
       // confirmation phrase, since this is genuinely irreversible and
       // touches literally every table the platform uses.
+      if (action === 'stockmarket_delete_single_tournament') {
+        const { data: delCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!delCaller || !delCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const targetTournamentId = req.body.tournament_id;
+        if (!targetTournamentId) return res.status(400).json({ error: 'tournament_id is required' });
+
+        try {
+          // Confirmed real: every one of these tables has its own direct
+          // tournament_id column, so this is a genuinely scoped delete —
+          // only rows belonging to this specific tournament, nothing else
+          // in this schema and nothing in any other tournament type at
+          // all. Children deleted before the tournaments row itself.
+          const stockTables = TOURNAMENT_SCHEMA_TABLES.stockmarket;
+          const deletedCounts = {};
+          for (const table of stockTables) {
+            if (table === 'tournaments') continue; // deleted last, below
+            const pkColumn = TOURNAMENT_TABLE_PK_OVERRIDES[`stockmarket.${table}`] || 'id';
+            const { error: delErr, count } = await supabaseAdmin
+              .schema('stockmarket').from(table).delete({ count: 'exact' }).eq('tournament_id', targetTournamentId);
+            if (delErr) {
+              console.error(`stockmarket_delete_single_tournament failed on ${table}:`, delErr.message);
+              return res.status(500).json({ error: `Failed while clearing ${table}: ${delErr.message}` });
+            }
+            deletedCounts[table] = count ?? 0;
+          }
+
+          const { error: tourErr, count: tourCount } = await supabaseAdmin
+            .schema('stockmarket').from('tournaments').delete({ count: 'exact' }).eq('id', targetTournamentId);
+          if (tourErr) return res.status(500).json({ error: `Failed to delete the tournament itself: ${tourErr.message}` });
+          deletedCounts.tournaments = tourCount ?? 0;
+
+          return res.status(200).json({ success: true, deleted: deletedCounts });
+        } catch (err) {
+          console.error('stockmarket_delete_single_tournament error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'full_platform_reset') {
         const { data: resetCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!resetCaller || !resetCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });

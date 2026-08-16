@@ -1900,6 +1900,70 @@ async function downloadExcelReport() {
   }
 }
 
+async function loadDeleteSingleStockDropdown() {
+  const select = document.getElementById('deleteSingleStockSelect');
+  if (!select) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?admin_full_platform_backup=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      select.innerHTML = '<option value="">Failed to load tournaments</option>';
+      return;
+    }
+    const tournaments = data.backup.stockmarket.tournaments || [];
+    if (tournaments.length === 0) {
+      select.innerHTML = '<option value="">No Stock Market tournaments exist</option>';
+      return;
+    }
+    select.innerHTML = tournaments.map(t =>
+      `<option value="${t.id}">${escapeHtmlAdmin(t.name)} — GW${t.gameweek} — ${t.status} — ${t.current_entries || 0} entries</option>`
+    ).join('');
+  } catch (error) {
+    select.innerHTML = '<option value="">Error loading tournaments</option>';
+    log(`Failed to load tournament list: ${error.message}`, 'error');
+  }
+}
+document.addEventListener('DOMContentLoaded', loadDeleteSingleStockDropdown);
+
+async function deleteSingleStockTournament() {
+  const select = document.getElementById('deleteSingleStockSelect');
+  const resultEl = document.getElementById('deleteSingleStockResult');
+  const tournamentId = select.value;
+  const tournamentLabel = select.options[select.selectedIndex]?.text || '';
+  if (!tournamentId) {
+    resultEl.innerHTML = '<span style="color:var(--accent-red);">Pick a tournament first.</span>';
+    return;
+  }
+  if (!confirm(`Delete "${tournamentLabel}"?\n\nThis removes only this one tournament and its own entries/squads/transactions. Every other tournament, every other type, and all real users are completely untouched.\n\nThis cannot be undone.`)) return;
+
+  resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Deleting…</span>';
+  log(`Deleting single stock market tournament: ${tournamentId}`, 'warn');
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'stockmarket_delete_single_tournament', tournament_id: tournamentId })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`;
+      log(`Delete failed: ${data.error}`, 'error');
+      return;
+    }
+    resultEl.innerHTML = '<span style="color:var(--accent-green);">Done — that tournament and its data are gone, nothing else touched.</span>';
+    console.log('Deleted counts:', data.deleted);
+    log('Single tournament deleted successfully.', 'success');
+    loadDeleteSingleStockDropdown();
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+    log(`Delete error: ${error.message}`, 'error');
+  }
+}
+
 async function downloadPlatformBackup() {
   const resultEl = document.getElementById('backupResult');
   resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Building backup…</span>';
