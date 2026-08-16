@@ -267,12 +267,16 @@
        base rule above. */
     @media (min-width:641px){
       .portfolio-card{ aspect-ratio:1054/1550; }
-      /* Bigger photo, more of the player actually visible - the name
-         box and Sell box now start lower and sit close together right
-         above the matches/injury badge, instead of starting high up
-         with a big gap eating into where the photo could be. */
-      .portfolio-card .p-photo-wrap{ height:56%; }
-      .p-overlay-stack{ top:52%; }
+      /* Much bigger photo this time - the previous increase clearly
+         wasn't enough. Content group compacted tighter too (smaller
+         internal gaps/padding), so it takes less room and can sit
+         lower, anchored at the bottom, leaving real extra room above
+         it for the photo. */
+      .portfolio-card .p-photo-wrap{ height:68%; }
+      .p-overlay-stack{ top:66%; gap:2px; }
+      .p-overlay-stack .p-name-overlay{ padding:2px 5px; gap:0px; }
+      .p-overlay-stack .p-action-pill{ padding:2px; }
+      .portfolio-card .p-badge-row{ margin-top:2px; }
     }
     .portfolio-card .p-badge-row{
       display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap; margin-top:6px;
