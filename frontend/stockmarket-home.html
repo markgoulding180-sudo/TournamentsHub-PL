@@ -210,6 +210,14 @@
     .how-num{ flex:none; width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); font-family:var(--font-head); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
 
     .cards-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px; min-width:0; }
+    .cards-grid.bye-mode{ grid-template-columns:1fr; }
+    .bye-banner{
+      display:flex; align-items:center; gap:12px; background:rgba(59,130,246,0.1);
+      border:1px solid var(--accent-dim); border-radius:12px; padding:14px 18px; margin-bottom:16px;
+    }
+    .bye-banner i{ font-size:20px; color:var(--accent-2); flex:none; }
+    .bye-banner strong{ display:block; font-size:14px; color:var(--text); margin-bottom:2px; }
+    .bye-banner span{ font-size:12.5px; color:var(--text-dim); }
     .cards-grid > *{ min-width:0; overflow-x:auto; }
     @media (max-width:900px){ .cards-grid{ grid-template-columns:1fr; } }
 
@@ -1313,10 +1321,14 @@
 
       if (!data.opponent) {
         document.getElementById('opponentSummaryCard').style.display = 'none';
-        document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
-        document.getElementById('marketBody').innerHTML = '<div class="empty">No matchup this week — you had a bye.</div>';
+        document.getElementById('opponent-squad-section').style.display = 'none';
+        document.querySelector('.cards-grid').classList.add('bye-mode');
+        const byeBanner = `<div class="bye-banner"><i class="fas fa-mug-hot"></i><div><strong>You have a bye this week</strong><span>Odd number of entrants this gameweek, so there's no opponent for you specifically — your own players still earn real value from goals, assists and clean sheets as normal.</span></div></div>`;
+        document.getElementById('portfolioBody').innerHTML = `${byeBanner}<div class="portfolio-grid">${myCards}</div>`;
         restoreOpenOverlays();
       } else {
+        document.getElementById('opponent-squad-section').style.display = '';
+        document.querySelector('.cards-grid').classList.remove('bye-mode');
         const opp = data.opponent;
         const m = data.matchup;
         const isLive = !!data.live;
