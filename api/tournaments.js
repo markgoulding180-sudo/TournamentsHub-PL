@@ -5587,19 +5587,99 @@ async function ensureMatchupsForGameweek(supabaseAdmin, tournamentId, gameweek) 
     return { ok: false, step: 'no entries' };
   }
 
-  const pool = entries.map(e => e.id);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  const rows = [];
-  for (let i = 0; i < pool.length - 1; i += 2) {
-    rows.push({ tournament_id: tournamentId, gameweek, entry_id_1: pool[i], entry_id_2: pool[i + 1], settled: false });
-  }
-  // Odd one out gets a bye — still worth a row so it's visible as "no
-  // opponent this week" rather than indistinguishable from an error.
+  let pool = entries.map(e => e.id);
+
+  // Set aside a bye first if the pool is odd, so the pairing algorithm
+  // below only ever runs on an even-length pool — otherwise the one
+  // naturally-unpaired entry would look like a failed pairing attempt
+  // rather than the expected bye, breaking the retry logic.
+  let byeEntryId = null;
   if (pool.length % 2 === 1) {
-    rows.push({ tournament_id: tournamentId, gameweek, entry_id_1: pool[pool.length - 1], entry_id_2: null, settled: true });
+    const byeIndex = Math.floor(Math.random() * pool.length);
+    byeEntryId = pool[byeIndex];
+    pool = pool.filter((_, i) => i !== byeIndex);
+  }
+
+  // Every past pairing this tournament (any prior gameweek), used to
+  // avoid repeat opponents. Byes (entry_id_2 null) are naturally
+  // excluded since there's no real opponent to track there.
+  const { data: pastMatchups } = await supabaseAdmin
+    .schema('stockmarket').from('matchups')
+    .select('entry_id_1, entry_id_2')
+    .eq('tournament_id', tournamentId)
+    .lt('gameweek', gameweek);
+  const playedPairs = new Set();
+  (pastMatchups || []).forEach(m => {
+    if (m.entry_id_2) {
+      playedPairs.add(`${m.entry_id_1}|${m.entry_id_2}`);
+      playedPairs.add(`${m.entry_id_2}|${m.entry_id_1}`);
+    }
+  });
+  const hasPlayed = (a, b) => playedPairs.has(`${a}|${b}`);
+
+  function shuffled(arr) {
+    const out = [...arr];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  // Genuine attempt at a zero-repeat pairing — random shuffle, then a
+  // greedy pass that skips any pairing already played this tournament.
+  // If a shuffle can't find a full valid pairing (an entry left with no
+  // unplayed opponent remaining), that attempt is discarded and retried
+  // with a fresh shuffle, up to a reasonable number of tries.
+  function tryZeroRepeatPairing() {
+    const order = shuffled(pool);
+    const used = new Set();
+    const pairs = [];
+    for (let i = 0; i < order.length; i++) {
+      const a = order[i];
+      if (used.has(a)) continue;
+      let partner = null;
+      for (let j = i + 1; j < order.length; j++) {
+        const b = order[j];
+        if (!used.has(b) && !hasPlayed(a, b)) { partner = b; break; }
+      }
+      if (partner === null) return null; // this attempt failed, caller retries
+      used.add(a); used.add(partner);
+      pairs.push([a, partner]);
+    }
+    return pairs;
+  }
+
+  let pairs = null;
+  const MAX_ATTEMPTS = 200;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS && !pairs; attempt++) {
+    pairs = tryZeroRepeatPairing();
+  }
+
+  if (!pairs) {
+    // Only reachable very late in a long-running tournament with a small
+    // enough pool that every possible pairing has already happened at
+    // least once — mathematically, some repeat becomes unavoidable at
+    // that point. Rather than fail outright and block the gameweek,
+    // fall back to whichever of several random attempts has the fewest
+    // repeats, so the tournament can always continue.
+    let best = null, bestRepeats = Infinity;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const order = shuffled(pool);
+      const candidate = [];
+      for (let i = 0; i < order.length - 1; i += 2) candidate.push([order[i], order[i + 1]]);
+      const repeats = candidate.filter(([a, b]) => hasPlayed(a, b)).length;
+      if (repeats < bestRepeats) { bestRepeats = repeats; best = candidate; if (repeats === 0) break; }
+    }
+    pairs = best;
+    console.warn(`ensureMatchupsForGameweek: no zero-repeat pairing possible for tournament ${tournamentId} GW${gameweek}, using best available (${bestRepeats} repeat(s)).`);
+  }
+
+  const rows = pairs.map(([a, b]) => ({ tournament_id: tournamentId, gameweek, entry_id_1: a, entry_id_2: b, settled: false }));
+  // Odd one out still gets a real, visible bye row rather than being
+  // silently dropped, even though the plan is to avoid odd numbers.
+  if (byeEntryId) {
+    rows.push({ tournament_id: tournamentId, gameweek, entry_id_1: byeEntryId, entry_id_2: null, settled: true });
   }
 
   if (rows.length > 0) {
