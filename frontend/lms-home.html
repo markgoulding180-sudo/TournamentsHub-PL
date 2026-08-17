@@ -400,7 +400,6 @@
     </div>
 
     <div id="mainContent" style="display:none;">
-      <div class="stat-row" id="statRow"></div>
 
       <!-- This gameweek's pick -->
       <section class="card pick-card">
@@ -528,8 +527,6 @@
           if (pickCard) pickCard.style.display = 'none';
           const survivorsSection = document.getElementById('survivorsSection');
           if (survivorsSection) survivorsSection.style.display = 'none';
-          const statRowEl = document.getElementById('statRow');
-          if (statRowEl) statRowEl.style.display = 'none';
           const resultsCardEl = document.getElementById('resultsCardSection');
           if (resultsCardEl) resultsCardEl.style.display = 'none';
           // Lock banner is force-hidden here as a safety net — the
@@ -585,7 +582,6 @@
         <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((tournament.prize_pool||0)/100).toFixed(2)}</div></div>
         <div class="stat"><div class="label">Gameweek</div><div class="value">${currentGw ?? '--'}</div></div>
       `;
-      document.getElementById('statRow').innerHTML = statRowHtml;
       const heroStatRow = document.getElementById('heroStatRow');
       if (heroStatRow) heroStatRow.innerHTML = statRowHtml;
 
