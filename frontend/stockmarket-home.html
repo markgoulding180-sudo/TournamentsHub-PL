@@ -1312,7 +1312,10 @@
       });
 
       if (!data.opponent) {
-        document.getElementById('opponentSummaryCard').style.display = 'none';
+        document.getElementById('opponentSummaryCard').style.display = '';
+        document.getElementById('opponentSummaryTitle').textContent = 'Opponent';
+        document.getElementById('opponentHeaderPortfolioValue').textContent = '—';
+        document.getElementById('opponentStatRow').innerHTML = `<div style="text-align:center; padding:20px 10px; color:var(--text-dim); font-size:14px; width:100%;">You have a bye this week</div>`;
         document.getElementById('portfolioBody').innerHTML = `<div class="portfolio-grid">${myCards}</div>`;
         document.getElementById('marketBody').innerHTML = '<div class="empty">No matchup this week — you had a bye.</div>';
         restoreOpenOverlays();
