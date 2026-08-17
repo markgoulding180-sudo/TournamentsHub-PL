@@ -192,6 +192,17 @@
     .summary-vs-grid .stat .value{ font-size:15px; white-space:nowrap; }
     @media (max-width:900px){ .summary-vs-grid .stat-row{ flex-wrap:wrap; } .summary-vs-grid .stat{ min-width:100px; padding:10px 12px; } .summary-vs-grid .stat .label{ font-size:11px; } .summary-vs-grid .stat .value{ font-size:16px; } }
     @media (max-width:900px){ .summary-vs-grid{ grid-template-columns:1fr; } .summary-vs-grid .vs-divider{ margin:6px auto; } .summary-vs-grid .vs-divider::before{ display:none; } }
+    @media (max-width:640px){
+      /* Real overflow fix - 3 stats at 100px min-width plus gaps needed
+         ~316px just for this row, dangerously close to (or over) what
+         many real phones have available. Shrunk enough to genuinely
+         fit, not just look slightly smaller. */
+      #userStockMarketCard, #opponentSummaryCard{ padding:14px 12px !important; margin-left:auto; margin-right:auto; max-width:100%; }
+      .summary-vs-grid .stat{ min-width:0 !important; flex:1 1 0; padding:8px 6px !important; }
+      .summary-vs-grid .stat .label{ font-size:9.5px !important; }
+      .summary-vs-grid .stat .value{ font-size:14px !important; }
+      .summary-vs-grid .stat-row{ gap:6px !important; }
+    }
 
     .status-badge{display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1.1rem; border-radius:2rem; font-size:.85rem; font-weight:600; background:rgba(34,197,94,0.08); border:1.5px solid var(--green); color:var(--green); max-width:100%;}
     .status-badge.pending{background:rgba(242,185,61,0.1); border-color:var(--gold); color:var(--gold);}
