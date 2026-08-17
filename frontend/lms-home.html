@@ -342,9 +342,28 @@
         <div class="hero-sub">Pick One. Survive. Repeat.</div>
         <p class="hero-desc">Pick a Premier League team to win every gameweek. Get it wrong and you're out — and you can never use the same team twice. Last manager standing takes the pot.</p>
         <div id="heroStatRow" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:18px;"></div>
-        <button type="button" onclick="document.getElementById('howCollapsible').classList.add('open'); document.getElementById('howCollapsible').scrollIntoView({behavior:'smooth', block:'start'});" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px; background:none; border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-size:13.5px; font-weight:700; padding:10px 18px; border-radius:8px; cursor:pointer;">
+        <button type="button" onclick="document.getElementById('howCollapsible').classList.toggle('open');" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px; background:none; border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-size:13.5px; font-weight:700; padding:10px 18px; border-radius:8px; cursor:pointer;">
           <i class="fas fa-circle-info" style="color:var(--accent-2);"></i> How It Works
         </button>
+        <div class="how-collapsible" id="howCollapsible" style="margin-top:12px;">
+          <div class="how-body" id="howBody" style="display:flex; flex-direction:column; gap:14px;">
+            <div class="how-step">
+              <div class="num">1</div>
+              <h3>Pick a team</h3>
+              <p>Each gameweek, choose one Premier League team you think will win.</p>
+            </div>
+            <div class="how-step">
+              <div class="num">2</div>
+              <h3>They have to win</h3>
+              <p>A draw or a loss and you're eliminated. No margin for error.</p>
+            </div>
+            <div class="how-step">
+              <div class="num">3</div>
+              <h3>No repeats</h3>
+              <p>Once you've picked a team, it's gone — you can never use it again this tournament.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -363,31 +382,6 @@
     <div class="finished-banner" id="finishedBanner" style="display:none;"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
     <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
     <div class="out-banner" id="outBanner"><i class="fas fa-skull" style="font-size:20px;"></i> <span id="outText"></span></div>
-
-    <!-- How it works -->
-    <div class="how-collapsible" id="howCollapsible">
-      <button class="how-toggle" id="howToggle" type="button">
-        <span><i class="fas fa-circle-info"></i> How It Works</span>
-        <i class="fas fa-chevron-down how-chevron" id="howChevron"></i>
-      </button>
-      <div class="how-body" id="howBody">
-        <div class="how-step">
-          <div class="num">1</div>
-          <h3>Pick a team</h3>
-          <p>Each gameweek, choose one Premier League team you think will win.</p>
-        </div>
-        <div class="how-step">
-          <div class="num">2</div>
-          <h3>They have to win</h3>
-          <p>A draw or a loss and you're eliminated. No margin for error.</p>
-        </div>
-        <div class="how-step">
-          <div class="num">3</div>
-          <h3>No repeats</h3>
-          <p>Once you've picked a team, it's gone — you can never use it again this tournament.</p>
-        </div>
-      </div>
-    </div>
 
     <!-- Enter gate -->
     <div class="card enter-gate" id="enterGate" style="display:none;">
@@ -1016,10 +1010,6 @@
     }
     document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
-
-    document.getElementById('howToggle').addEventListener('click', () => {
-      document.getElementById('howCollapsible').classList.toggle('open');
-    });
 
     document.getElementById('resultsPrevGw').addEventListener('click', () => {
       const target = (viewedGw || currentGw || 1) - 1;
