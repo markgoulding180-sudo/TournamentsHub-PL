@@ -1900,6 +1900,70 @@ async function downloadExcelReport() {
   }
 }
 
+const DARTS_TOURNAMENT_ID = '0366d52c-4b6f-4875-993c-febf233962fc'; // 2026 World Grand Prix, the only darts tournament that currently exists
+const DARTS_MATCHES_PER_ROUND = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
+
+async function loadDartsMatches() {
+  const round = parseInt(document.getElementById('dartsRoundSelect').value);
+  const listEl = document.getElementById('dartsMatchesList');
+  listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</p>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: DARTS_TOURNAMENT_ID })
+    });
+    const data = await response.json();
+    if (!response.ok) { listEl.innerHTML = `<p style="color:var(--accent-red);">${data.error}</p>`; return; }
+
+    const playerName = (id) => { const p = data.players.find(pl => pl.id === id); return p ? p.name : 'TBD'; };
+    const matches = data.matches.filter(m => m.round === round).sort((a, b) => a.match_number - b.match_number);
+
+    listEl.innerHTML = matches.map(m => {
+      const p1Name = playerName(m.player1_id);
+      const p2Name = playerName(m.player2_id);
+      const bothKnown = m.player1_id && m.player2_id;
+      const finished = m.status === 'finished';
+      if (!bothKnown) {
+        return `<div style="padding:0.6rem; border-bottom:1px solid var(--border-color); color:var(--text-muted); font-size:0.85rem;">Match ${m.match_number}: waiting on earlier round results</div>`;
+      }
+      return `
+        <div style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem; border-bottom:1px solid var(--border-color); ${finished ? 'opacity:0.6;' : ''}">
+          <span style="width:60px; font-size:0.8rem; color:var(--text-muted);">M${m.match_number}</span>
+          <button class="btn" style="flex:1; background:${m.winner_id === m.player1_id ? 'var(--accent-green)' : 'var(--bg-secondary)'};" ${finished ? 'disabled' : ''} onclick="setDartsResult(${round}, ${m.match_number}, '${m.player1_id}')">${escapeHtmlAdmin(p1Name)}</button>
+          <span style="font-size:0.75rem; color:var(--text-muted);">vs</span>
+          <button class="btn" style="flex:1; background:${m.winner_id === m.player2_id ? 'var(--accent-green)' : 'var(--bg-secondary)'};" ${finished ? 'disabled' : ''} onclick="setDartsResult(${round}, ${m.match_number}, '${m.player2_id}')">${escapeHtmlAdmin(p2Name)}</button>
+          ${finished ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : ''}
+        </div>`;
+    }).join('') || '<p class="text-muted">No matches in this round.</p>';
+  } catch (error) {
+    listEl.innerHTML = `<p style="color:var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+document.addEventListener('DOMContentLoaded', loadDartsMatches);
+
+async function setDartsResult(round, matchNumber, winnerId) {
+  const resultEl = document.getElementById('dartsResultMsg');
+  if (!confirm(`Set this player as the winner of Round ${round}, Match ${matchNumber}?\n\nThis scores every prediction for this match and advances the winner. This cannot be undone from here.`)) return;
+
+  resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Saving…</span>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'darts_admin_set_result', tournament_id: DARTS_TOURNAMENT_ID, round, match_number: matchNumber, winner_id: winnerId })
+    });
+    const data = await response.json();
+    if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+    resultEl.innerHTML = '<span style="color:var(--accent-green);">Result saved, predictions scored, winner advanced.</span>';
+    loadDartsMatches();
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
 async function loadUserMgmtTournamentDropdown() {
   const select = document.getElementById('userMgmtTournamentSelect');
   if (!select) return;

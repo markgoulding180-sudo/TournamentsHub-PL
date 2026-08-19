@@ -179,6 +179,21 @@
       </button>
       <div id="excelResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
     </div>
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Darts — Enter Match Results</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">No free darts API exists, so results are entered manually here. Entering a result automatically scores every prediction for that match and advances the winner into their next-round slot.</p>
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3 style="color: var(--accent-green, #22c55e);"><i class="fas fa-bullseye"></i> Set a Match Winner</h3>
+      <select id="dartsRoundSelect" onchange="loadDartsMatches()" style="width:100%; padding:0.6rem; margin-bottom:0.75rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px;">
+        <option value="1">Round 1 — Last 32</option>
+        <option value="2">Round 2 — Last 16</option>
+        <option value="3">Round 3 — Quarter-Finals</option>
+        <option value="4">Round 4 — Semi-Finals</option>
+        <option value="5">Round 5 — Final</option>
+      </select>
+      <div id="dartsMatchesList" style="max-height:400px; overflow-y:auto;"></div>
+      <div id="dartsResultMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
     <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">User Management</h2>
     <p class="text-muted mb-2" style="font-size: 0.85rem;">Remove someone who hasn't paid or won't be continuing. Their entry fee charge is deleted entirely (never genuinely collected), not refunded.</p>
     <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444); grid-column: 1 / -1;">
