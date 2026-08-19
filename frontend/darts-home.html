@@ -208,7 +208,13 @@
     }
 
     (async function init() {
-      TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t');
+      // Falls back to the real, current tournament if the URL doesn't
+      // carry a ?t= param — real, confirmed gap: the /darts rewrite
+      // wasn't reliably passing this through, so the page depended
+      // entirely on routing working perfectly. This makes it work
+      // regardless.
+      const DEFAULT_TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix
+      TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || DEFAULT_TOURNAMENT_ID;
       if (!TOURNAMENT_ID) {
         document.getElementById('root').innerHTML = '<div class="empty">No tournament specified.</div>';
         return;
