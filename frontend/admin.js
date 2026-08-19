@@ -1900,6 +1900,83 @@ async function downloadExcelReport() {
   }
 }
 
+async function loadUserMgmtTournamentDropdown() {
+  const select = document.getElementById('userMgmtTournamentSelect');
+  if (!select) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_list_tournaments_for_removal' })
+    });
+    const data = await response.json();
+    if (!response.ok) { select.innerHTML = '<option value="">Failed to load tournaments</option>'; return; }
+    if (data.tournaments.length === 0) { select.innerHTML = '<option value="">No tournaments exist</option>'; return; }
+    select.innerHTML = '<option value="">Pick a tournament…</option>' + data.tournaments.map(t =>
+      `<option value="${t.tournament_type}|${t.id}">${t.type_label} — ${escapeHtmlAdmin(t.name)} — ${t.current_entries || 0} entries</option>`
+    ).join('');
+  } catch (error) {
+    select.innerHTML = '<option value="">Error loading tournaments</option>';
+  }
+}
+document.addEventListener('DOMContentLoaded', loadUserMgmtTournamentDropdown);
+
+async function loadTournamentEntrants() {
+  const select = document.getElementById('userMgmtTournamentSelect');
+  const listEl = document.getElementById('userMgmtEntrantsList');
+  const [tournamentType, tournamentId] = (select.value || '').split('|');
+  if (!tournamentType || !tournamentId) { listEl.innerHTML = ''; return; }
+
+  listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading entrants…</p>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_get_tournament_entrants', tournament_type: tournamentType, tournament_id: tournamentId })
+    });
+    const data = await response.json();
+    if (!response.ok) { listEl.innerHTML = `<p style="color:var(--accent-red);">${data.error}</p>`; return; }
+    if (data.entrants.length === 0) { listEl.innerHTML = '<p class="text-muted">No one has entered yet.</p>'; return; }
+    listEl.innerHTML = data.entrants.map(e => `
+      <label style="display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.25rem; border-bottom:1px solid var(--border-color); cursor:pointer;">
+        <input type="checkbox" class="user-mgmt-checkbox" value="${e.user_id}">
+        <span>${escapeHtmlAdmin(e.display_name)} <span class="text-muted" style="font-size:0.8rem;">${escapeHtmlAdmin(e.email)}</span></span>
+      </label>`).join('');
+  } catch (error) {
+    listEl.innerHTML = `<p style="color:var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+
+async function removeSelectedUsers() {
+  const select = document.getElementById('userMgmtTournamentSelect');
+  const resultEl = document.getElementById('userMgmtResult');
+  const [tournamentType, tournamentId] = (select.value || '').split('|');
+  const checked = Array.from(document.querySelectorAll('.user-mgmt-checkbox:checked')).map(cb => cb.value);
+
+  if (!tournamentType || !tournamentId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Pick a tournament first.</span>'; return; }
+  if (checked.length === 0) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Select at least one user.</span>'; return; }
+  if (!confirm(`Remove ${checked.length} user(s) from this tournament?\n\nTheir entry fee charge will be deleted entirely (not refunded), and the prize pool will adjust. This cannot be undone.`)) return;
+
+  resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Removing…</span>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_remove_tournament_users', tournament_type: tournamentType, tournament_id: tournamentId, user_ids: checked })
+    });
+    const data = await response.json();
+    if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+    resultEl.innerHTML = `<span style="color:var(--accent-green);">Removed ${data.removed} user(s). ${data.remaining_entries} entries remain${data.new_prize_pool !== null ? `, prize pool now £${(data.new_prize_pool/100).toFixed(2)}` : ''}.</span>`;
+    loadUserMgmtTournamentDropdown();
+    loadTournamentEntrants();
+  } catch (error) {
+    resultEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
 async function loadDeleteSingleStockDropdown() {
   const select = document.getElementById('deleteSingleStockSelect');
   if (!select) return;

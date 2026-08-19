@@ -2483,6 +2483,303 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // needing hand-run SQL every time. Requires typing the exact
       // confirmation phrase, since this is genuinely irreversible and
       // touches literally every table the platform uses.
+      // ---- Forum ----
+      if (action === 'forum_get_categories') {
+        const { data: categories, error: catErr } = await supabaseAdmin
+          .schema('forum').from('categories').select('*').order('sort_order');
+        if (catErr) return res.status(500).json({ error: catErr.message });
+
+        const { data: threadCounts } = await supabaseAdmin
+          .schema('forum').from('threads').select('category_id');
+        const countByCategory = {};
+        (threadCounts || []).forEach(t => { countByCategory[t.category_id] = (countByCategory[t.category_id] || 0) + 1; });
+
+        return res.status(200).json({
+          categories: categories.map(c => ({ ...c, thread_count: countByCategory[c.id] || 0 }))
+        });
+      }
+
+      if (action === 'forum_get_threads') {
+        const { category_slug } = req.body;
+        if (!category_slug) return res.status(400).json({ error: 'category_slug is required' });
+
+        const { data: category, error: catErr } = await supabaseAdmin
+          .schema('forum').from('categories').select('*').eq('slug', category_slug).maybeSingle();
+        if (catErr) return res.status(500).json({ error: catErr.message });
+        if (!category) return res.status(404).json({ error: 'Category not found' });
+
+        const { data: threads, error: threadErr } = await supabaseAdmin
+          .schema('forum').from('threads').select('*')
+          .eq('category_id', category.id)
+          .order('pinned', { ascending: false })
+          .order('last_reply_at', { ascending: false });
+        if (threadErr) return res.status(500).json({ error: threadErr.message });
+
+        const userIds = [...new Set(threads.map(t => t.user_id))];
+        const { data: authors } = userIds.length > 0
+          ? await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds)
+          : { data: [] };
+        const nameByUser = {};
+        (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; });
+
+        return res.status(200).json({
+          category,
+          threads: threads.map(t => ({ ...t, author_name: nameByUser[t.user_id] || 'Unknown' }))
+        });
+      }
+
+      if (action === 'forum_get_thread') {
+        const { thread_id } = req.body;
+        if (!thread_id) return res.status(400).json({ error: 'thread_id is required' });
+
+        const { data: thread, error: threadErr } = await supabaseAdmin
+          .schema('forum').from('threads').select('*').eq('id', thread_id).maybeSingle();
+        if (threadErr) return res.status(500).json({ error: threadErr.message });
+        if (!thread) return res.status(404).json({ error: 'Thread not found' });
+
+        const { data: posts, error: postsErr } = await supabaseAdmin
+          .schema('forum').from('posts').select('*').eq('thread_id', thread_id).order('created_at', { ascending: true });
+        if (postsErr) return res.status(500).json({ error: postsErr.message });
+
+        const userIds = [...new Set([thread.user_id, ...posts.map(p => p.user_id)])];
+        const { data: authors } = await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds);
+        const nameByUser = {};
+        (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; });
+
+        return res.status(200).json({
+          thread: { ...thread, author_name: nameByUser[thread.user_id] || 'Unknown' },
+          posts: posts.map(p => ({ ...p, author_name: nameByUser[p.user_id] || 'Unknown' }))
+        });
+      }
+
+      if (action === 'forum_create_thread') {
+        const { category_id, title, content } = req.body;
+        if (!category_id || !title?.trim() || !content?.trim()) {
+          return res.status(400).json({ error: 'category_id, title, and content are all required' });
+        }
+        if (title.length > 200) return res.status(400).json({ error: 'Title is too long (max 200 characters)' });
+
+        const { data: thread, error: threadErr } = await supabaseAdmin
+          .schema('forum').from('threads')
+          .insert({ category_id, user_id: user.id, title: title.trim() })
+          .select().single();
+        if (threadErr) return res.status(500).json({ error: threadErr.message });
+
+        const { error: postErr } = await supabaseAdmin
+          .schema('forum').from('posts')
+          .insert({ thread_id: thread.id, user_id: user.id, content: content.trim() });
+        if (postErr) return res.status(500).json({ error: postErr.message });
+
+        return res.status(200).json({ success: true, thread_id: thread.id });
+      }
+
+      if (action === 'forum_create_reply') {
+        const { thread_id, content } = req.body;
+        if (!thread_id || !content?.trim()) return res.status(400).json({ error: 'thread_id and content are required' });
+
+        const { data: thread, error: threadErr } = await supabaseAdmin
+          .schema('forum').from('threads').select('locked').eq('id', thread_id).maybeSingle();
+        if (threadErr) return res.status(500).json({ error: threadErr.message });
+        if (!thread) return res.status(404).json({ error: 'Thread not found' });
+        if (thread.locked) return res.status(403).json({ error: 'This thread is locked' });
+
+        const { error: postErr } = await supabaseAdmin
+          .schema('forum').from('posts')
+          .insert({ thread_id, user_id: user.id, content: content.trim() });
+        if (postErr) return res.status(500).json({ error: postErr.message });
+
+        // Atomic increment via a direct SQL expression rather than a
+        // read-then-write, so two simultaneous replies can't clobber
+        // each other's reply_count update.
+        const { error: updateErr } = await supabaseAdmin.rpc('forum_bump_thread_reply', { p_thread_id: thread_id });
+        if (updateErr) console.error('forum_bump_thread_reply error:', updateErr.message);
+
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'forum_delete_post') {
+        const { post_id } = req.body;
+        if (!post_id) return res.status(400).json({ error: 'post_id is required' });
+
+        const { data: post, error: postErr } = await supabaseAdmin
+          .schema('forum').from('posts').select('user_id, thread_id').eq('id', post_id).maybeSingle();
+        if (postErr) return res.status(500).json({ error: postErr.message });
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        const isOwner = post.user_id === user.id;
+        const isAdmin = caller?.is_admin;
+        if (!isOwner && !isAdmin) return res.status(403).json({ error: 'You can only delete your own posts' });
+
+        const { error: delErr } = await supabaseAdmin.schema('forum').from('posts').delete().eq('id', post_id);
+        if (delErr) return res.status(500).json({ error: delErr.message });
+
+        return res.status(200).json({ success: true });
+      }
+
+      if (action === 'forum_admin_moderate_thread') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { thread_id, pinned, locked, delete: shouldDelete } = req.body;
+        if (!thread_id) return res.status(400).json({ error: 'thread_id is required' });
+
+        if (shouldDelete) {
+          const { error: delErr } = await supabaseAdmin.schema('forum').from('threads').delete().eq('id', thread_id);
+          if (delErr) return res.status(500).json({ error: delErr.message });
+          return res.status(200).json({ success: true, deleted: true });
+        }
+
+        const updates = {};
+        if (typeof pinned === 'boolean') updates.pinned = pinned;
+        if (typeof locked === 'boolean') updates.locked = locked;
+        if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' });
+
+        const { error: updateErr } = await supabaseAdmin.schema('forum').from('threads').update(updates).eq('id', thread_id);
+        if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+        return res.status(200).json({ success: true });
+      }
+
+      // ---- Admin: User Management (remove a user from a tournament) ----
+      if (action === 'admin_list_tournaments_for_removal') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const [pred, lms, stock, fantasy] = await Promise.all([
+          supabaseAdmin.schema('predictions').from('tournaments').select('id, name, status, current_entries'),
+          supabaseAdmin.schema('lms').from('tournaments').select('id, name, status, current_entries'),
+          supabaseAdmin.schema('stockmarket').from('tournaments').select('id, name, status, current_entries'),
+          supabaseAdmin.schema('fantasy').from('tournaments').select('id, name, status, current_entries'),
+        ]);
+        const label = { predictions: 'Predictions', lms: 'Last Man Standing', stockmarket: 'Stock Market', fantasy: 'Fantasy' };
+        const all = [
+          ...(pred.data || []).map(t => ({ ...t, tournament_type: 'predictions', type_label: label.predictions })),
+          ...(lms.data || []).map(t => ({ ...t, tournament_type: 'lms', type_label: label.lms })),
+          ...(stock.data || []).map(t => ({ ...t, tournament_type: 'stockmarket', type_label: label.stockmarket })),
+          ...(fantasy.data || []).map(t => ({ ...t, tournament_type: 'fantasy', type_label: label.fantasy })),
+        ];
+        return res.status(200).json({ tournaments: all });
+      }
+
+      if (action === 'admin_get_tournament_entrants') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_type, tournament_id } = req.body;
+        if (!tournament_type || !tournament_id) return res.status(400).json({ error: 'tournament_type and tournament_id are required' });
+        if (!['predictions', 'lms', 'stockmarket', 'fantasy'].includes(tournament_type)) {
+          return res.status(400).json({ error: 'Invalid tournament_type' });
+        }
+
+        const { data: entries, error: entriesErr } = await supabaseAdmin
+          .schema(tournament_type).from('tournament_entries').select('id, user_id').eq('tournament_id', tournament_id);
+        if (entriesErr) return res.status(500).json({ error: entriesErr.message });
+
+        const userIds = entries.map(e => e.user_id);
+        const { data: users } = userIds.length > 0
+          ? await supabaseAdmin.from('users').select('id, display_name, username, email').in('id', userIds)
+          : { data: [] };
+        const byId = {};
+        (users || []).forEach(u => { byId[u.id] = u; });
+
+        return res.status(200).json({
+          entrants: entries.map(e => ({
+            entry_id: e.id, user_id: e.user_id,
+            display_name: byId[e.user_id]?.display_name || byId[e.user_id]?.username || 'Unknown',
+            email: byId[e.user_id]?.email || ''
+          }))
+        });
+      }
+
+      if (action === 'admin_remove_tournament_users') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_type, tournament_id, user_ids } = req.body;
+        if (!tournament_type || !tournament_id || !Array.isArray(user_ids) || user_ids.length === 0) {
+          return res.status(400).json({ error: 'tournament_type, tournament_id, and user_ids (array) are required' });
+        }
+        if (!['predictions', 'lms', 'stockmarket', 'fantasy'].includes(tournament_type)) {
+          return res.status(400).json({ error: 'Invalid tournament_type' });
+        }
+
+        try {
+          const { data: tournament, error: tourErr } = await supabaseAdmin
+            .schema(tournament_type).from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+          if (tourErr) return res.status(500).json({ error: tourErr.message });
+          if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+
+          // Stock Market specifically flagged as risky — once the market
+          // is live, a user's squad value is woven into the zero-sum pot,
+          // their players count toward other entries' ownership caps, and
+          // they may be mid-matchup against a real opponent this week.
+          // Removing them cleanly at that point isn't a simple delete —
+          // blocking it here rather than attempting something that could
+          // silently corrupt the pot, matching the exact concern raised.
+          if (tournament_type === 'stockmarket' && tournament.status !== 'upcoming') {
+            return res.status(409).json({
+              error: 'This Stock Market tournament is already live. Removing a user now would affect the zero-sum pot, ownership caps, and this week\'s matchups — this isn\'t supported yet. Users can only be safely removed from a Stock Market tournament while it\'s still in the drafting phase.'
+            });
+          }
+
+          for (const targetUserId of user_ids) {
+            // Same real gap this was built to fix — delete the entry_fee
+            // charge entirely (never genuinely collected), not a refund.
+            await supabaseAdmin.from('wallet_transactions').delete()
+              .eq('user_id', targetUserId).eq('tournament_id', tournament_id).eq('tournament_type', tournament_type).eq('type', 'entry_fee');
+
+            if (tournament_type === 'predictions') {
+              // Confirmed directly against the real schema: predictions,
+              // prediction_history, and gameweek_summary all lack a
+              // tournament_id column entirely — only tournament_entries
+              // genuinely has one. Predictions aren't tournament-scoped
+              // the way the other 3 types are.
+              await supabaseAdmin.schema('predictions').from('predictions').delete().eq('user_id', targetUserId);
+              await supabaseAdmin.schema('predictions').from('prediction_history').delete().eq('user_id', targetUserId);
+              await supabaseAdmin.schema('predictions').from('gameweek_summary').delete().eq('user_id', targetUserId);
+              await supabaseAdmin.schema('predictions').from('tournament_entries').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
+            } else if (tournament_type === 'lms') {
+              await supabaseAdmin.schema('lms').from('picks').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
+              await supabaseAdmin.schema('lms').from('tournament_entries').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
+            } else if (tournament_type === 'fantasy') {
+              await supabaseAdmin.schema('fantasy').from('entry_gameweek_history').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
+              await supabaseAdmin.schema('fantasy').from('tournament_entries').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
+            } else if (tournament_type === 'stockmarket') {
+              // Only reachable when status === 'upcoming' (still drafting,
+              // no real money interdependency yet) — genuinely safe here.
+              const { data: entry } = await supabaseAdmin
+                .schema('stockmarket').from('tournament_entries').select('id').eq('user_id', targetUserId).eq('tournament_id', tournament_id).maybeSingle();
+              if (entry) {
+                await supabaseAdmin.schema('stockmarket').from('transactions').delete().eq('entry_id', entry.id);
+                await supabaseAdmin.schema('stockmarket').from('player_gw_history').delete().eq('entry_id', entry.id);
+              }
+              await supabaseAdmin.schema('stockmarket').from('tournament_entries').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
+            }
+          }
+
+          const { count: remainingCount } = await supabaseAdmin
+            .schema(tournament_type).from('tournament_entries').select('id', { count: 'exact', head: true }).eq('tournament_id', tournament_id);
+
+          // Stock Market's tournaments table genuinely has no prize_pool
+          // column at all — confirmed directly, not assumed. Its "prize
+          // pool" is computed on the frontend from entries × entry_fee,
+          // so only current_entries needs updating there.
+          const updatePayload = { current_entries: remainingCount || 0 };
+          let newPrizePool = null;
+          if (tournament_type !== 'stockmarket') {
+            newPrizePool = (remainingCount || 0) * (tournament.entry_fee || 0);
+            updatePayload.prize_pool = newPrizePool;
+          }
+          await supabaseAdmin.schema(tournament_type).from('tournaments').update(updatePayload).eq('id', tournament_id);
+
+          return res.status(200).json({ success: true, removed: user_ids.length, remaining_entries: remainingCount || 0, new_prize_pool: newPrizePool });
+        } catch (err) {
+          console.error('admin_remove_tournament_users error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'stockmarket_delete_single_tournament') {
         const { data: delCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!delCaller || !delCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
