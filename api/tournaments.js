@@ -2642,6 +2642,195 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       }
 
       // ---- Admin: User Management (remove a user from a tournament) ----
+      // ---- Darts bracket pool ----
+      if (action === 'darts_get_bracket') {
+        const { tournament_id } = req.body;
+        if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
+
+        const { data: tournament, error: tourErr } = await supabaseAdmin
+          .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (tourErr) return res.status(500).json({ error: tourErr.message });
+        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+
+        const { data: players } = await supabaseAdmin.schema('darts').from('players').select('*').eq('tournament_id', tournament_id);
+        const { data: matches } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).order('round').order('match_number');
+
+        const { data: entry } = await supabaseAdmin
+          .schema('darts').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+        let myPredictions = [];
+        if (entry) {
+          const { data: preds } = await supabaseAdmin.schema('darts').from('predictions').select('*').eq('entry_id', entry.id);
+          myPredictions = preds || [];
+        }
+
+        return res.status(200).json({ tournament, players, matches, my_entry: entry || null, my_predictions: myPredictions });
+      }
+
+      if (action === 'darts_submit_bracket') {
+        const { tournament_id, predictions: submittedPredictions } = req.body;
+        if (!tournament_id || !Array.isArray(submittedPredictions) || submittedPredictions.length !== 31) {
+          return res.status(400).json({ error: 'tournament_id and exactly 31 predictions (one per bracket match) are required' });
+        }
+
+        const { data: tournament, error: tourErr } = await supabaseAdmin
+          .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (tourErr) return res.status(500).json({ error: tourErr.message });
+        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+        if (tournament.status !== 'upcoming') return res.status(403).json({ error: 'Predictions are locked — the bracket has already started.' });
+        if (tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+          return res.status(403).json({ error: 'The prediction deadline has passed.' });
+        }
+
+        // Cascading validation — a round-N pick (N > 1) can only be a
+        // player the user themselves picked to win both feeder matches
+        // from round N-1. This is the actual structural rule that makes
+        // it a real bracket rather than 31 independent guesses; checked
+        // server-side rather than trusted from the frontend alone.
+        const byRoundMatch = {};
+        submittedPredictions.forEach(p => { byRoundMatch[`${p.round}-${p.match_number}`] = p.predicted_winner_id; });
+
+        for (let round = 2; round <= 5; round++) {
+          const matchesInRound = round === 5 ? 1 : round === 4 ? 2 : round === 3 ? 4 : 8;
+          for (let m = 1; m <= matchesInRound; m++) {
+            const feeder1 = (m - 1) * 2 + 1;
+            const feeder2 = (m - 1) * 2 + 2;
+            const feederWinner1 = byRoundMatch[`${round - 1}-${feeder1}`];
+            const feederWinner2 = byRoundMatch[`${round - 1}-${feeder2}`];
+            const thisPick = byRoundMatch[`${round}-${m}`];
+            if (thisPick !== feederWinner1 && thisPick !== feederWinner2) {
+              return res.status(400).json({ error: `Round ${round} match ${m}: your pick must be one of the two players you picked to win the previous round's feeder matches.` });
+            }
+          }
+        }
+
+        try {
+          let { data: entry } = await supabaseAdmin
+            .schema('darts').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+
+          if (!entry) {
+            const { data: newEntry, error: entryErr } = await supabaseAdmin
+              .schema('darts').from('tournament_entries')
+              .insert({ tournament_id, user_id: user.id })
+              .select().single();
+            if (entryErr) return res.status(500).json({ error: entryErr.message });
+            entry = newEntry;
+
+            if (tournament.entry_fee > 0) {
+              await supabaseAdmin.from('wallet_transactions').insert({
+                user_id: user.id, type: 'entry_fee', amount: tournament.entry_fee,
+                tournament_type: 'darts', tournament_id,
+                description: `Entry fee — ${tournament.name}`
+              });
+            }
+            await supabaseAdmin.schema('darts').from('tournaments')
+              .update({ current_entries: (tournament.current_entries || 0) + 1, prize_pool: (tournament.prize_pool || 0) + tournament.entry_fee })
+              .eq('id', tournament_id);
+          }
+
+          // Replace any existing predictions with this submission — lets
+          // a user revise their bracket freely until the deadline locks it.
+          await supabaseAdmin.schema('darts').from('predictions').delete().eq('entry_id', entry.id);
+          const rows = submittedPredictions.map(p => ({ entry_id: entry.id, round: p.round, match_number: p.match_number, predicted_winner_id: p.predicted_winner_id }));
+          const { error: predErr } = await supabaseAdmin.schema('darts').from('predictions').insert(rows);
+          if (predErr) return res.status(500).json({ error: predErr.message });
+
+          await supabaseAdmin.schema('darts').from('tournament_entries').update({ bracket_submitted: true }).eq('id', entry.id);
+
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('darts_submit_bracket error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      if (action === 'darts_admin_set_result') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id, round, match_number, winner_id } = req.body;
+        if (!tournament_id || !round || !match_number || !winner_id) {
+          return res.status(400).json({ error: 'tournament_id, round, match_number, and winner_id are all required' });
+        }
+
+        try {
+          // Points double each round — later rounds are genuinely harder
+          // to call correctly since they depend on multiple earlier
+          // results going the way the user predicted too.
+          const POINTS_BY_ROUND = { 1: 1, 2: 2, 3: 4, 4: 8, 5: 16 };
+
+          const { error: matchErr } = await supabaseAdmin
+            .schema('darts').from('matches')
+            .update({ winner_id, status: 'finished' })
+            .eq('tournament_id', tournament_id).eq('round', round).eq('match_number', match_number);
+          if (matchErr) return res.status(500).json({ error: matchErr.message });
+
+          // Score every prediction made for this exact match, scoped to
+          // entries in this specific tournament (predictions themselves
+          // have no tournament_id directly, only entry_id, which does).
+          const { data: tournamentEntries } = await supabaseAdmin
+            .schema('darts').from('tournament_entries').select('id').eq('tournament_id', tournament_id);
+          const entryIds = (tournamentEntries || []).map(e => e.id);
+
+          const { data: predsForMatch } = entryIds.length > 0
+            ? await supabaseAdmin.schema('darts').from('predictions').select('id, entry_id, predicted_winner_id')
+                .eq('round', round).eq('match_number', match_number).in('entry_id', entryIds)
+            : { data: [] };
+
+          for (const pred of (predsForMatch || [])) {
+            const correct = pred.predicted_winner_id === winner_id;
+            const points = correct ? POINTS_BY_ROUND[round] : 0;
+            await supabaseAdmin.schema('darts').from('predictions').update({ points_earned: points }).eq('id', pred.id);
+            if (points > 0) {
+              const { data: entryRow } = await supabaseAdmin.schema('darts').from('tournament_entries').select('entry_points').eq('id', pred.entry_id).maybeSingle();
+              await supabaseAdmin.schema('darts').from('tournament_entries')
+                .update({ entry_points: (entryRow?.entry_points || 0) + points }).eq('id', pred.entry_id);
+            }
+          }
+
+          // Advance the winner into the next round's match, if there is one
+          if (round < 5) {
+            const nextRound = round + 1;
+            const nextMatchNumber = Math.ceil(match_number / 2);
+            const isFirstFeeder = match_number % 2 === 1;
+            const { data: nextMatch } = await supabaseAdmin
+              .schema('darts').from('matches').select('*')
+              .eq('tournament_id', tournament_id).eq('round', nextRound).eq('match_number', nextMatchNumber).maybeSingle();
+            if (nextMatch) {
+              const updateField = isFirstFeeder ? { player1_id: winner_id } : { player2_id: winner_id };
+              await supabaseAdmin.schema('darts').from('matches').update(updateField)
+                .eq('tournament_id', tournament_id).eq('round', nextRound).eq('match_number', nextMatchNumber);
+            }
+          } else {
+            await supabaseAdmin.schema('darts').from('tournaments').update({ status: 'finished' }).eq('id', tournament_id);
+          }
+
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('darts_admin_set_result error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      if (action === 'darts_get_leaderboard') {
+        const { tournament_id } = req.body;
+        if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
+
+        const { data: entries, error: entriesErr } = await supabaseAdmin
+          .schema('darts').from('tournament_entries').select('*').eq('tournament_id', tournament_id).order('entry_points', { ascending: false });
+        if (entriesErr) return res.status(500).json({ error: entriesErr.message });
+
+        const userIds = entries.map(e => e.user_id);
+        const { data: users } = userIds.length > 0
+          ? await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds)
+          : { data: [] };
+        const byId = {};
+        (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; });
+
+        return res.status(200).json({
+          leaderboard: entries.map((e, i) => ({ rank: i + 1, display_name: byId[e.user_id] || 'Unknown', entry_points: e.entry_points }))
+        });
+      }
+
       if (action === 'admin_list_tournaments_for_removal') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
