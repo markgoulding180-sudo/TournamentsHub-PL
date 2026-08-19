@@ -1926,7 +1926,7 @@ async function createDartsTournament() {
   }
 }
 
-const DARTS_TOURNAMENT_ID = '0366d52c-4b6f-4875-993c-febf233962fc'; // 2026 World Grand Prix, the only darts tournament that currently exists
+const DARTS_TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix, the only darts tournament that currently exists
 const DARTS_MATCHES_PER_ROUND = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
 
 async function loadDartsMatches() {
