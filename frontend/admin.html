@@ -179,6 +179,34 @@
       </button>
       <div id="excelResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
     </div>
+    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Darts — Create Tournament</h2>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">Sets up a full 32-player bracket automatically (16 seeded, 16 qualifiers, all 31 matches structured) with placeholder names — swap in real names and re-pair Round 1 once the real draw is out.</p>
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3><i class="fas fa-trophy"></i> New Bracket Pool Tournament</h3>
+      <div class="mb-2">
+        <label class="form-label">Tournament Name</label>
+        <input type="text" id="dartsNameInput" class="form-input" placeholder="e.g. 2026 World Grand Prix">
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Description</label>
+        <input type="text" id="dartsDescInput" class="form-input" placeholder="Shown to users on the tournament page">
+      </div>
+      <div class="grid grid-2 mb-2">
+        <div>
+          <label class="form-label">Entry Fee (£)</label>
+          <input type="number" id="dartsFeeInput" class="form-input" value="10">
+        </div>
+        <div>
+          <label class="form-label">Predictions Close At</label>
+          <input type="datetime-local" id="dartsClosesInput" class="form-input">
+        </div>
+      </div>
+      <button class="btn btn-green admin-btn btn-lg" onclick="createDartsTournament()">
+        <i class="fas fa-plus"></i> Create Tournament
+      </button>
+      <div id="dartsCreateMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+    </div>
+
     <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Darts — Enter Match Results</h2>
     <p class="text-muted mb-2" style="font-size: 0.85rem;">No free darts API exists, so results are entered manually here. Entering a result automatically scores every prediction for that match and advances the winner into their next-round slot.</p>
     <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">

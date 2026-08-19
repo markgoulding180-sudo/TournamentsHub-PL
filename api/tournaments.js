@@ -11,6 +11,7 @@ function resolveSchema(tournament_type) {
   if (tournament_type === 'fantasy') return 'fantasy';
   if (tournament_type === 'lms') return 'lms';
   if (tournament_type === 'stockmarket') return 'stockmarket';
+  if (tournament_type === 'darts') return 'darts';
   return 'predictions';
 }
 
@@ -2643,6 +2644,55 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
       // ---- Admin: User Management (remove a user from a tournament) ----
       // ---- Darts bracket pool ----
+      // ---- Darts bracket pool ----
+      if (action === 'darts_admin_create_tournament') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { name, description, entry_fee, closes_at } = req.body;
+        if (!name?.trim() || !closes_at) return res.status(400).json({ error: 'name and closes_at are required' });
+
+        try {
+          const { data: tournament, error: tourErr } = await supabaseAdmin
+            .schema('darts').from('tournaments')
+            .insert({ name: name.trim(), description: description?.trim() || null, entry_fee: Math.round((entry_fee || 0) * 100), closes_at, status: 'upcoming' })
+            .select().single();
+          if (tourErr) return res.status(500).json({ error: tourErr.message });
+
+          // Same 32-placeholder-player, 31-match bracket structure built
+          // manually for the World Grand Prix — automated here so every
+          // future darts tournament gets it without needing raw SQL.
+          const seedRows = Array.from({ length: 16 }, (_, i) => ({ tournament_id: tournament.id, name: `Seed ${i + 1}`, seed: i + 1, is_seeded: true, is_placeholder: true }));
+          const { data: seedPlayers, error: seedErr } = await supabaseAdmin.schema('darts').from('players').insert(seedRows).select();
+          if (seedErr) return res.status(500).json({ error: seedErr.message });
+
+          const qualRows = Array.from({ length: 16 }, (_, i) => ({ tournament_id: tournament.id, name: `Qualifier ${i + 1}`, is_seeded: false, is_placeholder: true }));
+          const { data: qualPlayers, error: qualErr } = await supabaseAdmin.schema('darts').from('players').insert(qualRows).select();
+          if (qualErr) return res.status(500).json({ error: qualErr.message });
+
+          const seedById = {}; seedPlayers.forEach(p => { seedById[p.seed] = p.id; });
+          const qualByIndex = qualPlayers.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+          const round1Rows = Array.from({ length: 16 }, (_, i) => ({
+            tournament_id: tournament.id, round: 1, match_number: i + 1,
+            player1_id: seedById[i + 1], player2_id: qualByIndex[i].id
+          }));
+          const laterRows = [
+            ...Array.from({ length: 8 }, (_, i) => ({ tournament_id: tournament.id, round: 2, match_number: i + 1 })),
+            ...Array.from({ length: 4 }, (_, i) => ({ tournament_id: tournament.id, round: 3, match_number: i + 1 })),
+            ...Array.from({ length: 2 }, (_, i) => ({ tournament_id: tournament.id, round: 4, match_number: i + 1 })),
+            { tournament_id: tournament.id, round: 5, match_number: 1 },
+          ];
+          const { error: matchErr } = await supabaseAdmin.schema('darts').from('matches').insert([...round1Rows, ...laterRows]);
+          if (matchErr) return res.status(500).json({ error: matchErr.message });
+
+          return res.status(200).json({ success: true, tournament_id: tournament.id });
+        } catch (err) {
+          console.error('darts_admin_create_tournament error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'darts_get_bracket') {
         const { tournament_id } = req.body;
         if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });

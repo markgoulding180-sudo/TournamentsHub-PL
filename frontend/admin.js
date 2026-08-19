@@ -1900,6 +1900,32 @@ async function downloadExcelReport() {
   }
 }
 
+async function createDartsTournament() {
+  const name = document.getElementById('dartsNameInput').value.trim();
+  const description = document.getElementById('dartsDescInput').value.trim();
+  const entry_fee = parseFloat(document.getElementById('dartsFeeInput').value) || 0;
+  const closes_at = document.getElementById('dartsClosesInput').value;
+  const msgEl = document.getElementById('dartsCreateMsg');
+
+  if (!name) { msgEl.innerHTML = '<span style="color:var(--accent-red);">Tournament name is required.</span>'; return; }
+  if (!closes_at) { msgEl.innerHTML = '<span style="color:var(--accent-red);">Predictions close date is required.</span>'; return; }
+
+  msgEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Creating bracket…</span>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'darts_admin_create_tournament', name, description, entry_fee, closes_at: new Date(closes_at).toISOString() })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+    msgEl.innerHTML = `<span style="color:var(--accent-green);">Created! Tournament ID: ${data.tournament_id} — update DARTS_TOURNAMENT_ID above and the /darts route if this replaces the current one.</span>`;
+  } catch (error) {
+    msgEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
 const DARTS_TOURNAMENT_ID = '0366d52c-4b6f-4875-993c-febf233962fc'; // 2026 World Grand Prix, the only darts tournament that currently exists
 const DARTS_MATCHES_PER_ROUND = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
 
