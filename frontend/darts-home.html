@@ -102,10 +102,51 @@
 
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
-    @media (max-width:600px){
-      main{ padding:20px 14px 60px; }
-      .hero{ padding:32px 24px; min-height:220px; }
+    /* Mobile hamburger drawer — standard across every page */
+    .icon-btn.menu-toggle{ display:none; }
+    .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+    .mobile-nav-overlay.open{ display:block; }
+    .mobile-nav-drawer{
+      display:none; position:fixed; top:0; right:0; bottom:0; z-index:199; width:78%; max-width:300px;
+      background:var(--bg-panel); border-left:1px solid var(--border); padding:80px 24px 24px;
+      flex-direction:column; gap:4px; transform:translateX(100%); transition:transform .25s ease;
+    }
+    .mobile-nav-drawer.open{ display:flex; transform:translateX(0); }
+    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-family:var(--font-head); font-weight:600; font-size:14px; color:var(--text-dim); }
+    .mobile-nav-drawer a:hover{ background:var(--bg-card); color:var(--text); }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; flex-wrap:nowrap; align-items:center; }
+      .nav-left{ display:contents; }
+      .nav-right{ display:contents; }
+      .nav-links{ display:none; }
+      .logo{ order:1; gap:8px; }
+      .logo-mark{ width:32px; height:32px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .avatar-btn{ margin-left:10px; padding:2px; }
+      .avatar-btn .avatar{ width:34px; height:34px; }
+      .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
+      main{ padding:0 14px 60px; box-sizing:border-box; max-width:100%; }
+      /* Full-bleed to the screen edges, same proven pattern used on
+         every other page — breaks out of main's own side padding with
+         matching negative margins. */
+      .hero{
+        padding:28px 22px; min-height:auto; border-radius:0;
+        margin-left:-14px; margin-right:-14px; margin-top:0; width:auto;
+      }
       .hero h1{ font-size:32px; }
+      .hero-sub{ font-size:15px; }
+      .hero-desc{ font-size:13px; }
+      /* Real fix, not a guess - stats were overflowing because 3 fixed
+         min-width:110px boxes plus gaps genuinely don't fit on a real
+         phone screen after page/card padding, confirmed the same real
+         cause found on the stock market summary cards earlier. */
+      .stat-row{ gap:6px !important; }
+      .stat{ min-width:0 !important; flex:1 1 0; padding:8px 6px !important; }
+      .stat .label{ font-size:9.5px !important; }
+      .stat .value{ font-size:14px !important; }
+      #root{ max-width:100% !important; }
       .pick-btn{ font-size:12px; padding:7px 8px; }
       .pick-avatar{ width:24px; height:24px; }
     }
@@ -133,8 +174,16 @@
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
         <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
+      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
     </div>
   </header>
+
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <div class="mobile-nav-drawer" id="mobileNavDrawer">
+    <a href="/">GB Hub</a>
+    <a href="/darts">Darts</a>
+    <a href="/wallet">Wallet</a>
+  </div>
 
   <main>
     <section class="hero">
@@ -408,6 +457,24 @@
         (bracketData.my_predictions || []).forEach(p => { myPicks[`${p.round}-${p.match_number}`] = p.predicted_winner_id; });
         renderBracket();
       } catch (err) {
+        const isAuthError = /invalid or expired token|authentication required|user not found/i.test(err.message);
+        if (isAuthError) {
+          // The cached currentUser in localStorage doesn't mean the
+          // actual server-side token is still valid — a real, normal
+          // situation once a session gets old enough. Clear the stale
+          // cache and prompt a real re-login rather than show a raw,
+          // unhelpful error message.
+          localStorage.removeItem('gbf_token');
+          localStorage.removeItem('gbf_user');
+          document.getElementById('root').innerHTML = `
+            <div class="card enter-gate">
+              <i class="fas fa-clock-rotate-left" style="font-size:32px; color:var(--gold); margin-bottom:14px;"></i>
+              <h2 style="font-family:var(--font-head); font-size:19px; margin-bottom:8px;">Your session has expired</h2>
+              <p style="max-width:400px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">Log back in to keep picking your bracket — nothing you've already submitted is affected.</p>
+              <a href="/login?redirect=%2Fdarts" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+            </div>`;
+          return;
+        }
         document.getElementById('root').innerHTML = `<div class="empty">Couldn't load the tournament: ${escapeHtml(err.message)}</div>`;
       }
     }
@@ -424,6 +491,13 @@
         } catch (e) { currentUser = null; }
       }
     }
+
+    function toggleMobileNav(open) {
+      document.getElementById('mobileNavDrawer').classList.toggle('open', open);
+      document.getElementById('mobileNavOverlay').classList.toggle('open', open);
+    }
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
+    document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
 
     (async function init() {
       initAuth();
