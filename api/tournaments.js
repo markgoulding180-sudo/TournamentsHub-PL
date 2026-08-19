@@ -2716,40 +2716,38 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ tournament, players, matches, my_entry: entry || null, my_predictions: myPredictions });
       }
 
-      if (action === 'darts_submit_bracket') {
-        const { tournament_id, predictions: submittedPredictions } = req.body;
-        if (!tournament_id || !Array.isArray(submittedPredictions) || submittedPredictions.length !== 31) {
-          return res.status(400).json({ error: 'tournament_id and exactly 31 predictions (one per bracket match) are required' });
+      if (action === 'darts_submit_round_picks') {
+        const { tournament_id, round, predictions: submittedPredictions } = req.body;
+        if (!tournament_id || !round || !Array.isArray(submittedPredictions) || submittedPredictions.length === 0) {
+          return res.status(400).json({ error: 'tournament_id, round, and at least one prediction are required' });
         }
 
         const { data: tournament, error: tourErr } = await supabaseAdmin
           .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
         if (tourErr) return res.status(500).json({ error: tourErr.message });
         if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
-        if (tournament.status !== 'upcoming') return res.status(403).json({ error: 'Predictions are locked — the bracket has already started.' });
-        if (tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
-          return res.status(403).json({ error: 'The prediction deadline has passed.' });
-        }
 
-        // Cascading validation — a round-N pick (N > 1) can only be a
-        // player the user themselves picked to win both feeder matches
-        // from round N-1. This is the actual structural rule that makes
-        // it a real bracket rather than 31 independent guesses; checked
-        // server-side rather than trusted from the frontend alone.
-        const byRoundMatch = {};
-        submittedPredictions.forEach(p => { byRoundMatch[`${p.round}-${p.match_number}`] = p.predicted_winner_id; });
+        // Real matches for this specific round, used to validate every
+        // pick against who's actually playing — simpler than the old
+        // whole-bracket cascading check, since a user can only ever be
+        // shown matches where both real players are already confirmed.
+        const { data: roundMatches, error: matchErr } = await supabaseAdmin
+          .schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).eq('round', round);
+        if (matchErr) return res.status(500).json({ error: matchErr.message });
+        const matchByNumber = {};
+        roundMatches.forEach(m => { matchByNumber[m.match_number] = m; });
 
-        for (let round = 2; round <= 5; round++) {
-          const matchesInRound = round === 5 ? 1 : round === 4 ? 2 : round === 3 ? 4 : 8;
-          for (let m = 1; m <= matchesInRound; m++) {
-            const feeder1 = (m - 1) * 2 + 1;
-            const feeder2 = (m - 1) * 2 + 2;
-            const feederWinner1 = byRoundMatch[`${round - 1}-${feeder1}`];
-            const feederWinner2 = byRoundMatch[`${round - 1}-${feeder2}`];
-            const thisPick = byRoundMatch[`${round}-${m}`];
-            if (thisPick !== feederWinner1 && thisPick !== feederWinner2) {
-              return res.status(400).json({ error: `Round ${round} match ${m}: your pick must be one of the two players you picked to win the previous round's feeder matches.` });
-            }
+        for (const p of submittedPredictions) {
+          const match = matchByNumber[p.match_number];
+          if (!match) return res.status(400).json({ error: `Round ${round} match ${p.match_number} doesn't exist.` });
+          if (!match.player1_id || !match.player2_id) {
+            return res.status(400).json({ error: `Round ${round} match ${p.match_number} isn't confirmed yet — waiting on the previous round.` });
+          }
+          if (match.status === 'finished') {
+            return res.status(403).json({ error: `Round ${round} match ${p.match_number} has already been played — predictions for it are locked.` });
+          }
+          if (p.predicted_winner_id !== match.player1_id && p.predicted_winner_id !== match.player2_id) {
+            return res.status(400).json({ error: `Round ${round} match ${p.match_number}: pick must be one of the two real players in that match.` });
           }
         }
 
@@ -2777,18 +2775,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .eq('id', tournament_id);
           }
 
-          // Replace any existing predictions with this submission — lets
-          // a user revise their bracket freely until the deadline locks it.
-          await supabaseAdmin.schema('darts').from('predictions').delete().eq('entry_id', entry.id);
-          const rows = submittedPredictions.map(p => ({ entry_id: entry.id, round: p.round, match_number: p.match_number, predicted_winner_id: p.predicted_winner_id }));
+          // Replace any existing picks for THIS round only — earlier
+          // rounds' already-locked, already-scored predictions are
+          // completely untouched, unlike the old whole-bracket resubmit.
+          await supabaseAdmin.schema('darts').from('predictions').delete().eq('entry_id', entry.id).eq('round', round);
+          const rows = submittedPredictions.map(p => ({ entry_id: entry.id, round, match_number: p.match_number, predicted_winner_id: p.predicted_winner_id }));
           const { error: predErr } = await supabaseAdmin.schema('darts').from('predictions').insert(rows);
           if (predErr) return res.status(500).json({ error: predErr.message });
 
-          await supabaseAdmin.schema('darts').from('tournament_entries').update({ bracket_submitted: true }).eq('id', entry.id);
-
           return res.status(200).json({ success: true });
         } catch (err) {
-          console.error('darts_submit_bracket error:', err);
+          console.error('darts_submit_round_picks error:', err);
           return res.status(500).json({ error: err.message });
         }
       }

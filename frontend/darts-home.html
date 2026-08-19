@@ -189,18 +189,15 @@
     }
 
     function getPickableOptions(round, matchNumber) {
-      if (round === 1) {
-        const m = getMatch(1, matchNumber);
-        return [m.player1_id, m.player2_id];
-      }
-      const feeder1 = (matchNumber - 1) * 2 + 1;
-      const feeder2 = (matchNumber - 1) * 2 + 2;
-      return [myPicks[`${round - 1}-${feeder1}`], myPicks[`${round - 1}-${feeder2}`]];
+      const m = getMatch(round, matchNumber);
+      return [m.player1_id, m.player2_id];
     }
 
     // Click a pick once to select it; click the SAME one again to
-    // deselect it. Selecting a genuinely different option in the same
-    // match just swaps the pick, same as before.
+    // deselect it. Only one match's pick changes per click — no
+    // downstream clearing needed anymore, since every round's options
+    // are always the real, confirmed players, never dependent on an
+    // earlier pick the user made themselves.
     function selectPick(round, matchNumber, playerId) {
       const key = `${round}-${matchNumber}`;
       if (myPicks[key] === playerId) {
@@ -208,16 +205,20 @@
       } else {
         myPicks[key] = playerId;
       }
-      // Either way, anything downstream that depended on this match is
-      // no longer valid and needs re-picking.
-      for (let r = round + 1; r <= 5; r++) {
-        Object.keys(myPicks).forEach(k => { if (k.startsWith(`${r}-`)) delete myPicks[k]; });
-      }
       renderBracket();
     }
 
-    function clearAllPicks() {
-      myPicks = {};
+    // Clears only picks that haven't been submitted yet — anything
+    // already locked in from a finished match, or a round the user
+    // already submitted, stays exactly as it was.
+    function clearPendingPicks() {
+      Object.keys(myPicks).forEach(key => {
+        const [round, matchNumber] = key.split('-').map(Number);
+        const match = getMatch(round, matchNumber);
+        if (match && match.status !== 'finished' && !(bracketData.my_predictions || []).some(p => p.round === round && p.match_number === matchNumber)) {
+          delete myPicks[key];
+        }
+      });
       renderBracket();
     }
 
@@ -280,13 +281,15 @@
       if (!locked) {
         html += `
           <div class="toolbar">
-            <span class="progress-text"><strong id="pickCount">0</strong>/31 matches picked</span>
-            <button class="btn-secondary" onclick="clearAllPicks()"><i class="fas fa-rotate-left"></i> Clear All</button>
+            <span class="progress-text">Pick winners round by round as each one unlocks</span>
+            <button class="btn-secondary" onclick="clearPendingPicks()"><i class="fas fa-rotate-left"></i> Clear All</button>
           </div>`;
       }
 
       for (let round = 1; round <= 5; round++) {
         html += `<div class="round-title">${ROUND_NAMES[round]} <span class="badge">${ROUND_POINTS[round]} pt${ROUND_POINTS[round]>1?'s':''} each</span></div>`;
+        let roundHasAvailableMatch = false;
+        let roundFullyDetermined = true;
         for (let m = 1; m <= MATCHES_PER_ROUND[round]; m++) {
           const match = getMatch(round, m);
           const options = getPickableOptions(round, m);
@@ -294,10 +297,12 @@
           const myPick = myPicks[`${round}-${m}`];
           const finished = match.status === 'finished';
 
-          if (!bothKnown && round > 1) {
-            html += `<div class="match-row"><span class="tbd">Pick your winners above first to unlock this match</span></div>`;
+          if (!bothKnown) {
+            roundFullyDetermined = false;
+            html += `<div class="match-row"><span class="tbd">Waiting on the previous round to finish</span></div>`;
             continue;
           }
+          if (!finished) roundHasAvailableMatch = true;
 
           html += `<div class="match-row ${finished ? 'finished' : ''}">`;
           options.forEach((pid, i) => {
@@ -305,7 +310,7 @@
             if (myPick === pid) cls += ' selected';
             if (finished && match.winner_id === pid) cls += myPick === pid ? ' correct' : '';
             if (finished && match.winner_id !== pid) cls += ' wrong';
-            const disabled = locked ? 'disabled' : '';
+            const disabled = (locked || finished) ? 'disabled' : '';
             html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">
               <span class="pick-avatar"><i class="fas fa-user"></i></span>
               <span>${escapeHtml(playerName(pid))}</span>
@@ -314,20 +319,29 @@
           });
           html += `</div>`;
         }
+
+        // A round only gets its own submit button once at least one of
+        // its matches is real and still open to pick — nothing to submit
+        // for a round that's either entirely TBD or entirely finished.
+        if (!locked && roundHasAvailableMatch) {
+          const roundPickedCount = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
+            .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; })
+            .filter(m => myPicks[`${round}-${m}`]).length;
+          const roundAvailableCount = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
+            .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; }).length;
+          html += `
+            <button class="btn-primary" style="width:100%; margin:6px 0 16px;" onclick="submitRoundPicks(${round})">
+              Submit ${ROUND_NAMES[round]} Picks (${roundPickedCount}/${roundAvailableCount})
+            </button>`;
+        }
       }
 
-      const pickedCount = Object.keys(myPicks).length;
+      const totalPicked = Object.keys(myPicks).length;
       if (!locked) {
-        html += `
-          <button class="btn-primary" id="submitBtn" style="width:100%; margin-top:10px;" ${!entry.bracket_submitted && pickedCount < 31 ? '' : ''} onclick="submitBracket()">
-            ${entry.bracket_submitted ? 'Update My Bracket' : 'Submit Bracket'} (${pickedCount}/31 picked)
-          </button>
-          <div class="submit-msg" id="submitMsg"></div>`;
+        html += `<div class="submit-msg" id="submitMsg"></div>`;
       }
 
       document.getElementById('root').innerHTML = html;
-      const pickCountEl = document.getElementById('pickCount');
-      if (pickCountEl) pickCountEl.textContent = pickedCount;
     }
 
     async function enterTournament() {
@@ -337,7 +351,7 @@
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
       try {
         await api('join', { tournament_id: TOURNAMENT_ID, tournament_type: 'darts' });
-        if (window.showToast) window.showToast("You're entered! Fill out your bracket below.", 'success');
+        if (window.showToast) window.showToast("You're entered! Pick this round's winners below.", 'success');
         await loadBracket();
       } catch (err) {
         msgEl.style.color = 'var(--red)';
@@ -347,29 +361,30 @@
       }
     }
 
-    async function submitBracket() {
-      const btn = document.getElementById('submitBtn');
+    async function submitRoundPicks(round) {
       const msgEl = document.getElementById('submitMsg');
-      const predictions = Object.entries(myPicks).map(([key, predicted_winner_id]) => {
-        const [round, match_number] = key.split('-').map(Number);
-        return { round, match_number, predicted_winner_id };
-      });
-      if (predictions.length !== 31) {
+      const predictions = Object.entries(myPicks)
+        .filter(([key]) => key.startsWith(`${round}-`))
+        .map(([key, predicted_winner_id]) => {
+          const [, match_number] = key.split('-').map(Number);
+          return { match_number, predicted_winner_id };
+        });
+      if (predictions.length === 0) {
         msgEl.style.color = 'var(--red)';
-        msgEl.textContent = `Pick a winner for every match first — ${predictions.length}/31 so far.`;
+        msgEl.textContent = `Pick at least one winner in ${ROUND_NAMES[round]} first.`;
         return;
       }
-      btn.disabled = true; btn.textContent = 'Submitting…';
+      msgEl.style.color = 'var(--text-dim)';
+      msgEl.textContent = 'Saving…';
       try {
-        await api('darts_submit_bracket', { tournament_id: TOURNAMENT_ID, predictions });
+        await api('darts_submit_round_picks', { tournament_id: TOURNAMENT_ID, round, predictions });
         msgEl.style.color = 'var(--green)';
-        msgEl.textContent = 'Bracket submitted!';
-        if (window.showToast) window.showToast('Bracket submitted!', 'success');
+        msgEl.textContent = `${ROUND_NAMES[round]} picks saved!`;
+        if (window.showToast) window.showToast(`${ROUND_NAMES[round]} picks saved!`, 'success');
         await loadBracket();
       } catch (err) {
         msgEl.style.color = 'var(--red)';
         msgEl.textContent = err.message;
-        btn.disabled = false;
       }
     }
 
