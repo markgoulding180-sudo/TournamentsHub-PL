@@ -4216,8 +4216,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // live (status starts 'upcoming' and only flips to 'live' once
           // the draft deadline passes) — every other schema only opens
           // entries once status is 'live', but Stock Market needs to allow
-          // joining/drafting during 'upcoming' too.
-          const entriesOpen = schemaName === 'stockmarket'
+          // joining/drafting during 'upcoming' too. Darts has the exact
+          // same situation while bracket predictions are still open.
+          const entriesOpen = (schemaName === 'stockmarket' || schemaName === 'darts')
             ? (tournament.status === 'upcoming' || tournament.status === 'live')
             : tournament.status === 'live';
 

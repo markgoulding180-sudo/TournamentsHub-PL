@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>World Grand Prix - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root{
       --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
@@ -16,56 +19,142 @@
       --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); }
+    html{scroll-behavior:smooth; overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
     a{color:inherit;text-decoration:none;}
     button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
-    main{ max-width:900px; margin:0 auto; padding:32px 24px 60px; }
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    /* ================= NAVBAR (matches every other page exactly) ================= */
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); padding-bottom:19px; position:relative; transition:color .2s; }
+    .nav-links a:hover{color:var(--text);}
+    .nav-links a.active{color:var(--text);}
+    .nav-links a.active::after{ content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px; }
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:1000px; margin:0 auto; padding:32px 24px 60px; }
+
+    /* ================= HERO (matches every other page's hero, real darts image) ================= */
+    .hero{
+      position:relative; border-radius:20px;
+      background:
+        linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.15) 100%),
+        url('assets/darts-background-hero.jpg');
+      background-size: cover, cover;
+      background-repeat: no-repeat, no-repeat;
+      background-position: center, center;
+      border:1px solid var(--border); overflow:hidden;
+      padding:58px 50px; margin-bottom:16px; min-height:280px;
+      display:flex; align-items:center;
+    }
+    .hero-content{ position:relative; z-index:2; max-width:560px; }
+    .hero-eyebrow{ display:flex; align-items:center; gap:8px; font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin-bottom:12px; }
+    .hero-eyebrow .dot{ width:7px; height:7px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); }
+    .hero h1{ font-family:var(--font-display); font-size:44px; line-height:1; margin-bottom:10px; }
+    .hero-sub{ font-family:var(--font-head); font-size:19px; font-weight:600; color:var(--accent-2); margin-bottom:12px; }
+    .hero-desc{ font-size:14.5px; color:var(--text-dim); line-height:1.55; max-width:480px; }
+
     .card{ background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
-    .page-title{ font-family:var(--font-head); font-size:26px; font-weight:700; }
-    .page-sub{ color:var(--text-dim); font-size:14px; margin:6px 0 18px; line-height:1.5; }
-    .stat-row{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
+    .enter-gate{ text-align:center; padding:40px 24px; }
+    .stat-row{ display:flex; gap:14px; flex-wrap:wrap; margin:14px 0; justify-content:center; }
     .stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:110px; }
     .stat .label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; }
     .stat .value{ font-family:var(--font-head); font-weight:700; font-size:18px; margin-top:2px; }
+    .btn-primary{ background:var(--accent); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; padding:12px 24px; border-radius:8px; }
+    .btn-primary:hover{ background:var(--accent-dim); }
+    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+    .btn-secondary{ background:var(--bg-card); color:var(--text-dim); border:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:13px; padding:9px 16px; border-radius:8px; }
+    .btn-secondary:hover{ border-color:var(--border-hover); color:var(--text); }
+
+    .toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:10px; }
+    .progress-text{ font-size:13px; color:var(--text-dim); }
+    .progress-text strong{ color:var(--text); }
 
     .round-title{ font-family:var(--font-head); font-weight:700; font-size:16px; margin:22px 0 10px; display:flex; align-items:center; gap:8px; }
     .round-title .badge{ font-size:11px; background:var(--accent-dim); color:#fff; padding:2px 9px; border-radius:12px; }
-    .match-row{ display:flex; align-items:center; gap:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
+    .match-row{ display:flex; align-items:stretch; gap:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; }
     .match-row.finished{ border-color:var(--green); }
-    .pick-btn{ flex:1; text-align:center; padding:10px 8px; border-radius:8px; border:1px solid var(--border); background:var(--bg-panel); font-weight:600; font-size:13.5px; transition:.15s; }
+    .pick-btn{ flex:1; display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-panel); font-weight:600; font-size:13.5px; transition:.15s; text-align:left; }
     .pick-btn:hover{ border-color:var(--border-hover); }
     .pick-btn.selected{ border-color:var(--accent-2); background:rgba(59,130,246,0.15); color:#fff; }
     .pick-btn.correct{ border-color:var(--green); background:rgba(34,197,94,0.12); }
     .pick-btn.wrong{ border-color:var(--red); background:rgba(239,68,68,0.1); opacity:.7; }
     .pick-btn:disabled{ cursor:not-allowed; }
-    .vs-label{ font-family:var(--font-head); font-size:12px; color:var(--text-faint); flex:none; }
-    .tbd{ color:var(--text-faint); font-style:italic; font-size:13px; }
+    /* Placeholder player image slot - swaps to a real photo once names
+       and player images are added after the PDC releases the draw. */
+    .pick-avatar{ width:30px; height:30px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex:none; overflow:hidden; }
+    .pick-avatar i{ font-size:12px; color:var(--text-faint); }
+    .pick-btn.selected .pick-avatar{ border-color:var(--accent-2); }
+    .vs-label{ font-family:var(--font-head); font-size:11px; color:var(--text-faint); flex:none; display:flex; align-items:center; }
+    .tbd{ color:var(--text-faint); font-style:italic; font-size:13px; padding:8px; }
 
-    .btn-primary{ background:var(--accent); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; padding:12px 24px; border-radius:8px; width:100%; margin-top:18px; }
-    .btn-primary:hover{ background:var(--accent-dim); }
-    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
-    .lb-row{ display:flex; justify-content:space-between; padding:9px 4px; border-bottom:1px solid var(--border); font-size:14px; }
-    .lb-row:last-child{ border-bottom:none; }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
     @media (max-width:600px){
       main{ padding:20px 14px 60px; }
-      .pick-btn{ font-size:12px; padding:8px 6px; }
-      .stat{ min-width:90px; padding:8px 12px; }
+      .hero{ padding:32px 24px; min-height:220px; }
+      .hero h1{ font-size:32px; }
+      .pick-btn{ font-size:12px; padding:7px 8px; }
+      .pick-avatar{ width:24px; height:24px; }
     }
   </style>
 </head>
 <body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB HUB<span class="sub">CLICK HERE</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/darts" class="active">Darts</a>
+        <a href="/wallet">Wallet</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet" style="font-size:14px;color:var(--text-dim);"></i></a>
+      <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fdarts" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
+      </a>
+    </div>
+  </header>
+
   <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-eyebrow"><span class="dot"></span>Bracket Pool</div>
+        <h1>World Grand Prix</h1>
+        <div class="hero-sub">Predict Every Match. Double Points Each Round.</div>
+        <p class="hero-desc" id="heroDesc">32-player knockout bracket. Fill out your whole bracket, then watch it unfold as the real results come in.</p>
+      </div>
+    </section>
+
     <div id="root"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div></div>
   </main>
 
+  <script src="toast.js"></script>
   <script>
-    // First real darts tournament — id looked up by name so this page
-    // works without hardcoding a UUID that could drift from the real one.
     let TOURNAMENT_ID = null;
     let bracketData = null;
     let myPicks = {}; // "round-match" -> player_id
+    let currentUser = null;
 
     function escapeHtml(str) {
       const div = document.createElement('div');
@@ -73,11 +162,15 @@
       return div.innerHTML;
     }
 
-    async function api(action, body = {}) {
+    function authHeaders() {
       const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+
+    async function api(action, body = {}) {
       const response = await fetch('/api/tournaments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ action, ...body })
       });
       const data = await response.json();
@@ -95,9 +188,6 @@
       return bracketData.matches.find(m => m.round === round && m.match_number === matchNumber);
     }
 
-    // The two players a user CAN pick for a given match — for round 1
-    // it's the real assigned players; for rounds 2-5, it's whichever two
-    // players the user themselves already picked in the feeder matches.
     function getPickableOptions(round, matchNumber) {
       if (round === 1) {
         const m = getMatch(1, matchNumber);
@@ -108,12 +198,26 @@
       return [myPicks[`${round - 1}-${feeder1}`], myPicks[`${round - 1}-${feeder2}`]];
     }
 
+    // Click a pick once to select it; click the SAME one again to
+    // deselect it. Selecting a genuinely different option in the same
+    // match just swaps the pick, same as before.
     function selectPick(round, matchNumber, playerId) {
-      myPicks[`${round}-${matchNumber}`] = playerId;
-      // Clear any downstream picks that are no longer valid options
+      const key = `${round}-${matchNumber}`;
+      if (myPicks[key] === playerId) {
+        delete myPicks[key];
+      } else {
+        myPicks[key] = playerId;
+      }
+      // Either way, anything downstream that depended on this match is
+      // no longer valid and needs re-picking.
       for (let r = round + 1; r <= 5; r++) {
         Object.keys(myPicks).forEach(k => { if (k.startsWith(`${r}-`)) delete myPicks[k]; });
       }
+      renderBracket();
+    }
+
+    function clearAllPicks() {
+      myPicks = {};
       renderBracket();
     }
 
@@ -126,18 +230,60 @@
       const locked = t.status !== 'upcoming';
       const entry = bracketData.my_entry;
 
+      // Not entered yet — show tournament details and an Enter button,
+      // same pattern as Predictions/LMS. The bracket itself only appears
+      // once they're actually in.
+      if (!currentUser) {
+        document.getElementById('root').innerHTML = `
+          <div class="card enter-gate">
+            <i class="fas fa-bullseye" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the World Grand Prix</h2>
+            <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            <div class="stat-row">
+              <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries || 0}</div></div>
+              <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
+              <div class="stat"><div class="label">Entry Fee</div><div class="value">£${((t.entry_fee||0)/100).toFixed(2)}</div></div>
+            </div>
+            <a href="/login?redirect=%2Fdarts" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>
+          </div>`;
+        return;
+      }
+
+      if (!entry) {
+        document.getElementById('root').innerHTML = `
+          <div class="card enter-gate">
+            <i class="fas fa-bullseye" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the World Grand Prix</h2>
+            <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            <div class="stat-row">
+              <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries || 0}</div></div>
+              <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
+              <div class="stat"><div class="label">Entry Fee</div><div class="value">£${((t.entry_fee||0)/100).toFixed(2)}</div></div>
+            </div>
+            <button class="btn-primary" id="enterBtn" onclick="enterTournament()"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
+            <div class="submit-msg" id="enterMsg"></div>
+          </div>`;
+        return;
+      }
+
+      // Entered — show the bracket itself
       let html = `
         <div class="card">
-          <div class="page-title">${escapeHtml(t.name)}</div>
-          <div class="page-sub">${escapeHtml(t.description || '')}</div>
-          <div class="stat-row">
+          <div class="stat-row" style="margin:0;">
             <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries || 0}</div></div>
             <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
-            <div class="stat"><div class="label">Entry Fee</div><div class="value">£${((t.entry_fee||0)/100).toFixed(2)}</div></div>
-            ${entry ? `<div class="stat"><div class="label">Your Points</div><div class="value" style="color:var(--gold);">${entry.entry_points}</div></div>` : ''}
+            <div class="stat"><div class="label">Your Points</div><div class="value" style="color:var(--gold);">${entry.entry_points}</div></div>
           </div>
-          ${locked ? '<div class="submit-msg" style="color:var(--red);"><i class="fas fa-lock"></i> Predictions are locked — the bracket has started.</div>' : ''}
+          ${locked ? '<div class="submit-msg" style="color:var(--red); margin-top:12px;"><i class="fas fa-lock"></i> Predictions are locked — the bracket has started.</div>' : ''}
         </div>`;
+
+      if (!locked) {
+        html += `
+          <div class="toolbar">
+            <span class="progress-text"><strong id="pickCount">0</strong>/31 matches picked</span>
+            <button class="btn-secondary" onclick="clearAllPicks()"><i class="fas fa-rotate-left"></i> Clear All</button>
+          </div>`;
+      }
 
       for (let round = 1; round <= 5; round++) {
         html += `<div class="round-title">${ROUND_NAMES[round]} <span class="badge">${ROUND_POINTS[round]} pt${ROUND_POINTS[round]>1?'s':''} each</span></div>`;
@@ -160,21 +306,45 @@
             if (finished && match.winner_id === pid) cls += myPick === pid ? ' correct' : '';
             if (finished && match.winner_id !== pid) cls += ' wrong';
             const disabled = locked ? 'disabled' : '';
-            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">${escapeHtml(playerName(pid))}</button>`;
+            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">
+              <span class="pick-avatar"><i class="fas fa-user"></i></span>
+              <span>${escapeHtml(playerName(pid))}</span>
+            </button>`;
             if (i === 0) html += `<span class="vs-label">VS</span>`;
           });
           html += `</div>`;
         }
       }
 
-      const allPicked = Object.keys(myPicks).length === 31;
-      html += `
-        <button class="btn-primary" id="submitBtn" ${locked || !allPicked ? 'disabled' : ''} onclick="submitBracket()">
-          ${entry ? 'Update My Bracket' : 'Submit Bracket & Enter'} (${Object.keys(myPicks).length}/31 picked)
-        </button>
-        <div class="submit-msg" id="submitMsg"></div>`;
+      const pickedCount = Object.keys(myPicks).length;
+      if (!locked) {
+        html += `
+          <button class="btn-primary" id="submitBtn" style="width:100%; margin-top:10px;" ${!entry.bracket_submitted && pickedCount < 31 ? '' : ''} onclick="submitBracket()">
+            ${entry.bracket_submitted ? 'Update My Bracket' : 'Submit Bracket'} (${pickedCount}/31 picked)
+          </button>
+          <div class="submit-msg" id="submitMsg"></div>`;
+      }
 
       document.getElementById('root').innerHTML = html;
+      const pickCountEl = document.getElementById('pickCount');
+      if (pickCountEl) pickCountEl.textContent = pickedCount;
+    }
+
+    async function enterTournament() {
+      const btn = document.getElementById('enterBtn');
+      const msgEl = document.getElementById('enterMsg');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
+      try {
+        await api('join', { tournament_id: TOURNAMENT_ID, tournament_type: 'darts' });
+        if (window.showToast) window.showToast("You're entered! Fill out your bracket below.", 'success');
+        await loadBracket();
+      } catch (err) {
+        msgEl.style.color = 'var(--red)';
+        msgEl.textContent = err.message;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now';
+      }
     }
 
     async function submitBracket() {
@@ -184,11 +354,17 @@
         const [round, match_number] = key.split('-').map(Number);
         return { round, match_number, predicted_winner_id };
       });
+      if (predictions.length !== 31) {
+        msgEl.style.color = 'var(--red)';
+        msgEl.textContent = `Pick a winner for every match first — ${predictions.length}/31 so far.`;
+        return;
+      }
       btn.disabled = true; btn.textContent = 'Submitting…';
       try {
         await api('darts_submit_bracket', { tournament_id: TOURNAMENT_ID, predictions });
         msgEl.style.color = 'var(--green)';
         msgEl.textContent = 'Bracket submitted!';
+        if (window.showToast) window.showToast('Bracket submitted!', 'success');
         await loadBracket();
       } catch (err) {
         msgEl.style.color = 'var(--red)';
@@ -199,26 +375,45 @@
 
     async function loadBracket() {
       try {
+        if (!currentUser) {
+          // darts_get_bracket requires a logged-in user (it looks up
+          // your own entry/predictions) — confirmed as a real gap
+          // otherwise: a logged-out visitor would hit an auth error
+          // before ever seeing the tournament details. Use the existing
+          // public endpoint instead, the same one the hub card already
+          // uses without needing to log in first.
+          const res = await fetch(`/api/tournaments?tournament_type=darts&tournament_id=${TOURNAMENT_ID}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to load tournament');
+          bracketData = { tournament: data.tournament, players: [], matches: [], my_entry: null, my_predictions: [] };
+          renderBracket();
+          return;
+        }
         bracketData = await api('darts_get_bracket', { tournament_id: TOURNAMENT_ID });
         (bracketData.my_predictions || []).forEach(p => { myPicks[`${p.round}-${p.match_number}`] = p.predicted_winner_id; });
         renderBracket();
       } catch (err) {
-        document.getElementById('root').innerHTML = `<div class="empty">Couldn't load the bracket: ${escapeHtml(err.message)}</div>`;
+        document.getElementById('root').innerHTML = `<div class="empty">Couldn't load the tournament: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function initAuth() {
+      const token = localStorage.getItem('gbf_token');
+      const userStr = localStorage.getItem('gbf_user');
+      if (token && userStr) {
+        try {
+          currentUser = JSON.parse(userStr);
+          document.getElementById('navAuthBtn').href = '/profile';
+          document.getElementById('navAvatar').innerHTML = `<span style="font-size:13px;font-weight:700;">${escapeHtml((currentUser.display_name || currentUser.username || '?')[0].toUpperCase())}</span>`;
+          document.getElementById('navAuthLabel').textContent = currentUser.display_name || currentUser.username || 'Account';
+        } catch (e) { currentUser = null; }
       }
     }
 
     (async function init() {
-      // Falls back to the real, current tournament if the URL doesn't
-      // carry a ?t= param — real, confirmed gap: the /darts rewrite
-      // wasn't reliably passing this through, so the page depended
-      // entirely on routing working perfectly. This makes it work
-      // regardless.
+      initAuth();
       const DEFAULT_TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix
       TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || DEFAULT_TOURNAMENT_ID;
-      if (!TOURNAMENT_ID) {
-        document.getElementById('root').innerHTML = '<div class="empty">No tournament specified.</div>';
-        return;
-      }
       await loadBracket();
     })();
   </script>
