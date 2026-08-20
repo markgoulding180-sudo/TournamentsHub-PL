@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Darts Leaderboard - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730; --bg-card-2:#101a38;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --silver:#c7cedb; --bronze:#d08a4f; --red:#ef4444; --green:#22c55e;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth; overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-links{display:flex; gap:30px;}
+    .nav-links a{ font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; color:var(--text-dim); }
+    .nav-links a:hover{color:var(--text);}
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); text-decoration:none; }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+
+    main{ position:relative; z-index:1; max-width:760px; margin:0 auto; padding:32px 24px 70px; }
+
+    /* ============ HERO ============ */
+    .lb-hero{ text-align:center; margin-bottom:28px; }
+    .lb-hero-icon{
+      width:64px; height:64px; border-radius:50%; margin:0 auto 16px; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(circle, rgba(242,185,61,0.16) 0%, transparent 72%); border:1.5px dashed rgba(242,185,61,0.4);
+    }
+    .lb-hero-icon i{ font-size:26px; color:var(--gold); filter:drop-shadow(0 0 12px rgba(242,185,61,0.45)); }
+    .lb-hero h1{ font-family:var(--font-display); font-size:clamp(30px,5vw,40px); font-weight:400; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+    .lb-hero p{ color:var(--text-dim); font-size:14px; }
+
+    /* ============ LIST ============ */
+    .lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .lb-row{ display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border); }
+    .lb-row:last-child{ border-bottom:none; }
+    .lb-row.top1{ background:linear-gradient(90deg, rgba(242,185,61,0.08), transparent); }
+    .lb-row.top2{ background:linear-gradient(90deg, rgba(199,206,219,0.06), transparent); }
+    .lb-row.top3{ background:linear-gradient(90deg, rgba(208,138,79,0.07), transparent); }
+
+    .lb-rank{ flex-shrink:0; width:30px; text-align:center; font-family:var(--font-display); font-size:17px; color:var(--text-faint); }
+    .lb-rank.top1{ color:var(--gold); }
+    .lb-rank.top2{ color:var(--silver); }
+    .lb-rank.top3{ color:var(--bronze); }
+
+    .lb-avatar{
+      flex-shrink:0; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:var(--bg-card); border:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--accent-2);
+    }
+    .lb-row.top1 .lb-avatar{ border-color:var(--gold); color:var(--gold); }
+    .lb-row.top2 .lb-avatar{ border-color:var(--silver); color:var(--silver); }
+    .lb-row.top3 .lb-avatar{ border-color:var(--bronze); color:var(--bronze); }
+
+    .lb-name{ flex:1; min-width:0; font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lb-points{ flex-shrink:0; font-family:var(--font-display); font-size:19px; color:var(--text); }
+    .lb-points .unit{ font-family:var(--font-body); font-size:11px; font-weight:600; color:var(--text-faint); margin-left:4px; text-transform:uppercase; }
+
+    .empty, .loading{ text-align:center; color:var(--text-dim); padding:40px 20px; font-size:14px; }
+    .empty i{ display:block; font-size:26px; color:var(--text-faint); margin-bottom:10px; }
+
+    /* Mobile hamburger drawer — standard across every page */
+    .icon-btn.menu-toggle{ display:none; }
+    .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+    .mobile-nav-overlay.open{ display:block; }
+    .mobile-nav-drawer{
+      display:none; position:fixed; top:0; right:0; bottom:0; z-index:199; width:78%; max-width:300px;
+      background:var(--bg-panel); border-left:1px solid var(--border); padding:80px 24px 24px;
+      flex-direction:column; gap:4px; transform:translateX(100%); transition:transform .25s ease;
+    }
+    .mobile-nav-drawer.open{ display:flex; transform:translateX(0); }
+    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-family:var(--font-head); font-weight:600; font-size:14px; color:var(--text-dim); }
+    .mobile-nav-drawer a:hover{ background:var(--bg-card); color:var(--text); }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .logo-text{ font-size:14px; }
+      .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+      .nav-links{ display:none; }
+      .avatar-btn .avatar{ width:34px; height:34px; }
+      .icon-btn.menu-toggle{ display:flex; }
+      main{ padding:22px 14px 50px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB HUB<span class="sub">CLICK HERE</span></div>
+      </a>
+      <nav class="nav-links">
+        <a href="/">GB Hub</a>
+        <a href="/darts">Darts Home</a>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fdarts-leaderboard" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
+      </a>
+      <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet"></i></a>
+      <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
+      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <div class="mobile-nav-drawer" id="mobileNavDrawer">
+    <a href="/">GB Hub</a>
+    <a href="/darts">Darts Home</a>
+    <a href="/wallet">Wallet</a>
+  </div>
+
+  <main>
+    <section class="lb-hero">
+      <div class="lb-hero-icon"><i class="fas fa-bullseye"></i></div>
+      <h1>World Grand Prix Leaderboard</h1>
+      <p>Every entrant, ranked by total bracket points.</p>
+      <a href="/darts" style="display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:9px 18px; border:1px solid var(--border); border-radius:8px; color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600;"><i class="fas fa-arrow-left"></i> Back to World Grand Prix</a>
+    </section>
+
+    <div class="lb-card">
+      <div id="lbList"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div></div>
+    </div>
+  </main>
+
+  <script>
+    function escapeHtml(str) {
+      return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    const TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix
+
+    async function loadLeaderboard() {
+      const list = document.getElementById('lbList');
+      const token = localStorage.getItem('gbf_token');
+      if (!token) {
+        list.innerHTML = `<div class="empty"><i class="fas fa-lock"></i><a href="/login?redirect=%2Fdarts-leaderboard" style="color:var(--accent-2);">Log in</a> to view the leaderboard.</div>`;
+        return;
+      }
+      list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>';
+
+      try {
+        const response = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'darts_get_leaderboard', tournament_id: TOURNAMENT_ID })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load leaderboard');
+
+        const entries = data.leaderboard || [];
+        if (entries.length === 0) {
+          list.innerHTML = '<div class="empty"><i class="fas fa-ranking-star"></i>No entrants yet.</div>';
+          return;
+        }
+
+        list.innerHTML = entries.map((entry) => {
+          const rank = entry.rank;
+          const topClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+          const name = entry.display_name || 'Unknown';
+          const initials = name.substring(0, 2).toUpperCase();
+          const points = (entry.entry_points || 0).toLocaleString();
+
+          return `
+            <div class="lb-row ${topClass}">
+              <div class="lb-rank ${topClass}">${rank}</div>
+              <div class="lb-avatar">${escapeHtml(initials)}</div>
+              <div class="lb-name">${escapeHtml(name)}</div>
+              <div class="lb-points">${points}<span class="unit">pts</span></div>
+            </div>`;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
+        list.innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load the leaderboard right now.</div>';
+      }
+    }
+
+    function initAuth() {
+      const token = localStorage.getItem('gbf_token');
+      const userStr = localStorage.getItem('gbf_user');
+      if (token && userStr) {
+        try {
+          const currentUser = JSON.parse(userStr);
+          document.getElementById('navAuthBtn').href = '/profile';
+          document.getElementById('navAvatar').innerHTML = `<span style="font-size:13px;font-weight:700;">${escapeHtml((currentUser.display_name || currentUser.username || '?')[0].toUpperCase())}</span>`;
+          document.getElementById('navAuthLabel').textContent = currentUser.display_name || currentUser.username || 'Account';
+        } catch (e) {}
+      }
+    }
+
+    function toggleMobileNav(open) {
+      document.getElementById('mobileNavDrawer').classList.toggle('open', open);
+      document.getElementById('mobileNavOverlay').classList.toggle('open', open);
+    }
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
+    document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    initAuth();
+    loadLeaderboard();
+  </script>
+</body>
+</html>

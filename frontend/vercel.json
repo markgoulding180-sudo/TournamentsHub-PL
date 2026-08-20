@@ -26,6 +26,7 @@
     { "source": "/last-man-standing", "destination": "/lms-home.html" },
     { "source": "/forum", "destination": "/forum.html" },
     { "source": "/darts", "destination": "/darts-home.html?t=2ee35c29-c25d-45a8-85a4-cb39c4cef368" },
+    { "source": "/darts-leaderboard", "destination": "/darts-leaderboard.html" },
     { "source": "/last-man-standing-pick", "destination": "/lms-pick.html" },
     { "source": "/stock-market", "destination": "/stockmarket-home.html" },
     { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },
