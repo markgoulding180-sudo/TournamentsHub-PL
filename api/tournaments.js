@@ -2775,10 +2775,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .eq('id', tournament_id);
           }
 
-          // Replace any existing picks for THIS round only — earlier
-          // rounds' already-locked, already-scored predictions are
-          // completely untouched, unlike the old whole-bracket resubmit.
-          await supabaseAdmin.schema('darts').from('predictions').delete().eq('entry_id', entry.id).eq('round', round);
+          // Genuine one-time lock — once this round has already been
+          // submitted for this entry, reject entirely rather than
+          // silently replace. Submitting is a final action, not a
+          // save-and-edit-anytime draft.
+          const { data: existingForRound } = await supabaseAdmin
+            .schema('darts').from('predictions').select('id').eq('entry_id', entry.id).eq('round', round).limit(1);
+          if (existingForRound && existingForRound.length > 0) {
+            return res.status(403).json({ error: `You've already submitted your picks for this round — they're locked in.` });
+          }
+
           const rows = submittedPredictions.map(p => ({ entry_id: entry.id, round, match_number: p.match_number, predicted_winner_id: p.predicted_winner_id }));
           const { error: predErr } = await supabaseAdmin.schema('darts').from('predictions').insert(rows);
           if (predErr) return res.status(500).json({ error: predErr.message });

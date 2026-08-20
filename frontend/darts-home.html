@@ -82,7 +82,19 @@
     .progress-text{ font-size:13px; color:var(--text-dim); }
     .progress-text strong{ color:var(--text); }
 
-    .round-title{ font-family:var(--font-head); font-weight:700; font-size:16px; margin:22px 0 10px; display:flex; align-items:center; gap:8px; }
+    .round-header{
+      font-family:var(--font-head); font-weight:700; font-size:16px; margin:14px 0 0;
+      display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; padding:12px 16px;
+      transition:border-color .15s;
+    }
+    .round-header:hover{ border-color:var(--border-hover); }
+    .round-header.current{ border-color:var(--accent-dim); }
+    .round-header.past{ opacity:.85; }
+    .round-chevron{ font-size:12px; color:var(--text-faint); flex:none; transition:transform .15s; }
+    .round-title-text{ flex:none; }
+    .round-summary{ margin-left:auto; font-family:var(--font-body); font-size:12.5px; font-weight:600; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+    .round-summary.tbd-summary{ color:var(--text-faint); font-weight:500; }
     .round-title .badge{ font-size:11px; background:var(--accent-dim); color:#fff; padding:2px 9px; border-radius:12px; }
     .match-row{ display:flex; align-items:stretch; gap:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; }
     .match-row.finished{ border-color:var(--green); }
@@ -275,6 +287,26 @@
     const ROUND_POINTS = { 1: 1, 2: 2, 3: 4, 4: 8, 5: 16 };
     const MATCHES_PER_ROUND = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
 
+    // Persists across re-renders (picking, submitting) so a user's own
+    // manual expand/collapse choices aren't reset every time the screen
+    // redraws — only set to a sensible default once, the first time the
+    // bracket successfully loads.
+    let expandedRounds = null;
+
+    function getRoundState(round) {
+      const matches = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => getMatch(round, i + 1));
+      const determined = matches.filter(m => m.player1_id && m.player2_id);
+      if (determined.length === 0) return 'future';
+      const allFinished = determined.length === matches.length && determined.every(m => m.status === 'finished');
+      return allFinished ? 'past' : 'current';
+    }
+
+    function toggleRound(round) {
+      if (expandedRounds.has(round)) expandedRounds.delete(round);
+      else expandedRounds.add(round);
+      renderBracket();
+    }
+
     function renderBracket() {
       const t = bracketData.tournament;
       const locked = t.status !== 'upcoming';
@@ -335,10 +367,46 @@
           </div>`;
       }
 
+      // Default expand state: only ever set once per page load, so a
+      // user's own manual toggles survive every subsequent re-render.
+      if (expandedRounds === null) {
+        expandedRounds = new Set();
+        for (let r = 1; r <= 5; r++) { if (getRoundState(r) === 'current') expandedRounds.add(r); }
+      }
+
       for (let round = 1; round <= 5; round++) {
-        html += `<div class="round-title">${ROUND_NAMES[round]} <span class="badge">${ROUND_POINTS[round]} pt${ROUND_POINTS[round]>1?'s':''} each</span></div>`;
+        const state = getRoundState(round);
+        const isOpen = expandedRounds.has(round);
+        const roundPreds = (bracketData.my_predictions || []).filter(p => p.round === round);
+        const roundPointsEarned = roundPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0);
+        const roundCorrectCount = roundPreds.filter(p => (p.points_earned || 0) > 0).length;
+
+        let summaryHtml = '';
+        if (state === 'future') {
+          summaryHtml = `<span class="round-summary tbd-summary"><i class="fas fa-lock"></i> Waiting on the previous round</span>`;
+        } else if (state === 'past') {
+          summaryHtml = `<span class="round-summary"><strong style="color:var(--gold);">${roundPointsEarned} pt${roundPointsEarned===1?'':'s'}</strong> · ${roundCorrectCount}/${roundPreds.length} correct</span>`;
+        } else if (roundPreds.length > 0) {
+          summaryHtml = `<span class="round-summary" style="color:var(--accent-2);"><i class="fas fa-check"></i> Picks submitted, awaiting results</span>`;
+        }
+
+        html += `
+          <div class="round-header ${state}" onclick="toggleRound(${round})">
+            <i class="fas fa-chevron-${isOpen ? 'down' : 'right'} round-chevron"></i>
+            <span class="round-title-text">${ROUND_NAMES[round]}</span>
+            <span class="badge">${ROUND_POINTS[round]} pt${ROUND_POINTS[round]>1?'s':''} each</span>
+            ${summaryHtml}
+          </div>`;
+
+        if (!isOpen) continue;
+
+        if (state === 'future') {
+          html += `<div class="match-row"><span class="tbd">Waiting on the previous round to finish</span></div>`;
+          continue;
+        }
+
         let roundHasAvailableMatch = false;
-        let roundFullyDetermined = true;
+        const alreadySubmittedThisRound = roundPreds.length > 0;
         for (let m = 1; m <= MATCHES_PER_ROUND[round]; m++) {
           const match = getMatch(round, m);
           const options = getPickableOptions(round, m);
@@ -347,11 +415,10 @@
           const finished = match.status === 'finished';
 
           if (!bothKnown) {
-            roundFullyDetermined = false;
             html += `<div class="match-row"><span class="tbd">Waiting on the previous round to finish</span></div>`;
             continue;
           }
-          if (!finished) roundHasAvailableMatch = true;
+          if (!finished && !alreadySubmittedThisRound) roundHasAvailableMatch = true;
 
           html += `<div class="match-row ${finished ? 'finished' : ''}">`;
           options.forEach((pid, i) => {
@@ -359,7 +426,7 @@
             if (myPick === pid) cls += ' selected';
             if (finished && match.winner_id === pid) cls += myPick === pid ? ' correct' : '';
             if (finished && match.winner_id !== pid) cls += ' wrong';
-            const disabled = (locked || finished) ? 'disabled' : '';
+            const disabled = (locked || finished || alreadySubmittedThisRound) ? 'disabled' : '';
             html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">
               <span class="pick-avatar"><i class="fas fa-user"></i></span>
               <span>${escapeHtml(playerName(pid))}</span>
@@ -369,10 +436,10 @@
           html += `</div>`;
         }
 
-        // A round only gets its own submit button once at least one of
-        // its matches is real and still open to pick — nothing to submit
-        // for a round that's either entirely TBD or entirely finished.
-        if (!locked && roundHasAvailableMatch) {
+        // Submitting is final — once picks exist for this round at all,
+        // there's no more editing and no more submit button, just the
+        // locked-in read-only picks shown above.
+        if (!locked && !alreadySubmittedThisRound && roundHasAvailableMatch) {
           const roundPickedCount = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
             .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; })
             .filter(m => myPicks[`${round}-${m}`]).length;
@@ -380,7 +447,7 @@
             .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; }).length;
           html += `
             <button class="btn-primary" style="width:100%; margin:6px 0 16px;" onclick="submitRoundPicks(${round})">
-              Submit ${ROUND_NAMES[round]} Picks (${roundPickedCount}/${roundAvailableCount})
+              Submit ${ROUND_NAMES[round]} Picks — Locks Them In (${roundPickedCount}/${roundAvailableCount})
             </button>`;
         }
       }
