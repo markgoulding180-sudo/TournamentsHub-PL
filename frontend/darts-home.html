@@ -445,10 +445,13 @@
             if (finished && match.winner_id === pid) cls += ' correct';
             if (finished && match.winner_id && match.winner_id !== pid) cls += ' wrong';
             const disabled = (locked || finished || alreadySubmittedThisRound) ? 'disabled' : '';
-            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">
-              <span class="pick-avatar"><i class="fas fa-user"></i></span>
-              <span>${escapeHtml(playerName(pid))}</span>
-            </button>`;
+            const nameSpan = `<span>${escapeHtml(playerName(pid))}</span>`;
+            const avatarSpan = `<span class="pick-avatar"><i class="fas fa-user"></i></span>`;
+            const innerHtml = i === 0
+              ? `${avatarSpan}${nameSpan}`
+              : `${nameSpan}${avatarSpan}`;
+            const styleAttr = i === 1 ? ' style="justify-content:flex-end; text-align:right;"' : '';
+            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')"${styleAttr}>${innerHtml}</button>`;
             if (i === 0) html += `<span class="vs-label">VS</span>`;
           });
           if (finished && matchPointsEarned !== null) {
