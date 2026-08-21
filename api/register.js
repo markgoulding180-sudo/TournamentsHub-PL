@@ -50,8 +50,17 @@ module.exports = async (req, res) => {
 
     if (userError) {
       console.error('Supabase users table error:', userError)
-      return res.status(500).json({ 
-        error: 'User created but failed to save profile: ' + userError.message 
+      // Real bug fix: without this, a failed profile insert left a
+      // permanently orphaned auth account behind — logs in fine (auth
+      // genuinely succeeds) but can never fetch a profile, and the email
+      // is stuck as "already registered" with no way to retry cleanly.
+      // Roll back the auth account so the email is genuinely free again.
+      const { error: cleanupError } = await supabase.auth.admin.deleteUser(data.user.id)
+      if (cleanupError) {
+        console.error('Failed to roll back orphaned auth account:', cleanupError)
+      }
+      return res.status(500).json({
+        error: 'Failed to save profile: ' + userError.message + '. Please try registering again.'
       })
     }
 

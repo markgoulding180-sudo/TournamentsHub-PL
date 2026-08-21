@@ -251,17 +251,26 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         if (resultRadio && resultRadio.value) {
           const result = resultRadio.value;
+          const anySideEntered = homeScore !== '' || awayScore !== '';
+
+          // Score is required, not optional. But if a user fills in only
+          // one side (e.g. types "3" for the home score and leaves away
+          // blank), the blank side defaults to 0 rather than the whole
+          // pick being treated as missing.
+          if (!anySideEntered) {
+            validationErrors.push(`${homeTeam} vs ${awayTeam}: please enter a score.`);
+            return;
+          }
+
           const hScore = homeScore !== '' ? parseInt(homeScore) : 0;
           const aScore = awayScore !== '' ? parseInt(awayScore) : 0;
 
-          // The result pick (1/X/2) and the exact score must actually
-          // agree — a Home win needs a genuine winning home score, a
-          // Draw needs equal scores, an Away win needs a genuine winning
-          // away score. Left unchecked, tapping a result without also
-          // entering a matching score (or entering a score for the wrong
-          // team) silently saved something contradictory, like "Home
-          // win" alongside a 0-0 or an away-winning scoreline — technically
-          // saved correctly, but not what the person actually meant.
+          // The result pick (1/X/2) and the exact score must genuinely
+          // agree — a Home win needs a real winning home score, a Draw
+          // needs equal scores, an Away win needs a real winning away
+          // score. Real fix: a mismatch on one match no longer blocks
+          // every other valid match in the same submission — it's
+          // excluded and reported, everything else still gets sent.
           let mismatch = null;
           if (result === 'H' && hScore <= aScore) {
             mismatch = `${homeTeam} vs ${awayTeam}: you picked ${homeTeam} to win, but ${hScore}-${aScore} isn't a ${homeTeam} win.`;
@@ -273,6 +282,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
           if (mismatch) {
             validationErrors.push(mismatch);
+            return; // exclude only this one match, others still proceed
           }
 
           predictions.push({
@@ -281,20 +291,29 @@ document.addEventListener('DOMContentLoaded', async function() {
             home_score: hScore,
             away_score: aScore
           });
+        } else {
+          // Real gap fixed here: a match with no result selected at all
+          // used to be silently skipped — no warning, no feedback, the
+          // person had no way to know they'd missed it. Now it's called
+          // out by name, same as any other validation issue.
+          validationErrors.push(`${homeTeam} vs ${awayTeam}: please pick a result.`);
         }
       });
 
+      // Bad matches are excluded above, not blocking; show what's wrong
+      // so the person can go fix it, but still submit everything valid.
       if (validationErrors.length > 0) {
         showScoreWarning(validationErrors);
+      }
+
+      if (predictions.length === 0) {
+        if (validationErrors.length === 0) {
+          showToast('Please select a result (1, X, or 2) for at least one match', 'error');
+        }
         return;
       }
       
       console.log('Collected predictions:', predictions);
-      
-      if (predictions.length === 0) {
-        showToast('Please select a result (1, X, or 2) for at least one match', 'error');
-        return;
-      }
       
       const response = await fetch('/api/predictions', {
         method: 'POST',
@@ -314,15 +333,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         throw new Error(data.error || 'Failed to submit predictions');
       }
       
-      // The backend already tells us exactly which matches were skipped
-      // (already kicked off) and how many were actually saved — confirmed
-      // as a real gap that this was being computed correctly server-side
-      // but never once reached the user, who'd see the exact same
-      // generic "saved successfully" message whether everything saved or
-      // only some of it did.
+      // The backend reports exactly what was saved vs skipped, and why —
+      // a match already kicked off, or a genuine validation issue (like
+      // a score/result mismatch). Real fix: one bad match no longer
+      // blocks the rest of the batch, so this message needs to reflect
+      // partial success clearly rather than a blanket pass/fail.
       if (data.skipped && data.skipped.length > 0) {
-        const savedCount = (data.predictions || []).length;
-        showToast(`${savedCount} prediction${savedCount === 1 ? '' : 's'} saved. ${data.skipped.length} match${data.skipped.length === 1 ? '' : 'es'} already kicked off and couldn't be changed.`, 'info');
+        const savedCount = data.saved_count ?? (data.predictions || []).length;
+        const reasons = data.skipped.map(s => s.reason).join('; ');
+        showToast(`${savedCount} prediction${savedCount === 1 ? '' : 's'} saved. ${data.skipped.length} skipped: ${reasons}`, 'info');
       } else {
         showToast('Predictions saved successfully!', 'success');
       }

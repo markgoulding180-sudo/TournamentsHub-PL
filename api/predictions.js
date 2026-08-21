@@ -268,45 +268,55 @@ module.exports = async (req, res) => {
       const predictionsToSubmit = predictions.filter(p => !tooLate.includes(p));
 
 
-      // Validate and format predictions
+      // Validate and format predictions. Real fix: one bad prediction no
+      // longer aborts the whole request — it's skipped with a clear
+      // reason, and every other valid prediction in the same batch
+      // still saves. This is what "save 1 or all" actually requires.
       const predictionsToInsert = [];
-      
+      const skipped = [];
+
       for (let i = 0; i < predictionsToSubmit.length; i++) {
         const pred = predictionsToSubmit[i];
         console.log(`Processing prediction ${i}:`, pred);
-        
+
         if (!pred.match_id) {
-          console.error(`Prediction ${i} missing match_id`);
-          return res.status(400).json({ error: `Prediction ${i} missing match_id` });
-        }
-        
-        // Only require predicted_result - scores are optional for validation
-        if (!pred.predicted_result) {
-          console.error(`Prediction ${i} missing predicted_result`);
-          return res.status(400).json({ error: `Prediction ${i} missing result (1, X, or 2)` });
+          skipped.push({ index: i, reason: 'Missing match_id' });
+          continue;
         }
 
-        // Validate result is H, D, or A
-        if (!['H', 'D', 'A'].includes(pred.predicted_result)) {
-          console.error(`Prediction ${i} invalid result:`, pred.predicted_result);
-          return res.status(400).json({ error: `Prediction ${i}: result must be H, D, or A` });
+        if (!pred.predicted_result || !['H', 'D', 'A'].includes(pred.predicted_result)) {
+          skipped.push({ index: i, match_id: pred.match_id, reason: 'A result (1, X, or 2) is required' });
+          continue;
         }
-        
+
+        // Score is required, not optional — but if a user fills in only
+        // one side, the blank side defaults to 0 rather than the whole
+        // pick being treated as missing. Only reject when NEITHER side
+        // is given at all.
+        const anySideGiven = (pred.home_score !== undefined && pred.home_score !== null && pred.home_score !== '')
+          || (pred.away_score !== undefined && pred.away_score !== null && pred.away_score !== '');
+        if (!anySideGiven) {
+          skipped.push({ index: i, match_id: pred.match_id, reason: 'A score is required' });
+          continue;
+        }
+
+        const homeScore = (pred.home_score !== undefined && pred.home_score !== null && pred.home_score !== '') ? parseInt(pred.home_score) : 0;
+        const awayScore = (pred.away_score !== undefined && pred.away_score !== null && pred.away_score !== '') ? parseInt(pred.away_score) : 0;
+
         // The exact score must genuinely agree with the picked result —
         // enforced here too, not just client-side, since a direct API
-        // call could otherwise still save something contradictory (e.g.
-        // "Home win" alongside a 0-0 or an away-winning scoreline).
-        const homeScore = pred.home_score !== undefined ? parseInt(pred.home_score) : 0;
-        const awayScore = pred.away_score !== undefined ? parseInt(pred.away_score) : 0;
-
+        // call could otherwise still save something contradictory.
         if (pred.predicted_result === 'H' && homeScore <= awayScore) {
-          return res.status(400).json({ error: `Prediction ${i}: Home win selected, but ${homeScore}-${awayScore} isn't a home win.` });
+          skipped.push({ index: i, match_id: pred.match_id, reason: `Home win selected, but ${homeScore}-${awayScore} isn't a home win` });
+          continue;
         }
         if (pred.predicted_result === 'A' && awayScore <= homeScore) {
-          return res.status(400).json({ error: `Prediction ${i}: Away win selected, but ${homeScore}-${awayScore} isn't an away win.` });
+          skipped.push({ index: i, match_id: pred.match_id, reason: `Away win selected, but ${homeScore}-${awayScore} isn't an away win` });
+          continue;
         }
         if (pred.predicted_result === 'D' && homeScore !== awayScore) {
-          return res.status(400).json({ error: `Prediction ${i}: Draw selected, but ${homeScore}-${awayScore} isn't an equal score.` });
+          skipped.push({ index: i, match_id: pred.match_id, reason: `Draw selected, but ${homeScore}-${awayScore} isn't an equal score` });
+          continue;
         }
 
         // Get match details
@@ -355,7 +365,8 @@ module.exports = async (req, res) => {
             
             if (createError || !newMatch) {
               console.error('Failed to create match:', createError);
-              return res.status(500).json({ error: 'Failed to create match', details: createError?.message });
+              skipped.push({ index: i, match_id: pred.match_id, reason: 'Could not resolve this match' });
+              continue;
             }
             matchId = newMatch.id;
             console.log(`Created match with ID:`, matchId);
@@ -374,7 +385,16 @@ module.exports = async (req, res) => {
         });
       }
 
-      console.log('Inserting predictions:', predictionsToInsert);
+      console.log('Inserting predictions:', predictionsToInsert, 'Skipped:', skipped);
+
+      // Nothing valid to save — tell the user clearly why, rather than a
+      // silent no-op or a generic 500.
+      if (predictionsToInsert.length === 0) {
+        return res.status(400).json({
+          error: 'No predictions could be saved.',
+          skipped
+        });
+      }
 
       // Upsert predictions (insert or update if exists) - use admin client for RLS
       const { data, error } = await supabaseAdmin
@@ -392,12 +412,18 @@ module.exports = async (req, res) => {
 
       console.log('Predictions saved successfully:', data);
 
+      const allSkipped = [
+        ...tooLate.map(p => ({ match_id: p.match_id, reason: 'Already kicked off' })),
+        ...skipped
+      ];
+
       return res.status(200).json({
-        message: tooLate.length > 0
-          ? `Predictions saved. ${tooLate.length} match(es) were skipped — already kicked off.`
-          : 'Predictions saved successfully',
+        message: allSkipped.length > 0
+          ? `${data.length} prediction(s) saved. ${allSkipped.length} skipped.`
+          : `${data.length} prediction(s) saved successfully.`,
         predictions: data,
-        skipped: tooLate.map(p => p.match_id)
+        saved_count: data.length,
+        skipped: allSkipped
       });
 
     } catch (error) {
