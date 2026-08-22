@@ -198,7 +198,7 @@ module.exports = async (req, res) => {
         home_team_code: teams[fixture.team_h].short_name,
         away_team_code: teams[fixture.team_a].short_name,
         kickoff_time: fixture.kickoff_time,
-        status: mapFPLStatus(fixture.finished, fixture.started),
+        status: mapFPLStatus(fixture.finished, fixture.finished_provisional, fixture.started),
         home_score: null,
         away_score: null,
         result: null
@@ -304,8 +304,8 @@ module.exports = async (req, res) => {
   }
 };
 
-function mapFPLStatus(finished, started) {
-  if (finished) return 'finished';
+function mapFPLStatus(finished, finishedProvisional, started) {
+  if (finished || finishedProvisional) return 'finished';
   if (started) return 'live';
   return 'upcoming';
 }
