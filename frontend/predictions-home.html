@@ -526,7 +526,14 @@
         }
 
         if (loggedIn && matches.length > 0) {
-          loadYourPredictionsForGw(currentGw);
+          // Reuse this exact same fetch result instead of making a second,
+          // separate call — that's what let the two sections show
+          // different data if the underlying status changed in the tiny
+          // window between two independent fetches.
+          viewedPredictionsGw = currentGw;
+          const titleEl = document.getElementById('yourPredictionsTitle');
+          if (titleEl) titleEl.innerHTML = `Your Predictions This Week <span style="color:var(--accent-2);">GW${currentGw}</span>`;
+          renderYourPredictions(matches, myPredictions);
         }
       } catch (e) {
         console.error('Failed to load this week:', e);
