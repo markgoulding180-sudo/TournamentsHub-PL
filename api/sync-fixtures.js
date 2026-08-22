@@ -198,13 +198,19 @@ module.exports = async (req, res) => {
         home_team_code: teams[fixture.team_h].short_name,
         away_team_code: teams[fixture.team_a].short_name,
         kickoff_time: fixture.kickoff_time,
-        status: mapFPLStatus(fixture.finished, fixture.finished_provisional, fixture.started),
-        home_score: null,
-        away_score: null,
-        result: null
+        status: mapFPLStatus(fixture.finished, fixture.finished_provisional, fixture.started)
       };
 
-      // Add scores if match is finished
+      // Real bug fixed here: score fields used to default to null and
+      // only get overridden once finished — for a match still genuinely
+      // in progress, this object explicitly carried null, and since this
+      // upserts the whole row, it wiped out whatever live-scores.js had
+      // JUST correctly written moments earlier in the same poll cycle
+      // (that file writes the real in-progress score unconditionally,
+      // any time FPL reports one). Managing live scores isn't really
+      // this file's job — it's meant for fixture scheduling — so now it
+      // simply doesn't touch these fields at all unless the match is
+      // genuinely finished, leaving live-scores.js's work alone.
       if (fixture.finished_provisional || fixture.finished) {
         matchData.home_score = fixture.team_h_score;
         matchData.away_score = fixture.team_a_score;
@@ -227,25 +233,38 @@ module.exports = async (req, res) => {
     }
 
     // One bulk upsert per chunk instead of two DB calls per fixture.
+    // Split into two genuinely separate batches by whether score fields
+    // are present at all — a single mixed batch's generated SQL column
+    // list could otherwise end up including home_score/away_score for
+    // every row in it (since Supabase batches multiple rows into one
+    // INSERT ... ON CONFLICT statement), which would silently null out
+    // an in-progress match's live score just by sitting in the same
+    // batch as a finished one. Keeping them fully separate avoids that
+    // risk entirely rather than relying on per-row key omission alone.
+    const finishedRows = matchRows.filter(m => 'home_score' in m);
+    const notFinishedRows = matchRows.filter(m => !('home_score' in m));
     const CHUNK_SIZE = 100;
-    for (let i = 0; i < matchRows.length; i += CHUNK_SIZE) {
-      const chunk = matchRows.slice(i, i + CHUNK_SIZE);
-      const { error } = await masterDb
-        .from('matches')
-        .upsert(chunk, { onConflict: 'id' });
 
-      if (error) {
-        chunk.forEach(m => {
-          results.errors.push({ match: `${m.home_team} vs ${m.away_team}`, error: error.message });
-        });
-      } else {
-        chunk.forEach(m => {
-          if (existingIdSet.has(m.id)) {
-            results.updated++;
-          } else {
-            results.created++;
-          }
-        });
+    for (const rows of [finishedRows, notFinishedRows]) {
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + CHUNK_SIZE);
+        const { error } = await masterDb
+          .from('matches')
+          .upsert(chunk, { onConflict: 'id' });
+
+        if (error) {
+          chunk.forEach(m => {
+            results.errors.push({ match: `${m.home_team} vs ${m.away_team}`, error: error.message });
+          });
+        } else {
+          chunk.forEach(m => {
+            if (existingIdSet.has(m.id)) {
+              results.updated++;
+            } else {
+              results.created++;
+            }
+          });
+        }
       }
     }
 
