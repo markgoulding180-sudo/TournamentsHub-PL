@@ -3093,6 +3093,146 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         });
       }
 
+      // Consolidated here rather than its own /api/cl-sync.js file - a
+      // separate file would have been a 13th serverless function, over
+      // Vercel Hobby's 12-function cap, confirmed as the real cause of a
+      // failed deployment. Same football-data.org sync + auto-scoring
+      // logic, just living as an action within the one file already
+      // well under the limit.
+      if (action === 'cl_sync') {
+        const FOOTBALL_DATA_TOKEN = process.env.FOOTBALL_DATA_TOKEN || 'aef925b3b2df4c6e922f08a5498bdab0';
+        const FOOTBALL_DATA_BASE = 'https://api.football-data.org/v4/competitions/CL';
+        const POINTS_BY_STAGE = { matchday: 3, r16: 6, qf: 8, sf: 10, final: 15 };
+        const STAGE_TO_ROUND = { 'LAST_16': 'r16', 'QUARTER_FINALS': 'qf', 'SEMI_FINALS': 'sf', 'FINAL': 'final' };
+
+        try {
+          const { data: tournament } = await supabaseAdmin
+            .schema('champions_league').from('tournaments').select('*')
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          if (!tournament) return res.status(200).json({ success: true, message: 'No champions_league tournament exists yet.' });
+
+          const results = { teamsCreated: 0, matchesCreated: 0, matchesUpdated: 0, picksScored: 0 };
+
+          const teamsResponse = await fetch(`${FOOTBALL_DATA_BASE}/teams`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          if (!teamsResponse.ok) {
+            const errorText = await teamsResponse.text();
+            return res.status(500).json({ error: `football-data.org teams error: ${teamsResponse.status} — ${errorText}` });
+          }
+          const teamsData = await teamsResponse.json();
+          const realTeams = teamsData.teams || [];
+
+          if (realTeams.length === 0) {
+            return res.status(200).json({ success: true, message: 'No real teams available yet — league phase draw likely hasn\'t happened.', ...results });
+          }
+
+          const { data: existingTeams } = await supabaseAdmin.schema('champions_league').from('teams').select('id, name, external_team_id').eq('tournament_id', tournament.id);
+          const existingByExternalId = new Map((existingTeams || []).filter(t => t.external_team_id).map(t => [t.external_team_id, t]));
+          const placeholderTeams = (existingTeams || []).filter(t => t.name.startsWith('Team ') && !t.external_team_id);
+          const teamIdMap = new Map();
+
+          for (let i = 0; i < realTeams.length; i++) {
+            const rt = realTeams[i];
+            const existing = existingByExternalId.get(rt.id);
+            if (existing) { teamIdMap.set(rt.id, existing.id); continue; }
+            const placeholder = placeholderTeams[i];
+            if (placeholder) {
+              await supabaseAdmin.schema('champions_league').from('teams')
+                .update({ name: rt.name, short_name: rt.tla || rt.shortName, crest_url: rt.crest, external_team_id: rt.id })
+                .eq('id', placeholder.id);
+              teamIdMap.set(rt.id, placeholder.id);
+            } else {
+              const { data: newTeam } = await supabaseAdmin.schema('champions_league').from('teams')
+                .insert({ tournament_id: tournament.id, name: rt.name, short_name: rt.tla || rt.shortName, crest_url: rt.crest, external_team_id: rt.id })
+                .select().single();
+              if (newTeam) { teamIdMap.set(rt.id, newTeam.id); results.teamsCreated++; }
+            }
+          }
+
+          const matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          if (!matchesResponse.ok) {
+            const errorText = await matchesResponse.text();
+            return res.status(500).json({ error: `football-data.org matches error: ${matchesResponse.status} — ${errorText}`, ...results });
+          }
+          const matchesData = await matchesResponse.json();
+          const realMatches = matchesData.matches || [];
+
+          const { data: existingMatches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament.id);
+          const existingByExternalMatchId = new Map((existingMatches || []).filter(m => m.external_match_id).map(m => [m.external_match_id, m]));
+
+          for (const fixture of realMatches) {
+            const homeTeamId = teamIdMap.get(fixture.homeTeam?.id);
+            const awayTeamId = teamIdMap.get(fixture.awayTeam?.id);
+            if (!homeTeamId || !awayTeamId) continue;
+
+            const matchday = fixture.stage === 'LEAGUE_STAGE' ? fixture.matchday : null;
+            const round = STAGE_TO_ROUND[fixture.stage] || null;
+            if (!matchday && !round) continue;
+
+            const existing = existingByExternalMatchId.get(fixture.id);
+            const matchFields = {
+              tournament_id: tournament.id, matchday, round,
+              home_team_id: homeTeamId, away_team_id: awayTeamId,
+              kickoff_time: fixture.utcDate, external_match_id: fixture.id
+            };
+
+            if (existing) {
+              await supabaseAdmin.schema('champions_league').from('matches').update(matchFields).eq('id', existing.id);
+            } else {
+              await supabaseAdmin.schema('champions_league').from('matches').insert(matchFields);
+              results.matchesCreated++;
+            }
+          }
+
+          const finishedFixtures = realMatches.filter(f => f.status === 'FINISHED' && f.score?.fullTime?.home !== null);
+          const { data: currentMatches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament.id).eq('status', 'upcoming');
+          const upcomingByExternalMatchId = new Map((currentMatches || []).filter(m => m.external_match_id).map(m => [m.external_match_id, m]));
+
+          for (const fixture of finishedFixtures) {
+            const dbMatch = upcomingByExternalMatchId.get(fixture.id);
+            if (!dbMatch) continue;
+
+            const homeScore = fixture.score.fullTime.home;
+            const awayScore = fixture.score.fullTime.away;
+            const winnerTeamId = homeScore > awayScore ? dbMatch.home_team_id : awayScore > homeScore ? dbMatch.away_team_id : null;
+
+            const { data: claimedRows } = await supabaseAdmin.schema('champions_league').from('matches')
+              .update({ status: 'finished', home_score: homeScore, away_score: awayScore, winner_team_id: winnerTeamId })
+              .eq('id', dbMatch.id).eq('status', 'upcoming').select('id');
+            if (!claimedRows || claimedRows.length === 0) continue;
+            results.matchesUpdated++;
+
+            const stageKey = dbMatch.matchday ? 'matchday' : dbMatch.round;
+            const winPoints = POINTS_BY_STAGE[stageKey] || 3;
+            const matchFilter = dbMatch.matchday ? { matchday: dbMatch.matchday } : { round: dbMatch.round };
+
+            const { data: relevantPicks } = await supabaseAdmin.schema('champions_league').from('picks').select('*')
+              .match(matchFilter).in('team_id', [dbMatch.home_team_id, dbMatch.away_team_id]);
+
+            for (const pick of (relevantPicks || [])) {
+              const pickedWinner = pick.team_id === winnerTeamId;
+              let points = pickedWinner ? winPoints : 0;
+              if (pickedWinner && ['qf', 'sf', 'final'].includes(dbMatch.round)
+                  && pick.predicted_home_score === homeScore && pick.predicted_away_score === awayScore) {
+                points += Math.round(winPoints / 2);
+              }
+              await supabaseAdmin.schema('champions_league').from('picks').update({ result: pickedWinner ? 'win' : 'loss', points_earned: points }).eq('id', pick.id);
+              results.picksScored++;
+
+              if (points > 0) {
+                const { data: entryRow } = await supabaseAdmin.schema('champions_league').from('tournament_entries').select('entry_points').eq('id', pick.entry_id).maybeSingle();
+                await supabaseAdmin.schema('champions_league').from('tournament_entries')
+                  .update({ entry_points: (entryRow?.entry_points || 0) + points }).eq('id', pick.entry_id);
+              }
+            }
+          }
+
+          return res.status(200).json({ success: true, ...results });
+        } catch (err) {
+          console.error('cl_sync error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       if (action === 'admin_list_tournaments_for_removal') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });

@@ -16,9 +16,12 @@
 //     seconds regardless of how many users are polling at once, so many
 //     concurrent visitors don't each independently hammer FPL's API for
 //     the same data.
-//   - /api/cl-sync -> Champions League fixtures/teams from football-data.org
-//     (separate provider, separate schema, structurally unreachable from
-//     everything else here), plus auto-scoring any newly-finished match.
+//   - /api/tournaments (action: cl_sync) -> Champions League fixtures/teams
+//     from football-data.org (separate provider, separate schema,
+//     structurally unreachable from everything else here), plus
+//     auto-scoring any newly-finished match. Consolidated into this
+//     shared action rather than its own file, to stay within Vercel
+//     Hobby's 12-function cap.
 //   All five write to the shared master data, so ANY user with ANY of
 //   these pages open keeps things fresh for EVERYONE, not just themselves.
 //   None of this can ever touch predictions.predictions — an entirely
@@ -98,7 +101,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
 
     try {
-      await fetch('/api/cl-sync', { method: 'POST' });
+      const token = localStorage.getItem('gbf_token');
+      await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'cl_sync' })
+      });
     } catch (e) {
       console.error('[live-poll] Champions League sync failed:', e);
     }
