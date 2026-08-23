@@ -59,7 +59,7 @@
       background-repeat: no-repeat, no-repeat;
       background-position: center, center;
       border:1px solid var(--accent-2); box-shadow:0 0 24px rgba(96,165,250,0.25); overflow:hidden;
-      padding:58px 50px; margin-bottom:16px; min-height:240px;
+      padding:58px 50px; margin-bottom:16px; min-height:360px;
       display:flex; align-items:center;
     }
     .hero-content{ position:relative; z-index:2; max-width:600px; }
@@ -119,8 +119,12 @@
       .logo-text{ font-size:14px; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
       main{ padding:20px 14px 50px; }
-      .hero{ padding:28px 22px; min-height:auto; }
+      .hero{ padding:24px 20px; min-height:auto; }
       .hero h1{ font-size:32px; }
+      .hero-desc{ margin-bottom:0; }
+      .hero-content > div[style*="rgba(242,185,61"]{ padding:6px 10px !important; margin-top:8px !important; }
+      .hero-content > div[style*="rgba(242,185,61"] span{ font-size:11.5px !important; }
+      .hero-content .btn-secondary{ padding:7px 14px !important; font-size:11.5px !important; margin-top:10px !important; }
       .team-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); }
       .stat-row{ gap:6px !important; }
       .stat{ min-width:0 !important; flex:1 1 0; padding:8px 6px !important; }
