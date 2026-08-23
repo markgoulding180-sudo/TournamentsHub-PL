@@ -52,7 +52,12 @@
 
     .hero{
       position:relative; border-radius:20px;
-      background:linear-gradient(120deg, #0a1030 0%, #131c47 55%, #1d2a5e 100%);
+      background:
+        linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.15) 100%),
+        url('assets/champions-league-hero.jpg');
+      background-size: cover, cover;
+      background-repeat: no-repeat, no-repeat;
+      background-position: center, center;
       border:1px solid var(--accent-2); box-shadow:0 0 24px rgba(96,165,250,0.25); overflow:hidden;
       padding:58px 50px; margin-bottom:16px; min-height:240px;
       display:flex; align-items:center;
