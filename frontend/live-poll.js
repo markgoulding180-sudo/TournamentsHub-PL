@@ -16,7 +16,10 @@
 //     seconds regardless of how many users are polling at once, so many
 //     concurrent visitors don't each independently hammer FPL's API for
 //     the same data.
-//   All four write to the shared master data, so ANY user with ANY of
+//   - /api/cl-sync -> Champions League fixtures/teams from football-data.org
+//     (separate provider, separate schema, structurally unreachable from
+//     everything else here), plus auto-scoring any newly-finished match.
+//   All five write to the shared master data, so ANY user with ANY of
 //   these pages open keeps things fresh for EVERYONE, not just themselves.
 //   None of this can ever touch predictions.predictions — an entirely
 //   separate database schema, structurally unreachable by anything here.
@@ -92,6 +95,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       await fetch('/api/sync-fixtures?poll=true');
     } catch (e) {
       console.error('[live-poll] fixtures sync failed:', e);
+    }
+
+    try {
+      await fetch('/api/cl-sync', { method: 'POST' });
+    } catch (e) {
+      console.error('[live-poll] Champions League sync failed:', e);
     }
 
     try {

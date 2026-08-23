@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Champions League - GB Tournaments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth; overflow-x:hidden;}
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+    .bg-glow{ position:fixed; top:-260px; left:50%; width:1300px; height:820px; transform:translateX(-50%); background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%); pointer-events:none; z-index:0; }
+
+    .navbar{ position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:15px 32px; background:rgba(4,8,18,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+    .nav-left{display:flex;align-items:center;gap:40px;}
+    .logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{ width:38px;height:38px;border-radius:10px; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); display:flex;align-items:center;justify-content:center; box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25); }
+    .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+    .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+    .nav-right{display:flex;align-items:center;gap:14px;}
+    .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); text-decoration:none; }
+    .icon-btn i{font-size:15px;color:var(--text-dim);}
+    .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+    .avatar-btn:hover{border-color:var(--border);}
+    .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
+    .icon-btn.menu-toggle{ display:none; }
+    .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+    .mobile-nav-overlay.open{ display:block; }
+    .mobile-nav-drawer{
+      display:none; position:fixed; top:0; right:0; bottom:0; z-index:199; width:78%; max-width:300px;
+      background:var(--bg-panel); border-left:1px solid var(--border); padding:80px 24px 24px;
+      flex-direction:column; gap:4px; transform:translateX(100%); transition:transform .25s ease;
+    }
+    .mobile-nav-drawer.open{ display:flex; transform:translateX(0); }
+    .mobile-nav-drawer a{ padding:12px 10px; border-radius:10px; font-family:var(--font-head); font-weight:600; font-size:14px; color:var(--text-dim); }
+    .mobile-nav-drawer a:hover{ background:var(--bg-card); color:var(--text); }
+
+    main{ position:relative; z-index:1; max-width:1440px; margin:0 auto; padding:32px 24px 60px; }
+
+    .hero{
+      position:relative; border-radius:20px;
+      background:linear-gradient(120deg, #0a1030 0%, #131c47 55%, #1d2a5e 100%);
+      border:1px solid var(--accent-2); box-shadow:0 0 24px rgba(96,165,250,0.25); overflow:hidden;
+      padding:58px 50px; margin-bottom:16px; min-height:240px;
+      display:flex; align-items:center;
+    }
+    .hero-content{ position:relative; z-index:2; max-width:600px; }
+    .hero-eyebrow{ display:flex; align-items:center; gap:8px; font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin-bottom:12px; }
+    .hero-eyebrow .dot{ width:7px; height:7px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); }
+    .hero h1{ font-family:var(--font-display); font-size:44px; line-height:1; margin-bottom:10px; }
+    .hero-sub{ font-family:var(--font-head); font-size:19px; font-weight:600; color:var(--accent-2); margin-bottom:12px; }
+    .hero-desc{ font-size:14.5px; color:var(--text-dim); line-height:1.55; max-width:520px; }
+    .stat-row{ display:flex; gap:14px; flex-wrap:wrap; margin:16px 0 0; }
+    .stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:110px; }
+    .stat .label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; }
+    .stat .value{ font-family:var(--font-head); font-weight:700; font-size:18px; margin-top:2px; }
+    .btn-secondary{ display:inline-flex; align-items:center; gap:8px; margin-top:16px; background:var(--bg-card); color:var(--text-dim); border:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:13px; padding:9px 18px; border-radius:8px; }
+    .btn-secondary:hover{ border-color:var(--border-hover); color:var(--text); }
+
+    .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
+    .enter-gate{ text-align:center; padding:40px 24px; }
+    .btn-primary{ background:var(--accent); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; padding:12px 24px; border-radius:8px; }
+    .btn-primary:hover{ background:var(--accent-dim); }
+    .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+
+    .stage-header{
+      font-family:var(--font-head); font-weight:700; font-size:16px; margin:14px 0 0;
+      display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; padding:12px 16px;
+      transition:border-color .15s;
+    }
+    .stage-header:hover{ border-color:var(--border-hover); }
+    .stage-header.current{ border-color:var(--accent-dim); }
+    .stage-header.past{ opacity:.85; }
+    .stage-chevron{ font-size:12px; color:var(--text-faint); flex:none; }
+    .stage-title-text{ flex:none; }
+    .stage-summary{ margin-left:auto; font-size:12.5px; font-weight:600; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+
+    .team-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; padding:14px 0; }
+    .team-card{
+      display:flex; flex-direction:column; align-items:center; gap:8px; padding:14px 10px;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:10px; transition:.15s;
+    }
+    .team-card:hover:not(:disabled){ border-color:var(--border-hover); }
+    .team-card.selected{ border-color:var(--accent-2); background:rgba(59,130,246,0.15); }
+    .team-card.correct{ border-color:var(--green); background:rgba(34,197,94,0.12); }
+    .team-card.wrong{ border-color:var(--red); background:rgba(239,68,68,0.1); opacity:.6; }
+    .team-card.used{ opacity:.35; cursor:not-allowed; }
+    .team-card:disabled{ cursor:not-allowed; }
+    .team-crest{ width:36px; height:36px; border-radius:50%; background:var(--bg-panel); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+    .team-crest i{ font-size:14px; color:var(--text-faint); }
+    .team-name{ font-size:12.5px; font-weight:600; text-align:center; line-height:1.25; }
+    .used-tag{ font-size:9.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; }
+
+    .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
+    .submit-msg{ text-align:center; font-size:13px; margin-top:6px; }
+
+    @media (max-width:640px){
+      .navbar{ padding:12px 16px; }
+      .nav-links{ display:none; }
+      .logo-text{ font-size:14px; }
+      .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
+      main{ padding:20px 14px 50px; }
+      .hero{ padding:28px 22px; min-height:auto; }
+      .hero h1{ font-size:32px; }
+      .team-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <header class="navbar">
+    <div class="nav-left">
+      <a href="/" class="logo">
+        <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+        <div class="logo-text">GB HUB<span class="sub">CLICK HERE</span></div>
+      </a>
+    </div>
+    <div class="nav-right">
+      <a class="icon-btn" href="/wallet" title="Wallet"><i class="fas fa-wallet"></i></a>
+      <button class="icon-btn"><i class="fas fa-bell"></i></button>
+      <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fchampions-league" title="Log in">
+        <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
+        <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
+      </a>
+      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+  <div class="mobile-nav-drawer" id="mobileNavDrawer">
+    <a href="/">GB Hub</a>
+    <a href="/champions-league">Champions League</a>
+    <a href="/wallet">Wallet</a>
+  </div>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="hero-eyebrow"><span class="dot"></span>Pick One Team, Once</div>
+        <h1 id="heroTitle">Champions League</h1>
+        <div class="hero-sub">Every Matchday. Every Team, Once.</div>
+        <p class="hero-desc" id="heroDesc">Pick one team to win each matchday of the league phase, then follow your picks through the knockout rounds to the final. Once you've used a team, it's gone for the rest of the tournament.</p>
+        <div class="stat-row" id="heroStatRow"></div>
+        <a href="/champions-league-leaderboard" class="btn-secondary"><i class="fas fa-ranking-star"></i> Leaderboard</a>
+      </div>
+    </section>
+
+    <div id="root"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div></div>
+  </main>
+
+  <script>
+    let TOURNAMENT_ID = null;
+    let tournamentData = null;
+    let myPicks = {}; // "matchday-N" or "round-X" -> team_id
+    let currentUser = null;
+    let expandedStages = null;
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str ?? '';
+      return div.innerHTML;
+    }
+
+    function authHeaders() {
+      const token = localStorage.getItem('gbf_token');
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+
+    async function api(action, body = {}) {
+      const response = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ action, ...body })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Something went wrong');
+      return data;
+    }
+
+    const STAGES = [
+      { key: 'matchday-1', label: 'Matchday 1', matchday: 1 },
+      { key: 'matchday-2', label: 'Matchday 2', matchday: 2 },
+      { key: 'matchday-3', label: 'Matchday 3', matchday: 3 },
+      { key: 'matchday-4', label: 'Matchday 4', matchday: 4 },
+      { key: 'matchday-5', label: 'Matchday 5', matchday: 5 },
+      { key: 'matchday-6', label: 'Matchday 6', matchday: 6 },
+      { key: 'matchday-7', label: 'Matchday 7', matchday: 7 },
+      { key: 'matchday-8', label: 'Matchday 8', matchday: 8 },
+      { key: 'round-r16', label: 'Round of 16', round: 'r16' },
+      { key: 'round-qf', label: 'Quarter-Finals', round: 'qf' },
+      { key: 'round-sf', label: 'Semi-Finals', round: 'sf' },
+      { key: 'round-final', label: 'Final', round: 'final' },
+    ];
+
+    function teamName(id) {
+      if (!id) return 'Unknown';
+      const t = tournamentData.teams.find(tm => tm.id === id);
+      return t ? t.name : 'Unknown';
+    }
+
+    function getMatchesForStage(stage) {
+      return tournamentData.matches.filter(m => stage.matchday ? m.matchday === stage.matchday : m.round === stage.round);
+    }
+
+    function getStageState(stage) {
+      const matches = getMatchesForStage(stage);
+      if (matches.length === 0) return 'future';
+      const determined = matches.filter(m => m.home_team_id && m.away_team_id);
+      if (determined.length === 0) return 'future';
+      const allFinished = determined.length === matches.length && determined.every(m => m.status === 'finished');
+      return allFinished ? 'past' : 'current';
+    }
+
+    function getUsedTeamIds() {
+      return new Set(Object.values(myPicks));
+    }
+
+    function toggleStage(key) {
+      if (expandedStages.has(key)) expandedStages.delete(key);
+      else expandedStages.add(key);
+      render();
+    }
+
+    function renderHeroStats(t, entry) {
+      const el = document.getElementById('heroStatRow');
+      if (!el) return;
+      el.innerHTML = `
+        <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries || 0}</div></div>
+        <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
+        ${entry
+          ? `<div class="stat"><div class="label">Your Points</div><div class="value" style="color:var(--gold);">${entry.entry_points}</div></div>`
+          : `<div class="stat"><div class="label">Entry Fee</div><div class="value">£${((t.entry_fee||0)/100).toFixed(2)}</div></div>`}
+      `;
+    }
+
+    function getStageByKey(key) { return STAGES.find(s => s.key === key); }
+
+    function selectTeam(stageKey, teamId) {
+      const stage = getStageByKey(stageKey);
+      const key = stage.key;
+      // Toggle - click the same team again to deselect
+      if (myPicks[key] === teamId) delete myPicks[key];
+      else myPicks[key] = teamId;
+      render();
+    }
+
+    async function submitPick(stageKey) {
+      const stage = getStageByKey(stageKey);
+      const teamId = myPicks[stage.key];
+      const msgEl = document.getElementById('submitMsg-' + stage.key);
+      if (!teamId) { if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Pick a team first.'; } return; }
+
+      let predicted_home_score, predicted_away_score;
+      if (['qf','sf','final'].includes(stage.round)) {
+        const h = document.getElementById('scoreHome-' + stage.key);
+        const a = document.getElementById('scoreAway-' + stage.key);
+        if (!h || !a || h.value === '' || a.value === '') {
+          if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = 'A score prediction is required for this round.'; }
+          return;
+        }
+        predicted_home_score = parseInt(h.value);
+        predicted_away_score = parseInt(a.value);
+      }
+
+      if (msgEl) { msgEl.style.color = 'var(--text-dim)'; msgEl.textContent = 'Saving…'; }
+      try {
+        await api('cl_submit_pick', {
+          tournament_id: TOURNAMENT_ID, matchday: stage.matchday || null, round: stage.round || null,
+          team_id: teamId, predicted_home_score, predicted_away_score
+        });
+        if (window.showToast) window.showToast(`${stage.label} pick saved!`, 'success');
+        await loadTournament();
+      } catch (err) {
+        if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = err.message; }
+      }
+    }
+
+    async function enterTournament() {
+      const btn = document.getElementById('enterBtn');
+      const msgEl = document.getElementById('enterMsg');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
+      try {
+        await api('join', { tournament_id: TOURNAMENT_ID, tournament_type: 'champions_league' });
+        if (window.showToast) window.showToast("You're entered! Pick this matchday's team below.", 'success');
+        await loadTournament();
+      } catch (err) {
+        msgEl.style.color = 'var(--red)';
+        msgEl.textContent = err.message;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-right-to-bracket"></i> Enter Now';
+      }
+    }
+
+    function render() {
+      const t = tournamentData.tournament;
+      const locked = t.status === 'finished';
+      const entry = tournamentData.my_entry;
+      renderHeroStats(t, entry);
+
+      if (!currentUser) {
+        document.getElementById('root').innerHTML = `
+          <div class="card enter-gate">
+            <i class="fas fa-shield-halved" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the Champions League</h2>
+            <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            <a href="/login?redirect=%2Fchampions-league" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>
+          </div>`;
+        return;
+      }
+
+      if (!entry) {
+        document.getElementById('root').innerHTML = `
+          <div class="card enter-gate">
+            <i class="fas fa-shield-halved" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the Champions League</h2>
+            <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            <button class="btn-primary" id="enterBtn" onclick="enterTournament()"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
+            <div class="submit-msg" id="enterMsg"></div>
+          </div>`;
+        return;
+      }
+
+      if (expandedStages === null) {
+        expandedStages = new Set();
+        STAGES.forEach(s => { if (getStageState(s) === 'current') expandedStages.add(s.key); });
+      }
+
+      let html = locked ? `<div class="card"><div class="submit-msg" style="color:var(--red);"><i class="fas fa-lock"></i> Tournament finished.</div></div>` : '';
+      const usedTeamIds = getUsedTeamIds();
+
+      STAGES.forEach(stage => {
+        const state = getStageState(stage);
+        const isOpen = expandedStages.has(stage.key);
+        const myPick = myPicks[stage.key];
+        const matches = getMatchesForStage(stage);
+
+        let summaryHtml = '';
+        if (state === 'future') {
+          summaryHtml = `<span class="stage-summary" style="color:var(--text-faint);"><i class="fas fa-lock"></i> Not set yet</span>`;
+        } else if (myPick && matches.some(m => m.status === 'finished')) {
+          const finishedMatch = matches.find(m => (m.home_team_id === myPick || m.away_team_id === myPick) && m.status === 'finished');
+          if (finishedMatch) {
+            const won = finishedMatch.winner_team_id === myPick;
+            summaryHtml = `<span class="stage-summary" style="color:${won ? 'var(--green)' : 'var(--red)'};">${won ? 'Won' : 'Lost'}</span>`;
+          }
+        } else if (myPick) {
+          summaryHtml = `<span class="stage-summary" style="color:var(--accent-2);"><i class="fas fa-check"></i> ${escapeHtml(teamName(myPick))} picked</span>`;
+        }
+
+        html += `
+          <div class="stage-header ${state}" onclick="toggleStage('${stage.key}')">
+            <i class="fas fa-chevron-${isOpen ? 'down' : 'right'} stage-chevron"></i>
+            <span class="stage-title-text">${stage.label}</span>
+            ${summaryHtml}
+          </div>`;
+
+        if (!isOpen) return;
+
+        if (state === 'future') {
+          html += `<div class="empty" style="padding:20px;">Waiting on earlier results</div>`;
+          return;
+        }
+
+        // Build the list of teams playing this stage
+        const stageTeamIds = new Set();
+        matches.forEach(m => { if (m.home_team_id) stageTeamIds.add(m.home_team_id); if (m.away_team_id) stageTeamIds.add(m.away_team_id); });
+
+        html += `<div class="team-grid">`;
+        Array.from(stageTeamIds).sort((a, b) => teamName(a).localeCompare(teamName(b))).forEach(teamId => {
+          const match = matches.find(m => m.home_team_id === teamId || m.away_team_id === teamId);
+          const finished = match && match.status === 'finished';
+          const isUsedElsewhere = usedTeamIds.has(teamId) && myPick !== teamId;
+          const selected = myPick === teamId;
+          let cls = 'team-card';
+          if (selected) cls += ' selected';
+          if (finished && selected) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
+          if (isUsedElsewhere) cls += ' used';
+          const disabled = (locked || finished || isUsedElsewhere) ? 'disabled' : '';
+          html += `
+            <button class="${cls}" ${disabled} onclick="selectTeam('${stage.key}', '${teamId}')">
+              <span class="team-crest"><i class="fas fa-shield-halved"></i></span>
+              <span class="team-name">${escapeHtml(teamName(teamId))}</span>
+              ${isUsedElsewhere ? '<span class="used-tag">Already used</span>' : ''}
+            </button>`;
+        });
+        html += `</div>`;
+
+        if (!locked && ['qf','sf','final'].includes(stage.round)) {
+          html += `
+            <div style="display:flex; align-items:center; gap:8px; margin:8px 0;">
+              <span style="font-size:12.5px; color:var(--text-dim);">Score prediction:</span>
+              <input type="number" min="0" id="scoreHome-${stage.key}" placeholder="H" style="width:50px; padding:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center;">
+              <span style="color:var(--text-faint);">-</span>
+              <input type="number" min="0" id="scoreAway-${stage.key}" placeholder="A" style="width:50px; padding:6px; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; color:var(--text); text-align:center;">
+            </div>`;
+        }
+
+        const stageDone = matches.length > 0 && matches.every(m => m.status === 'finished');
+        if (!locked && !stageDone) {
+          html += `
+            <button class="btn-primary" style="width:100%; margin:6px 0 16px;" onclick="submitPick('${stage.key}')">
+              Submit ${escapeHtml(stage.label)} Pick
+            </button>
+            <div class="submit-msg" id="submitMsg-${stage.key}"></div>`;
+        }
+      });
+
+      document.getElementById('root').innerHTML = html;
+    }
+
+    async function loadTournament() {
+      try {
+        const data = await api('cl_get_tournament', { tournament_id: TOURNAMENT_ID });
+        tournamentData = data;
+        myPicks = {};
+        (data.my_picks || []).forEach(p => {
+          const key = p.matchday ? `matchday-${p.matchday}` : `round-${p.round}`;
+          myPicks[key] = p.team_id;
+        });
+        document.getElementById('heroTitle').textContent = data.tournament.hero_title || data.tournament.name;
+        if (data.tournament.description) document.getElementById('heroDesc').textContent = data.tournament.description;
+        render();
+      } catch (err) {
+        document.getElementById('root').innerHTML = `<div class="empty">Couldn't load the tournament: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function initAuth() {
+      const token = localStorage.getItem('gbf_token');
+      const userStr = localStorage.getItem('gbf_user');
+      if (token && userStr) {
+        try {
+          currentUser = JSON.parse(userStr);
+          document.getElementById('navAuthBtn').href = '/profile';
+          document.getElementById('navAvatar').innerHTML = `<span style="font-size:13px;font-weight:700;">${escapeHtml((currentUser.display_name || currentUser.username || '?')[0].toUpperCase())}</span>`;
+          document.getElementById('navAuthLabel').textContent = currentUser.display_name || currentUser.username || 'Account';
+        } catch (e) { currentUser = null; }
+      }
+    }
+
+    function toggleMobileNav(open) {
+      document.getElementById('mobileNavDrawer').classList.toggle('open', open);
+      document.getElementById('mobileNavOverlay').classList.toggle('open', open);
+    }
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
+    document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    (async function init() {
+      initAuth();
+      TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || '362c4ac7-ddb7-40b2-8930-8c39a755613c';
+      await loadTournament();
+    })();
+  </script>
+  <script src="toast.js"></script>
+</body>
+</html>

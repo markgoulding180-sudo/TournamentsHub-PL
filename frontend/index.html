@@ -1033,6 +1033,10 @@
         <div class="quick-lb-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Stock Market</div>
         <ol class="pl-live-leaders" id="qlbStockmarket"><li class="pl-live-empty">Loading…</li></ol>
       </div>
+      <div class="quick-lb-card">
+        <div class="quick-lb-title"><i class="fas fa-shield-halved" style="color:var(--accent-2);"></i> Champions League</div>
+        <ol class="pl-live-leaders" id="qlbChampionsLeague"><li class="pl-live-empty">Loading…</li></ol>
+      </div>
     </div>
 
   </main>
@@ -1477,7 +1481,7 @@
         // Coming Soon if genuinely neither state has a real tournament.
         // Darts has the exact same situation while bracket predictions
         // are still open — the real bracket hasn't started yet either.
-        if (!t && (type === 'stockmarket' || type === 'darts')) {
+        if (!t && (type === 'stockmarket' || type === 'darts' || type === 'champions_league')) {
           const upRes = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=upcoming`);
           const upData = await upRes.json();
           const upList = Array.isArray(upData) ? upData : (upData.tournaments || []);
@@ -1558,6 +1562,7 @@
     loadQuickLms();
     loadQuickLeaderboard('qlbFantasy', 'fantasy', 'fantasy_squad', 'entry_points');
     loadQuickStockMarket();
+    loadQuickLeaderboard('qlbChampionsLeague', 'champions_league', null, 'entry_points');
   }
   window.addEventListener('gbf-data-refreshed', loadAllQuickLeaderboards);
   loadAllQuickLeaderboards();

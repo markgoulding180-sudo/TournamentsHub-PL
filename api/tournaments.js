@@ -12,6 +12,7 @@ function resolveSchema(tournament_type) {
   if (tournament_type === 'lms') return 'lms';
   if (tournament_type === 'stockmarket') return 'stockmarket';
   if (tournament_type === 'darts') return 'darts';
+  if (tournament_type === 'champions_league') return 'champions_league';
   return 'predictions';
 }
 
@@ -2884,6 +2885,214 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         });
       }
 
+      // ---- Champions League: pick one team per matchday/round, never reuse a team ----
+      if (action === 'cl_get_tournament') {
+        const { tournament_id } = req.body;
+        if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
+
+        const { data: tournament, error: tourErr } = await supabaseAdmin
+          .schema('champions_league').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (tourErr) return res.status(500).json({ error: tourErr.message });
+        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+
+        const { data: teams } = await supabaseAdmin.schema('champions_league').from('teams').select('*').eq('tournament_id', tournament_id);
+        const { data: matches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament_id);
+
+        let myEntry = null, myPicks = [];
+        if (user) {
+          const { data: entry } = await supabaseAdmin
+            .schema('champions_league').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+          myEntry = entry || null;
+          if (myEntry) {
+            const { data: picks } = await supabaseAdmin.schema('champions_league').from('picks').select('*').eq('entry_id', myEntry.id);
+            myPicks = picks || [];
+          }
+        }
+
+        return res.status(200).json({ tournament, teams: teams || [], matches: matches || [], my_entry: myEntry, my_picks: myPicks });
+      }
+
+      if (action === 'cl_submit_pick') {
+        const { tournament_id, matchday, round, team_id, predicted_home_score, predicted_away_score } = req.body;
+        if (!tournament_id || !team_id || (!matchday && !round)) {
+          return res.status(400).json({ error: 'tournament_id, team_id, and either matchday or round are required' });
+        }
+
+        const { data: tournament, error: tourErr } = await supabaseAdmin
+          .schema('champions_league').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (tourErr) return res.status(500).json({ error: tourErr.message });
+        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+
+        // Real matches for this specific matchday/round - the pick must
+        // be one of the two teams actually playing, and that match must
+        // not have kicked off yet.
+        let matchQuery = supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament_id);
+        matchQuery = matchday ? matchQuery.eq('matchday', matchday) : matchQuery.eq('round', round);
+        const { data: roundMatches, error: matchErr } = await matchQuery;
+        if (matchErr) return res.status(500).json({ error: matchErr.message });
+
+        const match = (roundMatches || []).find(m => m.home_team_id === team_id || m.away_team_id === team_id);
+        if (!match) return res.status(400).json({ error: 'That team is not playing in this matchday/round.' });
+        if (match.status === 'finished') return res.status(403).json({ error: 'This match has already kicked off — picks are locked.' });
+        if (match.kickoff_time && new Date(match.kickoff_time).getTime() <= Date.now()) {
+          return res.status(403).json({ error: 'This match has already kicked off — picks are locked.' });
+        }
+
+        // Knockout rounds beyond the last-16 require an exact score
+        // prediction alongside the team pick, same as darts' bracket.
+        const scoreRequiredRounds = ['qf', 'sf', 'final'];
+        if (scoreRequiredRounds.includes(round)) {
+          if (predicted_home_score === undefined || predicted_home_score === null || predicted_away_score === undefined || predicted_away_score === null) {
+            return res.status(400).json({ error: 'A score prediction is required for this round.' });
+          }
+        }
+
+        try {
+          let { data: entry } = await supabaseAdmin
+            .schema('champions_league').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+
+          if (!entry) {
+            const { data: newEntry, error: entryErr } = await supabaseAdmin
+              .schema('champions_league').from('tournament_entries').insert({ tournament_id, user_id: user.id }).select().single();
+            if (entryErr) return res.status(500).json({ error: entryErr.message });
+            entry = newEntry;
+
+            if (tournament.entry_fee > 0) {
+              await supabaseAdmin.from('wallet_transactions').insert({
+                user_id: user.id, type: 'entry_fee', amount: tournament.entry_fee,
+                tournament_type: 'champions_league', tournament_id,
+                description: `Entry fee — ${tournament.name}`
+              });
+            }
+            await supabaseAdmin.schema('champions_league').from('tournaments')
+              .update({ current_entries: (tournament.current_entries || 0) + 1, prize_pool: (tournament.prize_pool || 0) + tournament.entry_fee })
+              .eq('id', tournament_id);
+          }
+
+          // Core rule: a team, once picked by this entry ANYWHERE in the
+          // tournament (any past matchday or round), can never be picked
+          // again. Checked against every one of this entry's own prior
+          // picks, not just the current matchday/round.
+          const { data: allPicks } = await supabaseAdmin.schema('champions_league').from('picks').select('team_id').eq('entry_id', entry.id);
+          if ((allPicks || []).some(p => p.team_id === team_id)) {
+            return res.status(403).json({ error: 'You have already used this team earlier in the tournament — each team can only be picked once.' });
+          }
+
+          // Manual check-then-update-or-insert rather than upsert - the
+          // real uniqueness rule here relies on a COALESCE-based index
+          // (since matchday/round are each nullable and Postgres treats
+          // NULL as distinct from NULL in a plain unique constraint,
+          // confirmed as a real bug otherwise), which Supabase's upsert
+          // onConflict can't target directly since it only generates a
+          // plain column-list ON CONFLICT clause.
+          let existingPickQuery = supabaseAdmin.schema('champions_league').from('picks').select('id').eq('entry_id', entry.id);
+          existingPickQuery = matchday ? existingPickQuery.eq('matchday', matchday) : existingPickQuery.eq('round', round);
+          const { data: existingPick } = await existingPickQuery.maybeSingle();
+
+          const pickFields = {
+            team_id, predicted_home_score: predicted_home_score ?? null, predicted_away_score: predicted_away_score ?? null
+          };
+
+          if (existingPick) {
+            const { error: updateErr } = await supabaseAdmin.schema('champions_league').from('picks').update(pickFields).eq('id', existingPick.id);
+            if (updateErr) return res.status(500).json({ error: updateErr.message });
+          } else {
+            const { error: insertErr } = await supabaseAdmin.schema('champions_league').from('picks')
+              .insert({ entry_id: entry.id, matchday: matchday || null, round: round || null, ...pickFields });
+            if (insertErr) return res.status(500).json({ error: insertErr.message });
+          }
+
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('cl_submit_pick error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      if (action === 'cl_admin_set_result') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { match_id, home_score, away_score } = req.body;
+        if (!match_id || home_score === undefined || away_score === undefined) {
+          return res.status(400).json({ error: 'match_id, home_score, and away_score are required' });
+        }
+
+        try {
+          const { data: match, error: matchErr } = await supabaseAdmin
+            .schema('champions_league').from('matches').select('*').eq('id', match_id).maybeSingle();
+          if (matchErr) return res.status(500).json({ error: matchErr.message });
+          if (!match) return res.status(404).json({ error: 'Match not found' });
+
+          const winnerTeamId = home_score > away_score ? match.home_team_id : away_score > home_score ? match.away_team_id : null;
+
+          await supabaseAdmin.schema('champions_league').from('matches')
+            .update({ status: 'finished', home_score, away_score, winner_team_id: winnerTeamId })
+            .eq('id', match_id);
+
+          // League phase matchdays escalate gently (3pts), knockout
+          // rounds escalate more sharply as they get harder to call
+          // correctly — same spirit as darts' round-doubling scheme.
+          const POINTS_BY_STAGE = { matchday: 3, r16: 6, qf: 8, sf: 10, final: 15 };
+          const stageKey = match.matchday ? 'matchday' : match.round;
+          const winPoints = POINTS_BY_STAGE[stageKey] || 3;
+
+          const matchFilter = match.matchday
+            ? { matchday: match.matchday }
+            : { round: match.round };
+
+          const { data: allRelevantPicksRaw } = await supabaseAdmin
+            .schema('champions_league').from('picks').select('*')
+            .match(matchFilter)
+            .in('team_id', [match.home_team_id, match.away_team_id]);
+          const allRelevantPicks = allRelevantPicksRaw || [];
+
+          for (const pick of allRelevantPicks) {
+            const pickedWinner = pick.team_id === winnerTeamId;
+            let points = pickedWinner ? winPoints : 0;
+            // Score-round bonus: exact score prediction also correct
+            if (pickedWinner && ['qf', 'sf', 'final'].includes(match.round)
+                && pick.predicted_home_score === home_score && pick.predicted_away_score === away_score) {
+              points += Math.round(winPoints / 2);
+            }
+            await supabaseAdmin.schema('champions_league').from('picks')
+              .update({ result: pickedWinner ? 'win' : 'loss', points_earned: points })
+              .eq('id', pick.id);
+
+            if (points > 0) {
+              const { data: entryRow } = await supabaseAdmin.schema('champions_league').from('tournament_entries').select('entry_points').eq('id', pick.entry_id).maybeSingle();
+              await supabaseAdmin.schema('champions_league').from('tournament_entries')
+                .update({ entry_points: (entryRow?.entry_points || 0) + points }).eq('id', pick.entry_id);
+            }
+          }
+
+          return res.status(200).json({ success: true, scored_picks: allRelevantPicks.length });
+        } catch (err) {
+          console.error('cl_admin_set_result error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      if (action === 'cl_get_leaderboard') {
+        const { tournament_id } = req.body;
+        if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
+
+        const { data: entries, error: entriesErr } = await supabaseAdmin
+          .schema('champions_league').from('tournament_entries').select('*').eq('tournament_id', tournament_id).order('entry_points', { ascending: false });
+        if (entriesErr) return res.status(500).json({ error: entriesErr.message });
+
+        const userIds = entries.map(e => e.user_id);
+        const { data: users } = userIds.length > 0
+          ? await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds)
+          : { data: [] };
+        const byId = {};
+        (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; });
+
+        return res.status(200).json({
+          leaderboard: entries.map((e, i) => ({ rank: i + 1, display_name: byId[e.user_id] || 'Unknown', entry_points: e.entry_points }))
+        });
+      }
+
       if (action === 'admin_list_tournaments_for_removal') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
@@ -4221,7 +4430,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // entries once status is 'live', but Stock Market needs to allow
           // joining/drafting during 'upcoming' too. Darts has the exact
           // same situation while bracket predictions are still open.
-          const entriesOpen = (schemaName === 'stockmarket' || schemaName === 'darts')
+          const entriesOpen = (schemaName === 'stockmarket' || schemaName === 'darts' || schemaName === 'champions_league')
             ? (tournament.status === 'upcoming' || tournament.status === 'live')
             : tournament.status === 'live';
 
