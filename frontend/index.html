@@ -430,6 +430,9 @@
 
   /* ================= TOURNAMENT CARDS ================= */
   .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+  @media (max-width:640px){
+    .card-row{ grid-template-columns:repeat(2,1fr); gap:12px; }
+  }
   .card-row-3{grid-template-columns:repeat(3,1fr);}
   .t-card{
     position:relative; background:rgba(13,23,48,0.82); backdrop-filter:blur(4px);
