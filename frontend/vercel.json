@@ -29,6 +29,7 @@
     { "source": "/darts-leaderboard", "destination": "/darts-leaderboard.html" },
     { "source": "/champions-league", "destination": "/champions-league.html" },
     { "source": "/champions-league-leaderboard", "destination": "/champions-league-leaderboard.html" },
+    { "source": "/champions-league-how-it-works", "destination": "/champions-league-how-it-works.html" },
     { "source": "/last-man-standing-pick", "destination": "/lms-pick.html" },
     { "source": "/stock-market", "destination": "/stockmarket-home.html" },
     { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },

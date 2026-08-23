@@ -122,6 +122,10 @@
       .hero{ padding:28px 22px; min-height:auto; }
       .hero h1{ font-size:32px; }
       .team-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); }
+      .stat-row{ gap:6px !important; }
+      .stat{ min-width:0 !important; flex:1 1 0; padding:8px 6px !important; }
+      .stat .label{ font-size:9.5px !important; }
+      .stat .value{ font-size:14px !important; }
     }
   </style>
 </head>
@@ -159,9 +163,16 @@
         <div class="hero-eyebrow"><span class="dot"></span>Pick One Team, Once</div>
         <h1 id="heroTitle">Champions League</h1>
         <div class="hero-sub">Every Matchday. Every Team, Once.</div>
-        <p class="hero-desc" id="heroDesc">Pick one team to win each matchday of the league phase, then follow your picks through the knockout rounds to the final. Once you've used a team, it's gone for the rest of the tournament.</p>
+        <p class="hero-desc" id="heroDesc">Pick one team to win each matchday of the league phase, then follow your picks through the knockout rounds to the final.</p>
+        <div style="display:inline-flex; align-items:center; gap:8px; margin-top:10px; padding:8px 14px; background:rgba(242,185,61,0.1); border:1px solid rgba(242,185,61,0.35); border-radius:8px;">
+          <i class="fas fa-triangle-exclamation" style="color:var(--gold); font-size:13px;"></i>
+          <span style="font-size:13px; font-weight:600; color:var(--gold);">Each team can only ever be picked once across the whole tournament</span>
+        </div>
         <div class="stat-row" id="heroStatRow"></div>
-        <a href="/champions-league-leaderboard" class="btn-secondary"><i class="fas fa-ranking-star"></i> Leaderboard</a>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <a href="/champions-league-leaderboard" class="btn-secondary"><i class="fas fa-ranking-star"></i> Leaderboard</a>
+          <a href="/champions-league-how-it-works" class="btn-secondary"><i class="fas fa-circle-question"></i> How It Works</a>
+        </div>
       </div>
     </section>
 
