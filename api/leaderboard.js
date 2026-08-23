@@ -101,6 +101,20 @@ module.exports = async (req, res) => {
 
     const userIds = data.map(entry => entry.user_id).filter(Boolean);
 
+    // Real bug fixed here: this used to show the raw `username` snapshot
+    // stored directly on the tournament_entries row at signup time —
+    // different from every other leaderboard in the app, which all
+    // correctly join to the real users table and prefer display_name.
+    // That's exactly why the same person could show a different name
+    // here than on the full leaderboard page. Purely a display source
+    // change — entry_points and everything else below is untouched.
+    let usersById = {};
+    if (userIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users').select('id, username, display_name').in('id', userIds);
+      (usersData || []).forEach(u => { usersById[u.id] = u; });
+    }
+
     // Fetch current gameweek points for all users
     let gwPointsMap = {};
     if (currentGameweek && userIds.length > 0) {
@@ -120,12 +134,13 @@ module.exports = async (req, res) => {
 
     // Format the response
     const formattedData = data.map((entry, index) => {
-      const displayName = entry.username || 'Player';
+      const realUser = usersById[entry.user_id];
+      const displayName = (realUser && (realUser.display_name || realUser.username)) || entry.username || 'Player';
       return {
         rank: offset + index + 1,
         user: {
           id: entry.user_id,
-          username: entry.username,
+          username: (realUser && realUser.username) || entry.username,
           display_name: displayName,
           avatar_initials: displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
         },
