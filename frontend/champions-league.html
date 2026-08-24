@@ -392,6 +392,22 @@
 
       const currentStageKey = getCurrentStageKey();
 
+      // Real gap fixed here: if genuinely nothing has been determined yet
+      // (no matchday, no round - true before the league phase draw, or
+      // between the league phase ending and the knockout draw happening),
+      // the page would otherwise render as a confirmed, completely blank
+      // space with zero explanation. Show a clear, honest message instead.
+      const nothingDeterminedYet = STAGES.every(s => getStageState(s) === 'future');
+      if (nothingDeterminedYet) {
+        document.getElementById('root').innerHTML = `
+          <div class="card enter-gate">
+            <i class="fas fa-hourglass-half" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Waiting for the Draw</h2>
+            <p style="max-width:440px; margin:0 auto; font-size:14px; color:var(--text-dim);">Real fixtures haven't been drawn yet. We'll display them here the moment they're available — come back and check again later.</p>
+          </div>`;
+        return;
+      }
+
       if (expandedStages === null) {
         expandedStages = new Set();
         if (currentStageKey) expandedStages.add(currentStageKey);
