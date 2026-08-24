@@ -524,6 +524,24 @@
         if (data.tournament.description) document.getElementById('heroDesc').textContent = data.tournament.description;
         render();
       } catch (err) {
+        const isAuthError = /invalid or expired token|authentication required|user not found/i.test(err.message);
+        if (isAuthError) {
+          // The cached currentUser in localStorage doesn't mean the
+          // actual server-side token is still valid - a real, normal
+          // situation once a session gets old enough. Same real fix
+          // already proven on the darts page - clear the stale cache
+          // and prompt a real re-login rather than show a raw error.
+          localStorage.removeItem('gbf_token');
+          localStorage.removeItem('gbf_user');
+          document.getElementById('root').innerHTML = `
+            <div class="card enter-gate">
+              <i class="fas fa-clock-rotate-left" style="font-size:32px; color:var(--gold); margin-bottom:14px;"></i>
+              <h2 style="font-family:var(--font-head); font-size:19px; margin-bottom:8px;">Your session has expired</h2>
+              <p style="max-width:400px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">Log back in to keep picking — nothing you've already submitted is affected.</p>
+              <a href="/login?redirect=%2Fchampions-league" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+            </div>`;
+          return;
+        }
         document.getElementById('root').innerHTML = `<div class="empty">Couldn't load the tournament: ${escapeHtml(err.message)}</div>`;
       }
     }
