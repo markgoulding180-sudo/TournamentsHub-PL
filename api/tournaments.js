@@ -3078,6 +3078,12 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       if (action === 'cl_sync') {
         const FOOTBALL_DATA_TOKEN = process.env.FOOTBALL_DATA_TOKEN || 'aef925b3b2df4c6e922f08a5498bdab0';
         const FOOTBALL_DATA_BASE = 'https://api.football-data.org/v4/competitions/CL';
+        // Real bug fixed here: without an explicit season, football-data.org
+        // silently defaulted to whatever it considered "current" at the
+        // time - which returned the completed 2025-26 season's full,
+        // finished match history instead of the real 2026-27 season.
+        // "2026" here means the season STARTING in 2026 (i.e. 2026-27).
+        const SEASON = '2026';
         const POINTS_BY_STAGE = { matchday: 3, r16: 6, qf: 8, sf: 10, final: 15 };
         const STAGE_TO_ROUND = { 'LAST_16': 'r16', 'QUARTER_FINALS': 'qf', 'SEMI_FINALS': 'sf', 'FINAL': 'final' };
 
@@ -3089,7 +3095,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           const results = { teamsCreated: 0, matchesCreated: 0, matchesUpdated: 0, picksScored: 0 };
 
-          const teamsResponse = await fetch(`${FOOTBALL_DATA_BASE}/teams`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          const teamsResponse = await fetch(`${FOOTBALL_DATA_BASE}/teams?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
           if (!teamsResponse.ok) {
             const errorText = await teamsResponse.text();
             return res.status(500).json({ error: `football-data.org teams error: ${teamsResponse.status} — ${errorText}` });
@@ -3124,7 +3130,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
-          const matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          const matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
           if (!matchesResponse.ok) {
             const errorText = await matchesResponse.text();
             return res.status(500).json({ error: `football-data.org matches error: ${matchesResponse.status} — ${errorText}`, ...results });
