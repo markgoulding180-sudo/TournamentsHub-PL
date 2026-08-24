@@ -187,6 +187,7 @@
     let TOURNAMENT_ID = null;
     let tournamentData = null;
     let myPicks = {}; // "matchday-N" or "round-X" -> team_id
+    let myPicksAuto = {}; // same keys -> true if that pick was auto-assigned
     let currentUser = null;
     let expandedStages = null;
 
@@ -327,6 +328,19 @@
       }
     }
 
+    function myPickIsAuto(stageKey) { return !!myPicksAuto[stageKey]; }
+
+    function getEliminatedTeamIds() {
+      const eliminated = new Set();
+      tournamentData.matches.forEach(m => {
+        if (m.status === 'finished' && m.winner_team_id) {
+          const loserId = m.home_team_id === m.winner_team_id ? m.away_team_id : m.home_team_id;
+          if (loserId) eliminated.add(loserId);
+        }
+      });
+      return eliminated;
+    }
+
     function render() {
       const t = tournamentData.tournament;
       const locked = t.status === 'finished';
@@ -363,24 +377,30 @@
 
       let html = locked ? `<div class="card"><div class="submit-msg" style="color:var(--red);"><i class="fas fa-lock"></i> Tournament finished.</div></div>` : '';
       const usedTeamIds = getUsedTeamIds();
+      const eliminatedTeamIds = getEliminatedTeamIds();
 
       STAGES.forEach(stage => {
         const state = getStageState(stage);
+        // Future stages aren't shown at all - they simply don't exist on
+        // the page yet, not shown collapsed with a "not set" placeholder.
+        if (state === 'future') return;
+
         const isOpen = expandedStages.has(stage.key);
         const myPick = myPicks[stage.key];
         const matches = getMatchesForStage(stage);
+        const alreadySubmitted = !!myPick;
 
         let summaryHtml = '';
-        if (state === 'future') {
-          summaryHtml = `<span class="stage-summary" style="color:var(--text-faint);"><i class="fas fa-lock"></i> Not set yet</span>`;
-        } else if (myPick && matches.some(m => m.status === 'finished')) {
+        if (myPick && matches.some(m => m.status === 'finished')) {
           const finishedMatch = matches.find(m => (m.home_team_id === myPick || m.away_team_id === myPick) && m.status === 'finished');
           if (finishedMatch) {
             const won = finishedMatch.winner_team_id === myPick;
             summaryHtml = `<span class="stage-summary" style="color:${won ? 'var(--green)' : 'var(--red)'};">${won ? 'Won' : 'Lost'}</span>`;
           }
         } else if (myPick) {
-          summaryHtml = `<span class="stage-summary" style="color:var(--accent-2);"><i class="fas fa-check"></i> ${escapeHtml(teamName(myPick))} picked</span>`;
+          summaryHtml = `<span class="stage-summary" style="color:var(--accent-2);"><i class="fas fa-check"></i> ${escapeHtml(teamName(myPick))} picked${myPickIsAuto(stage.key) ? ' (auto)' : ''}</span>`;
+        } else {
+          summaryHtml = `<span class="stage-summary" style="color:var(--gold);"><i class="fas fa-exclamation"></i> Pick needed</span>`;
         }
 
         html += `
@@ -392,11 +412,6 @@
 
         if (!isOpen) return;
 
-        if (state === 'future') {
-          html += `<div class="empty" style="padding:20px;">Waiting on earlier results</div>`;
-          return;
-        }
-
         // Build the list of teams playing this stage
         const stageTeamIds = new Set();
         matches.forEach(m => { if (m.home_team_id) stageTeamIds.add(m.home_team_id); if (m.away_team_id) stageTeamIds.add(m.away_team_id); });
@@ -405,23 +420,29 @@
         Array.from(stageTeamIds).sort((a, b) => teamName(a).localeCompare(teamName(b))).forEach(teamId => {
           const match = matches.find(m => m.home_team_id === teamId || m.away_team_id === teamId);
           const finished = match && match.status === 'finished';
+          const isEliminated = eliminatedTeamIds.has(teamId) && !finished; // a team eliminated in an EARLIER stage, not this one's own result
           const isUsedElsewhere = usedTeamIds.has(teamId) && myPick !== teamId;
           const selected = myPick === teamId;
           let cls = 'team-card';
           if (selected) cls += ' selected';
           if (finished && selected) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
-          if (isUsedElsewhere) cls += ' used';
-          const disabled = (locked || finished || isUsedElsewhere) ? 'disabled' : '';
+          if (isUsedElsewhere || isEliminated) cls += ' used';
+          // Once this entry has submitted a pick for this stage at all,
+          // every card locks - submitting is final, no changing your mind.
+          const disabled = (locked || finished || isUsedElsewhere || isEliminated || alreadySubmitted) ? 'disabled' : '';
+          let tag = '';
+          if (isEliminated) tag = '<span class="used-tag">Eliminated</span>';
+          else if (isUsedElsewhere) tag = '<span class="used-tag">Already used</span>';
           html += `
             <button class="${cls}" ${disabled} onclick="selectTeam('${stage.key}', '${teamId}')">
               <span class="team-crest"><i class="fas fa-shield-halved"></i></span>
               <span class="team-name">${escapeHtml(teamName(teamId))}</span>
-              ${isUsedElsewhere ? '<span class="used-tag">Already used</span>' : ''}
+              ${tag}
             </button>`;
         });
         html += `</div>`;
 
-        if (!locked && ['qf','sf','final'].includes(stage.round)) {
+        if (!locked && !alreadySubmitted && ['qf','sf','final'].includes(stage.round)) {
           html += `
             <div style="display:flex; align-items:center; gap:8px; margin:8px 0;">
               <span style="font-size:12.5px; color:var(--text-dim);">Score prediction:</span>
@@ -431,13 +452,14 @@
             </div>`;
         }
 
-        const stageDone = matches.length > 0 && matches.every(m => m.status === 'finished');
-        if (!locked && !stageDone) {
+        if (!locked && !alreadySubmitted) {
           html += `
             <button class="btn-primary" style="width:100%; margin:6px 0 16px;" onclick="submitPick('${stage.key}')">
-              Submit ${escapeHtml(stage.label)} Pick
+              Submit ${escapeHtml(stage.label)} Pick — Final, No Changes After
             </button>
             <div class="submit-msg" id="submitMsg-${stage.key}"></div>`;
+        } else if (alreadySubmitted) {
+          html += `<div class="submit-msg" style="color:var(--text-dim); margin:6px 0 16px;"><i class="fas fa-lock"></i> Pick locked in.</div>`;
         }
       });
 
@@ -449,9 +471,11 @@
         const data = await api('cl_get_tournament', { tournament_id: TOURNAMENT_ID });
         tournamentData = data;
         myPicks = {};
+        myPicksAuto = {};
         (data.my_picks || []).forEach(p => {
           const key = p.matchday ? `matchday-${p.matchday}` : `round-${p.round}`;
           myPicks[key] = p.team_id;
+          myPicksAuto[key] = !!p.is_auto_pick;
         });
         document.getElementById('heroTitle').textContent = data.tournament.hero_title || data.tournament.name;
         if (data.tournament.description) document.getElementById('heroDesc').textContent = data.tournament.description;

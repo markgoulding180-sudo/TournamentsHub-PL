@@ -2948,26 +2948,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
 
         try {
-          let { data: entry } = await supabaseAdmin
+          const { data: entry } = await supabaseAdmin
             .schema('champions_league').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
-
-          if (!entry) {
-            const { data: newEntry, error: entryErr } = await supabaseAdmin
-              .schema('champions_league').from('tournament_entries').insert({ tournament_id, user_id: user.id }).select().single();
-            if (entryErr) return res.status(500).json({ error: entryErr.message });
-            entry = newEntry;
-
-            if (tournament.entry_fee > 0) {
-              await supabaseAdmin.from('wallet_transactions').insert({
-                user_id: user.id, type: 'entry_fee', amount: tournament.entry_fee,
-                tournament_type: 'champions_league', tournament_id,
-                description: `Entry fee — ${tournament.name}`
-              });
-            }
-            await supabaseAdmin.schema('champions_league').from('tournaments')
-              .update({ current_entries: (tournament.current_entries || 0) + 1, prize_pool: (tournament.prize_pool || 0) + tournament.entry_fee })
-              .eq('id', tournament_id);
-          }
+          if (!entry) return res.status(403).json({ error: 'You need to enter this tournament before picking.' });
 
           // Core rule: a team, once picked by this entry ANYWHERE in the
           // tournament (any past matchday or round), can never be picked
@@ -2978,29 +2961,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(403).json({ error: 'You have already used this team earlier in the tournament — each team can only be picked once.' });
           }
 
-          // Manual check-then-update-or-insert rather than upsert - the
-          // real uniqueness rule here relies on a COALESCE-based index
-          // (since matchday/round are each nullable and Postgres treats
-          // NULL as distinct from NULL in a plain unique constraint,
-          // confirmed as a real bug otherwise), which Supabase's upsert
-          // onConflict can't target directly since it only generates a
-          // plain column-list ON CONFLICT clause.
+          // Genuine one-time lock — once a pick exists for this
+          // matchday/round, reject outright rather than update it.
+          // Submitting is a final action, matching darts' pattern.
           let existingPickQuery = supabaseAdmin.schema('champions_league').from('picks').select('id').eq('entry_id', entry.id);
           existingPickQuery = matchday ? existingPickQuery.eq('matchday', matchday) : existingPickQuery.eq('round', round);
           const { data: existingPick } = await existingPickQuery.maybeSingle();
-
-          const pickFields = {
-            team_id, predicted_home_score: predicted_home_score ?? null, predicted_away_score: predicted_away_score ?? null
-          };
-
           if (existingPick) {
-            const { error: updateErr } = await supabaseAdmin.schema('champions_league').from('picks').update(pickFields).eq('id', existingPick.id);
-            if (updateErr) return res.status(500).json({ error: updateErr.message });
-          } else {
-            const { error: insertErr } = await supabaseAdmin.schema('champions_league').from('picks')
-              .insert({ entry_id: entry.id, matchday: matchday || null, round: round || null, ...pickFields });
-            if (insertErr) return res.status(500).json({ error: insertErr.message });
+            return res.status(403).json({ error: 'You have already picked for this round — it\'s locked in.' });
           }
+
+          const { error: insertErr } = await supabaseAdmin.schema('champions_league').from('picks')
+            .insert({
+              entry_id: entry.id, matchday: matchday || null, round: round || null, team_id,
+              predicted_home_score: predicted_home_score ?? null, predicted_away_score: predicted_away_score ?? null
+            });
+          if (insertErr) return res.status(500).json({ error: insertErr.message });
 
           return res.status(200).json({ success: true });
         } catch (err) {
@@ -3223,6 +3199,47 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
                 await supabaseAdmin.schema('champions_league').from('tournament_entries')
                   .update({ entry_points: (entryRow?.entry_points || 0) + points }).eq('id', pick.entry_id);
               }
+            }
+          }
+
+          // ── Auto-pick: once a matchday/round's real kickoff has
+          // passed, anyone who hasn't picked gets a random unused team
+          // assigned automatically, so missing a deadline doesn't stall
+          // them out of the tournament entirely. Auto-picks are flagged
+          // and never earn real points even if they happen to win - same
+          // proven design as the World Cup system this was built from,
+          // since it was never a genuine choice.
+          const { data: allMatches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament.id);
+          const stageKeys = new Set();
+          (allMatches || []).forEach(m => { if (m.home_team_id && m.away_team_id) stageKeys.add(m.matchday ? `matchday-${m.matchday}` : `round-${m.round}`); });
+
+          for (const stageKey of stageKeys) {
+            const [kind, val] = stageKey.split('-');
+            const stageMatches = (allMatches || []).filter(m => kind === 'matchday' ? m.matchday === parseInt(val) : m.round === val);
+            const earliestKickoff = stageMatches.reduce((min, m) => (!min || (m.kickoff_time && m.kickoff_time < min)) ? m.kickoff_time : min, null);
+            if (!earliestKickoff || new Date(earliestKickoff).getTime() > Date.now()) continue; // deadline hasn't passed yet
+
+            const { data: allEntries } = await supabaseAdmin.schema('champions_league').from('tournament_entries').select('id').eq('tournament_id', tournament.id);
+            const stageFilter = kind === 'matchday' ? { matchday: parseInt(val) } : { round: val };
+            const { data: alreadyPicked } = await supabaseAdmin.schema('champions_league').from('picks').select('entry_id').match(stageFilter);
+            const pickedEntryIds = new Set((alreadyPicked || []).map(p => p.entry_id));
+
+            const stageTeamIds = [...new Set(stageMatches.flatMap(m => [m.home_team_id, m.away_team_id]))];
+
+            for (const entry of (allEntries || [])) {
+              if (pickedEntryIds.has(entry.id)) continue;
+
+              const { data: entryPicks } = await supabaseAdmin.schema('champions_league').from('picks').select('team_id').eq('entry_id', entry.id);
+              const usedTeamIds = new Set((entryPicks || []).map(p => p.team_id));
+              const availableTeamIds = stageTeamIds.filter(id => !usedTeamIds.has(id));
+              if (availableTeamIds.length === 0) continue; // genuinely nothing left to auto-pick from
+
+              const randomTeamId = availableTeamIds[Math.floor(Math.random() * availableTeamIds.length)];
+              await supabaseAdmin.schema('champions_league').from('picks').insert({
+                entry_id: entry.id, matchday: kind === 'matchday' ? parseInt(val) : null, round: kind === 'round' ? val : null,
+                team_id: randomTeamId, is_auto_pick: true
+              });
+              results.autoPicksAssigned = (results.autoPicksAssigned || 0) + 1;
             }
           }
 
