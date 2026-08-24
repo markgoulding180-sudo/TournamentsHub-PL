@@ -247,6 +247,26 @@
       return allFinished ? 'past' : 'current';
     }
 
+    // Real fix for a genuine bug: getStageState() alone calls EVERY
+    // league-phase matchday "current" simultaneously, since all 8 get
+    // their real fixtures assigned the moment the draw happens - not
+    // progressively, unlike the knockout rounds. So "not future" isn't
+    // enough to decide what to show. This finds the single earliest
+    // stage, in tournament order, that isn't fully finished yet - only
+    // THAT one counts as genuinely current; everything after it is
+    // treated as not-yet-open regardless of whether its fixtures are
+    // technically already known.
+    function getCurrentStageKey() {
+      for (const stage of STAGES) {
+        const matches = getMatchesForStage(stage);
+        const determined = matches.filter(m => m.home_team_id && m.away_team_id);
+        if (determined.length === 0) continue; // nothing real here yet, skip past it
+        const allFinished = determined.length === matches.length && determined.every(m => m.status === 'finished');
+        if (!allFinished) return stage.key;
+      }
+      return null; // every determined stage is finished - tournament is fully done
+    }
+
     function getUsedTeamIds() {
       return new Set(Object.values(myPicks));
     }
@@ -370,20 +390,27 @@
         return;
       }
 
+      const currentStageKey = getCurrentStageKey();
+
       if (expandedStages === null) {
         expandedStages = new Set();
-        STAGES.forEach(s => { if (getStageState(s) === 'current') expandedStages.add(s.key); });
+        if (currentStageKey) expandedStages.add(currentStageKey);
       }
 
       let html = locked ? `<div class="card"><div class="submit-msg" style="color:var(--red);"><i class="fas fa-lock"></i> Tournament finished.</div></div>` : '';
       const usedTeamIds = getUsedTeamIds();
       const eliminatedTeamIds = getEliminatedTeamIds();
+      const currentStageIndex = STAGES.findIndex(s => s.key === currentStageKey);
 
-      STAGES.forEach(stage => {
+      STAGES.forEach((stage, idx) => {
         const state = getStageState(stage);
-        // Future stages aren't shown at all - they simply don't exist on
-        // the page yet, not shown collapsed with a "not set" placeholder.
-        if (state === 'future') return;
+        // Only show stages up to and including the genuinely current one
+        // - a stage with real fixtures already assigned but that hasn't
+        // "opened" yet (every league-phase matchday, once the draw
+        // happens) stays hidden until its actual turn comes.
+        const isPastOrCurrent = currentStageKey ? idx <= currentStageIndex : state !== 'future';
+        if (!isPastOrCurrent) return;
+        if (state === 'future') return; // genuinely no real fixtures for it at all yet
 
         const isOpen = expandedStages.has(stage.key);
         const myPick = myPicks[stage.key];
