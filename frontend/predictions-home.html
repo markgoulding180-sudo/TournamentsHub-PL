@@ -750,7 +750,9 @@
                 heroPointsItem.style.display = '';
               }
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error('[hero points] Failed to load entry / points:', e);
+          }
         }
 
         ctaRow.innerHTML = `
