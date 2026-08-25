@@ -729,6 +729,7 @@
         let entryHtml = `<button id="enterTournamentBtn" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Enter Tournament — £${fee}</button>`;
 
         const token = localStorage.getItem('gbf_token');
+        let myTotalPoints = null; // captured here, used below once the actual element is created
         if (!token) {
           entryHtml = `<a href="/login?redirect=%2Fpredictions" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
         } else {
@@ -741,14 +742,8 @@
               // Real fix: this is the actual, stored cumulative total
               // across every gameweek (updated whenever a gameweek
               // finalizes) - not the current-gameweek-only running total
-              // that was here before. That value still shows separately,
-              // further down the page, where it genuinely belongs.
-              const heroPointsItem = document.getElementById('heroPointsItem');
-              const heroPointsValue = document.getElementById('heroPointsValue');
-              if (heroPointsItem && heroPointsValue) {
-                heroPointsValue.textContent = `${entryData.entry.entry_points || 0} pts`;
-                heroPointsItem.style.display = '';
-              }
+              // that was here before.
+              myTotalPoints = entryData.entry.entry_points || 0;
             }
           } catch (e) {
             console.error('[hero points] Failed to load entry / points:', e);
@@ -766,7 +761,7 @@
         metaRow.innerHTML = `
           <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
           <div class="hero-meta-item">Prize Pool <b>£${((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></div>
-          <div class="hero-meta-item" id="heroPointsItem" style="display:none;">Your Points <b id="heroPointsValue" style="font-family:var(--font-display); color:var(--accent-2);">0</b></div>
+          ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPointsItem">Your Points <b id="heroPointsValue" style="font-family:var(--font-display); color:var(--accent-2);">${myTotalPoints} pts</b></div>` : ''}
         `;
 
         const enterBtn = document.getElementById('enterTournamentBtn');
