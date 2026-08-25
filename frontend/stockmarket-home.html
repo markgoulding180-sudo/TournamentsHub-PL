@@ -243,6 +243,14 @@
         width:100%;
       }
       .portfolio-grid .portfolio-card{ min-width:0; width:100%; }
+      /* Drafting-phase cards only show a name and estimated value - far
+       less content than live-phase cards (which add goals/assists/cards
+       stats), but both shared the same tall, fixed aspect-ratio, leaving
+       drafting cards with a lot of wasted empty space on mobile. This
+       only targets the drafting-specific class, so live-phase cards -
+       once the tournament actually starts - are completely untouched and
+       keep their normal, full size. */
+      .portfolio-grid .portfolio-card.drafting-card{ aspect-ratio:1054/900; }
       #your-squad-section, #opponent-squad-section{ padding:12px 6px; }
     }
 
@@ -888,21 +896,26 @@
 
         const hasPreview = portfolio.some(p => p.preview_value !== null);
         const projectedTotal = portfolio.reduce((sum, p) => sum + (p.preview_value || 0), 0);
+        // Real fix: this used to say "Drafting phase" regardless of
+        // whether the user had actually finished - now it reflects the
+        // genuine state, since draftPromptCard itself no longer shows
+        // this once a squad is locked in.
+        const statusLabel = hasSquad ? 'Squad locked in' : 'Drafting phase';
         document.getElementById('statRow').innerHTML = hasPreview
           ? `
-            <div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>
+            <div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">${statusLabel}</div></div>
             <div class="stat"><div class="label">Projected Value</div><div class="value">${money(projectedTotal)}</div></div>
           `
-          : `<div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">Drafting phase</div></div>`;
+          : `<div class="stat"><div class="label">Status</div><div class="value" style="font-size:15px;">${statusLabel}</div></div>`;
 
         // Same rarity mapping already proven working on the live matchup
         // cards, applied here too — this drafting-phase template never
         // had it at all, confirmed as the real gap.
         const rarityMap = { GOLD: 'Gold', SILVER: 'Silver', BRONZE: 'Bronze' };
         const cards = portfolio.map(p => p.empty ? `
-          <div class="portfolio-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>${p.reserved_value ? `<div style="font-size:12px; color:var(--text-faint); margin-top:4px;">${money(p.reserved_value)} reserved — pick your replacement</div>` : ''}</div></div>
+          <div class="portfolio-card drafting-card" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty ${escapeHtml(p.position_label || p.position)} slot</div>${p.reserved_value ? `<div style="font-size:12px; color:var(--text-faint); margin-top:4px;">${money(p.reserved_value)} reserved — pick your replacement</div>` : ''}</div></div>
         ` : `
-          <div class="portfolio-card ${rarityMap[p.rank_tier] ? `rarity-${rarityMap[p.rank_tier]}` : ''}">
+          <div class="portfolio-card drafting-card ${rarityMap[p.rank_tier] ? `rarity-${rarityMap[p.rank_tier]}` : ''}">
             <div class="p-photo-wrap">${p.photo
               ? `<img src="${p.photo}" alt="${escapeHtml(p.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="no-photo" style="display:none;"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`
               : `<div class="no-photo"><img src="${shirtSrc(p.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:75%;height:75%;object-fit:contain;"></div>`}</div>
