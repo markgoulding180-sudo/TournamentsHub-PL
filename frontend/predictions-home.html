@@ -595,17 +595,10 @@
       const totalPoints = finishedPredicted.reduce((sum, m) => sum + (predByMatch[m.id].points_earned || 0), 0);
       const allFinished = matches.length > 0 && matches.every(m => m.status === 'finished');
 
-      // Mirror the same value into the hero's "Your Points" stat, only
-      // shown once there's something real to show (a real prediction
-      // made for this gameweek).
-      const heroPointsItem = document.getElementById('heroPointsItem');
-      const heroPointsValue = document.getElementById('heroPointsValue');
-      if (heroPointsItem && heroPointsValue && predictedMatches.length > 0) {
-        heroPointsValue.textContent = `${totalPoints} pts`;
-        heroPointsItem.style.display = '';
-      } else if (heroPointsItem) {
-        heroPointsItem.style.display = 'none';
-      }
+      // The hero's "Your Points" stat now shows the real, cumulative
+      // total from the entry itself (set where the entry is fetched),
+      // not this gameweek's running total - this section's own summary
+      // below is still the right place for the current-gameweek figure.
 
       if (predictedMatches.length === 0) {
         summary.innerHTML = '';
@@ -745,6 +738,17 @@
             if (entryData.entry) {
               isEnteredInTournament = true;
               entryHtml = `<button class="hero-enter-btn entered" disabled><i class="fas fa-circle-check"></i> You're Entered</button>`;
+              // Real fix: this is the actual, stored cumulative total
+              // across every gameweek (updated whenever a gameweek
+              // finalizes) - not the current-gameweek-only running total
+              // that was here before. That value still shows separately,
+              // further down the page, where it genuinely belongs.
+              const heroPointsItem = document.getElementById('heroPointsItem');
+              const heroPointsValue = document.getElementById('heroPointsValue');
+              if (heroPointsItem && heroPointsValue) {
+                heroPointsValue.textContent = `${entryData.entry.entry_points || 0} pts`;
+                heroPointsItem.style.display = '';
+              }
             }
           } catch (e) {}
         }
