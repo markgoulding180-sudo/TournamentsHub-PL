@@ -2209,6 +2209,7 @@ async function fullTestReset() {
   const name = document.getElementById('resetTournamentName').value.trim() || 'Test Stock Market';
   const resetEntryFeeRaw = parseInt(document.getElementById('resetEntryFee').value);
   const entryFee = isNaN(resetEntryFeeRaw) ? 2400 : resetEntryFeeRaw;
+  const isTest = document.getElementById('resetIsTest').checked;
 
   resultEl.textContent = 'Resetting…';
   try {
@@ -2216,7 +2217,7 @@ async function fullTestReset() {
     const response = await fetch('/api/tournaments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'stockmarket_full_reset', name, entry_fee: entryFee })
+      body: JSON.stringify({ action: 'stockmarket_full_reset', name, entry_fee: entryFee, is_test: isTest })
     });
     const data = await response.json();
     if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }

@@ -907,6 +907,10 @@
         <input type="number" id="resetEntryFee" placeholder="Entry fee (pence)" value="2400"
           style="width:140px; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
       </div>
+      <label style="display:flex; align-items:flex-start; gap:0.5rem; margin-bottom:0.75rem; font-size:0.85rem; cursor:pointer;">
+        <input type="checkbox" id="resetIsTest" style="margin-top:0.2rem;">
+        <span>Test tournament — real users can join and draft normally, but their wallets are never charged the entry fee. The entry fee itself still sets real player values, so the draft mechanic behaves exactly as it will for real.</span>
+      </label>
       <button class="btn" onclick="fullTestReset()" style="width:100%; background:var(--accent-red); color:#fff;">
         <i class="fas fa-rotate-left"></i> Reset & Start Fresh at GW1
       </button>

@@ -4124,12 +4124,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const entryFee = req.body.entry_fee != null ? parseInt(req.body.entry_fee) : 2400;
           const maxEntries = req.body.max_entries != null ? parseInt(req.body.max_entries) : 200;
           const endGameweek = req.body.end_gameweek != null ? parseInt(req.body.end_gameweek) : 38;
+          const isTest = req.body.is_test === true;
 
           const { data: newTournament, error: createErr } = await supabaseAdmin
             .schema('stockmarket').from('tournaments')
             .insert({
               name, description: 'description', gameweek: 1, end_gameweek: endGameweek,
-              entry_fee: entryFee, max_entries: maxEntries, status: 'upcoming',
+              entry_fee: entryFee, max_entries: maxEntries, status: 'upcoming', is_test: isTest,
               closes_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
             })
             .select('id').single();
@@ -4786,7 +4787,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             // updated (e.g. editing a Fantasy squad, drafting Stock Market)
             // — otherwise a user would be charged again every time they
             // saved changes to something they'd already entered.
-            if (tournament.entry_fee && tournament.entry_fee > 0) {
+            //
+            // is_test genuinely skips ONLY the wallet charge - entry_fee
+            // itself stays completely real and untouched, since Stock
+            // Market derives each drafted player's starting value directly
+            // from entry_fee (÷6) - zeroing entry_fee to avoid charging
+            // would have silently broken the whole draft mechanic instead.
+            if (tournament.entry_fee && tournament.entry_fee > 0 && !tournament.is_test) {
               const { error: walletError } = await supabaseAdmin
                 .from('wallet_transactions')
                 .insert({
