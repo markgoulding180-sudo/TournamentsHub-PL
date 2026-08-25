@@ -243,14 +243,6 @@
         width:100%;
       }
       .portfolio-grid .portfolio-card{ min-width:0; width:100%; }
-      /* Drafting-phase cards only show a name and estimated value - far
-       less content than live-phase cards (which add goals/assists/cards
-       stats), but both shared the same tall, fixed aspect-ratio, leaving
-       drafting cards with a lot of wasted empty space on mobile. This
-       only targets the drafting-specific class, so live-phase cards -
-       once the tournament actually starts - are completely untouched and
-       keep their normal, full size. */
-      .portfolio-grid .portfolio-card.drafting-card{ aspect-ratio:1054/900; }
       #your-squad-section, #opponent-squad-section{ padding:12px 6px; }
     }
 
@@ -923,10 +915,16 @@
               <div class="p-name-overlay">
                 <div class="p-name-line">${escapeHtml(p.name)}</div>
                 <div class="p-value-line">${money(p.preview_value)} <span style="font-size:11px; color:var(--text-faint); font-weight:500;">(est.)</span></div>
+                ${p.ownership_count > 1
+                  ? `<div style="font-size:10px; color:var(--gold); font-weight:600; margin-top:2px;"><i class="fas fa-users" style="font-size:9px;"></i> Shared ×${p.ownership_count} — pooled value</div>`
+                  : ''}
               </div>
             </div>
           </div>`).join('');
-        document.getElementById('portfolioBody').innerHTML = portfolio.length ? `<div class="portfolio-grid">${cards}</div>` : '<div class="empty">No squad drafted yet.</div>';
+        document.getElementById('portfolioBody').innerHTML = portfolio.length ? `
+          <p style="font-size:12.5px; color:var(--text-dim); margin-bottom:12px;">Estimated values below are pooled across everyone who's picked that player so far — they'll change as more people draft, and lock in for real once the draft window closes.</p>
+          <div class="portfolio-grid">${cards}</div>
+        ` : '<div class="empty">No squad drafted yet.</div>';
         document.getElementById('marketBody').innerHTML = '<div class="empty">Matchups start once the draft window closes.</div>';
         return;
       }
