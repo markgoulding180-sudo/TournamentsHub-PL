@@ -625,6 +625,12 @@
 
     <div id="mainContent" style="display:none;">
       <div id="relegatedNotice" style="display:none; margin-bottom:20px;"></div>
+
+      <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
+        <p style="font-size:15px; color:var(--text-dim); margin-bottom:16px;" id="draftPromptText">You haven't drafted your squad yet.</p>
+        <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
+      </div>
+
       <h2 class="portfolio-section-header" id="portfolioSectionHeader">Your Portfolio & Match This Week</h2>
       <div class="summary-vs-grid">
         <section class="card" id="userStockMarketCard" style="margin-bottom:0;">
@@ -662,11 +668,6 @@
           </div>
           <div class="stat-row" id="opponentStatRow"></div>
         </section>
-      </div>
-
-      <div class="card" id="draftPromptCard" style="display:none; text-align:center; padding:30px 24px; margin-bottom:24px;">
-        <p style="font-size:15px; color:var(--text-dim); margin-bottom:16px;" id="draftPromptText">You haven't drafted your squad yet.</p>
-        <a href="/stock-market-draft" class="btn-primary" id="draftPromptBtn"><i class="fas fa-list-check"></i> Draft Your Squad</a>
       </div>
 
       <div class="cards-grid">
@@ -877,9 +878,12 @@
           document.getElementById('draftPromptBtn').style.display = 'inline-flex';
           document.getElementById('draftPromptText').textContent = 'You haven\'t drafted your squad yet — do it before the draft window closes.';
         } else {
-          document.getElementById('draftPromptCard').style.display = 'block';
-          document.getElementById('draftPromptText').textContent = "Squad locked in — you get what you get. It'll go live once the draft window closes.";
-          document.getElementById('draftPromptBtn').style.display = 'none';
+          // Real fix: this used to stay visible with a "locked in" message
+          // right up until the whole market went live for everyone - now
+          // it disappears the moment THIS user has genuinely finished
+          // drafting their own squad, which is what was actually asked
+          // for, not just a reworded message.
+          document.getElementById('draftPromptCard').style.display = 'none';
         }
 
         const hasPreview = portfolio.some(p => p.preview_value !== null);
