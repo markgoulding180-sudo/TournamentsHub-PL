@@ -2209,7 +2209,6 @@ async function fullTestReset() {
   const name = document.getElementById('resetTournamentName').value.trim() || 'Test Stock Market';
   const resetEntryFeeRaw = parseInt(document.getElementById('resetEntryFee').value);
   const entryFee = isNaN(resetEntryFeeRaw) ? 2400 : resetEntryFeeRaw;
-  const isTest = document.getElementById('resetIsTest').checked;
 
   resultEl.textContent = 'Resetting…';
   try {
@@ -2217,7 +2216,7 @@ async function fullTestReset() {
     const response = await fetch('/api/tournaments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'stockmarket_full_reset', name, entry_fee: entryFee, is_test: isTest })
+      body: JSON.stringify({ action: 'stockmarket_full_reset', name, entry_fee: entryFee })
     });
     const data = await response.json();
     if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
@@ -2279,6 +2278,12 @@ async function downloadFullExport() {
   }
 }
 
+function toggleStockmarketTestOption() {
+  const type = document.getElementById('tournament-type-input')?.value;
+  const row = document.getElementById('tournament-is-test-row');
+  if (row) row.style.display = (type === 'stockmarket') ? 'flex' : 'none';
+}
+
 async function launchTournament() {
   const typeLabels = { predictions: 'Predictions', lms: 'Last Man Standing', stockmarket: 'Stock Market', fantasy: 'Fantasy Manager' };
   const tournamentType = document.getElementById('tournament-type-input')?.value || 'predictions';
@@ -2319,6 +2324,7 @@ async function launchTournament() {
     const entryFee = isNaN(entryFeeRaw) ? 20 : entryFeeRaw;
     const startGameweek = parseInt(document.getElementById('tournament-start-gw')?.value) || currentGameweek;
     const endGameweek = parseInt(document.getElementById('tournament-end-gw')?.value) || currentGameweek;
+    const isTest = tournamentType === 'stockmarket' && document.getElementById('tournament-is-test-input')?.checked === true;
     
     const tournamentResponse = await fetch('/api/tournaments', {
       method: 'POST',
@@ -2335,6 +2341,7 @@ async function launchTournament() {
         gameweek: startGameweek,
         end_gameweek: endGameweek,
         max_entries: 100,
+        is_test: isTest,
         closes_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       })
     });

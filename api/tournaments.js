@@ -2256,6 +2256,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           insertPayload.prize_pool = prizePoolPence;
           insertPayload.top_prize = prizePoolPence;
         }
+        // Real users can join and draft a genuinely real tournament, but
+        // their wallets are never charged - entry_fee itself stays fully
+        // real and untouched (Stock Market derives each player's starting
+        // value directly from it), so the draft mechanic still behaves
+        // exactly as it will for real. Confirmed only stockmarket has
+        // this column, matching how prize_pool is already handled above.
+        if (schemaName === 'stockmarket' && req.body.is_test === true) {
+          insertPayload.is_test = true;
+        }
         // fantasy-manager.js specifically filters for format='fantasy_squad'
         // to find its live tournament — the column's default ('predictions',
         // a copy-paste leftover from the schema being cloned) silently
