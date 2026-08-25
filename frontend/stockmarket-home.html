@@ -886,8 +886,19 @@
           document.getElementById('draftPromptCard').style.display = 'none';
         }
 
+        // Display-only fix: showing the pooled preview_value here (which
+        // multiplies by how many OTHER people have also picked the same
+        // player) made a user's own squad look like it had wildly
+        // inconsistent, unexplained values - genuinely confusing, even
+        // though the underlying pooled math was correct. This shows the
+        // flat, per-person baseline instead (entry_fee ÷ 6, always the
+        // same for every slot) so a user's own squad reads simply and
+        // consistently. Nothing about preview_value, ownership_count, or
+        // any actual stored/scored value is touched - purely what's
+        // rendered on this one page.
+        const flatSlotValue = Math.floor((tournament.entry_fee || 0) / 6);
         const hasPreview = portfolio.some(p => p.preview_value !== null);
-        const projectedTotal = portfolio.reduce((sum, p) => sum + (p.preview_value || 0), 0);
+        const projectedTotal = flatSlotValue * portfolio.filter(p => !p.empty).length;
         // Real fix: this used to say "Drafting phase" regardless of
         // whether the user had actually finished - now it reflects the
         // genuine state, since draftPromptCard itself no longer shows
@@ -914,17 +925,11 @@
             <div class="p-overlay-stack">
               <div class="p-name-overlay">
                 <div class="p-name-line">${escapeHtml(p.name)}</div>
-                <div class="p-value-line">${money(p.preview_value)} <span style="font-size:11px; color:var(--text-faint); font-weight:500;">(est.)</span></div>
-                ${p.ownership_count > 1
-                  ? `<div style="font-size:10px; color:var(--gold); font-weight:600; margin-top:2px;"><i class="fas fa-users" style="font-size:9px;"></i> Shared ×${p.ownership_count} — pooled value</div>`
-                  : ''}
+                <div class="p-value-line">${money(flatSlotValue)} <span style="font-size:11px; color:var(--text-faint); font-weight:500;">(est.)</span></div>
               </div>
             </div>
           </div>`).join('');
-        document.getElementById('portfolioBody').innerHTML = portfolio.length ? `
-          <p style="font-size:12.5px; color:var(--text-dim); margin-bottom:12px;">Estimated values below are pooled across everyone who's picked that player so far — they'll change as more people draft, and lock in for real once the draft window closes.</p>
-          <div class="portfolio-grid">${cards}</div>
-        ` : '<div class="empty">No squad drafted yet.</div>';
+        document.getElementById('portfolioBody').innerHTML = portfolio.length ? `<div class="portfolio-grid">${cards}</div>` : '<div class="empty">No squad drafted yet.</div>';
         document.getElementById('marketBody').innerHTML = '<div class="empty">Matchups start once the draft window closes.</div>';
         return;
       }
