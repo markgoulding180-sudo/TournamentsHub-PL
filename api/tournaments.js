@@ -3174,6 +3174,25 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
+          // Real fix: the entry-deadline check relies on tournament.closes_at,
+          // but that stayed permanently null until real fixtures existed -
+          // there was no genuine Matchday 1 kickoff time to set it to. This
+          // sets it automatically, once, the first time real Matchday 1
+          // fixtures actually sync in - using the true earliest kickoff
+          // across all of them, never overwriting it again afterward.
+          if (!tournament.closes_at) {
+            const { data: md1Matches } = await supabaseAdmin
+              .schema('champions_league').from('matches').select('kickoff_time')
+              .eq('tournament_id', tournament.id).eq('matchday', 1).not('kickoff_time', 'is', null);
+            if (md1Matches && md1Matches.length > 0) {
+              const earliestKickoff = md1Matches.reduce((min, m) => (!min || m.kickoff_time < min) ? m.kickoff_time : min, null);
+              if (earliestKickoff) {
+                await supabaseAdmin.schema('champions_league').from('tournaments')
+                  .update({ closes_at: earliestKickoff }).eq('id', tournament.id);
+              }
+            }
+          }
+
           const finishedFixtures = realMatches.filter(f => f.status === 'FINISHED' && f.score?.fullTime?.home !== null);
           const { data: currentMatches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament.id).eq('status', 'upcoming');
           const upcomingByExternalMatchId = new Map((currentMatches || []).filter(m => m.external_match_id).map(m => [m.external_match_id, m]));
@@ -4677,6 +4696,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema('fantasy').from('tournament_entries')
               .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
             if (!existingFantasyEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+              return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
+            }
+          }
+
+          // Same real gap as LMS/Predictions/Fantasy above, closed here
+          // too. Champions League's tournament.closes_at was designed
+          // from the start as the overall entry deadline (matchday-level
+          // deadlines are handled separately, per-match, in cl_submit_pick)
+          // but was never actually wired up to a real check until now -
+          // entriesOpen alone would have let someone join partway through
+          // the league phase, well after Matchday 1's real deadline.
+          if (schemaName === 'champions_league') {
+            const { data: existingClEntry } = await supabaseAdmin
+              .schema('champions_league').from('tournament_entries')
+              .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+            if (!existingClEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
               return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
             }
           }
