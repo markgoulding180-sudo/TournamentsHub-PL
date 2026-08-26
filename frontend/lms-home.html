@@ -258,6 +258,16 @@
       .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
+      /* Real fix: name was being squeezed down to near-nothing by
+       several fixed-width elements (avatar, team shirt+name, status)
+       all competing for one narrow row. Wrapping the name onto its own
+       full-width line, with the rest below it, uses the full card width
+       instead of cramming everything side-by-side. */
+      .survivor-row{ flex-wrap:wrap; row-gap:4px; }
+      .survivor-row .s-name{ flex:1 1 100%; overflow:visible; text-overflow:clip; white-space:normal; order:1; }
+      .survivor-row .s-avatar{ order:0; }
+      .survivor-row .s-pick{ order:2; }
+      .survivor-row .s-status{ order:3; margin-left:auto; }
       .bell-btn{ margin-left:0; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
       main{ padding:0 14px 60px; }
@@ -961,11 +971,13 @@
           } else {
             status = `Out — GW${r.eliminated_gameweek}`;
           }
-          // Show the team they're currently backing as a small shirt icon
-          // — only while genuinely still alive, since an eliminated
-          // player's last pick is just history, not a current choice.
-          const currentPickShirt = (alive && r.last_pick && r.last_pick.team)
-            ? `<span style="display:inline-flex; align-items:center; gap:5px; flex:none;">
+          // Real fix: this used to only show while genuinely still
+          // alive, on the reasoning that an eliminated player's last
+          // pick was "just history, not a current choice" - but that
+          // made "Out — GW1" alone genuinely unclear to anyone reading
+          // it, since it didn't say which team actually lost for them.
+          const currentPickShirt = (r.last_pick && r.last_pick.team)
+            ? `<span class="s-pick" style="display:inline-flex; align-items:center; gap:5px; flex:none;">
                  <img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain;">
                  <span style="font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(r.last_pick.team)}</span>
                </span>`
