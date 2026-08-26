@@ -4644,7 +4644,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               .schema('lms').from('tournament_entries')
               .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
             if (!existingLmsEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
-              return res.status(403).json({ error: 'Entries closed once Gameweek 1 kicked off — this tournament is already underway.' });
+              return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
+            }
+          }
+
+          // Same real, confirmed gap as LMS above - predictions.status also
+          // stays 'live' for the tournament's whole run, and entriesOpen
+          // never checks closes_at. Unlike LMS this isn't an elimination
+          // exploit (a late joiner just scores 0 for matches already
+          // played), but the gap is real and confirmed - no known
+          // exploitation yet, closing it before it becomes one. Genuinely
+          // generic - many predictions tournaments run sequentially across
+          // a season (e.g. one for GW1-8, the next for GW9-16), each with
+          // its own closes_at, so this checks THIS tournament's own
+          // deadline, never a hardcoded gameweek number.
+          if (schemaName === 'predictions') {
+            const { data: existingPredictionsEntry } = await supabaseAdmin
+              .schema('predictions').from('tournament_entries')
+              .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+            if (!existingPredictionsEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+              return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
             }
           }
 
