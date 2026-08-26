@@ -258,10 +258,17 @@
       .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
-      /* Real fix per actual request: keep everything on one line, just
-       remove the avatar badge on mobile specifically to free up space
-       for the name, team, and status to all fit without truncating. */
+      /* Real fix per actual request: genuine aligned columns, not just
+       content-driven flex sizing. Grid keeps every row's name/team/status
+       starting at the same x-position regardless of content length, and
+       handles rows with no team picked yet without anything shifting -
+       unlike flex, where a missing element just isn't there at all. */
+      .survivor-row{ display:grid; grid-template-columns:1fr 84px 64px; align-items:center; column-gap:6px; }
       .survivor-row .s-avatar{ display:none; }
+      .survivor-row .s-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .survivor-row .s-pick{ overflow:hidden; }
+      .survivor-row .s-pick span:last-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .survivor-row .s-status{ text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .bell-btn{ margin-left:0; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
       main{ padding:0 14px 60px; }
@@ -972,10 +979,10 @@
           // it, since it didn't say which team actually lost for them.
           const currentPickShirt = (r.last_pick && r.last_pick.team)
             ? `<span class="s-pick" style="display:inline-flex; align-items:center; gap:5px; flex:none;">
-                 <img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain;">
+                 <img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain; flex:none;">
                  <span style="font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(r.last_pick.team)}</span>
                </span>`
-            : '';
+            : '<span class="s-pick" style="flex:none;"></span>';
           return `
             <div class="survivor-row ${won ? 'alive' : (alive ? 'alive' : 'out')}">
               <div class="s-avatar">${escapeHtml(initials)}</div>
