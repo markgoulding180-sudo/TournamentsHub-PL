@@ -4667,6 +4667,20 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
+          // Same real, confirmed gap as LMS and Predictions above - and
+          // confirmed as a genuine, live case here too (a user with zero
+          // GW1 points on record joined well after that gameweek's
+          // deadline). Same generic pattern - checks this specific
+          // tournament's own closes_at, never a hardcoded gameweek.
+          if (schemaName === 'fantasy') {
+            const { data: existingFantasyEntry } = await supabaseAdmin
+              .schema('fantasy').from('tournament_entries')
+              .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+            if (!existingFantasyEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+              return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
+            }
+          }
+
           const entryPayload = {
             tournament_id: tournament_id,
             user_id: user.id,
@@ -4814,9 +4828,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           if (entryError && entryError.code === '23505') {
             // Already entered — update existing row instead (squad edits etc.)
+            // Real bug fixed here: this used to reuse entryPayload, which
+            // still carries entered_at set to right now - silently
+            // overwriting a genuinely early, legitimate join's original
+            // timestamp every time someone just edited their squad,
+            // making it look like a fresh late join that never happened.
+            const { entered_at, ...updatePayload } = entryPayload;
             ({ data: entry, error: entryError } = await supabaseAdmin
               .schema(schemaName).from('tournament_entries')
-              .update(entryPayload)
+              .update(updatePayload)
               .eq('tournament_id', tournament_id)
               .eq('user_id', user.id)
               .select()
