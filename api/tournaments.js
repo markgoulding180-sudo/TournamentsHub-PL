@@ -169,6 +169,38 @@ module.exports = async (req, res) => {
       // portfolio value.
       const stockmarketLeaderboard = params.get('stockmarket_leaderboard');
       if (stockmarketLeaderboard === 'true' && tournamentId) {
+        // Real gap fixed here: the query below only ever returns entries
+        // with squad_locked = true, which during the drafting phase is
+        // nobody at all - regardless of how many real people have
+        // actually entered and drafted. Showing a value-ranked
+        // leaderboard genuinely doesn't make sense yet (nobody's value
+        // means anything until the market goes live), but showing zero
+        // names at all isn't useful either. This returns a simple,
+        // honest "who's entered so far" list instead, with no
+        // value/gain columns that would otherwise misleadingly show
+        // everyone at £0.00.
+        const { data: tournamentForPhaseCheck } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments').select('status').eq('id', tournamentId).maybeSingle();
+
+        if (tournamentForPhaseCheck && tournamentForPhaseCheck.status === 'upcoming') {
+          const { data: draftingEntries } = await supabaseAdmin
+            .schema('stockmarket').from('tournament_entries')
+            .select('id, user_id, entered_at').eq('tournament_id', tournamentId);
+
+          const draftingUserIds = (draftingEntries || []).map(e => e.user_id);
+          const { data: draftingUsers } = draftingUserIds.length > 0
+            ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', draftingUserIds)
+            : { data: [] };
+          const draftingNameByUserId = {};
+          (draftingUsers || []).forEach(u => { draftingNameByUserId[u.id] = pickDisplayName(u); });
+
+          const entrants = (draftingEntries || [])
+            .sort((a, b) => new Date(a.entered_at) - new Date(b.entered_at))
+            .map((e, i) => ({ rank: i + 1, entry_id: e.id, player_name: draftingNameByUserId[e.user_id] || 'Player' }));
+
+          return res.status(200).json({ drafting: true, entrants });
+        }
+
         const { data: allEntries } = await supabaseAdmin
           .schema('stockmarket').from('tournament_entries')
           .select('id, user_id, squad_players, current_value, start_value, relegated, relegated_at_gameweek, value_at_relegation')

@@ -1782,6 +1782,26 @@
       try {
         const res = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${tournamentId}`, { headers: authHeaders() });
         const data = await res.json();
+
+        // Drafting phase: a simple, honest "who's entered so far" list -
+        // no value/gain columns, since those genuinely don't mean
+        // anything until the market goes live.
+        if (data.drafting) {
+          const entrants = data.entrants || [];
+          document.getElementById('leaderboardBody').innerHTML = entrants.length === 0
+            ? '<div class="empty">No entrants yet.</div>'
+            : `
+              <div style="font-size:11px; color:var(--text-faint); margin-bottom:8px;">Still drafting — real rankings appear once the market goes live.</div>
+              <div class="lb-header"><div class="lb-rank"></div><div class="lb-name">Entrant</div></div>
+              ${entrants.map(e => `
+                <div class="lb-row">
+                  <div class="lb-rank">${e.rank}</div>
+                  <div class="lb-name">${escapeHtml(e.player_name)}</div>
+                </div>`).join('')}
+            `;
+          return;
+        }
+
         const rows = data.leaderboard || [];
         if (rows.length === 0) {
           document.getElementById('leaderboardBody').innerHTML = '<div class="empty">No entrants yet.</div>';
