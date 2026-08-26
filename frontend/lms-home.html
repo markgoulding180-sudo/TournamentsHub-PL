@@ -263,12 +263,13 @@
        starting at the same x-position regardless of content length, and
        handles rows with no team picked yet without anything shifting -
        unlike flex, where a missing element just isn't there at all. */
-      .survivor-row{ display:grid; grid-template-columns:1fr 84px 64px; align-items:center; column-gap:6px; }
+      .survivor-row{ display:grid; grid-template-columns:1fr 112px 82px; align-items:center; column-gap:6px; padding:9px 4px; }
+      #survivorsSection{ padding-left:8px; padding-right:8px; }
       .survivor-row .s-avatar{ display:none; }
       .survivor-row .s-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .survivor-row .s-pick{ overflow:hidden; }
       .survivor-row .s-pick span:last-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .survivor-row .s-status{ text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .survivor-row .s-status{ text-align:right; white-space:nowrap; overflow:visible; }
       .bell-btn{ margin-left:0; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
       main{ padding:0 14px 60px; }
