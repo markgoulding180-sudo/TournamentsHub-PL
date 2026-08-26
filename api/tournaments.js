@@ -4628,6 +4628,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(403).json({ error: 'The draft window has closed — this tournament is already live.' });
           }
 
+          // Real, confirmed gap: LMS's tournament.status stays 'live' for
+          // the entire season (GW1 through the final gameweek), but
+          // closes_at specifically reflects only GW1's own deadline -
+          // entriesOpen above never actually checks it. Without this,
+          // anyone could join at any point all season, completely
+          // skipping the mandatory first pick everyone else risked
+          // elimination on. Confirmed as a real, live case: a user joined
+          // 4 days after the GW1 deadline with zero GW1 pick recorded,
+          // and was already participating normally in GW2 as if nothing
+          // had happened. Only blocks a genuinely NEW entry - an existing
+          // entrant continuing to a later gameweek's pick is untouched.
+          if (schemaName === 'lms') {
+            const { data: existingLmsEntry } = await supabaseAdmin
+              .schema('lms').from('tournament_entries')
+              .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+            if (!existingLmsEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+              return res.status(403).json({ error: 'Entries closed once Gameweek 1 kicked off — this tournament is already underway.' });
+            }
+          }
+
           const entryPayload = {
             tournament_id: tournament_id,
             user_id: user.id,
