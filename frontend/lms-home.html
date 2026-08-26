@@ -258,16 +258,10 @@
       .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
       .avatar-btn .avatar{ width:34px; height:34px; }
-      /* Real fix: name was being squeezed down to near-nothing by
-       several fixed-width elements (avatar, team shirt+name, status)
-       all competing for one narrow row. Wrapping the name onto its own
-       full-width line, with the rest below it, uses the full card width
-       instead of cramming everything side-by-side. */
-      .survivor-row{ flex-wrap:wrap; row-gap:4px; }
-      .survivor-row .s-name{ flex:1 1 100%; overflow:visible; text-overflow:clip; white-space:normal; order:1; }
-      .survivor-row .s-avatar{ order:0; }
-      .survivor-row .s-pick{ order:2; }
-      .survivor-row .s-status{ order:3; margin-left:auto; }
+      /* Real fix per actual request: keep everything on one line, just
+       remove the avatar badge on mobile specifically to free up space
+       for the name, team, and status to all fit without truncating. */
+      .survivor-row .s-avatar{ display:none; }
       .bell-btn{ margin-left:0; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
       main{ padding:0 14px 60px; }
