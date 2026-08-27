@@ -3136,7 +3136,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           const results = { teamsCreated: 0, matchesCreated: 0, matchesUpdated: 0, picksScored: 0 };
 
-          const teamsResponse = await fetch(`${FOOTBALL_DATA_BASE}/teams?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          // Real fix: the explicit ?season= param can 404 even after the
+          // real draw has happened, if football-data.org hasn't
+          // internally registered that season value for this competition
+          // yet (confirmed live - a real request returned exactly this).
+          // Falls back to their own "current" resolution, which should
+          // now correctly point at 2026-27 since the real season has
+          // genuinely begun.
+          let teamsResponse = await fetch(`${FOOTBALL_DATA_BASE}/teams?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          if (teamsResponse.status === 404) {
+            teamsResponse = await fetch(`${FOOTBALL_DATA_BASE}/teams`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          }
           if (!teamsResponse.ok) {
             const errorText = await teamsResponse.text();
             return res.status(500).json({ error: `football-data.org teams error: ${teamsResponse.status} — ${errorText}` });
