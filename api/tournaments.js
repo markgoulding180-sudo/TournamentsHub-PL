@@ -3181,10 +3181,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
-          let matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
-          if (matchesResponse.status === 404) {
-            matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
-          }
+          // Real fix: neither ?season=2026 (404s - not yet registered)
+          // nor no season at all (confirmed live - returned the wrong,
+          // already-completed 2025-26 season's fixtures, dated Sept 2025)
+          // reliably gets the right data here. An explicit date range,
+          // anchored to the real 2026-27 league phase (Matchday 1 starts
+          // 8 September 2026), doesn't depend on how the provider labels
+          // or resolves "current" internally - genuinely robust either way.
+          let matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?dateFrom=2026-08-01&dateTo=2027-07-01`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
           if (!matchesResponse.ok) {
             const errorText = await matchesResponse.text();
             return res.status(500).json({ error: `football-data.org matches error: ${matchesResponse.status} — ${errorText}`, ...results });
