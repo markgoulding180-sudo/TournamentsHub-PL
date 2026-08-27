@@ -3204,6 +3204,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
           const matchesData = await matchesResponse.json();
           const realMatches = matchesData.matches || [];
+          results.fixturesFromApi = realMatches.length;
+          results.skippedNoTeamMapping = 0;
+          results.skippedNoStage = 0;
 
           const { data: existingMatches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament.id);
           const existingByExternalMatchId = new Map((existingMatches || []).filter(m => m.external_match_id).map(m => [m.external_match_id, m]));
@@ -3211,11 +3214,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           for (const fixture of realMatches) {
             const homeTeamId = teamIdMap.get(fixture.homeTeam?.id);
             const awayTeamId = teamIdMap.get(fixture.awayTeam?.id);
-            if (!homeTeamId || !awayTeamId) continue;
+            if (!homeTeamId || !awayTeamId) { results.skippedNoTeamMapping++; continue; }
 
             const matchday = fixture.stage === 'LEAGUE_STAGE' ? fixture.matchday : null;
             const round = STAGE_TO_ROUND[fixture.stage] || null;
-            if (!matchday && !round) continue;
+            if (!matchday && !round) { results.skippedNoStage++; continue; }
 
             const existing = existingByExternalMatchId.get(fixture.id);
             const matchFields = {
