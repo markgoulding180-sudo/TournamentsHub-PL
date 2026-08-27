@@ -3188,7 +3188,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // anchored to the real 2026-27 league phase (Matchday 1 starts
           // 8 September 2026), doesn't depend on how the provider labels
           // or resolves "current" internally - genuinely robust either way.
-          let matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?dateFrom=2026-08-01&dateTo=2027-07-01`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          // Real fix: the previous range spanned almost a full year,
+          // likely returning enough matches (league phase + placeholder
+          // knockout fixtures) that processing them all in one request
+          // exceeded Vercel's execution time limit (confirmed live - a
+          // genuine 502, not a handled error, meaning the function itself
+          // crashed/timed out). Narrowed to just the real league phase
+          // window (confirmed running Sept 2026 - Jan 2027) - knockout
+          // rounds don't exist yet regardless, and get synced later once
+          // genuinely determined, same as this already handles.
+          let matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?dateFrom=2026-08-01&dateTo=2027-02-01`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
           if (!matchesResponse.ok) {
             const errorText = await matchesResponse.text();
             return res.status(500).json({ error: `football-data.org matches error: ${matchesResponse.status} — ${errorText}`, ...results });
