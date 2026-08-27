@@ -102,11 +102,23 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     try {
       const token = localStorage.getItem('gbf_token');
-      await fetch('/api/tournaments', {
+      const clResponse = await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ action: 'cl_sync' })
       });
+      const clData = await clResponse.json();
+      // Real fix: fetch() only throws on genuine network failures, never
+      // on HTTP error status codes - a 500/502 response was silently
+      // passing through here uncaught, so the actual error was only ever
+      // visible via the browser's own separate network logging, never
+      // this file's own console output. Checking response.ok explicitly
+      // and logging either way gives real, reliable visibility instead.
+      if (clResponse.ok) {
+        console.log('[live-poll] Champions League sync:', clData);
+      } else {
+        console.error('[live-poll] Champions League sync failed:', clResponse.status, clData);
+      }
     } catch (e) {
       console.error('[live-poll] Champions League sync failed:', e);
     }
