@@ -3181,7 +3181,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
-          const matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          let matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?season=${SEASON}`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          if (matchesResponse.status === 404) {
+            matchesResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+          }
           if (!matchesResponse.ok) {
             const errorText = await matchesResponse.text();
             return res.status(500).json({ error: `football-data.org matches error: ${matchesResponse.status} — ${errorText}`, ...results });
