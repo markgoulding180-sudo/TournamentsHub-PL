@@ -1151,7 +1151,10 @@ async function adminSeedStockMarketSquads() {
 
 async function adminForceCloseDraft() {
   const msgEl = document.getElementById('seedEntriesResultMsg');
-  if (!confirm('Force close the Stock Market draft window? Squads lock permanently and the market goes live. Make sure your own squad is drafted first if you want to be in.')) return;
+  if (!confirm('Force close the Stock Market draft window? Squads lock permanently and the market goes live. Make sure your own squad is drafted first if you want to be in.')) {
+    msgEl.textContent = 'Cancelled — nothing was changed.';
+    return;
+  }
 
   try {
     const tournamentId = await adminGetStockMarketTournamentId();

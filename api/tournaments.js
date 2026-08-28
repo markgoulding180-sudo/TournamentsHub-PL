@@ -4215,12 +4215,31 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const endGameweek = req.body.end_gameweek != null ? parseInt(req.body.end_gameweek) : 38;
           const isTest = req.body.is_test === true;
 
+          // Real fix: this used to default to a generic 30-minutes-from-
+          // creation placeholder, completely disconnected from when real
+          // matches actually happen - confirmed as a real, live problem
+          // (a real GW2 game had already kicked off while the draft
+          // stayed open, since the placeholder deadline was still days
+          // away). Uses the real, earliest kickoff of the actual current
+          // gameweek instead - hardcoding GW1 specifically would have
+          // been wrong here too, since GW1 has already genuinely finished
+          // by the time this runs, which would leave the deadline already
+          // in the past the instant a new tournament is created.
+          const { data: clockRow } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+          const realCurrentGw = clockRow?.current_gameweek || 1;
+          const { data: gwMatches } = await masterDb
+            .from('matches').select('kickoff_time').eq('gameweek', realCurrentGw).not('kickoff_time', 'is', null);
+          const earliestGwKickoff = (gwMatches || []).reduce((min, m) => (!min || m.kickoff_time < min) ? m.kickoff_time : min, null);
+          const closesAt = (earliestGwKickoff && new Date(earliestGwKickoff).getTime() > Date.now())
+            ? earliestGwKickoff
+            : new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
           const { data: newTournament, error: createErr } = await supabaseAdmin
             .schema('stockmarket').from('tournaments')
             .insert({
               name, description: 'description', gameweek: 1, end_gameweek: endGameweek,
               entry_fee: entryFee, max_entries: maxEntries, status: 'upcoming', is_test: isTest,
-              closes_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+              closes_at: closesAt
             })
             .select('id').single();
           if (createErr) throw createErr;
