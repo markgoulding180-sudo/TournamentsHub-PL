@@ -125,6 +125,29 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     try {
       const token = localStorage.getItem('gbf_token');
+      const smResponse = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'stockmarket_check_deadline' })
+      });
+      const smData = await smResponse.json();
+      // Real fix: the drafting-to-live transition used to only ever fire
+      // when someone specifically visited the Stock Market page itself -
+      // confirmed as a real, live problem (a real match kicked off, but
+      // the tournament sat stuck in drafting since nobody happened to
+      // load that specific page for a while). Now runs automatically on
+      // any page, same as everything else here.
+      if (smResponse.ok) {
+        console.log('[live-poll] Stock Market deadline check:', smData);
+      } else {
+        console.error('[live-poll] Stock Market deadline check failed:', smResponse.status, smData);
+      }
+    } catch (e) {
+      console.error('[live-poll] Stock Market deadline check failed:', e);
+    }
+
+    try {
+      const token = localStorage.getItem('gbf_token');
       await fetch('/api/tournaments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

@@ -2468,6 +2468,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(result.status).json(result.body);
       }
 
+      // Real gap fixed here: the draft-to-live transition only ever lived
+      // inside the Stock Market page's own data-loading code, so it only
+      // fired when someone specifically visited that page. Confirmed as
+      // a real, live problem - a real match kicked off, but nobody
+      // happened to load that specific page for a while, so the
+      // tournament sat stuck in drafting despite the deadline genuinely
+      // passing. This wires the same, already-correct check into the
+      // background poll directly, so it fires automatically on any page.
+      if (action === 'stockmarket_check_deadline') {
+        const { data: smTournament } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments').select('id').eq('status', 'upcoming').limit(1).maybeSingle();
+        if (!smTournament) return res.status(200).json({ success: true, message: 'No upcoming Stock Market tournament to check.' });
+
+        const lockStatus = await getStockMarketLockStatus(masterDb, supabaseAdmin, smTournament.id);
+        return res.status(200).json({ success: true, ...lockStatus });
+      }
+
       // ADMIN TEST TOOL: generates believable fake match results AND
       // player stats for a real gameweek's real fixtures, in one action.
       // Unlike the old approach (relabeling real historical data onto
