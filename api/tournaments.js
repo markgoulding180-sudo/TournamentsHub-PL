@@ -4101,16 +4101,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // new gameweek had actually happened.
           await masterDb.from('players').update({ event_points: 0 }).neq('id', -1);
 
-          // Auto-pause real polling the first time this test button is
-          // used, so the data it just generated can't get silently
-          // overwritten by background live-poll syncing 2 minutes later.
-          await masterDb.from('master_clock').update({ current_gameweek: newGw, polling_paused: true }).eq('id', 'current');
+          // Real, serious bug fixed here: this auto-pause was originally
+          // written for an isolated test scenario, but this function
+          // later became the ONE, real gameweek-advancement mechanism
+          // used for genuine live tournaments too (per the frontend's own
+          // comment explaining that consolidation) - without ever
+          // removing this side effect. Confirmed as the actual cause of a
+          // real, 4-day-long outage: every live sync (fixtures, scores)
+          // silently stopped the moment gameweek 1 genuinely advanced to
+          // 2, with no automatic resume, affecting every tournament type
+          // site-wide. Pausing polling should never be part of a genuine,
+          // live gameweek transition - removed entirely.
+          await masterDb.from('master_clock').update({ current_gameweek: newGw }).eq('id', 'current');
           return res.status(200).json({
             success: true, new_gameweek: newGw, test_data_generated: testDataGenerated,
             stock_market_tournaments_settled: stockMarketSettled,
             lms_tournaments_settled: lmsSettled,
-            fantasy_players_updated: fantasyUpdated,
-            polling_paused: true
+            fantasy_players_updated: fantasyUpdated
           });
         } catch (err) {
           console.error('stockmarket_advance_gameweek error:', err);
