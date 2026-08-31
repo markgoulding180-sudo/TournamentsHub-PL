@@ -7265,6 +7265,17 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
         actualCutCount++;
       }
     }
+    // Real, urgent fix: confirmed as a live incident - if everyone is
+    // still tied at the same value (which genuinely happens right at
+    // tournament start, before any real performance differentiation has
+    // occurred), the tie-extension above would swallow the entire field,
+    // leaving zero survivors and nobody to redistribute the pot to. A
+    // relegation stage that cuts everyone defeats its own purpose, so
+    // this skips the stage entirely rather than wipe out the whole field.
+    if (actualCutCount >= activeEntries.length) {
+      console.log(`[Relegation] Stage ${stage.stage_number} for ${tournamentId}: tie-extension would cut every active entry (all tied at the same value) - skipping this stage rather than relegate the entire field.`);
+      return;
+    }
     const relegatedEntries = activeEntries.slice(0, actualCutCount);
     const survivors = activeEntries.slice(actualCutCount);
     if (actualCutCount > cutCount) {
