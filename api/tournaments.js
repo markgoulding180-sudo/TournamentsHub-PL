@@ -5868,16 +5868,14 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
     const idsToEliminate = [];
     const noPickUserIds = []; // missed the deadline entirely — separate from a real losing pick
     const resultGroups = { win: [], draw: [], lose: [] };
+    const genuineLossEntryIds = [];
     for (const entry of entries) {
       checkedCount++;
       const pickedTeam = pickByUser.get(entry.user_id);
       if (!pickedTeam) {
-        // Standard LMS rule: every player must pick every week or it's
-        // unfair to everyone who did. Missing the deadline for the first
-        // game of the gameweek is a real elimination, same as a losing
-        // pick — not a free pass. This function only ever runs once that
-        // deadline has genuinely passed (see call sites), so reaching
-        // here with no pick on file means they're out.
+        // A missed pick is always a genuine, permanent elimination -
+        // never eligible for a pot share, regardless of what happens to
+        // anyone else later this same week.
         idsToEliminate.push(entry.id);
         noPickUserIds.push(entry.user_id);
         continue;
@@ -5888,8 +5886,21 @@ async function updateLmsPicksForGameweek(masterDb, supabaseAdmin, tournamentId, 
       if (pickResult === 'win') {
         survivedCount++;
       } else {
-        idsToEliminate.push(entry.id);
+        genuineLossEntryIds.push(entry.id);
       }
+    }
+    // Real fix: confirmed as a genuine, live case - if nobody who
+    // actually picked won this week, everyone who genuinely
+    // participated (regardless of result) rolls back in and continues
+    // to the next gameweek, rather than being eliminated alongside
+    // people who missed the deadline entirely and never played at all.
+    // Only fires when there's a genuine loss group to roll back - if
+    // literally everyone missed the pick, there's nobody left to roll
+    // back to, so elimination proceeds as normal.
+    if (survivedCount === 0 && genuineLossEntryIds.length > 0) {
+      console.log(`[LMS_UPDATE] tournament=${tournamentId} gw=${gameweek}: nobody who genuinely picked survived - rolling back ${genuineLossEntryIds.length} genuine participant(s) rather than eliminating them alongside missed picks.`);
+    } else {
+      idsToEliminate.push(...genuineLossEntryIds);
     }
     // One batch update instead of one .update() call per eliminated entry.
     if (idsToEliminate.length > 0) {
