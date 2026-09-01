@@ -725,10 +725,14 @@
       };
       return shirtMap[teamName] || (teamName || '').toLowerCase();
     }
+    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     function shirtSrc(team) {
+      // NO_PICK is a placeholder value for a missed pick, not a real
+      // team - avoids an always-failing 404 rather than relying on
+      // each <img>'s onerror to catch it.
+      if (!team || team === 'NO_PICK') return BLANK_IMG;
       return `shirts/${getTeamShirtName(team)}.webp`;
     }
-    const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
     function authHeaders() {
       const token = localStorage.getItem('gbf_token');
       return token ? { 'Authorization': `Bearer ${token}` } : {};

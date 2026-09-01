@@ -222,8 +222,8 @@
       };
       return shirtMap[teamName] || teamName.toLowerCase();
     }
-    function shirtSrc(team) { return `shirts/${getTeamShirtName(team)}.webp`; }
     const BLANK_IMG = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    function shirtSrc(team) { if (!team || team === 'NO_PICK') return BLANK_IMG; return `shirts/${getTeamShirtName(team)}.webp`; }
 
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
