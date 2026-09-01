@@ -117,7 +117,11 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      // Verify admin (for now, any authenticated user)
+      // Verify admin. Confirmed as a real gap during code review: this
+      // used to only check for a valid login token, never is_admin
+      // itself - meaning any registered, logged-in user could change the
+      // global gameweek clock. Same real check already correctly used
+      // elsewhere (e.g. stockmarket_advance_gameweek in tournaments.js).
       const token = authHeader.replace('Bearer ', '');
       const supabaseAdmin = createClient(
         process.env.SUPABASE_URL,
@@ -128,6 +132,10 @@ module.exports = async (req, res) => {
       const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
       if (authError || !user) {
         return res.status(401).json({ error: 'Invalid token' });
+      }
+      const { data: callerProfile } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+      if (!callerProfile || !callerProfile.is_admin) {
+        return res.status(403).json({ error: 'Admin access required' });
       }
 
       const { action, gameweek, deadline, deadline_epoch } = req.body;

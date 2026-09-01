@@ -2251,6 +2251,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
       // CREATE tournament (admin action)
       if (action === 'create') {
+        // Real gap fixed here, confirmed during code review: this was
+        // labelled "(admin action)" but never actually checked is_admin -
+        // any registered, logged-in user could create tournaments.
+        const { data: createCallerProfile } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!createCallerProfile || !createCallerProfile.is_admin) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
         if (!name || !gameweek) {
           return res.status(400).json({ error: 'name and gameweek are required' });
         }
@@ -3134,7 +3141,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // logic, just living as an action within the one file already
       // well under the limit.
       if (action === 'cl_sync') {
-        const FOOTBALL_DATA_TOKEN = process.env.FOOTBALL_DATA_TOKEN || 'aef925b3b2df4c6e922f08a5498bdab0';
+        const FOOTBALL_DATA_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
+        if (!FOOTBALL_DATA_TOKEN) {
+          return res.status(500).json({ error: 'FOOTBALL_DATA_TOKEN environment variable is not set.' });
+        }
         const FOOTBALL_DATA_BASE = 'https://api.football-data.org/v4/competitions/CL';
         // Real bug fixed here: without an explicit season, football-data.org
         // silently defaulted to whatever it considered "current" at the
@@ -3220,7 +3230,29 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(500).json({ error: `football-data.org matches error: ${matchesResponse.status} — ${errorText}`, ...results });
           }
           const matchesData = await matchesResponse.json();
-          const realMatches = matchesData.matches || [];
+          let realMatches = matchesData.matches || [];
+
+          // Real gap fixed here, confirmed during code review: only the
+          // league phase was ever fetched - knockout fixtures (R16, QF,
+          // SF, final) had no path to ever sync in once genuinely
+          // published. A single, wider request covering both periods was
+          // deliberately avoided earlier - that's what caused the real,
+          // confirmed timeout this session (too many matches processed
+          // in one call). This keeps that narrower request as the
+          // default, and only adds a second, separate fetch for the
+          // knockout window once we're genuinely past the league phase's
+          // real end date - before that, knockout fixtures don't exist
+          // to fetch anyway, so there's no cost to checking.
+          const leaguePhaseRealEnd = new Date('2027-01-29T00:00:00Z').getTime();
+          if (Date.now() >= leaguePhaseRealEnd) {
+            const knockoutResponse = await fetch(`${FOOTBALL_DATA_BASE}/matches?dateFrom=2027-02-01&dateTo=2027-07-01`, { headers: { 'X-Auth-Token': FOOTBALL_DATA_TOKEN } });
+            if (knockoutResponse.ok) {
+              const knockoutData = await knockoutResponse.json();
+              realMatches = realMatches.concat(knockoutData.matches || []);
+            } else {
+              console.error(`[cl_sync] knockout fixture fetch failed: ${knockoutResponse.status}`);
+            }
+          }
           results.fixturesFromApi = realMatches.length;
           results.skippedNoTeamMapping = 0;
           results.skippedNoStage = 0;

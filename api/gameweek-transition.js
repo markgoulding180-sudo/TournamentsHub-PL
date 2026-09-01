@@ -16,6 +16,30 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Real, severe gap fixed here, confirmed during code review: this
+  // endpoint had NO authentication at all - any visitor on the internet,
+  // not even a registered user, could hit this URL directly with
+  // ?manual=true and trigger a real gameweek finalization. Adds the same
+  // real admin check used correctly elsewhere in the codebase.
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  const authToken = authHeader.replace('Bearer ', '');
+  const authClient = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SECRET,
+    { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
+  );
+  const { data: { user: callerUser }, error: authError } = await authClient.auth.getUser(authToken);
+  if (authError || !callerUser) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  const { data: callerProfile } = await authClient.from('users').select('is_admin').eq('id', callerUser.id).maybeSingle();
+  if (!callerProfile || !callerProfile.is_admin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
   try {
     const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
     // Local project: users/predictions/tournaments/tournament_entries/etc.
