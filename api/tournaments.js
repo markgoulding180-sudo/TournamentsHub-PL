@@ -3796,6 +3796,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             console.log(`[MARK_MATCHES_FINISHED] GW${gw} LMS: found ${(liveLmsTournaments || []).length} live tournament(s), fetch error: ${lmsFetchErr ? lmsFetchErr.message : 'none'}`);
             let newlyEliminated = 0;
             for (const t of (liveLmsTournaments || [])) {
+              // Real fix: this used to call straight through with no
+              // deadline check at all, unlike every other call site of
+              // this function - confirmed live as the cause of genuine,
+              // still-active players being marked as having missed a
+              // gameweek whose real first kickoff hadn't happened yet.
+              const { data: gwMatchesForDeadline } = await masterDb
+                .from('matches').select('status, kickoff_time').eq('gameweek', gw);
+              const anyStarted = (gwMatchesForDeadline || []).some(m => m.status === 'live' || m.status === 'finished');
+              const earliestKickoff = (gwMatchesForDeadline || []).reduce((min, m) => {
+                const t2 = new Date(m.kickoff_time).getTime();
+                return (min === null || t2 < min) ? t2 : min;
+              }, null);
+              const deadlineGenuinelyPassed = anyStarted || (earliestKickoff !== null && Date.now() >= earliestKickoff);
+              if (!deadlineGenuinelyPassed) {
+                console.log(`[MARK_MATCHES_FINISHED] GW${gw} LMS tournament ${t.id}: skipped - real deadline hasn't passed yet.`);
+                continue;
+              }
               const r = await updateLmsPicksForGameweek(masterDb, supabaseAdmin, t.id, gw);
               console.log(`[MARK_MATCHES_FINISHED] GW${gw} LMS tournament ${t.id}: ${r.newly_eliminated} newly eliminated`);
               newlyEliminated += r.newly_eliminated;
