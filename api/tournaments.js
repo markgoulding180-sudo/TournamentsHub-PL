@@ -7059,21 +7059,17 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
     if (entryUpsertErr) console.error('Batch entry settlement upsert failed:', entryUpsertErr);
   }
   if (historyRows.length > 0) {
-    // Real fix: confirmed as a live bug - a plain insert with no
-    // deduplication meant every re-trigger of this settlement (which
-    // genuinely happened multiple times today during real debugging)
-    // created a fresh, duplicate set of history rows rather than
-    // replacing the prior ones, since nothing here is unique-constrained
-    // on (entry_id, player_id, gameweek). Deleting any existing rows for
-    // this exact tournament/gameweek first means a re-trigger can only
-    // ever leave the one, current, correct set behind.
-    const { error: historyDeleteError } = await supabaseAdmin
+    // Real fix (upgraded from an earlier delete-then-insert): a genuine
+    // unique constraint on (tournament_id, entry_id, player_id, gameweek)
+    // already exists at the database level - confirmed directly, not
+    // assumed. Using a real upsert against it means the database itself
+    // guarantees no duplicate can ever exist, even if two settlement
+    // attempts genuinely overlapped in time, rather than relying on this
+    // code remembering to clean up beforehand.
+    const { error: historyError } = await supabaseAdmin
       .schema('stockmarket').from('player_gw_history')
-      .delete().eq('tournament_id', tournamentId).eq('gameweek', gameweek);
-    if (historyDeleteError) console.error('player_gw_history pre-insert cleanup failed:', historyDeleteError);
-
-    const { error: historyError } = await supabaseAdmin.schema('stockmarket').from('player_gw_history').insert(historyRows);
-    if (historyError) console.error('player_gw_history insert failed:', historyError);
+      .upsert(historyRows, { onConflict: 'tournament_id,entry_id,player_id,gameweek' });
+    if (historyError) console.error('player_gw_history upsert failed:', historyError);
   }
 
   return { ok: true, pairs: (matchupRowsExisting || []).filter(r => r.entry_id_2).length };
