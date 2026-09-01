@@ -5772,6 +5772,8 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
     const toEliminate = [];
     const toRevive = [];
     const resultGroups = { win: [], draw: [], lose: [] };
+    let anyWonThisGameweek = false;
+    const genuineLossEntries = [];
     for (const entry of (entries || [])) {
       const pickedTeam = pickByUser.get(entry.user_id);
       if (!pickedTeam || !decidedTeams.has(pickedTeam)) continue;
@@ -5779,13 +5781,28 @@ async function recalculateLmsForGameweekCorrection(masterDb, supabaseAdmin, tour
       resultGroups[pickResult].push(entry.user_id);
       const won = pickResult === 'win';
 
-      if (!won && !entry.is_eliminated) {
-        toEliminate.push(entry.id);
-      } else if (won && entry.is_eliminated && entry.eliminated_gameweek === gameweek) {
-        // Only revive if THIS gameweek is specifically what eliminated
-        // them — never touch an elimination from an earlier gameweek.
-        toRevive.push(entry.id);
+      if (won) {
+        anyWonThisGameweek = true;
+        if (entry.is_eliminated && entry.eliminated_gameweek === gameweek) {
+          // Only revive if THIS gameweek is specifically what eliminated
+          // them — never touch an elimination from an earlier gameweek.
+          toRevive.push(entry.id);
+        }
+      } else if (!entry.is_eliminated) {
+        genuineLossEntries.push(entry);
       }
+    }
+    // Real fix: same rule as the initial elimination pass - if nobody
+    // who genuinely picked won this gameweek, everyone who actually
+    // participated rolls back in rather than being eliminated. This
+    // separate correction path (re-evaluates after a result changes)
+    // never had this logic at all, confirmed as what silently
+    // re-eliminated 3 genuine participants a manual fix had already
+    // correctly rolled back.
+    if (!anyWonThisGameweek && genuineLossEntries.length > 0) {
+      console.log(`[LMS_CORRECTION] tournament=${tournamentId} gw=${gameweek}: nobody who genuinely picked won - not eliminating the ${genuineLossEntries.length} genuine participant(s).`);
+    } else {
+      toEliminate.push(...genuineLossEntries.map(e => e.id));
     }
 
     if (toEliminate.length > 0) {
