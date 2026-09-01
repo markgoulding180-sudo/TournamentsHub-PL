@@ -276,10 +276,29 @@ module.exports = async (req, res) => {
     // never appear in FPL's real feed and need their own computation.
     if (results.updated > 0) {
       try {
+        // Real, urgent fix: confirmed live as the actual, repeated cause
+        // of genuine GW3 players being wrongly marked as having missed a
+        // deadline that hadn't happened yet - this ran every single poll
+        // cycle (every ~2 minutes) with zero deadline check at all,
+        // immediately re-breaking a manual database correction each time
+        // it ran. updateLmsPicksForGameweek explicitly documents that it
+        // trusts its caller to have already verified this - that trust
+        // was misplaced here.
+        const { data: gwMatchesForLmsDeadline } = await masterDb
+          .from('matches').select('status, kickoff_time').eq('gameweek', currentGW);
+        const anyLmsStarted = (gwMatchesForLmsDeadline || []).some(m => m.status === 'live' || m.status === 'finished');
+        const earliestLmsKickoff = (gwMatchesForLmsDeadline || []).reduce((min, m) => {
+          const t = new Date(m.kickoff_time).getTime();
+          return (min === null || t < min) ? t : min;
+        }, null);
+        const lmsDeadlineGenuinelyPassed = anyLmsStarted || (earliestLmsKickoff !== null && Date.now() >= earliestLmsKickoff);
+
         const { data: liveLmsTournaments } = await localDb
           .schema('lms').from('tournaments').select('id').eq('status', 'live');
         for (const t of (liveLmsTournaments || [])) {
-          await updateLmsPicksForGameweek(masterDb, localDb, t.id, currentGW);
+          if (lmsDeadlineGenuinelyPassed) {
+            await updateLmsPicksForGameweek(masterDb, localDb, t.id, currentGW);
+          }
         }
 
         await checkAndFinishSeasonTournament(localDb, masterDb, 'predictions', currentGW);

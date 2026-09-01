@@ -286,10 +286,24 @@ module.exports = async (req, res) => {
       // event_points is the decided source of truth for Fantasy Manager,
       // not our own simplified formula competing for the same column.
       try {
+        // Real, urgent fix: same bug as live-scores.js, confirmed as the
+        // other half of the actual, repeated cause - see that file's
+        // comment for the full explanation.
+        const { data: gwMatchesForLmsDeadline } = await masterDb
+          .from('matches').select('status, kickoff_time').eq('gameweek', currentGWForScoring);
+        const anyLmsStarted = (gwMatchesForLmsDeadline || []).some(m => m.status === 'live' || m.status === 'finished');
+        const earliestLmsKickoff = (gwMatchesForLmsDeadline || []).reduce((min, m) => {
+          const t = new Date(m.kickoff_time).getTime();
+          return (min === null || t < min) ? t : min;
+        }, null);
+        const lmsDeadlineGenuinelyPassed = anyLmsStarted || (earliestLmsKickoff !== null && Date.now() >= earliestLmsKickoff);
+
         const { data: liveLmsTournaments } = await localDb
           .schema('lms').from('tournaments').select('id').eq('status', 'live');
         for (const t of (liveLmsTournaments || [])) {
-          await updateLmsPicksForGameweek(masterDb, localDb, t.id, currentGWForScoring);
+          if (lmsDeadlineGenuinelyPassed) {
+            await updateLmsPicksForGameweek(masterDb, localDb, t.id, currentGWForScoring);
+          }
         }
 
         await checkAndFinishSeasonTournament(localDb, masterDb, 'predictions', currentGWForScoring);
