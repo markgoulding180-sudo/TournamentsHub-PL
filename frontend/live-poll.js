@@ -80,10 +80,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     if (!token) return; // only poll while logged in
 
     try {
-      await fetch('/api/live-scores', {
+      const liveScoresResponse = await fetch('/api/live-scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
+      const liveScoresData = await liveScoresResponse.json();
+      if (!liveScoresResponse.ok) {
+        console.error('[live-poll] live-scores refresh failed:', liveScoresResponse.status, liveScoresData);
+      }
     } catch (e) {
       console.error('[live-poll] live-scores refresh failed:', e);
     }
