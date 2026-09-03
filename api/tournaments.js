@@ -7158,7 +7158,6 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
   for (const entry of entries) {
     const squad = entry.squad_players || [];
     let changed = false;
-    const replacedNames = [];
     const stillEmptyNames = [];
     for (let i = 0; i < squad.length; i++) {
       const s = squad[i];
@@ -7169,47 +7168,24 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
         const lockedTier = tierToPackType[tierById[s.player_id]] || 'Bronze';
         changed = true;
 
-        await supabaseAdmin.schema('stockmarket').from('transactions').insert({
+        const { error: forceSellTxErr } = await supabaseAdmin.schema('stockmarket').from('transactions').insert({
           tournament_id: tournamentId, entry_id: entry.id, gameweek, type: 'force_sell',
           player_id: s.player_id, player_name: departedName, position: positionKey, amount: soldValue
         });
+        if (forceSellTxErr) console.error('[force_sell] transaction log insert failed:', forceSellTxErr.message);
 
-        // Real candidates, same proven pool logic the manual buy flow
-        // uses — never already owned by THIS entry.
-        const ownedIds = new Set(squad.filter(x => !x.empty).map(x => x.player_id));
-        let candidates = [];
-        try {
-          candidates = await buildCandidatePool(supabaseAdmin, masterDb, tournamentId, config || {},
-            { mode: 'transfer', packType: lockedTier, position: positionKey });
-        } catch (poolErr) {
-          console.error('[FORCE-BUY] candidate pool failed:', poolErr.message);
-        }
-        const eligible = candidates.filter(c => !ownedIds.has(c.id));
-
-        if (eligible.length > 0) {
-          const chosen = eligible[Math.floor(Math.random() * eligible.length)];
-          squad[i] = {
-            player_id: chosen.id, position: positionKey, name: chosen.name, team: chosen.team,
-            value: soldValue, acquired_gameweek: currentGW, is_sub: false
-          };
-          replacedNames.push(`${departedName} → ${chosen.name}`);
-          await supabaseAdmin.schema('stockmarket').from('transactions').insert({
-            tournament_id: tournamentId, entry_id: entry.id, gameweek, type: 'force_buy',
-            player_id: chosen.id, player_name: chosen.name, position: positionKey, amount: 0, pack_type: lockedTier
-          });
-        } else {
-          // Genuinely no eligible replacement exists right now (pool
-          // exhausted by ownership caps) — falls back to the old
-          // reserved-empty-slot behavior as a safety net, clearly
-          // flagged so it's visible this needs a human look rather than
-          // silently sitting there indistinguishable from the normal case.
-          squad[i] = {
-            empty: true, position: positionKey, reserved_value: soldValue,
-            force_sold_reason: 'left_premier_league', force_sold_player_name: departedName,
-            force_sold_tier: lockedTier
-          };
-          stillEmptyNames.push(departedName);
-        }
+        // Real redesign: no longer auto-picks a random replacement.
+        // Confirmed as not what was wanted - the user needs to see this
+        // happen, understand why, and genuinely choose their own
+        // replacement. Always leaves the slot in this reserved, awaiting-
+        // replacement state now - the existing pack-purchase flow already
+        // correctly handles it for free, locked to this exact tier.
+        squad[i] = {
+          empty: true, position: positionKey, reserved_value: soldValue,
+          force_sold_reason: 'left_premier_league', force_sold_player_name: departedName,
+          force_sold_tier: lockedTier
+        };
+        stillEmptyNames.push(departedName);
       }
     }
     if (changed) {
@@ -7221,13 +7197,10 @@ async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, g
       forcedCount++;
       await logPlatformEvent(supabaseAdmin, {
         tournament_type: 'stockmarket', tournament_id: tournamentId, gameweek,
-        event_type: stillEmptyNames.length > 0 ? 'force_sell' : 'force_replace',
-        severity: stillEmptyNames.length > 0 ? 'warning' : 'info',
-        message: [
-          replacedNames.length > 0 ? `GW${gameweek}: auto-replaced ${replacedNames.join(', ')} — free, no transfer used.` : '',
-          stillEmptyNames.length > 0 ? `GW${gameweek}: ${stillEmptyNames.join(', ')} left the Premier League but NO eligible replacement was found (pool exhausted) — slot left reserved, needs a look.` : ''
-        ].filter(Boolean).join(' '),
-        details: { entry_id: entry.id, replaced: replacedNames, still_empty: stillEmptyNames }
+        event_type: 'force_sell',
+        severity: 'warning',
+        message: `GW${gameweek}: ${stillEmptyNames.join(', ')} left the Premier League — slot reserved, entrant needs to pick a free replacement of the same pack tier.`,
+        details: { entry_id: entry.id, still_empty: stillEmptyNames }
       });
     }
   }
