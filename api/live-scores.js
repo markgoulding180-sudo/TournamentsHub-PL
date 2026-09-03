@@ -5,7 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const {
   checkAndFinishSeasonTournament,
   updateLmsPicksForGameweek,
-  finalizeGameweekIfComplete
+  finalizeGameweekIfComplete,
+  forceSellDepartedPlayers
 } = require('./tournaments.js');
 
 const FPL_FIXTURES_URL = 'https://fantasy.premierleague.com/api/fixtures/';
@@ -303,6 +304,25 @@ module.exports = async (req, res) => {
 
         await checkAndFinishSeasonTournament(localDb, masterDb, 'predictions', currentGW);
         await finalizeGameweekIfComplete(masterDb, localDb, currentGW);
+
+        // Real gap fixed here: this already-built, correct mechanic
+        // (free, same-tier replacement for any player who's genuinely
+        // left the Premier League) only ever ran once per weekly
+        // gameweek advance - meaning someone whose player departed
+        // mid-week (confirmed live: a real transfer completing) would
+        // sit stuck with a dead squad slot for potentially weeks.
+        // Genuinely safe to run every poll cycle - it only acts on
+        // players actually marked departed right now, and does nothing
+        // at all otherwise.
+        const { data: liveStockmarketTournaments } = await localDb
+          .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
+        for (const t of (liveStockmarketTournaments || [])) {
+          try {
+            await forceSellDepartedPlayers(localDb, masterDb, t.id, currentGW);
+          } catch (departedErr) {
+            console.error(`forceSellDepartedPlayers failed for tournament ${t.id}:`, departedErr);
+          }
+        }
       } catch (settlementErr) {
         console.error('Live-scores settlement chain error (non-fatal, match data already saved):', settlementErr);
       }

@@ -8791,3 +8791,4 @@ module.exports.checkAndFinishSeasonTournament = checkAndFinishSeasonTournament;
 module.exports.updateFantasyPointsForGameweek = updateFantasyPointsForGameweek;
 module.exports.updateLmsPicksForGameweek = updateLmsPicksForGameweek;
 module.exports.finalizeGameweekIfComplete = finalizeGameweekIfComplete;
+module.exports.forceSellDepartedPlayers = forceSellDepartedPlayers;
