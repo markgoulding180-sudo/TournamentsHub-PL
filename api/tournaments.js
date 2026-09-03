@@ -256,15 +256,24 @@ module.exports = async (req, res) => {
               const e1 = entryById[m.entry_id_1];
               const e2 = m.entry_id_2 ? entryById[m.entry_id_2] : null;
               if (!e1) continue;
+              // Real fix: prepSquadForSettlement filters out every empty
+              // slot entirely, so a departed player's reserved value
+              // (banked, awaiting a free replacement) was silently
+              // missing from this live recalculation - confirmed live,
+              // it genuinely made the leaderboard show less than the
+              // real, stored total the moment someone's player left.
+              // Same fix already correctly applied to the individual
+              // squad page's own header, just never carried here too.
+              const reservedFor = (entry) => (entry.squad_players || []).reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
               try {
                 if (e2) {
                   const { provA, provB } = computeUnifiedSettlement(e1.squad_players || [], e2.squad_players || [], statsByPid, concededByTeam, costMultiplier);
-                  liveValueByEntryId[e1.id] = Math.round(provA.reduce((s, p) => s + p.liveValue, 0));
-                  liveValueByEntryId[e2.id] = Math.round(provB.reduce((s, p) => s + p.liveValue, 0));
+                  liveValueByEntryId[e1.id] = Math.round(provA.reduce((s, p) => s + p.liveValue, 0)) + reservedFor(e1);
+                  liveValueByEntryId[e2.id] = Math.round(provB.reduce((s, p) => s + p.liveValue, 0)) + reservedFor(e2);
                 } else {
                   // Bye — nobody to redistribute with, just their own raw live total
                   const provA = prepSquadForSettlement(e1.squad_players || [], statsByPid, concededByTeam, costMultiplier);
-                  liveValueByEntryId[e1.id] = Math.round(provA.reduce((s, p) => s + p.liveValue, 0));
+                  liveValueByEntryId[e1.id] = Math.round(provA.reduce((s, p) => s + p.liveValue, 0)) + reservedFor(e1);
                 }
               } catch (matchupCalcErr) {
                 console.error(`Leaderboard live calc failed for matchup ${m.entry_id_1}/${m.entry_id_2}:`, matchupCalcErr);
