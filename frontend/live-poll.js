@@ -85,7 +85,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         headers: { 'Content-Type': 'application/json' }
       });
       const liveScoresData = await liveScoresResponse.json();
-      if (!liveScoresResponse.ok) {
+      if (liveScoresResponse.ok) {
+        console.log('[live-poll] live-scores refresh:', liveScoresData);
+      } else {
         console.error('[live-poll] live-scores refresh failed:', liveScoresResponse.status, liveScoresData);
       }
     } catch (e) {
