@@ -329,6 +329,28 @@
     .p-force-sold-notice i{ font-size:16px; margin-bottom:2px; }
     .p-force-sold-notice strong{ font-size:11px; }
     .p-force-sold-notice span{ font-weight:500; line-height:1.4; opacity:.9; }
+    /* Real, distinct design for a player who's genuinely left the league -
+       a solid dark red card, not the dashed/generic empty-slot styling. */
+    .portfolio-card.force-sold-card{
+      background:linear-gradient(rgba(90,10,10,0.55), rgba(60,6,6,0.7)), #1a0505;
+      border-color:var(--red, #ef4444);
+    }
+    .force-sold-body{
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:8px; padding:16px 10px; height:100%; width:100%; text-align:center; box-sizing:border-box;
+    }
+    .force-sold-title{ font-size:16px; font-weight:800; color:#fff; letter-spacing:.2px; width:100%; }
+    .force-sold-player-name{ font-size:20px; font-weight:800; color:#fff; width:100%; }
+    .force-sold-player-value{ font-size:17px; font-weight:700; color:rgba(255,255,255,0.9); width:100%; }
+    .force-sold-explanation{
+      font-size:13px; line-height:1.4; color:rgba(255,255,255,0.85); margin-top:4px; width:100%; font-weight:600;
+    }
+    .replace-player-btn{
+      margin-top:10px; padding:10px 20px; border-radius:8px; border:none; cursor:pointer; width:100%;
+      background:var(--red, #ef4444); color:#fff; font-size:14px; font-weight:700; letter-spacing:.2px;
+      transition:.15s;
+    }
+    .replace-player-btn:hover{ filter:brightness(1.1); }
     .portfolio-card .p-photo-wrap{
       position:absolute; top:3%; left:6%; right:6%; height:30%; z-index:2; overflow:hidden; border-radius:8px;
     }
@@ -439,8 +461,8 @@
     .mini-btn.danger{ color:#ff8080; }
     .mini-btn:hover{ border-color:var(--border-hover); color:var(--text); }
     .mini-btn.danger:hover{ border-color:var(--red); color:#fca5a5; }
-    .transfer-pool-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 8px; background:var(--bg-panel); border-radius:6px; margin-top:4px; font-size:11px; }
-    .transfer-pool-item button{ background:var(--accent); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; }
+    .transfer-pool-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; background:var(--bg-panel); border-radius:8px; margin-top:6px; font-size:14px; width:100%; box-sizing:border-box; }
+    .transfer-pool-item button{ background:var(--accent); color:#fff; font-size:13px; font-weight:700; padding:6px 14px; border-radius:6px; }
 
     .market-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px; flex-wrap:wrap; }
     .market-row:last-child{ border-bottom:none; }
@@ -1054,20 +1076,32 @@
       const renderPlayerCard = (p, isMine, costMultiplier) => {
         if (!p || p.empty) {
           const lockedTier = p && p.force_sold_reason === 'left_premier_league' ? p.force_sold_tier : null;
-          const tiersToShow = lockedTier ? [lockedTier] : ['Bronze', 'Silver', 'Gold'];
           const reservedValue = p ? (p.reserved_value || 0) : 0;
+
+          // Real redesign per the actual request: a genuinely distinct,
+          // solid dark red card specifically for a player who's left the
+          // league - not the generic dashed "no player drafted here yet"
+          // empty slot, which stays exactly as it was below.
+          if (isMine && lockedTier) {
+            return `<div class="portfolio-card mine force-sold-card">
+              <div class="p-body force-sold-body">
+                <div class="force-sold-player-name">${escapeHtml(p.force_sold_player_name || 'Your player')}</div>
+                <div class="force-sold-title">Left Premier League</div>
+                <div class="force-sold-player-value">${money(reservedValue)}</div>
+                <div class="force-sold-explanation">Replace with a free player, same tier</div>
+                <button class="replace-player-btn" onclick="openTransferPack('${p.position}','${lockedTier}',${reservedValue})">Replace Player</button>
+                <div id="transfer-pool-${p.position}"></div>
+              </div>
+            </div>`;
+          }
+
+          const tiersToShow = ['Bronze', 'Silver', 'Gold'];
           const packButtons = isMine ? `
             <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
               ${tiersToShow.map(tier => `<button class="pack-fill-btn" onclick="openTransferPack('${p ? p.position : ''}','${tier}',${reservedValue})">${tier}</button>`).join('')}
             </div>
             <div id="transfer-pool-${p ? p.position : ''}"></div>` : '';
-          const forceSoldNoticeHtml = (isMine && p && p.force_sold_reason === 'left_premier_league') ? `
-            <div class="p-force-sold-notice">
-              <i class="fas fa-triangle-exclamation"></i>
-              <strong>${escapeHtml(p.force_sold_player_name || 'Your player')} left the Premier League</strong>
-              <span>We tried to auto-replace them but couldn't find an eligible ${lockedTier || ''} player right now — their full value is banked here. ${lockedTier ? `Pick a free ${lockedTier} replacement below` : 'Pick any replacement below'} — it's completely free, and it won't use your transfer for this gameweek if you haven't used it already.</span>
-            </div>` : '';
-          return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body">${forceSoldNoticeHtml}<div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
+          return `<div class="portfolio-card ${isMine ? 'mine' : 'opp'}" style="border-style:dashed;"><div class="p-body"><div class="p-pos">Empty slot</div><div class="p-est">Reserved: ${money(p ? p.reserved_value : 0)}</div>${packButtons}</div></div>`;
         }
         const benchedHtml = p.is_sub ? `<div class="weeks-badge sub">Benched — excluded this week</div>` : '';
         const actions = isMine
