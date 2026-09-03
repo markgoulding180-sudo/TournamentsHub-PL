@@ -96,6 +96,13 @@
     .stage-summary{ margin-left:auto; font-size:12.5px; font-weight:600; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
 
     .team-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; padding:14px 0; }
+    .fixture-grid{ display:flex; flex-direction:column; gap:10px; padding:14px 0; }
+    .fixture-group{
+      display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;
+      padding:10px; background:var(--bg-panel); border:1px solid var(--border); border-radius:12px;
+    }
+    .fixture-vs{ font-size:11px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; }
+    .fixture-kickoff{ grid-column:1/-1; text-align:center; font-size:10.5px; color:var(--text-faint); margin-bottom:2px; }
     .team-card{
       display:flex; flex-direction:column; align-items:center; gap:8px; padding:14px 10px;
       background:var(--bg-card); border:1px solid var(--border); border-radius:10px; transition:.15s;
@@ -469,37 +476,47 @@
 
         if (!isOpen) return;
 
-        // Build the list of teams playing this stage
-        const stageTeamIds = new Set();
-        matches.forEach(m => { if (m.home_team_id) stageTeamIds.add(m.home_team_id); if (m.away_team_id) stageTeamIds.add(m.away_team_id); });
+        // Real fix: this used to build a flat set of every team playing
+        // this stage and sort them alphabetically by name - the actual
+        // fixture pairings (who's genuinely playing whom) were fetched
+        // but never visually shown at all. Iterates the real matches
+        // directly instead, sorted by real kickoff time, so each
+        // fixture's two teams render together as a genuine pair.
+        const sortedMatches = [...matches].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
 
-        html += `<div class="team-grid">`;
-        Array.from(stageTeamIds).sort((a, b) => teamName(a).localeCompare(teamName(b))).forEach(teamId => {
-          const match = matches.find(m => m.home_team_id === teamId || m.away_team_id === teamId);
-          const finished = match && match.status === 'finished';
-          const isEliminated = eliminatedTeamIds.has(teamId) && !finished; // a team eliminated in an EARLIER stage, not this one's own result
-          const isUsedElsewhere = usedTeamIds.has(teamId) && myPick !== teamId;
-          const selected = myPick === teamId || (!myPick && localSelection === teamId);
-          let cls = 'team-card';
-          if (selected) cls += ' selected';
-          if (finished && selected) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
-          if (isUsedElsewhere || isEliminated) cls += ' used';
-          // Once this entry has submitted a pick for this stage at all,
-          // every card locks - submitting is final, no changing your mind.
-          const disabled = (locked || finished || isUsedElsewhere || isEliminated || alreadySubmitted) ? 'disabled' : '';
-          let tag = '';
-          if (isEliminated) tag = '<span class="used-tag">Eliminated</span>';
-          else if (isUsedElsewhere) tag = '<span class="used-tag">Already used</span>';
-          const crestUrl = teamCrest(teamId);
-          const crestHtml = crestUrl
-            ? `<img src="${escapeHtml(crestUrl)}" alt="" style="width:100%; height:100%; object-fit:contain; padding:4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><i class="fas fa-shield-halved" style="display:none;"></i>`
-            : `<i class="fas fa-shield-halved"></i>`;
-          html += `
-            <button class="${cls}" ${disabled} onclick="selectTeam('${stage.key}', '${teamId}')">
-              <span class="team-crest">${crestHtml}</span>
-              <span class="team-name">${escapeHtml(teamName(teamId))}</span>
-              ${tag}
-            </button>`;
+        html += `<div class="fixture-grid">`;
+        sortedMatches.forEach(match => {
+          const kickoffLabel = match.kickoff_time
+            ? new Date(match.kickoff_time).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+            : '';
+          html += `<div class="fixture-group">`;
+          if (kickoffLabel) html += `<div class="fixture-kickoff">${escapeHtml(kickoffLabel)}</div>`;
+          [match.home_team_id, match.away_team_id].forEach((teamId, i) => {
+            if (i === 1) html += `<span class="fixture-vs">vs</span>`;
+            const finished = match.status === 'finished';
+            const isEliminated = eliminatedTeamIds.has(teamId) && !finished;
+            const isUsedElsewhere = usedTeamIds.has(teamId) && myPick !== teamId;
+            const selected = myPick === teamId || (!myPick && localSelection === teamId);
+            let cls = 'team-card';
+            if (selected) cls += ' selected';
+            if (finished && selected) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
+            if (isUsedElsewhere || isEliminated) cls += ' used';
+            const disabled = (locked || finished || isUsedElsewhere || isEliminated || alreadySubmitted) ? 'disabled' : '';
+            let tag = '';
+            if (isEliminated) tag = '<span class="used-tag">Eliminated</span>';
+            else if (isUsedElsewhere) tag = '<span class="used-tag">Already used</span>';
+            const crestUrl = teamCrest(teamId);
+            const crestHtml = crestUrl
+              ? `<img src="${escapeHtml(crestUrl)}" alt="" style="width:100%; height:100%; object-fit:contain; padding:4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><i class="fas fa-shield-halved" style="display:none;"></i>`
+              : `<i class="fas fa-shield-halved"></i>`;
+            html += `
+              <button class="${cls}" ${disabled} onclick="selectTeam('${stage.key}', '${teamId}')">
+                <span class="team-crest">${crestHtml}</span>
+                <span class="team-name">${escapeHtml(teamName(teamId))}</span>
+                ${tag}
+              </button>`;
+          });
+          html += `</div>`;
         });
         html += `</div>`;
 
