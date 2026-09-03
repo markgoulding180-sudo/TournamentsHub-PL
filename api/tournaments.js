@@ -6527,9 +6527,30 @@ async function syncEntryCount(supabaseAdmin, schemaName, tournamentId) {
       .select('id', { count: 'exact', head: true })
       .eq('tournament_id', tournamentId);
     if (countErr) { console.error(`syncEntryCount count failed (${schemaName}):`, countErr); return; }
+
+    const updatePayload = { current_entries: count || 0 };
+
+    // Real, widespread fix: prize_pool was never actually updated
+    // anywhere in the shared join path (Predictions, LMS, Fantasy,
+    // Champions League) - confirmed showing stale £0 on both individual
+    // tournament pages and the hub's own cards for real, paying
+    // entrants. Only Darts had this correct, in a separate code path.
+    // Recomputed here from real entry_fee × real entry count, same
+    // "recompute from source of truth" approach as current_entries
+    // above, rather than an incrementally-updated number that could
+    // drift or race. Stock Market genuinely has no prize_pool column at
+    // all, so this is skipped there rather than erroring.
+    if (schemaName !== 'stockmarket') {
+      const { data: tournamentForPool } = await supabaseAdmin
+        .schema(schemaName).from('tournaments').select('entry_fee').eq('id', tournamentId).maybeSingle();
+      if (tournamentForPool && typeof tournamentForPool.entry_fee === 'number') {
+        updatePayload.prize_pool = (count || 0) * tournamentForPool.entry_fee;
+      }
+    }
+
     const { error: updateErr } = await supabaseAdmin
       .schema(schemaName).from('tournaments')
-      .update({ current_entries: count || 0 })
+      .update(updatePayload)
       .eq('id', tournamentId);
     if (updateErr) console.error(`syncEntryCount update failed (${schemaName}):`, updateErr);
   } catch (err) {
