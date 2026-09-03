@@ -187,8 +187,14 @@
   <script>
     let TOURNAMENT_ID = null;
     let tournamentData = null;
-    let myPicks = {}; // "matchday-N" or "round-X" -> team_id
+    let myPicks = {}; // "matchday-N" or "round-X" -> team_id, ONLY ever populated from real, server-confirmed pick data
     let myPicksAuto = {}; // same keys -> true if that pick was auto-assigned
+    // Real fix: this used to be conflated with myPicks itself, meaning
+    // clicking a team to select it (before ever pressing Submit) made
+    // the UI show "Pick locked in" and disabled every other team - the
+    // server never actually saw a request at all. Keeps a genuinely
+    // separate, local-only selection here instead.
+    let pendingSelection = {}; // "matchday-N" or "round-X" -> team_id, locally selected but NOT yet submitted to the server
     let currentUser = null;
     let expandedStages = null;
 
@@ -296,14 +302,14 @@
       const stage = getStageByKey(stageKey);
       const key = stage.key;
       // Toggle - click the same team again to deselect
-      if (myPicks[key] === teamId) delete myPicks[key];
-      else myPicks[key] = teamId;
+      if (pendingSelection[key] === teamId) delete pendingSelection[key];
+      else pendingSelection[key] = teamId;
       render();
     }
 
     async function submitPick(stageKey) {
       const stage = getStageByKey(stageKey);
-      const teamId = myPicks[stage.key];
+      const teamId = pendingSelection[stage.key];
       const msgEl = document.getElementById('submitMsg-' + stage.key);
       if (!teamId) { if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Pick a team first.'; } return; }
 
@@ -430,7 +436,8 @@
         if (state === 'future') return; // genuinely no real fixtures for it at all yet
 
         const isOpen = expandedStages.has(stage.key);
-        const myPick = myPicks[stage.key];
+        const myPick = myPicks[stage.key]; // real, server-confirmed pick only
+        const localSelection = pendingSelection[stage.key]; // locally selected, not yet submitted
         const matches = getMatchesForStage(stage);
         const alreadySubmitted = !!myPick;
 
@@ -466,7 +473,7 @@
           const finished = match && match.status === 'finished';
           const isEliminated = eliminatedTeamIds.has(teamId) && !finished; // a team eliminated in an EARLIER stage, not this one's own result
           const isUsedElsewhere = usedTeamIds.has(teamId) && myPick !== teamId;
-          const selected = myPick === teamId;
+          const selected = myPick === teamId || (!myPick && localSelection === teamId);
           let cls = 'team-card';
           if (selected) cls += ' selected';
           if (finished && selected) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
