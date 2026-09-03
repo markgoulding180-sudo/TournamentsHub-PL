@@ -462,7 +462,7 @@
             summaryHtml = `<span class="stage-summary" style="color:${won ? 'var(--green)' : 'var(--red)'};">${won ? 'Won' : 'Lost'}</span>`;
           }
         } else if (myPick) {
-          summaryHtml = `<span class="stage-summary" style="color:var(--accent-2);"><i class="fas fa-check"></i> ${escapeHtml(teamName(myPick))} picked${myPickIsAuto(stage.key) ? ' (auto)' : ''}</span>`;
+          summaryHtml = `<span class="stage-summary" style="color:#fff;"><i class="fas fa-check"></i> You have picked ${escapeHtml(teamName(myPick))}${myPickIsAuto(stage.key) ? ' (auto)' : ''}</span>`;
         } else {
           summaryHtml = `<span class="stage-summary" style="color:var(--gold);"><i class="fas fa-exclamation"></i> Pick needed</span>`;
         }
