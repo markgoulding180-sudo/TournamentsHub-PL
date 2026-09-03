@@ -78,6 +78,30 @@ module.exports = async (req, res) => {
     }
     await masterDb.from('sync_debounce').upsert({ sync_name: 'live_scores', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
 
+    // Real, exact fix: this used to sit after the "no active matches"
+    // early-return below - which genuinely, always fires right now,
+    // since GW3's real fixtures haven't kicked off yet. Confirmed live:
+    // this code never actually ran a single time as a result. Departed-
+    // player detection (a real transfer window event) has nothing to do
+    // with whether a match is currently live, so it needs to run here,
+    // unconditionally, every cycle - not gated behind match status.
+    try {
+      const { data: liveStockmarketTournaments } = await localDb
+        .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
+      for (const t of (liveStockmarketTournaments || [])) {
+        try {
+          const forceSellResult = await forceSellDepartedPlayers(localDb, masterDb, t.id, currentGW);
+          if (forceSellResult && forceSellResult.forced > 0) {
+            console.log(`[live-scores] forceSellDepartedPlayers replaced ${forceSellResult.forced} departed player(s) in tournament ${t.id}`);
+          }
+        } catch (departedErr) {
+          console.error(`forceSellDepartedPlayers failed for tournament ${t.id}:`, departedErr);
+        }
+      }
+    } catch (departedOuterErr) {
+      console.error('forceSellDepartedPlayers block failed:', departedOuterErr);
+    }
+
     // Still need FPL's bootstrap for team-name mapping and fixture data
     const bootstrapResponse = await fetch(FPL_BOOTSTRAP_URL);
     const bootstrapData = await bootstrapResponse.json();
@@ -304,25 +328,6 @@ module.exports = async (req, res) => {
 
         await checkAndFinishSeasonTournament(localDb, masterDb, 'predictions', currentGW);
         await finalizeGameweekIfComplete(masterDb, localDb, currentGW);
-
-        // Real gap fixed here: this already-built, correct mechanic
-        // (free, same-tier replacement for any player who's genuinely
-        // left the Premier League) only ever ran once per weekly
-        // gameweek advance - meaning someone whose player departed
-        // mid-week (confirmed live: a real transfer completing) would
-        // sit stuck with a dead squad slot for potentially weeks.
-        // Genuinely safe to run every poll cycle - it only acts on
-        // players actually marked departed right now, and does nothing
-        // at all otherwise.
-        const { data: liveStockmarketTournaments } = await localDb
-          .schema('stockmarket').from('tournaments').select('id').eq('status', 'live');
-        for (const t of (liveStockmarketTournaments || [])) {
-          try {
-            await forceSellDepartedPlayers(localDb, masterDb, t.id, currentGW);
-          } catch (departedErr) {
-            console.error(`forceSellDepartedPlayers failed for tournament ${t.id}:`, departedErr);
-          }
-        }
       } catch (settlementErr) {
         console.error('Live-scores settlement chain error (non-fatal, match data already saved):', settlementErr);
       }
