@@ -536,6 +536,59 @@ async function loadBroadcastMessages() {
   }
 }
 
+async function adminSetPassword() {
+  const emailInput = document.getElementById('set-pw-email');
+  const pwInput = document.getElementById('set-pw-password');
+  const btn = document.getElementById('set-pw-btn');
+  const resultEl = document.getElementById('set-pw-result');
+
+  const email = emailInput.value.trim();
+  const newPassword = pwInput.value.trim();
+
+  if (!email || !newPassword) {
+    resultEl.textContent = 'Please enter both email and new password.';
+    resultEl.style.color = '#f59e0b';
+    return;
+  }
+  if (newPassword.length < 6) {
+    resultEl.textContent = 'Password must be at least 6 characters.';
+    resultEl.style.color = '#f59e0b';
+    return;
+  }
+
+  btn.disabled = true;
+  const originalBtnHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Setting...';
+  resultEl.textContent = '';
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_set_password', email, new_password: newPassword })
+    });
+    const data = await response.json();
+
+    if (response.ok) {
+      resultEl.textContent = `Password updated for ${email}. Give them: "${newPassword}"`;
+      resultEl.style.color = '#22c55e';
+      pwInput.value = '';
+      log(`Password set for ${email}`, 'success');
+    } else {
+      resultEl.textContent = data.error || 'Failed to set password';
+      resultEl.style.color = '#ef4444';
+      log(`Failed to set password: ${data.error}`, 'error');
+    }
+  } catch (error) {
+    resultEl.textContent = `Error: ${error.message}`;
+    resultEl.style.color = '#ef4444';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalBtnHtml;
+  }
+}
+
 async function sendBroadcastMessage() {
   const input = document.getElementById('broadcastMessageInput');
   const severity = document.getElementById('broadcastSeveritySelect').value;

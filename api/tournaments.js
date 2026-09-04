@@ -4041,6 +4041,40 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // result for the gameweek being left (same generator function used
       // everywhere else, so it's the same real mechanics, not new logic)
       // before advancing, so Stock Market always has something to settle.
+      // Real, genuine admin action - lets an admin directly set a new
+      // password for any user by email, no reset-link flow needed.
+      // Ported from an earlier project's real mechanism (Supabase's
+      // native admin API genuinely supports this), but fixed here to
+      // actually verify is_admin - the original sent a PIN the backend
+      // never checked at all, meaning anyone could reset anyone's
+      // password there. This uses the same, proven admin check already
+      // used correctly elsewhere on this site.
+      if (action === 'admin_set_password') {
+        const { data: setPwCaller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!setPwCaller || !setPwCaller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { email: targetEmail, new_password } = req.body;
+        if (!targetEmail || !new_password) {
+          return res.status(400).json({ error: 'email and new_password are required' });
+        }
+        if (new_password.length < 6) {
+          return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+
+        const { data: usersList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+        if (listError) return res.status(500).json({ error: listError.message });
+
+        const targetUser = usersList.users.find(u => u.email && u.email.toLowerCase() === targetEmail.toLowerCase());
+        if (!targetUser) return res.status(404).json({ error: 'No user found with that email' });
+
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(targetUser.id, {
+          password: new_password
+        });
+        if (updateError) return res.status(500).json({ error: updateError.message });
+
+        return res.status(200).json({ success: true, message: `Password updated for ${targetEmail}` });
+      }
+
       if (action === 'stockmarket_advance_gameweek') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
