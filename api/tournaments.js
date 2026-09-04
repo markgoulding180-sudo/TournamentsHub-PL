@@ -4065,7 +4065,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (listError) return res.status(500).json({ error: listError.message });
 
         const targetUser = usersList.users.find(u => u.email && u.email.toLowerCase() === targetEmail.toLowerCase());
-        if (!targetUser) return res.status(404).json({ error: 'No user found with that email' });
+        if (!targetUser) {
+          return res.status(404).json({
+            error: 'No user found with that email',
+            debug: {
+              total_users_returned: usersList.users.length,
+              sample_emails: usersList.users.slice(0, 5).map(u => u.email || '(no email)')
+            }
+          });
+        }
 
         const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(targetUser.id, {
           password: new_password
