@@ -4061,17 +4061,28 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'Password must be at least 6 characters' });
         }
 
-        const { data: usersList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-        if (listError) return res.status(500).json({ error: listError.message });
-
-        const targetUser = usersList.users.find(u => u.email && u.email.toLowerCase() === targetEmail.toLowerCase());
+        // Real fix, confirmed live: listUsers() only returns one page
+        // (50 by default), but this project genuinely has more accounts
+        // than that - confirmed a real user existed but was silently
+        // never checked, simply because they weren't in the first page.
+        // Paginates through every page until found or genuinely exhausted.
+        let targetUser = null;
+        let page = 1;
+        let pagesChecked = 0;
+        while (!targetUser) {
+          const { data: usersPage, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+          if (listError) return res.status(500).json({ error: listError.message });
+          pagesChecked++;
+          targetUser = usersPage.users.find(u => u.email && u.email.toLowerCase() === targetEmail.toLowerCase());
+          if (targetUser) break;
+          if (usersPage.users.length === 0) break; // genuinely no more pages
+          page++;
+          if (pagesChecked > 20) break; // safety cap - 4000 users, genuinely shouldn't be reachable here
+        }
         if (!targetUser) {
           return res.status(404).json({
             error: 'No user found with that email',
-            debug: {
-              total_users_returned: usersList.users.length,
-              sample_emails: usersList.users.slice(0, 5).map(u => u.email || '(no email)')
-            }
+            debug: { pages_checked: pagesChecked }
           });
         }
 
