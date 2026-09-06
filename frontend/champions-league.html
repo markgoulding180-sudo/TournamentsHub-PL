@@ -548,6 +548,13 @@
               const oppScore = match.home_team_id === teamId ? match.away_score : match.home_score;
               const ownScore = match.home_team_id === teamId ? match.home_score : match.away_score;
               scoreHtml = `<div class="picked-score${live ? ' live' : ''}">${ownScore} - ${oppScore}${live ? ' <span style="font-size:9px;">LIVE</span>' : ''}</div>`;
+            } else {
+              // Real fix per explicit request: always show something
+              // rather than nothing at all - this genuinely changes to
+              // the real live score the moment the game kicks off, since
+              // match.status flips from 'upcoming' to 'live' as soon as
+              // the automatic sync detects that.
+              scoreHtml = `<div class="picked-score" style="color:var(--text-faint); font-size:11px; font-weight:600;">Upcoming</div>`;
             }
 
             const points = pickRow && pickRow.points_earned !== null && pickRow.points_earned !== undefined ? pickRow.points_earned : null;
