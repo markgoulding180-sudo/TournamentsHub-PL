@@ -4965,6 +4965,20 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
 
+          // Same real gap as LMS/Predictions/Fantasy/Champions League
+          // above, closed here too - darts never got this same fix,
+          // confirmed directly while checking every tournament type per
+          // an explicit request to verify nobody can join a running
+          // tournament anywhere on the site.
+          if (schemaName === 'darts') {
+            const { data: existingDartsEntry } = await supabaseAdmin
+              .schema('darts').from('tournament_entries')
+              .select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+            if (!existingDartsEntry && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+              return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
+            }
+          }
+
           const entryPayload = {
             tournament_id: tournament_id,
             user_id: user.id,
