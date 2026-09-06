@@ -97,6 +97,23 @@
 
     .team-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; padding:14px 0; }
     .fixture-grid{ display:flex; flex-direction:column; gap:10px; padding:14px 0; }
+    /* Real fix per explicit request: genuinely side by side on both
+       desktop and mobile - the auto-fill fixture grid above would wrap
+       to fewer columns on a narrow screen, this forces exactly 3 fixed,
+       equal columns regardless of viewport width. */
+    .picked-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:14px 0; }
+    .picked-card{
+      display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px;
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; text-align:center;
+    }
+    .picked-card.correct{ border-color:var(--green); }
+    .picked-card.wrong{ border-color:var(--red); }
+    .picked-crest{ width:32px; height:32px; }
+    .picked-name{ font-size:11px; font-weight:700; color:var(--text); line-height:1.2; }
+    .picked-kickoff{ font-size:9px; color:var(--text-faint); }
+    .picked-score{ font-size:13px; font-weight:800; color:var(--text); }
+    .picked-score.live{ color:var(--red); }
+    .picked-points{ font-size:10px; font-weight:700; }
     .fixture-group{
       display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;
       padding:10px; background:var(--bg-panel); border:1px solid var(--border); border-radius:12px;
@@ -196,6 +213,7 @@
     let tournamentData = null;
     let myPicks = {}; // "matchday-N" or "round-X" -> team_id, ONLY ever populated from real, server-confirmed pick data
     let myPicksAuto = {}; // same keys -> true if that pick was auto-assigned
+    let myPicksData = {}; // stage key -> { team_id: full pick row, including points_earned }
     // Real fix: this used to be conflated with myPicks itself, meaning
     // clicking a team to select it (before ever pressing Submit) made
     // the UI show "Pick locked in" and disabled every other team - the
@@ -507,25 +525,49 @@
         if (!isOpen) return;
 
         if (alreadySubmitted) {
-          // Real fix per explicit request: once fully submitted, show
-          // only the picked teams as simple cards, not the full fixture
-          // grid - genuinely nothing left to choose once you've used
-          // every pick this stage allows.
-          html += `<div class="fixture-grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));">`;
+          // Real fix per explicit request: genuinely side-by-side layout
+          // (not the wrapping fixture grid), showing real kickoff time,
+          // live score while a match is genuinely in progress, final
+          // score once finished, and real points earned per pick.
+          html += `<div class="picked-row">`;
           myPicksForStage.forEach(teamId => {
             const match = matches.find(m => m.home_team_id === teamId || m.away_team_id === teamId);
+            const pickRow = (myPicksData[stage.key] || {})[teamId];
             const finished = match && match.status === 'finished';
-            let cls = 'team-card selected';
-            if (finished) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
+            const live = match && match.status === 'live';
+            const won = finished && match.winner_team_id === teamId;
+            let cls = 'picked-card';
+            if (finished) cls += won ? ' correct' : ' wrong';
+
+            const kickoffLabel = match && match.kickoff_time
+              ? new Date(match.kickoff_time).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              : '';
+
+            let scoreHtml = '';
+            if (match && (finished || live) && match.home_score !== null && match.away_score !== null) {
+              const oppScore = match.home_team_id === teamId ? match.away_score : match.home_score;
+              const ownScore = match.home_team_id === teamId ? match.home_score : match.away_score;
+              scoreHtml = `<div class="picked-score${live ? ' live' : ''}">${ownScore} - ${oppScore}${live ? ' <span style="font-size:9px;">LIVE</span>' : ''}</div>`;
+            }
+
+            const points = pickRow && pickRow.points_earned !== null && pickRow.points_earned !== undefined ? pickRow.points_earned : null;
+            const pointsHtml = points !== null
+              ? `<div class="picked-points" style="color:${points > 0 ? 'var(--green)' : 'var(--text-faint)'};">${points > 0 ? '+' : ''}${points} pts</div>`
+              : '';
+
             const crestUrl = teamCrest(teamId);
             const crestHtml = crestUrl
-              ? `<img src="${escapeHtml(crestUrl)}" alt="" style="width:100%; height:100%; object-fit:contain; padding:4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><i class="fas fa-shield-halved" style="display:none;"></i>`
-              : `<i class="fas fa-shield-halved"></i>`;
+              ? `<img src="${escapeHtml(crestUrl)}" class="picked-crest" alt="" style="object-fit:contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><i class="fas fa-shield-halved picked-crest" style="display:none;"></i>`
+              : `<i class="fas fa-shield-halved picked-crest"></i>`;
+
             html += `
               <div class="${cls}">
-                <span class="team-crest">${crestHtml}</span>
-                <span class="team-name">${escapeHtml(teamName(teamId))}</span>
-                ${myPickIsAuto(stage.key, teamId) ? '<span class="used-tag">Auto-picked</span>' : ''}
+                ${crestHtml}
+                <span class="picked-name">${escapeHtml(teamName(teamId))}</span>
+                ${kickoffLabel ? `<span class="picked-kickoff">${escapeHtml(kickoffLabel)}</span>` : ''}
+                ${scoreHtml}
+                ${pointsHtml}
+                ${myPickIsAuto(stage.key, teamId) ? '<span class="used-tag">Auto</span>' : ''}
               </div>`;
           });
           html += `</div>`;
@@ -624,12 +666,15 @@
         // silently kept only the last one found, discarding the rest.
         myPicks = {};
         myPicksAuto = {};
+        myPicksData = {};
         (data.my_picks || []).forEach(p => {
           const key = p.matchday ? `matchday-${p.matchday}` : `round-${p.round}`;
           if (!myPicks[key]) myPicks[key] = [];
           myPicks[key].push(p.team_id);
           if (!myPicksAuto[key]) myPicksAuto[key] = {};
           myPicksAuto[key][p.team_id] = !!p.is_auto_pick;
+          if (!myPicksData[key]) myPicksData[key] = {};
+          myPicksData[key][p.team_id] = p;
         });
         document.getElementById('heroTitle').textContent = data.tournament.hero_title || data.tournament.name;
         if (data.tournament.description) document.getElementById('heroDesc').textContent = data.tournament.description;
