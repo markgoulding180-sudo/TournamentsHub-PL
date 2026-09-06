@@ -3049,14 +3049,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(403).json({ error: 'You have already used this team earlier in the tournament — each team can only be picked once.' });
           }
 
-          // Genuine one-time lock — once a pick exists for this
-          // matchday/round, reject outright rather than update it.
-          // Submitting is a final action, matching darts' pattern.
-          let existingPickQuery = supabaseAdmin.schema('champions_league').from('picks').select('id').eq('entry_id', entry.id);
-          existingPickQuery = matchday ? existingPickQuery.eq('matchday', matchday) : existingPickQuery.eq('round', round);
-          const { data: existingPick } = await existingPickQuery.maybeSingle();
-          if (existingPick) {
-            return res.status(403).json({ error: 'You have already picked for this round — it\'s locked in.' });
+          // Real fix per explicit request: league phase matchdays now
+          // allow up to 3 picks each, deliberately burning through more
+          // of the 36-team pool faster - this is the actual, intended
+          // jeopardy mechanic, not a bug. Knockout rounds (round-based,
+          // not matchday-based) stay locked at exactly 1 pick each,
+          // since the real competition itself only has 2 teams left by
+          // the final - allowing more than 1 there would be mathematically
+          // impossible at that stage.
+          const picksAllowedForThisStage = matchday ? 3 : 1;
+          let existingPicksQuery = supabaseAdmin.schema('champions_league').from('picks').select('id').eq('entry_id', entry.id);
+          existingPicksQuery = matchday ? existingPicksQuery.eq('matchday', matchday) : existingPicksQuery.eq('round', round);
+          const { data: existingPicksForStage } = await existingPicksQuery;
+          if ((existingPicksForStage || []).length >= picksAllowedForThisStage) {
+            return res.status(403).json({ error: matchday
+              ? `You've already made all ${picksAllowedForThisStage} picks for this matchday — it's locked in.`
+              : 'You have already picked for this round — it\'s locked in.' });
           }
 
           const { error: insertErr } = await supabaseAdmin.schema('champions_league').from('picks')
@@ -3388,25 +3396,37 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
             const { data: allEntries } = await supabaseAdmin.schema('champions_league').from('tournament_entries').select('id').eq('tournament_id', tournament.id);
             const stageFilter = kind === 'matchday' ? { matchday: parseInt(val) } : { round: val };
-            const { data: alreadyPicked } = await supabaseAdmin.schema('champions_league').from('picks').select('entry_id').match(stageFilter);
-            const pickedEntryIds = new Set((alreadyPicked || []).map(p => p.entry_id));
+            const { data: alreadyPickedRows } = await supabaseAdmin.schema('champions_league').from('picks').select('entry_id').match(stageFilter);
+            const pickCountByEntry = {};
+            (alreadyPickedRows || []).forEach(p => { pickCountByEntry[p.entry_id] = (pickCountByEntry[p.entry_id] || 0) + 1; });
 
             const stageTeamIds = [...new Set(stageMatches.flatMap(m => [m.home_team_id, m.away_team_id]))];
+            // Real fix: league phase matchdays now allow up to 3 picks
+            // each, not 1 - this used to treat anyone with even one
+            // existing pick as fully done for the stage, silently
+            // skipping the 1-2 further auto-picks they were still owed.
+            const picksAllowedForThisStage = kind === 'matchday' ? 3 : 1;
 
             for (const entry of (allEntries || [])) {
-              if (pickedEntryIds.has(entry.id)) continue;
+              const alreadyHave = pickCountByEntry[entry.id] || 0;
+              const stillOwed = picksAllowedForThisStage - alreadyHave;
+              if (stillOwed <= 0) continue;
 
               const { data: entryPicks } = await supabaseAdmin.schema('champions_league').from('picks').select('team_id').eq('entry_id', entry.id);
               const usedTeamIds = new Set((entryPicks || []).map(p => p.team_id));
-              const availableTeamIds = stageTeamIds.filter(id => !usedTeamIds.has(id));
+              let availableTeamIds = stageTeamIds.filter(id => !usedTeamIds.has(id));
               if (availableTeamIds.length === 0) continue; // genuinely nothing left to auto-pick from
 
-              const randomTeamId = availableTeamIds[Math.floor(Math.random() * availableTeamIds.length)];
-              await supabaseAdmin.schema('champions_league').from('picks').insert({
-                entry_id: entry.id, matchday: kind === 'matchday' ? parseInt(val) : null, round: kind === 'round' ? val : null,
-                team_id: randomTeamId, is_auto_pick: true
-              });
-              results.autoPicksAssigned = (results.autoPicksAssigned || 0) + 1;
+              for (let i = 0; i < stillOwed && availableTeamIds.length > 0; i++) {
+                const randomIdx = Math.floor(Math.random() * availableTeamIds.length);
+                const randomTeamId = availableTeamIds[randomIdx];
+                availableTeamIds = availableTeamIds.filter(id => id !== randomTeamId); // never auto-pick the same team twice in one stage
+                await supabaseAdmin.schema('champions_league').from('picks').insert({
+                  entry_id: entry.id, matchday: kind === 'matchday' ? parseInt(val) : null, round: kind === 'round' ? val : null,
+                  team_id: randomTeamId, is_auto_pick: true
+                });
+                results.autoPicksAssigned = (results.autoPicksAssigned || 0) + 1;
+              }
             }
           }
 
