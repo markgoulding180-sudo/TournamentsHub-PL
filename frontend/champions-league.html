@@ -484,6 +484,17 @@
         // fixture's two teams render together as a genuine pair.
         const sortedMatches = [...matches].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
 
+        // Real fix, matching the backend rule exactly: everything locks
+        // the moment the very first game of this whole matchday/round
+        // kicks off, not just when a specific team's own match starts.
+        const anyStageMatchStarted = matches.some(m => m.status === 'live' || m.status === 'finished');
+        const earliestStageKickoff = matches.reduce((min, m) => {
+          if (!m.kickoff_time) return min;
+          const t = new Date(m.kickoff_time).getTime();
+          return (min === null || t < min) ? t : min;
+        }, null);
+        const stageDeadlinePassed = anyStageMatchStarted || (earliestStageKickoff !== null && Date.now() >= earliestStageKickoff);
+
         html += `<div class="fixture-grid">`;
         sortedMatches.forEach(match => {
           const kickoffLabel = match.kickoff_time
@@ -501,7 +512,7 @@
             if (selected) cls += ' selected';
             if (finished && selected) cls += match.winner_team_id === teamId ? ' correct' : ' wrong';
             if (isUsedElsewhere || isEliminated) cls += ' used';
-            const disabled = (locked || finished || isUsedElsewhere || isEliminated || alreadySubmitted) ? 'disabled' : '';
+            const disabled = (locked || stageDeadlinePassed || finished || isUsedElsewhere || isEliminated || alreadySubmitted) ? 'disabled' : '';
             let tag = '';
             if (isEliminated) tag = '<span class="used-tag">Eliminated</span>';
             else if (isUsedElsewhere) tag = '<span class="used-tag">Already used</span>';

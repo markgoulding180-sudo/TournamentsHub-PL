@@ -3007,9 +3007,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const match = (roundMatches || []).find(m => m.home_team_id === team_id || m.away_team_id === team_id);
         if (!match) return res.status(400).json({ error: 'That team is not playing in this matchday/round.' });
-        if (match.status === 'finished') return res.status(403).json({ error: 'This match has already kicked off — picks are locked.' });
-        if (match.kickoff_time && new Date(match.kickoff_time).getTime() <= Date.now()) {
-          return res.status(403).json({ error: 'This match has already kicked off — picks are locked.' });
+
+        // Real fix per explicit request: this used to only check the
+        // specific team's own match kickoff, meaning someone could still
+        // pick a team playing later in the same matchday even after
+        // earlier games had already kicked off. Now locks everyone the
+        // moment the very first game of the whole matchday/round starts,
+        // matching LMS's rule exactly - regardless of which team they're
+        // trying to pick.
+        const anyRoundMatchStarted = (roundMatches || []).some(m => m.status === 'live' || m.status === 'finished');
+        const earliestRoundKickoff = (roundMatches || []).reduce((min, m) => {
+          if (!m.kickoff_time) return min;
+          const t = new Date(m.kickoff_time).getTime();
+          return (min === null || t < min) ? t : min;
+        }, null);
+        const roundDeadlinePassed = anyRoundMatchStarted || (earliestRoundKickoff !== null && Date.now() >= earliestRoundKickoff);
+        if (roundDeadlinePassed) {
+          return res.status(403).json({ error: 'The first game of this matchday has already kicked off — picks are locked.' });
         }
 
         // Knockout rounds beyond the last-16 require an exact score
