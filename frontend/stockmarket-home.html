@@ -1237,12 +1237,18 @@
             }
             const totalNet = (bd.win_bonus || 0) - (bd.penalty_paid || 0);
             const fromOpponentActivity = totalNet - ownNet;
+            // Real fix, confirmed against the actual settlement code: this
+            // used to say "the other team had a bad week" - too vague to
+            // convey what's genuinely happening. The real mechanism is
+            // specific: this money is split evenly and taken from every
+            // one of your opponent's 6 players individually (not one lump
+            // sum from their overall performance), and vice versa.
             if (fromOpponentActivity > 0) {
-              lines.push({ text: `+${money(fromOpponentActivity)} bonus — the other team had a bad week, so some of that came to you.`, tone: 'up' });
+              lines.push({ text: `+${money(fromOpponentActivity)} bonus — when your players scored/performed well, that money was taken evenly from all 6 of your opponent's players, one 6th each.`, tone: 'up' });
             } else if (fromOpponentActivity < 0) {
-              lines.push({ text: `-${money(Math.abs(fromOpponentActivity))} taken — the other team had a good week, so some value went to them.`, tone: 'down' });
+              lines.push({ text: `-${money(Math.abs(fromOpponentActivity))} taken — when your opponent's players scored/performed well, this player paid their 6th of the cost, same as their other 5.`, tone: 'down' });
             }
-            lines.push({ text: `Each week your 6 players go head-to-head against your opponent's 6 — a good week wins you money, a bad week costs you.`, tone: 'flat' });
+            lines.push({ text: `How this works: every positive event (goals, assists, clean sheets, saves) is funded by splitting the cost evenly across all 6 of the opposing squad's players — not from one player's own value, and not as a lump "team" bonus.`, tone: 'flat' });
             if (bd.short_by > 0) {
               lines.push({ text: `⚠ This player was short ${money(bd.short_by)} — the other team didn't have enough left to pay it all.`, tone: 'flat' });
             }
@@ -1251,6 +1257,24 @@
             const totalTone = totalNet > 0 ? 'up' : totalNet < 0 ? 'down' : 'flat';
             const totalLabel = totalNet > 0 ? 'Gained' : totalNet < 0 ? 'Lost' : 'No change';
             totalHtml = `<span class="p-total-inline ${totalTone}">${totalLabel} ${money(Math.abs(totalNet))}</span>`;
+
+            // Real fix per explicit request: a simple, always-visible
+            // summary - specifically separating "own performance" from
+            // "bonus" (the pool-funding part), since that's the piece
+            // confirmed as most confusing, without needing to click
+            // anything to see it.
+            const ownAmount = earningsTotal - negativeTotal;
+            const ownLine = ownAmount > 0
+              ? `<div class="p-quick-line" style="color:var(--green);">Own play: +${money(ownAmount)}</div>`
+              : ownAmount < 0
+                ? `<div class="p-quick-line" style="color:var(--red);">Own play: -${money(Math.abs(ownAmount))}</div>`
+                : `<div class="p-quick-line" style="color:var(--text-faint);">Own play: no change</div>`;
+            const bonusLine = fromOpponentActivity > 0
+              ? `<div class="p-quick-line" style="color:var(--green);">Bonus: +${money(fromOpponentActivity)} (split from all 6 opponent players)</div>`
+              : fromOpponentActivity < 0
+                ? `<div class="p-quick-line" style="color:var(--red);">Bonus: -${money(Math.abs(fromOpponentActivity))} (this player's 6th of opponent's earnings)</div>`
+                : '';
+            totalHtml = `${totalHtml}${ownLine}${bonusLine}`;
           }
           const detailId = `detail-${p.player_id}-${isMine ? 'mine' : 'opp'}`;
           const lineColor = (tone) => tone === 'up' ? 'var(--green)' : tone === 'down' ? 'var(--red)' : 'var(--text-dim)';
