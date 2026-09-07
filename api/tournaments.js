@@ -6709,10 +6709,14 @@ function computePlayerRawChange(position, stats, currentValue) {
     if ((stats.clean_sheets || 0) > 0) delta += FLAT_REWARDS.clean_sheet;
     const cappedSaves = Math.min(stats.saves || 0, FLAT_REWARDS.save_cap);
     if (cappedSaves > 0) delta += cappedSaves * FLAT_REWARDS.save;
+    // Real fix, confirmed live: an injured player with genuinely zero
+    // minutes played was still being penalized for their team conceding
+    // - they weren't on the pitch at all, so this now only applies if
+    // they genuinely played.
     const cappedConceded = Math.min(stats.goals_conceded || 0, FLAT_REWARDS.gk_goal_conceded_cap);
-    if (cappedConceded > 0) { delta += cappedConceded * FLAT_REWARDS.gk_goal_conceded; hadNegative = true; }
+    if (cappedConceded > 0 && (stats.minutes || 0) > 0) { delta += cappedConceded * FLAT_REWARDS.gk_goal_conceded; hadNegative = true; }
   } else {
-    if ((stats.team_goals_conceded || 0) > 0) {
+    if ((stats.team_goals_conceded || 0) > 0 && (stats.minutes || 0) > 0) {
       delta += stats.team_goals_conceded * FLAT_REWARDS.outfield_goal_conceded;
       hadNegative = true;
     }
