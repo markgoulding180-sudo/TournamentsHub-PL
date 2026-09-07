@@ -1278,11 +1278,11 @@
               ? `<div class="p-quick-line" style="color:var(--green);">Own play: +${money(ownAmount)}</div>`
               : ownAmount < 0
                 ? `<div class="p-quick-line" style="color:var(--red);">Own play: -${money(Math.abs(ownAmount))}</div>`
-                : `<div class="p-quick-line" style="color:var(--text-faint);">Own play: no change</div>`;
+                : `<div class="p-quick-line" style="color:#fff;">Own play: ${money(0)}</div>`;
             const bonusLine = fromOpponentActivity > 0
-              ? `<div class="p-quick-line" style="color:var(--green);">Share: +${money(fromOpponentActivity)} (from opponent's positive actions)</div>`
+              ? `<div class="p-quick-line" style="color:var(--green);">Share: +${money(fromOpponentActivity)}</div>`
               : fromOpponentActivity < 0
-                ? `<div class="p-quick-line" style="color:var(--red);">Share: -${money(Math.abs(fromOpponentActivity))} (this player's 6th of the cost)</div>`
+                ? `<div class="p-quick-line" style="color:var(--red);">Share: -${money(Math.abs(fromOpponentActivity))}</div>`
                 : '';
             totalHtml = `${totalHtml}${ownLine}${bonusLine}`;
           }
