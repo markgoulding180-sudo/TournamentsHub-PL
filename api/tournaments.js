@@ -5065,7 +5065,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
             const { data: squadRows, error: squadError } = await masterDb
               .from('players')
-              .select('id, web_name, element_type, team')
+              .select('id, web_name, element_type, team, status')
               .in('id', squad_players);
 
             if (squadError) {
@@ -5073,6 +5073,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
             if (!squadRows || squadRows.length !== 6) {
               return res.status(400).json({ error: 'One or more player ids were not recognised' });
+            }
+
+            const injuredPicks = squadRows.filter(p => p.status === 'i');
+            if (injuredPicks.length > 0) {
+              return res.status(400).json({
+                error: `Can't draft ${injuredPicks.map(p => p.web_name).join(', ')} — currently injured.`,
+                injured_player_ids: injuredPicks.map(p => p.id)
+              });
             }
 
             // element_type: 1=GK, 2=DEF, 3=MID, 4=FWD (standard FPL mapping)
@@ -5442,8 +5450,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const currentGW = clock ? clock.current_gameweek : null;
 
           const { data: teamRows } = await masterDb.from('teams').select('id, name');
-          const { data: playerRow } = await masterDb.from('players').select('id, web_name, team, element_type').eq('id', player_id).maybeSingle();
+          const { data: playerRow } = await masterDb.from('players').select('id, web_name, team, element_type, status').eq('id', player_id).maybeSingle();
           if (!playerRow) return res.status(404).json({ error: 'Player not found' });
+          if (playerRow.status === 'i') {
+            return res.status(400).json({ error: `Can't sign ${playerRow.web_name} — currently injured.` });
+          }
           const teamName = (teamRows || []).find(t => t.id === playerRow.team)?.name || '';
 
           const reservedValue = squad[emptyIdx].reserved_value || 0;
@@ -8365,6 +8376,7 @@ async function fetchRarityPool(masterDb, rarity, positionKey) {
     .select('id, web_name, element_type, team, total_points, now_cost, photo, photo_verified, custom_photo_url')
     .eq('element_type', elementType)
     .neq('status', 'u')
+    .neq('status', 'i')  // injured players shouldn't be offered in any pack — starter draft or transfer/buying
     .order('total_points', { ascending: false })
     .limit(200);
 
