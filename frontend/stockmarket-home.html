@@ -269,7 +269,7 @@
     .mini-stat-value{ font-weight:700; font-size:13px; }
     .portfolio-card{
       border:3px solid #ffffff; border-radius:14px; overflow:hidden; text-align:center; position:relative;
-      width:100%; aspect-ratio:1054/2250;
+      width:100%; aspect-ratio:1054/2400;
       background:linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('assets/player-card-bg.jpg?v=2') center/cover no-repeat, #05070d;
     }
     .portfolio-card.rarity-Bronze{ background:linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('assets/card-bg-bronze.png?v=2') center/cover no-repeat, #05070d; }
@@ -282,13 +282,13 @@
        content. Mobile's own sizing is untouched, inherited from the
        base rule above. */
     @media (min-width:641px){
-      .portfolio-card{ aspect-ratio:1054/1550 !important; }
+      .portfolio-card{ aspect-ratio:1054/1700 !important; }
       /* !important on every property here — confirmed the real cause of
          nothing visibly changing: these selectors are identical to the
          base rules defined later in this same file, so on equal
          specificity, the later base rule was silently winning every
          single time, regardless of what this media query said. */
-      .portfolio-card .p-photo-wrap{ height:68% !important; top:3% !important; }
+      .portfolio-card .p-photo-wrap{ height:62% !important; top:3% !important; }
       .p-overlay-stack{ top:50% !important; gap:2px !important; }
       .p-overlay-stack .p-name-overlay{ padding:2px 5px !important; gap:0px !important; }
       .p-overlay-stack .p-action-pill{ padding:2px !important; }
@@ -352,7 +352,7 @@
     }
     .replace-player-btn:hover{ filter:brightness(1.1); }
     .portfolio-card .p-photo-wrap{
-      position:absolute; top:3%; left:6%; right:6%; height:30%; z-index:2; overflow:hidden; border-radius:8px;
+      position:absolute; top:3%; left:6%; right:6%; height:28%; z-index:2; overflow:hidden; border-radius:8px;
     }
     .portfolio-card .p-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
     .portfolio-card .p-photo-wrap .no-photo{ width:100%; height:100%; font-size:40px; color:var(--text-faint); display:flex; align-items:center; justify-content:center; }
@@ -1244,7 +1244,7 @@
             // one of your opponent's 6 players individually (not one lump
             // sum from their overall performance), and vice versa.
             if (fromOpponentActivity > 0) {
-              lines.push({ text: `+${money(fromOpponentActivity)} bonus — when your players scored/performed well, that money was taken evenly from all 6 of your opponent's players, one 6th each.`, tone: 'up' });
+              lines.push({ text: `+${money(fromOpponentActivity)} — your share of your opponent's positive actions this week, taken evenly from all 6 of their players, one 6th each.`, tone: 'up' });
             } else if (fromOpponentActivity < 0) {
               lines.push({ text: `-${money(Math.abs(fromOpponentActivity))} taken — when your opponent's players scored/performed well, this player paid their 6th of the cost, same as their other 5.`, tone: 'down' });
             }
@@ -1270,9 +1270,9 @@
                 ? `<div class="p-quick-line" style="color:var(--red);">Own play: -${money(Math.abs(ownAmount))}</div>`
                 : `<div class="p-quick-line" style="color:var(--text-faint);">Own play: no change</div>`;
             const bonusLine = fromOpponentActivity > 0
-              ? `<div class="p-quick-line" style="color:var(--green);">Bonus: +${money(fromOpponentActivity)} (split from all 6 opponent players)</div>`
+              ? `<div class="p-quick-line" style="color:var(--green);">Share: +${money(fromOpponentActivity)} (from opponent's positive actions)</div>`
               : fromOpponentActivity < 0
-                ? `<div class="p-quick-line" style="color:var(--red);">Bonus: -${money(Math.abs(fromOpponentActivity))} (this player's 6th of opponent's earnings)</div>`
+                ? `<div class="p-quick-line" style="color:var(--red);">Share: -${money(Math.abs(fromOpponentActivity))} (this player's 6th of the cost)</div>`
                 : '';
             totalHtml = `${totalHtml}${ownLine}${bonusLine}`;
           }
