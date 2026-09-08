@@ -2187,6 +2187,20 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         });
       }
 
+      // Darts-only, public-safe signal for whether the real draw has been
+      // entered yet. Deliberately not using darts_get_bracket for this -
+      // every POST action requires a logged-in user, but the hub's
+      // Registering cards are shown to logged-out visitors too, so this
+      // has to be answerable from the public GET path.
+      const drawFinalizedByTournament = {};
+      if (schemaName === 'darts' && tournamentIds.length > 0) {
+        const { data: placeholderRows } = await supabaseAdmin
+          .schema('darts').from('players')
+          .select('tournament_id').in('tournament_id', tournamentIds).eq('is_placeholder', true);
+        const stillPlaceholder = new Set((placeholderRows || []).map(p => p.tournament_id));
+        tournamentIds.forEach(id => { drawFinalizedByTournament[id] = !stillPlaceholder.has(id); });
+      }
+
       // Calculate time remaining and live prize pool for each tournament
       const now = new Date();
       const formattedData = (data || []).map(t => {
@@ -2214,7 +2228,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           current_entries: currentEntries, // real count, not the drift-prone cache
           prize_pool: calculatedPrizePool, // Use calculated value, not stored value
           time_remaining: timeRemaining,
-          is_full: t.max_entries && currentEntries >= t.max_entries
+          is_full: t.max_entries && currentEntries >= t.max_entries,
+          ...(schemaName === 'darts' ? { draw_finalized: drawFinalizedByTournament[t.id] ?? false } : {})
         };
       });
 
@@ -2867,6 +2882,56 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(200).json({ success: true });
         } catch (err) {
           console.error('darts_submit_round_picks error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Real gap closed here: a fresh tournament auto-generates 32
+      // placeholder players ("Seed 1", "Qualifier 1", etc.) with a fully
+      // structured bracket, but until now there was no action to ever
+      // replace those placeholder names with the real draw once it's
+      // announced - admins had no way to do this at all. Renaming is all
+      // this does; it deliberately doesn't touch the bracket pairings
+      // (player1_id/player2_id on matches) since those are already set
+      // correctly at creation time and a name-only edit shouldn't risk
+      // disturbing them.
+      if (action === 'darts_admin_set_players') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { tournament_id, players } = req.body;
+        if (!tournament_id || !Array.isArray(players) || players.length === 0) {
+          return res.status(400).json({ error: 'tournament_id and a non-empty players array are required' });
+        }
+        for (const p of players) {
+          if (!p.id || typeof p.name !== 'string') {
+            return res.status(400).json({ error: 'Each player needs an id and a name' });
+          }
+        }
+
+        try {
+          const { data: existing, error: existingErr } = await supabaseAdmin
+            .schema('darts').from('players').select('id').eq('tournament_id', tournament_id);
+          if (existingErr) return res.status(500).json({ error: existingErr.message });
+          const validIds = new Set((existing || []).map(p => p.id));
+          const unknownIds = players.filter(p => !validIds.has(p.id));
+          if (unknownIds.length > 0) {
+            return res.status(400).json({ error: `${unknownIds.length} player id(s) don't belong to this tournament` });
+          }
+
+          for (const p of players) {
+            const trimmed = p.name.trim();
+            if (!trimmed) continue; // blank name = leave this slot as-is rather than blank it out
+            const { error: updErr } = await supabaseAdmin
+              .schema('darts').from('players')
+              .update({ name: trimmed, is_placeholder: false })
+              .eq('id', p.id).eq('tournament_id', tournament_id);
+            if (updErr) return res.status(500).json({ error: updErr.message });
+          }
+
+          return res.status(200).json({ success: true, updated: players.length });
+        } catch (err) {
+          console.error('darts_admin_set_players error:', err);
           return res.status(500).json({ error: err.message });
         }
       }
