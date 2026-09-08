@@ -2140,15 +2140,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
       // Return a single tournament by id (no leaderboard/join, just details)
       if (tournamentId && !leaderboard) {
-        const { data: singleTournament, error: singleError } = await supabase
+        const { data: rawSingleTournament, error: singleError } = await supabase
           .schema(schemaName).from('tournaments')
           .select('*')
           .eq('id', tournamentId)
           .single();
 
-        if (singleError || !singleTournament) {
+        if (singleError || !rawSingleTournament) {
           return res.status(404).json({ error: 'Tournament not found' });
         }
+        const singleTournament = (schemaName === 'champions_league' || schemaName === 'darts')
+          ? await promoteIfDeadlinePassed(supabaseAdmin, schemaName, rawSingleTournament)
+          : rawSingleTournament;
 
         // Same public-safe draw-status signal as the list endpoint below -
         // this branch is what darts-home.html actually calls (via
@@ -2180,10 +2183,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         query = query.eq('gameweek', gameweek);
       }
 
-      const { data, error } = await query;
+      const { data: rawData, error } = await query;
 
       if (error) {
         return res.status(500).json({ error: 'Failed to fetch tournaments', details: error.message });
+      }
+
+      // Same self-heal as the single-tournament lookup above, applied
+      // across the whole list. If the caller specifically asked for
+      // status=upcoming and a row just got promoted to 'live' here,
+      // it's excluded below - it genuinely isn't upcoming anymore, so
+      // returning it under that filter would just recreate the exact
+      // "stuck in Registering" bug this is fixing.
+      let data = rawData;
+      if ((schemaName === 'champions_league' || schemaName === 'darts') && (rawData || []).length > 0) {
+        data = await Promise.all(rawData.map(t => promoteIfDeadlinePassed(supabaseAdmin, schemaName, t)));
+        if (status) data = data.filter(t => t.status === status);
       }
 
       // current_entries is only ever incremented by the normal "Enter Now"
@@ -2801,10 +2816,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { tournament_id } = req.body;
         if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
 
-        const { data: tournament, error: tourErr } = await supabaseAdmin
+        const { data: rawTournament, error: tourErr } = await supabaseAdmin
           .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
         if (tourErr) return res.status(500).json({ error: tourErr.message });
-        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+        if (!rawTournament) return res.status(404).json({ error: 'Tournament not found' });
+        const tournament = await promoteIfDeadlinePassed(supabaseAdmin, 'darts', rawTournament);
 
         const { data: players } = await supabaseAdmin.schema('darts').from('players').select('*').eq('tournament_id', tournament_id);
         const { data: matches } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).order('round').order('match_number');
@@ -2817,7 +2833,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           myPredictions = preds || [];
         }
 
-        return res.status(200).json({ tournament, players, matches, my_entry: entry || null, my_predictions: myPredictions });
+        // Same draw_finalized signal as the public endpoints, computed
+        // here from the players list already being fetched above - this
+        // is the response renderBracket() on the frontend actually uses
+        // once someone is entered, so it needs the field here too. It
+        // was missing from this specific action, which is why the picks
+        // screen kept showing even after the field was added elsewhere.
+        const drawFinalized = (players || []).every(p => !p.is_placeholder);
+
+        return res.status(200).json({ tournament: { ...tournament, draw_finalized: drawFinalized }, players, matches, my_entry: entry || null, my_predictions: myPredictions });
       }
 
       if (action === 'darts_submit_round_picks') {
@@ -3043,10 +3067,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { tournament_id } = req.body;
         if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
 
-        const { data: tournament, error: tourErr } = await supabaseAdmin
+        const { data: rawTournament, error: tourErr } = await supabaseAdmin
           .schema('champions_league').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
         if (tourErr) return res.status(500).json({ error: tourErr.message });
-        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+        if (!rawTournament) return res.status(404).json({ error: 'Tournament not found' });
+        const tournament = await promoteIfDeadlinePassed(supabaseAdmin, 'champions_league', rawTournament);
 
         const { data: teams } = await supabaseAdmin.schema('champions_league').from('teams').select('*').eq('tournament_id', tournament_id);
         const { data: matches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament_id);
@@ -7714,6 +7739,34 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
       .update({ cost_multiplier: stage.cost_multiplier })
       .eq('id', tournamentId);
   }
+}
+
+// Predictions/LMS/Fantasy start 'live' immediately at creation (see the
+// 'create' action) and Stock Market has its own dedicated transition
+// (initializeStockMarket). Champions League and Darts both start
+// 'upcoming' with a real entry window but - confirmed by searching the
+// whole file - never had ANY code that flips them to 'live' once
+// closes_at passes. Real, confirmed gap: a CL tournament whose deadline
+// passed hours ago was still showing 'upcoming' in the database,
+// meaning it kept appearing in the hub's Registering section
+// indefinitely. This doesn't gate any real game logic (pick-locking
+// checks real match kickoff times directly, not this field), so it's
+// safe to self-heal opportunistically here rather than needing its own
+// cron/poll: whichever request notices the deadline has passed just
+// fixes it. The UPDATE's WHERE clause is the atomic claim, same pattern
+// as initializeStockMarket, so two near-simultaneous callers can't both
+// "win".
+async function promoteIfDeadlinePassed(supabaseAdmin, schemaName, tournament) {
+  if (!tournament || tournament.status !== 'upcoming' || !tournament.closes_at) return tournament;
+  if (new Date(tournament.closes_at).getTime() > Date.now()) return tournament;
+  const { data: updated } = await supabaseAdmin
+    .schema(schemaName).from('tournaments')
+    .update({ status: 'live' })
+    .eq('id', tournament.id)
+    .eq('status', 'upcoming')
+    .select('*')
+    .maybeSingle();
+  return updated || { ...tournament, status: 'live' };
 }
 
 function packPriceFor(config, rarity) {
