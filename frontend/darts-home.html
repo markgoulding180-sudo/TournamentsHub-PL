@@ -588,10 +588,38 @@
 
     (async function init() {
       initAuth();
-      const DEFAULT_TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix
-      TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || DEFAULT_TOURNAMENT_ID;
+      const tParam = new URLSearchParams(window.location.search).get('t');
+      // The tournament ID used to be a hardcoded constant here, pointing
+      // at a specific tournament created during testing. That ID stops
+      // working the moment that tournament is gone and a new one exists
+      // instead (confirmed as a real, live case: a freshly-created "World
+      // Grand Prix" tournament got a new ID, and this page still pointed
+      // at the old one, showing "Tournament not found" even though a
+      // real darts tournament genuinely existed). Look up the real
+      // current tournament instead — live first, then upcoming (the
+      // draft/registering phase counts as a real tournament here too,
+      // same as everywhere else on the site).
+      TOURNAMENT_ID = tParam || await resolveDefaultTournamentId();
+      if (!TOURNAMENT_ID) {
+        document.getElementById('root').innerHTML = `<div class="empty">No darts tournament is currently available.</div>`;
+        return;
+      }
       await loadBracket();
     })();
+
+    async function resolveDefaultTournamentId() {
+      for (const status of ['live', 'upcoming']) {
+        try {
+          const res = await fetch(`/api/tournaments?tournament_type=darts&status=${status}`);
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.tournaments || []);
+          if (list[0]) return list[0].id;
+        } catch (e) {
+          console.error(`Failed to look up ${status} darts tournament:`, e);
+        }
+      }
+      return null;
+    }
   </script>
 </body>
 </html>
