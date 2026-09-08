@@ -476,29 +476,45 @@
           <i class="fas fa-play"></i> Launch Tournament
         </button>
         <div id="dartsCreateMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
-      </div>
 
-      <!-- Draw setup — only meaningful for bracket-style sports. Darts is
-           the only one right now; this card is hidden entirely unless
-           Darts is the selected sport above. No free draw/fixture API
-           exists for darts, so this is manual-entry only for now - a
-           "Sync From API" button belongs here instead, automatically,
-           the day a sport with a real live draw feed gets added. -->
-      <div class="admin-card" id="draw-setup-card" style="border: 2px solid var(--accent-green, #22c55e); display:none;">
-        <h3><i class="fas fa-users"></i> Set Up The Draw</h3>
-        <p class="text-muted mb-2" style="font-size: 0.85rem;">A new tournament starts with placeholder names ("Seed 1", "Qualifier 1", etc.) and the bracket already fully paired. No free darts API exists, so the real draw is entered manually below once it's announced — this only renames the 32 slots, it never changes who's paired against who.</p>
-        <button class="btn" id="draw-toggle-btn" onclick="toggleDrawInputs()">
-          <i class="fas fa-list-ol"></i> Set Player Names
-        </button>
-        <div id="dartsPlayersList" style="display:none; max-height:500px; overflow-y:auto; margin-top:0.75rem; margin-bottom:0.75rem;"></div>
-        <button class="btn btn-green admin-btn" id="save-draw-btn" style="display:none;" onclick="saveDartsPlayers()">
-          <i class="fas fa-save"></i> Save Names
-        </button>
-        <div id="dartsPlayersMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+        <!-- Draw setup — only meaningful for bracket-style sports. Darts
+             is the only one right now; hidden entirely unless Darts is
+             the selected sport above. Lives here, inside the same card
+             and right under Launch, rather than as its own separate card
+             below - it's part of the same "get a darts tournament ready"
+             flow, not a distinct step. A tournament selector is included
+             deliberately: the draw is very often set up well after the
+             tournament itself was created (the real draw isn't
+             announced yet), so this can't just assume "whichever
+             tournament I created most recently" - it needs to work for
+             an existing tournament from earlier too. No free draw/
+             fixture API exists for darts, so this is manual-entry only
+             for now - a "Sync From API" button belongs here instead,
+             automatically, the day a sport with a real live draw feed
+             gets added. -->
+        <div id="draw-setup-card" style="display:none; margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--border-color);">
+          <h3><i class="fas fa-users"></i> Set Up The Draw</h3>
+          <p class="text-muted mb-2" style="font-size: 0.85rem;">A new tournament starts with placeholder names ("Seed 1", "Qualifier 1", etc.) and the bracket already fully paired. No free darts API exists, so the real draw is entered manually below once it's announced — this only renames the 32 slots, it never changes who's paired against who.</p>
+          <div class="mb-2">
+            <label class="text-muted" style="font-size:0.8rem; display:block; margin-bottom:0.3rem;">Select tournament</label>
+            <select id="dartsDrawTournamentSelect" onchange="onDartsDrawTournamentSelected()"
+              style="width:100%; padding:0.6rem; border-radius:0.5rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
+              <option value="">Loading tournaments…</option>
+            </select>
+          </div>
+          <button class="btn" id="draw-toggle-btn" onclick="toggleDrawInputs()" disabled>
+            <i class="fas fa-list-ol"></i> Set Player Names
+          </button>
+          <div id="dartsPlayersList" style="display:none; max-height:500px; overflow-y:auto; margin-top:0.75rem; margin-bottom:0.75rem;"></div>
+          <button class="btn btn-green admin-btn" id="save-draw-btn" style="display:none;" onclick="saveDartsPlayers()">
+            <i class="fas fa-save"></i> Save Names
+          </button>
+          <div id="dartsPlayersMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+        </div>
       </div>
 
       <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
-      <h3><i class="fas fa-arrow-trend-down"></i> Stock Market — Relegation Stages</h3>
+        <h3><i class="fas fa-arrow-trend-down"></i> Stock Market — Relegation Stages</h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
         Up to 8 checkpoints. At each one's trigger gameweek, the bottom N currently-active entries are relegated (out for the rest of the season) and their combined portfolio value is split evenly across every remaining player slot. The cost-per-action multiplier also updates from that gameweek onward. Leave Trigger GW blank on any row you don't want to use. A stage already applied can no longer be edited (shown greyed out).
       </p>

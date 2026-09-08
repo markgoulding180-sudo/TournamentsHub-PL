@@ -1976,7 +1976,12 @@ async function createDartsTournament() {
     });
     const data = await response.json();
     if (!response.ok) { msgEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
-    msgEl.innerHTML = `<span style="color:var(--accent-green);">Created! Tournament ID: ${data.tournament_id}. Now add the real player names below, then set match results as they come in.</span>`;
+    msgEl.innerHTML = `<span style="color:var(--accent-green);">Created! Tournament ID: ${data.tournament_id}. Pick it below under "Set Up The Draw" to add the real player names — now or any time later.</span>`;
+    // So the tournament just created shows up immediately in the draw
+    // selector below, already picked, without a manual refresh.
+    await loadDartsTournamentList();
+    const drawSelect = document.getElementById('dartsDrawTournamentSelect');
+    if (drawSelect) { drawSelect.value = data.tournament_id; onDartsDrawTournamentSelected(); }
   } catch (error) {
     msgEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
   }
@@ -1984,8 +1989,10 @@ async function createDartsTournament() {
 
 // Used to be a hardcoded constant pointing at a specific tournament ID -
 // broke the moment that tournament was gone and a new one existed
-// instead (same real, confirmed bug as darts-home.html). Resolved once,
-// cached, and reused by every darts admin function below.
+// instead (same real, confirmed bug as darts-home.html). Still used by
+// the Enter Match Results section below, which - same underlying gap as
+// the draw used to have - always operates on "whichever tournament is
+// currently live/upcoming" rather than letting you pick one explicitly.
 let _dartsTournamentIdCache = null;
 async function getDartsTournamentId() {
   if (_dartsTournamentIdCache) return _dartsTournamentIdCache;
@@ -2002,12 +2009,49 @@ async function getDartsTournamentId() {
   return null;
 }
 
+// The draw is very often set up well after the tournament itself was
+// created - the real draw usually isn't announced yet at launch time -
+// so this can't assume "whichever tournament I just made". Lists every
+// darts tournament regardless of status (same pattern as the Stock
+// Market tournament selector above) so an existing one from earlier is
+// just as reachable as a brand new one.
+async function loadDartsTournamentList() {
+  const select = document.getElementById('dartsDrawTournamentSelect');
+  if (!select) return;
+  try {
+    const response = await fetch('/api/tournaments?tournament_type=darts');
+    const data = await response.json();
+    const tournaments = data.tournaments || [];
+    select.innerHTML = tournaments.length === 0
+      ? '<option value="">No darts tournaments found</option>'
+      : '<option value="">-- choose a tournament --</option>' +
+        tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status}</option>`).join('');
+  } catch (error) {
+    select.innerHTML = '<option value="">Failed to load tournament list</option>';
+  }
+}
+
+function onDartsDrawTournamentSelected() {
+  const select = document.getElementById('dartsDrawTournamentSelect');
+  const toggleBtn = document.getElementById('draw-toggle-btn');
+  const list = document.getElementById('dartsPlayersList');
+  const saveBtn = document.getElementById('save-draw-btn');
+  toggleBtn.disabled = !select.value;
+  // Switching tournaments while the name fields are open would leave
+  // stale inputs pointing at the wrong tournament's player ids - collapse
+  // back to closed so the next "Set Player Names" click loads fresh.
+  list.style.display = 'none';
+  saveBtn.style.display = 'none';
+  toggleBtn.innerHTML = '<i class="fas fa-list-ol"></i> Set Player Names';
+  _drawInputsLoaded = false;
+}
+
 async function loadDartsPlayers() {
   const listEl = document.getElementById('dartsPlayersList');
   listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</p>';
   try {
-    const dartsId = await getDartsTournamentId();
-    if (!dartsId) { listEl.innerHTML = '<p class="text-muted">No darts tournament exists yet — create one above first.</p>'; return; }
+    const dartsId = document.getElementById('dartsDrawTournamentSelect')?.value;
+    if (!dartsId) { listEl.innerHTML = '<p class="text-muted">Select a tournament above first.</p>'; return; }
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
       method: 'POST',
@@ -2046,8 +2090,8 @@ async function saveDartsPlayers() {
 
   msgEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Saving…</span>';
   try {
-    const dartsId = await getDartsTournamentId();
-    if (!dartsId) { msgEl.innerHTML = '<span style="color:var(--accent-red);">No darts tournament exists yet.</span>'; return; }
+    const dartsId = document.getElementById('dartsDrawTournamentSelect')?.value;
+    if (!dartsId) { msgEl.innerHTML = '<span style="color:var(--accent-red);">Select a tournament above first.</span>'; return; }
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
       method: 'POST',
@@ -2448,6 +2492,7 @@ function onLaunchSportChanged() {
   // to attach it to - showing it here would just confuse "set up the
   // draw" with "create the tournament", two separate steps.
   document.getElementById('draw-setup-card').style.display = (sport === 'darts') ? 'block' : 'none';
+  if (sport === 'darts') loadDartsTournamentList();
 
   toggleStockmarketTestOption();
 }
