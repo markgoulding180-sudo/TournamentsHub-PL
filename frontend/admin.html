@@ -179,34 +179,6 @@
       </button>
       <div id="excelResult" style="font-size:0.85rem; margin-top:0.5rem;"></div>
     </div>
-    <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Darts — Create Tournament</h2>
-    <p class="text-muted mb-2" style="font-size: 0.85rem;">Sets up a full 32-player bracket automatically (16 seeded, 16 qualifiers, all 31 matches structured) with placeholder names — swap in real names and re-pair Round 1 once the real draw is out.</p>
-    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
-      <h3><i class="fas fa-trophy"></i> New Bracket Pool Tournament</h3>
-      <div class="mb-2">
-        <label class="form-label">Tournament Name</label>
-        <input type="text" id="dartsNameInput" class="form-input" placeholder="e.g. 2026 World Grand Prix">
-      </div>
-      <div class="mb-2">
-        <label class="form-label">Description</label>
-        <input type="text" id="dartsDescInput" class="form-input" placeholder="Shown to users on the tournament page">
-      </div>
-      <div class="grid grid-2 mb-2">
-        <div>
-          <label class="form-label">Entry Fee (£)</label>
-          <input type="number" id="dartsFeeInput" class="form-input" value="10">
-        </div>
-        <div>
-          <label class="form-label">Predictions Close At</label>
-          <input type="datetime-local" id="dartsClosesInput" class="form-input">
-        </div>
-      </div>
-      <button class="btn btn-green admin-btn btn-lg" onclick="createDartsTournament()">
-        <i class="fas fa-plus"></i> Create Tournament
-      </button>
-      <div id="dartsCreateMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
-    </div>
-
     <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Darts — Enter Match Results</h2>
     <p class="text-muted mb-2" style="font-size: 0.85rem;">No free darts API exists, so results are entered manually here. Entering a result automatically scores every prediction for that match and advances the winner into their next-round slot.</p>
     <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
@@ -427,45 +399,105 @@
     </div>
     <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Step 3 — Launch Each Tournament</h2>
 <div class="admin-card" style="border: 2px solid var(--accent-green);">
-        <h3><i class="fas fa-rocket text-green"></i> Step 2: Launch Tournament</h3>
-        <p class="text-muted mb-2">Create new tournament and sync fixtures</p>
-        <div class="mb-2">
-          <label class="form-label">Tournament Type</label>
-          <select id="tournament-type-input" class="form-input" onchange="toggleStockmarketTestOption()">
-            <option value="predictions">Predictions</option>
-            <option value="lms">Last Man Standing</option>
-            <option value="stockmarket">Stock Market</option>
-            <option value="fantasy">Fantasy Manager</option>
-          </select>
-        </div>
+        <h3><i class="fas fa-rocket text-green"></i> Launch Tournament</h3>
+        <p class="text-muted mb-2">Create a new tournament and open it for registrations</p>
+
         <div class="grid grid-2 mb-2">
           <div>
+            <label class="form-label">Sport</label>
+            <select id="launch-sport-input" class="form-input" onchange="onLaunchSportChanged()">
+              <option value="football">Football</option>
+              <option value="darts">Darts</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Tournament Type</label>
+            <!-- Options populated by onLaunchSportChanged() below, since
+                 the real list depends entirely on which sport is picked. -->
+            <select id="tournament-type-input" class="form-input" onchange="toggleStockmarketTestOption()"></select>
+          </div>
+        </div>
+
+        <!-- Football fields: gameweek-based, same as every football
+             tournament type has always used. -->
+        <div id="launch-football-fields">
+          <div class="grid grid-2 mb-2">
+            <div>
+              <label class="form-label">Tournament Name</label>
+              <input type="text" id="tournament-name-input" class="form-input" value="GW Tournament - £20 Entry">
+            </div>
+            <div>
+              <label class="form-label">Entry Fee (£)</label>
+              <input type="number" id="tournament-fee-input" class="form-input" value="20">
+            </div>
+          </div>
+          <div class="grid grid-2 mb-2">
+            <div>
+              <label class="form-label">Start Gameweek</label>
+              <input type="number" id="tournament-start-gw" class="form-input" value="35" min="1" max="38">
+            </div>
+            <div>
+              <label class="form-label">End Gameweek</label>
+              <input type="number" id="tournament-end-gw" class="form-input" value="38" min="1" max="38">
+            </div>
+          </div>
+          <label id="tournament-is-test-row" style="display:none; align-items:flex-start; gap:0.5rem; margin-bottom:0.75rem; font-size:0.85rem; cursor:pointer;">
+            <input type="checkbox" id="tournament-is-test-input" style="margin-top:0.2rem;">
+            <span><b>Test tournament</b> — real users can join and draft normally, but their wallets are never charged the entry fee. The entry fee itself still sets real player values, so the draft mechanic behaves exactly as it will for real.</span>
+          </label>
+        </div>
+
+        <!-- Darts fields: closes_at-based (no gameweek concept), and
+             every new darts tournament auto-builds its own 32-player
+             bracket structure - see the Set Up The Draw card below for
+             getting real names into it. -->
+        <div id="launch-darts-fields" style="display:none;">
+          <div class="mb-2">
             <label class="form-label">Tournament Name</label>
-            <input type="text" id="tournament-name-input" class="form-input" value="GW Tournament - £20 Entry">
+            <input type="text" id="dartsNameInput" class="form-input" placeholder="e.g. 2026 World Grand Prix">
           </div>
-          <div>
-            <label class="form-label">Entry Fee (£)</label>
-            <input type="number" id="tournament-fee-input" class="form-input" value="20">
+          <div class="mb-2">
+            <label class="form-label">Description</label>
+            <input type="text" id="dartsDescInput" class="form-input" placeholder="Shown to users on the tournament page">
+          </div>
+          <div class="grid grid-2 mb-2">
+            <div>
+              <label class="form-label">Entry Fee (£)</label>
+              <input type="number" id="dartsFeeInput" class="form-input" value="10">
+            </div>
+            <div>
+              <label class="form-label">Predictions Close At</label>
+              <input type="datetime-local" id="dartsClosesInput" class="form-input">
+            </div>
           </div>
         </div>
-        <div class="grid grid-2 mb-2">
-          <div>
-            <label class="form-label">Start Gameweek</label>
-            <input type="number" id="tournament-start-gw" class="form-input" value="35" min="1" max="38">
-          </div>
-          <div>
-            <label class="form-label">End Gameweek</label>
-            <input type="number" id="tournament-end-gw" class="form-input" value="38" min="1" max="38">
-          </div>
-        </div>
-        <label id="tournament-is-test-row" style="display:none; align-items:flex-start; gap:0.5rem; margin-bottom:0.75rem; font-size:0.85rem; cursor:pointer;">
-          <input type="checkbox" id="tournament-is-test-input" style="margin-top:0.2rem;">
-          <span><b>Test tournament</b> — real users can join and draft normally, but their wallets are never charged the entry fee. The entry fee itself still sets real player values, so the draft mechanic behaves exactly as it will for real.</span>
-        </label>
-        <button class="btn btn-green admin-btn btn-lg" onclick="launchTournament()">
+
+        <button class="btn btn-green admin-btn btn-lg" id="launch-tournament-btn" onclick="launchTournamentUnified()">
           <i class="fas fa-play"></i> Launch Tournament
         </button>
-      </div><div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
+        <div id="dartsCreateMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+      </div>
+
+      <!-- Draw setup — only meaningful for bracket-style sports. Darts is
+           the only one right now; this card is hidden entirely unless
+           Darts is the selected sport above. No free draw/fixture API
+           exists for darts, so this is manual-entry only for now - a
+           "Sync From API" button belongs here instead, automatically,
+           the day a sport with a real live draw feed gets added. -->
+      <div class="admin-card" id="draw-setup-card" style="border: 2px solid var(--accent-green, #22c55e); display:none;">
+        <h3><i class="fas fa-users"></i> Set Up The Draw</h3>
+        <p class="text-muted mb-2" style="font-size: 0.85rem;">A new tournament starts with placeholder names ("Seed 1", "Qualifier 1", etc.) and the bracket already fully paired. No free darts API exists, so the real draw is entered manually below once it's announced — this only renames the 32 slots, it never changes who's paired against who.</p>
+        <button class="btn" id="draw-toggle-btn" onclick="toggleDrawInputs()">
+          <i class="fas fa-list-ol"></i> Set Player Names
+        </button>
+        <div id="dartsPlayersList" style="display:none; max-height:500px; overflow-y:auto; margin-top:0.75rem; margin-bottom:0.75rem;"></div>
+        <button class="btn btn-green admin-btn" id="save-draw-btn" style="display:none;" onclick="saveDartsPlayers()">
+          <i class="fas fa-save"></i> Save Names
+        </button>
+        <div id="dartsPlayersMsg" style="font-size:0.85rem; margin-top:0.5rem;"></div>
+      </div>
+
+      <div class="admin-card" style="border: 2px solid var(--accent-blue, #3b82f6);">
       <h3><i class="fas fa-arrow-trend-down"></i> Stock Market — Relegation Stages</h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
         Up to 8 checkpoints. At each one's trigger gameweek, the bottom N currently-active entries are relegated (out for the rest of the season) and their combined portfolio value is split evenly across every remaining player slot. The cost-per-action multiplier also updates from that gameweek onward. Leave Trigger GW blank on any row you don't want to use. A stage already applied can no longer be edited (shown greyed out).

@@ -1976,13 +1976,93 @@ async function createDartsTournament() {
     });
     const data = await response.json();
     if (!response.ok) { msgEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
-    msgEl.innerHTML = `<span style="color:var(--accent-green);">Created! Tournament ID: ${data.tournament_id} — update DARTS_TOURNAMENT_ID above and the /darts route if this replaces the current one.</span>`;
+    msgEl.innerHTML = `<span style="color:var(--accent-green);">Created! Tournament ID: ${data.tournament_id}. Now add the real player names below, then set match results as they come in.</span>`;
   } catch (error) {
     msgEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
   }
 }
 
-const DARTS_TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix, the only darts tournament that currently exists
+// Used to be a hardcoded constant pointing at a specific tournament ID -
+// broke the moment that tournament was gone and a new one existed
+// instead (same real, confirmed bug as darts-home.html). Resolved once,
+// cached, and reused by every darts admin function below.
+let _dartsTournamentIdCache = null;
+async function getDartsTournamentId() {
+  if (_dartsTournamentIdCache) return _dartsTournamentIdCache;
+  for (const status of ['live', 'upcoming']) {
+    try {
+      const res = await fetch(`/api/tournaments?tournament_type=darts&status=${status}`);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.tournaments || []);
+      if (list[0]) { _dartsTournamentIdCache = list[0].id; return list[0].id; }
+    } catch (e) {
+      console.error(`Failed to look up ${status} darts tournament:`, e);
+    }
+  }
+  return null;
+}
+
+async function loadDartsPlayers() {
+  const listEl = document.getElementById('dartsPlayersList');
+  listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</p>';
+  try {
+    const dartsId = await getDartsTournamentId();
+    if (!dartsId) { listEl.innerHTML = '<p class="text-muted">No darts tournament exists yet — create one above first.</p>'; return; }
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: dartsId })
+    });
+    const data = await response.json();
+    if (!response.ok) { listEl.innerHTML = `<p style="color:var(--accent-red);">${data.error}</p>`; return; }
+
+    const seeds = (data.players || []).filter(p => p.is_seeded).sort((a, b) => a.seed - b.seed);
+    const quals = (data.players || []).filter(p => !p.is_seeded).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    const rowHtml = (p, label) => `
+      <div style="display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0;">
+        <span style="width:90px; font-size:0.8rem; color:var(--text-muted);">${label}</span>
+        <input type="text" class="form-input darts-player-input" data-player-id="${p.id}" value="${escapeHtmlAdmin(p.name)}" placeholder="Player name" style="flex:1;">
+      </div>`;
+
+    listEl.innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 1.5rem;">
+        <div>${seeds.map((p, i) => rowHtml(p, `Seed ${i + 1}`)).join('')}</div>
+        <div>${quals.map((p, i) => rowHtml(p, `Qualifier ${i + 1}`)).join('')}</div>
+      </div>`;
+  } catch (error) {
+    listEl.innerHTML = `<p style="color:var(--accent-red);">Error: ${error.message}</p>`;
+  }
+}
+// Loaded lazily via toggleDrawInputs() now, not automatically on page
+// load - the draw-setup card is hidden until Darts is the selected sport
+// and the admin actually asks to see it.
+
+async function saveDartsPlayers() {
+  const msgEl = document.getElementById('dartsPlayersMsg');
+  const inputs = document.querySelectorAll('.darts-player-input');
+  const players = Array.from(inputs).map(el => ({ id: el.getAttribute('data-player-id'), name: el.value }));
+
+  msgEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Saving…</span>';
+  try {
+    const dartsId = await getDartsTournamentId();
+    if (!dartsId) { msgEl.innerHTML = '<span style="color:var(--accent-red);">No darts tournament exists yet.</span>'; return; }
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'darts_admin_set_players', tournament_id: dartsId, players })
+    });
+    const data = await response.json();
+    if (!response.ok) { msgEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
+    msgEl.innerHTML = '<span style="color:var(--accent-green);">Names saved.</span>';
+    loadDartsMatches(); // refresh the match-results list below so it shows the real names too
+  } catch (error) {
+    msgEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
+  }
+}
+
 const DARTS_MATCHES_PER_ROUND = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
 
 async function loadDartsMatches() {
@@ -1990,11 +2070,13 @@ async function loadDartsMatches() {
   const listEl = document.getElementById('dartsMatchesList');
   listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</p>';
   try {
+    const dartsId = await getDartsTournamentId();
+    if (!dartsId) { listEl.innerHTML = '<p class="text-muted">No darts tournament exists yet.</p>'; return; }
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: DARTS_TOURNAMENT_ID })
+      body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: dartsId })
     });
     const data = await response.json();
     if (!response.ok) { listEl.innerHTML = `<p style="color:var(--accent-red);">${data.error}</p>`; return; }
@@ -2031,11 +2113,13 @@ async function setDartsResult(round, matchNumber, winnerId) {
 
   resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Saving…</span>';
   try {
+    const dartsId = await getDartsTournamentId();
+    if (!dartsId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">No darts tournament exists yet.</span>'; return; }
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'darts_admin_set_result', tournament_id: DARTS_TOURNAMENT_ID, round, match_number: matchNumber, winner_id: winnerId })
+      body: JSON.stringify({ action: 'darts_admin_set_result', tournament_id: dartsId, round, match_number: matchNumber, winner_id: winnerId })
     });
     const data = await response.json();
     if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
@@ -2334,6 +2418,69 @@ async function downloadFullExport() {
   }
 }
 
+// Real tournament types per sport - darts only has one working format
+// right now (the 32-player knockout bracket). The other darts formats
+// shown as "Coming Soon" on the hub (group stages, nations) need a
+// completely different match/bracket structure that doesn't exist in the
+// backend yet, so they're deliberately not offered here - listing them
+// would imply a working option that silently does the wrong thing.
+const TOURNAMENT_TYPES_BY_SPORT = {
+  football: [
+    { value: 'predictions', label: 'Predictions' },
+    { value: 'lms', label: 'Last Man Standing' },
+    { value: 'stockmarket', label: 'Stock Market' },
+    { value: 'fantasy', label: 'Fantasy Manager' }
+  ],
+  darts: [
+    { value: 'darts_knockout', label: 'Knockout Bracket (32 players)' }
+  ]
+};
+
+function onLaunchSportChanged() {
+  const sport = document.getElementById('launch-sport-input')?.value || 'football';
+  const typeSelect = document.getElementById('tournament-type-input');
+  const options = TOURNAMENT_TYPES_BY_SPORT[sport] || [];
+  typeSelect.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+
+  document.getElementById('launch-football-fields').style.display = (sport === 'football') ? 'block' : 'none';
+  document.getElementById('launch-darts-fields').style.display = (sport === 'darts') ? 'block' : 'none';
+  // The draw only makes sense once a bracket tournament actually exists
+  // to attach it to - showing it here would just confuse "set up the
+  // draw" with "create the tournament", two separate steps.
+  document.getElementById('draw-setup-card').style.display = (sport === 'darts') ? 'block' : 'none';
+
+  toggleStockmarketTestOption();
+}
+document.addEventListener('DOMContentLoaded', onLaunchSportChanged);
+
+async function launchTournamentUnified() {
+  const sport = document.getElementById('launch-sport-input')?.value || 'football';
+  if (sport === 'darts') {
+    await createDartsTournament();
+  } else {
+    await launchTournament();
+  }
+}
+
+// Lazy-loads the 32 name fields only once actually asked for, rather
+// than always fetching them the moment the page loads regardless of
+// whether the admin came here to touch darts at all.
+let _drawInputsLoaded = false;
+function toggleDrawInputs() {
+  const list = document.getElementById('dartsPlayersList');
+  const saveBtn = document.getElementById('save-draw-btn');
+  const toggleBtn = document.getElementById('draw-toggle-btn');
+  const showing = list.style.display !== 'none';
+  list.style.display = showing ? 'none' : 'block';
+  saveBtn.style.display = showing ? 'none' : 'inline-flex';
+  toggleBtn.innerHTML = showing
+    ? '<i class="fas fa-list-ol"></i> Set Player Names'
+    : '<i class="fas fa-chevron-up"></i> Hide Player Names';
+  if (!showing && !_drawInputsLoaded) {
+    _drawInputsLoaded = true;
+    loadDartsPlayers();
+  }
+}
 function toggleStockmarketTestOption() {
   const type = document.getElementById('tournament-type-input')?.value;
   const row = document.getElementById('tournament-is-test-row');
