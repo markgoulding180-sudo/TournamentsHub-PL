@@ -1987,27 +1987,6 @@ async function createDartsTournament() {
   }
 }
 
-// Used to be a hardcoded constant pointing at a specific tournament ID -
-// broke the moment that tournament was gone and a new one existed
-// instead (same real, confirmed bug as darts-home.html). Still used by
-// the Enter Match Results section below, which - same underlying gap as
-// the draw used to have - always operates on "whichever tournament is
-// currently live/upcoming" rather than letting you pick one explicitly.
-let _dartsTournamentIdCache = null;
-async function getDartsTournamentId() {
-  if (_dartsTournamentIdCache) return _dartsTournamentIdCache;
-  for (const status of ['live', 'upcoming']) {
-    try {
-      const res = await fetch(`/api/tournaments?tournament_type=darts&status=${status}`);
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : (data.tournaments || []);
-      if (list[0]) { _dartsTournamentIdCache = list[0].id; return list[0].id; }
-    } catch (e) {
-      console.error(`Failed to look up ${status} darts tournament:`, e);
-    }
-  }
-  return null;
-}
 
 // The draw is very often set up well after the tournament itself was
 // created - the real draw usually isn't announced yet at launch time -
@@ -2101,7 +2080,15 @@ async function saveDartsPlayers() {
     const data = await response.json();
     if (!response.ok) { msgEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
     msgEl.innerHTML = '<span style="color:var(--accent-green);">Names saved.</span>';
-    loadDartsMatches(); // refresh the match-results list below so it shows the real names too
+    // Point the match-results selector at this same tournament too, so
+    // its refresh actually shows the real names just saved, instead of
+    // silently doing nothing because nothing was selected over there.
+    const resultsSelect = document.getElementById('dartsResultsTournamentSelect');
+    if (resultsSelect) {
+      await loadDartsResultsTournamentList();
+      resultsSelect.value = dartsId;
+      loadDartsMatches();
+    }
   } catch (error) {
     msgEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${error.message}</span>`;
   }
@@ -2109,13 +2096,44 @@ async function saveDartsPlayers() {
 
 const DARTS_MATCHES_PER_ROUND = { 1: 16, 2: 8, 3: 4, 4: 2, 5: 1 };
 
+// Same tournament-selector approach as the draw setup above, for the
+// same reason: with more than one darts tournament running, "whichever
+// one is currently live/upcoming" stops being a safe assumption the
+// moment there are two of them at once.
+async function loadDartsResultsTournamentList() {
+  const select = document.getElementById('dartsResultsTournamentSelect');
+  if (!select) return;
+  const previousValue = select.value;
+  try {
+    const response = await fetch('/api/tournaments?tournament_type=darts');
+    const data = await response.json();
+    const tournaments = data.tournaments || [];
+    select.innerHTML = tournaments.length === 0
+      ? '<option value="">No darts tournaments found</option>'
+      : '<option value="">-- choose a tournament --</option>' +
+        tournaments.map(t => `<option value="${t.id}">${escapeHtmlAdmin(t.name || 'Untitled')} — ${t.status}</option>`).join('');
+    // Keep whatever was already selected if it's still in the refreshed
+    // list, rather than silently resetting back to blank every reload.
+    if (previousValue && tournaments.some(t => t.id === previousValue)) {
+      select.value = previousValue;
+    }
+  } catch (error) {
+    select.innerHTML = '<option value="">Failed to load tournament list</option>';
+  }
+}
+document.addEventListener('DOMContentLoaded', loadDartsResultsTournamentList);
+
+function onDartsResultsTournamentSelected() {
+  loadDartsMatches();
+}
+
 async function loadDartsMatches() {
   const round = parseInt(document.getElementById('dartsRoundSelect').value);
   const listEl = document.getElementById('dartsMatchesList');
+  const dartsId = document.getElementById('dartsResultsTournamentSelect')?.value;
+  if (!dartsId) { listEl.innerHTML = '<p class="text-muted">Select a tournament above first.</p>'; return; }
   listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</p>';
   try {
-    const dartsId = await getDartsTournamentId();
-    if (!dartsId) { listEl.innerHTML = '<p class="text-muted">No darts tournament exists yet.</p>'; return; }
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
       method: 'POST',
@@ -2149,16 +2167,15 @@ async function loadDartsMatches() {
     listEl.innerHTML = `<p style="color:var(--accent-red);">Error: ${error.message}</p>`;
   }
 }
-document.addEventListener('DOMContentLoaded', loadDartsMatches);
 
 async function setDartsResult(round, matchNumber, winnerId) {
   const resultEl = document.getElementById('dartsResultMsg');
   if (!confirm(`Set this player as the winner of Round ${round}, Match ${matchNumber}?\n\nThis scores every prediction for this match and advances the winner. This cannot be undone from here.`)) return;
 
+  const dartsId = document.getElementById('dartsResultsTournamentSelect')?.value;
+  if (!dartsId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Select a tournament above first.</span>'; return; }
   resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Saving…</span>';
   try {
-    const dartsId = await getDartsTournamentId();
-    if (!dartsId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">No darts tournament exists yet.</span>'; return; }
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
       method: 'POST',
