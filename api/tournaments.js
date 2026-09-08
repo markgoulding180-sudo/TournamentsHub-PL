@@ -2150,7 +2150,21 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(404).json({ error: 'Tournament not found' });
         }
 
-        return res.status(200).json({ tournament: singleTournament });
+        // Same public-safe draw-status signal as the list endpoint below -
+        // this branch is what darts-home.html actually calls (via
+        // ?tournament_id=), so it needs the field here too, not just on
+        // the list version.
+        let drawFinalized = undefined;
+        if (schemaName === 'darts') {
+          const { data: placeholderRows } = await supabaseAdmin
+            .schema('darts').from('players')
+            .select('id').eq('tournament_id', tournamentId).eq('is_placeholder', true).limit(1);
+          drawFinalized = (placeholderRows || []).length === 0;
+        }
+
+        return res.status(200).json({
+          tournament: { ...singleTournament, ...(drawFinalized !== undefined ? { draw_finalized: drawFinalized } : {}) }
+        });
       }
 
       let query = supabase

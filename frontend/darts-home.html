@@ -328,6 +328,18 @@
       const entry = bracketData.my_entry;
       renderHeroStats(t, entry);
 
+      // Real, computed warning (not a guess) - draw_finalized comes
+      // straight from the API checking whether any of the 32 slots is
+      // still a placeholder name. Shown before someone commits to
+      // entering, since there's nothing meaningful to look at yet - the
+      // field itself isn't decided, let alone who plays who.
+      const drawPendingWarning = (t.draw_finalized === false)
+        ? `<div style="max-width:440px; margin:0 auto 18px; padding:10px 14px; border:1px solid var(--gold); border-radius:8px; background:rgba(242,185,61,0.08); font-size:13px; color:var(--gold); display:flex; align-items:center; gap:8px; text-align:left;">
+             <i class="fas fa-hourglass-half"></i>
+             <span>The real draw hasn't been made yet — you're welcome to enter now, but there's nothing to predict until the field and Round 1 pairings are announced closer to the date.</span>
+           </div>`
+        : '';
+
       // Not entered yet — show tournament details and an Enter button,
       // same pattern as Predictions/LMS. The bracket itself only appears
       // once they're actually in.
@@ -337,6 +349,7 @@
             <i class="fas fa-bullseye" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
             <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the World Grand Prix</h2>
             <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            ${drawPendingWarning}
             <a href="/login?redirect=%2Fdarts" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>
           </div>`;
         return;
@@ -348,6 +361,7 @@
             <i class="fas fa-bullseye" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
             <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the World Grand Prix</h2>
             <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
+            ${drawPendingWarning}
             <button class="btn-primary" id="enterBtn" onclick="enterTournament()"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
             <div class="submit-msg" id="enterMsg"></div>
           </div>`;

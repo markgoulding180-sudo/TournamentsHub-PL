@@ -1587,15 +1587,6 @@
       const prizeLabel = typeof t.prize_pool === 'number'
         ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`
         : '£--';
-      // draw_finalized only exists on darts tournaments (see the API) -
-      // undefined for every other sport, so this note never shows for
-      // non-bracket types. Real signal, not a guess: it's computed
-      // server-side from whether any player slot is still a
-      // placeholder, so it disappears on its own the moment the real
-      // names are entered - no need to remember to remove it by hand.
-      const drawPendingNote = (t.draw_finalized === false)
-        ? `<div style="font-size:11px; color:var(--gold, #f2b93d); margin-top:6px; display:flex; align-items:center; gap:5px;"><i class="fas fa-hourglass-half"></i> Draw not yet made — check back closer to the date</div>`
-        : '';
 
       const card = document.createElement('a');
       card.className = 't-card';
@@ -1615,8 +1606,7 @@
             <div><div class="stat-label">Starts</div><div class="stat-value starts">${dateLabel}</div></div>
             <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">${prizeLabel}</div></div>
           </div>
-          ${drawPendingNote}
-          <span class="btn-enter" style="display:block; text-align:center; margin-top:${drawPendingNote ? '10px' : '0'};">Register Now</span>
+          <span class="btn-enter" style="display:block; text-align:center;">Register Now</span>
         </div>`;
       row.appendChild(card);
     });
