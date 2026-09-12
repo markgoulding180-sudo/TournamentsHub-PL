@@ -3225,9 +3225,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           for (const pick of allRelevantPicks) {
             const pickedWinner = pick.team_id === winnerTeamId;
-            let points = pickedWinner ? winPoints : 0;
+            // Real bug fixed here: is_auto_pick was set on every
+            // deadline-missed auto-assignment, but never actually checked
+            // anywhere when awarding points - despite the whole point of
+            // flagging them being that a missed pick should never score,
+            // even if the random team happens to win. Confirmed by
+            // searching the entire file: this flag was write-only.
+            let points = (pickedWinner && !pick.is_auto_pick) ? winPoints : 0;
             // Score-round bonus: exact score prediction also correct
-            if (pickedWinner && ['qf', 'sf', 'final'].includes(match.round)
+            if (pickedWinner && !pick.is_auto_pick && ['qf', 'sf', 'final'].includes(match.round)
                 && pick.predicted_home_score === home_score && pick.predicted_away_score === away_score) {
               points += Math.round(winPoints / 2);
             }
@@ -3465,8 +3471,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
             for (const pick of (relevantPicks || [])) {
               const pickedWinner = pick.team_id === winnerTeamId;
-              let points = pickedWinner ? winPoints : 0;
-              if (pickedWinner && ['qf', 'sf', 'final'].includes(dbMatch.round)
+              // Same fix as cl_admin_set_result - is_auto_pick was never
+              // actually checked here either, so a deadline-missed random
+              // auto-pick could score full points if it happened to win.
+              let points = (pickedWinner && !pick.is_auto_pick) ? winPoints : 0;
+              if (pickedWinner && !pick.is_auto_pick && ['qf', 'sf', 'final'].includes(dbMatch.round)
                   && pick.predicted_home_score === homeScore && pick.predicted_away_score === awayScore) {
                 points += Math.round(winPoints / 2);
               }
