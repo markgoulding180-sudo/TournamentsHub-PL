@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // could predict without entering and score invisibly, off the
   // leaderboard, since no tournament_entries row would exist for them.
   const token = localStorage.getItem('gbf_token');
+  const sessionExpiredCard = document.getElementById('sessionExpiredCard');
   if (token) {
     try {
       const tRes = await fetch('/api/tournaments?status=live');
@@ -19,6 +20,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         const entryRes = await fetch(`/api/tournaments?tournament_id=${liveTournament.id}&my_entry=true`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        // Real bug fixed here: fetch() doesn't throw on a 401, so an
+        // expired/invalid token used to flow straight through to
+        // "entryData.entry is missing" and show "You haven't entered
+        // this tournament yet" - wrongly telling a genuinely entered
+        // user they'd never joined, when the actual problem was just
+        // their login needing a refresh. Confirmed as the real cause
+        // for at least one user whose tournament_entries row was
+        // completely intact in the database the whole time.
+        if (entryRes.status === 401) {
+          predictionsForm.style.display = 'none';
+          sessionExpiredCard.style.display = 'block';
+          return;
+        }
+
         const entryData = await entryRes.json();
 
         if (!entryData.entry) {

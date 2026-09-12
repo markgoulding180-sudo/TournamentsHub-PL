@@ -624,6 +624,19 @@
       <a href="/predictions" class="btn btn-primary btn-lg"><i class="fas fa-right-to-bracket"></i> Go Enter the Tournament</a>
     </div>
 
+    <!-- Real, distinct case from "not entered" above - a session that's
+         expired or otherwise invalid used to fall through and show that
+         exact same "not entered" message, wrongly telling a genuinely
+         entered user they'd never joined. This is the honest version:
+         their login just needs refreshing, nothing about their entry is
+         actually wrong. -->
+    <div id="sessionExpiredCard" class="card mb-3" style="display:none; text-align:center; padding:2rem 1.5rem; border:1.5px solid var(--accent-red);">
+      <i class="fas fa-triangle-exclamation" style="font-size:2rem; color:var(--accent-red); margin-bottom:1rem; display:block;"></i>
+      <h3 style="margin-bottom:0.5rem;">Your session has expired</h3>
+      <p class="text-muted mb-3">This doesn't affect your tournament entry — just log back in and everything, including your points and rank, will be exactly as you left it.</p>
+      <a href="/login?redirect=%2Fpredictions" class="btn btn-primary btn-lg"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+    </div>
+
     <!-- Fixtures & Predictions -->
     <form id="predictions-form">
       <div class="fixture-list">
