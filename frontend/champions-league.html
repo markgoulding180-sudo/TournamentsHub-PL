@@ -415,7 +415,16 @@
     function getEliminatedTeamIds() {
       const eliminated = new Set();
       tournamentData.matches.forEach(m => {
-        if (m.status === 'finished' && m.winner_team_id) {
+        // Real bug fixed here: a single lost matchday in the league
+        // phase does NOT eliminate a team - they play all 8 matchdays
+        // regardless of result, and elimination is only decided by final
+        // standings after matchday 8. This used to treat any finished
+        // match's loser as eliminated, which - confirmed against real
+        // data - wrongly flagged 16 of the 36 teams as "Eliminated" after
+        // just Matchday 1, disabling them for every matchday after that.
+        // Only real knockout matches (identified by having a round
+        // instead of a matchday) actually eliminate the loser.
+        if (m.round && m.status === 'finished' && m.winner_team_id) {
           const loserId = m.home_team_id === m.winner_team_id ? m.away_team_id : m.home_team_id;
           if (loserId) eliminated.add(loserId);
         }
