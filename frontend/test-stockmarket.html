@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Your Squad — Player Stock Market</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{
+    --bg:#060b1e;
+    --bg-panel:#0a1226;
+    --bg-card:#0d1730;
+    --bg-card-2:#101a38;
+    --border:#131f35;
+    --border-hover:#3b82f6;
+    --accent:#3b82f6;
+    --accent-2:#60a5fa;
+    --accent-glow:rgba(59,130,246,0.45);
+    --accent-dim:#1d4ed8;
+    --text:#f1f5fc;
+    --text-dim:#8a97b0;
+    --text-faint:#4d5972;
+    --gold:#f2b93d;
+    --green:#22c55e;
+    --green-dim:rgba(34,197,94,0.12);
+    --red:#ef4444;
+    --red-dim:rgba(239,68,68,0.12);
+    --radius:14px;
+    --font-display:'Anton','Rajdhani',sans-serif;
+    --font-head:'Rajdhani',sans-serif;
+    --font-body:'Inter',sans-serif;
+  }
+  *{margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{ background:var(--bg); overflow-x:hidden; }
+  body{
+    font-family:var(--font-body); background:var(--bg); color:var(--text);
+    min-height:100vh; padding-bottom:40px;
+  }
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit;}
+
+  /* ---------- Top bar (matches hub navbar language) ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; background:rgba(6,11,30,0.92); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar .back{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); font-family:var(--font-head); font-weight:600; letter-spacing:0.3px; }
+  .topbar .mark{ font-family:var(--font-display); font-size:16px; letter-spacing:0.5px; }
+  .topbar .mark span{ color:var(--accent-2); }
+  .topbar .menu-btn{ font-size:16px; color:var(--text-dim); width:32px; height:32px; display:flex; align-items:center; justify-content:center; }
+
+  /* ---------- Hero: portfolio summary ---------- */
+  .hero{
+    padding:26px 20px 20px; border-bottom:1px solid var(--border);
+    background:radial-gradient(ellipse 120% 100% at 50% 0%, rgba(59,130,246,0.10), transparent 65%);
+  }
+  .hero .label{ font-size:13px; color:var(--text-dim); margin-bottom:6px; }
+  .hero .value-row{ display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .hero .value{ font-family:var(--font-display); font-size:40px; letter-spacing:0.3px; line-height:1; text-shadow:0 0 24px var(--accent-glow); }
+  .hero .delta{ font-size:14px; font-weight:700; display:flex; align-items:center; gap:4px; font-family:var(--font-head); }
+  .hero .delta.up{ color:var(--green); }
+  .hero .delta.down{ color:var(--red); }
+  .hero .meta{ display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; }
+  .hero .meta-item{ font-size:12.5px; color:var(--text-dim); }
+  .hero .meta-item b{ color:var(--text); font-weight:700; }
+  .hero .meta-item .dot{ color:var(--text-faint); margin:0 7px; }
+
+  /* ---------- Section heading ---------- */
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:22px 20px 10px;
+  }
+  .section-head h2{ font-family:var(--font-head); font-size:16px; font-weight:700; letter-spacing:0.2px; }
+  .section-head h2 i{ color:var(--accent-2); margin-right:7px; font-size:14px; }
+  .section-head span{ font-size:12px; color:var(--text-faint); }
+
+  .vs-strip{
+    margin:0 20px 4px; padding:11px 14px; border-radius:10px;
+    background:var(--bg-card); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .vs-strip .who{ font-size:13px; color:var(--text-dim); }
+  .vs-strip .who b{ color:var(--text); font-weight:700; }
+  .vs-strip .who-value{ font-family:var(--font-head); font-size:15px; font-weight:700; color:var(--accent-2); }
+
+  /* ---------- Player list ---------- */
+  .list{ display:flex; flex-direction:column; margin:10px 20px 0; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
+  .row{ border-bottom:1px solid var(--border); background:var(--bg-card); }
+  .row:last-child{ border-bottom:none; }
+  .row-main{
+    display:flex; align-items:center; gap:11px;
+    padding:12px 14px; cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .row-main:active{ background:var(--bg-card-2); }
+  .row.open .row-main{ background:var(--bg-card-2); }
+
+  .photo-wrap{ position:relative; flex-shrink:0; }
+  .photo{
+    width:44px; height:44px; border-radius:50%;
+    object-fit:cover; object-position:top;
+    background:var(--bg-panel);
+    border:1.5px solid var(--border);
+  }
+  .row-main:hover .photo{ border-color:var(--border-hover); }
+  .status-dot{
+    position:absolute; bottom:-1px; right:-1px;
+    width:13px; height:13px; border-radius:50%;
+    border:2px solid var(--bg-card);
+    display:flex; align-items:center; justify-content:center;
+    font-size:6.5px; color:#04140a;
+  }
+  .status-dot.played{ background:var(--green); }
+  .status-dot.injured{ background:var(--red); color:#fff; }
+  .status-dot.benched{ background:var(--text-faint); }
+
+  .who{ flex:1; min-width:0; }
+  .who .name{ font-size:14px; font-weight:700; font-family:var(--font-head); letter-spacing:0.2px; }
+  .who .sub{ font-size:11.5px; color:var(--text-dim); margin-top:1px; }
+  .who .sub .pos-tag{
+    display:inline-block; font-size:9.5px; font-weight:800; letter-spacing:0.4px;
+    color:#fff; background:var(--accent); padding:1.5px 5px; border-radius:4px;
+    margin-right:6px; position:relative; top:-0.5px;
+  }
+
+  .spark{ flex-shrink:0; width:40px; height:24px; }
+
+  .numbers{ text-align:right; flex-shrink:0; }
+  .numbers .value{ font-family:var(--font-head); font-size:16px; font-weight:700; }
+  .numbers .delta{ font-size:11.5px; font-weight:700; margin-top:1px; }
+  .numbers .delta.up{ color:var(--green); }
+  .numbers .delta.down{ color:var(--red); }
+  .numbers .delta.flat{ color:var(--text-faint); }
+
+  .chevron{
+    color:var(--text-faint); font-size:12px; flex-shrink:0;
+    transition:transform 0.2s ease;
+    width:18px; text-align:center;
+  }
+  .row.open .chevron{ transform:rotate(180deg); color:var(--accent-2); }
+
+  /* ---------- Expanded detail ---------- */
+  .detail{ max-height:0; overflow:hidden; transition:max-height 0.28s ease; background:var(--bg-card-2); }
+  .row.open .detail{ max-height:420px; }
+  .detail-inner{ padding:2px 14px 16px 69px; }
+
+  .breakdown{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .breakdown-line{ display:flex; justify-content:space-between; font-size:12.5px; }
+  .breakdown-line .k{ color:var(--text-dim); }
+  .breakdown-line .v{ font-weight:700; }
+  .breakdown-line .v.up{ color:var(--green); }
+  .breakdown-line .v.down{ color:var(--red); }
+
+  .stat-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+  .pill{
+    font-size:10.5px; font-weight:700; padding:4px 8px; border-radius:6px;
+    background:var(--bg-panel); color:var(--text-dim); border:1px solid var(--border);
+  }
+  .pill.hot{ color:var(--green); border-color:rgba(34,197,94,0.3); background:var(--green-dim); }
+  .pill.bad{ color:var(--red); border-color:rgba(239,68,68,0.3); background:var(--red-dim); }
+
+  .actions{ display:flex; gap:8px; }
+  .btn{
+    flex:1; text-align:center; font-family:var(--font-head); font-weight:700;
+    font-size:12px; letter-spacing:0.5px; text-transform:uppercase;
+    padding:10px 14px; border-radius:9px; border:1.5px solid var(--red);
+    color:var(--red); background:rgba(239,68,68,0.06);
+    transition:background .2s, color .2s;
+  }
+  .btn:hover{ background:var(--red); color:#fff; }
+  .btn-info{ flex:0 0 42px; border-color:var(--border); color:var(--text-dim); background:transparent; }
+  .btn-info:hover{ background:var(--bg-panel); color:var(--accent-2); }
+  .status-line{ font-size:11.5px; color:var(--text-dim); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+
+  .row.flagged .row-main{ background:rgba(239,68,68,0.05); }
+
+  footer{ padding:26px 20px 10px; text-align:center; font-size:11px; color:var(--text-faint); }
+
+  @media (min-width:640px){
+    body{ max-width:520px; margin:0 auto; border-left:1px solid var(--border); border-right:1px solid var(--border); min-height:100vh; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="back"><i class="fa-solid fa-chevron-left"></i> Squad</div>
+    <div class="mark">GB <span>STOCKS</span></div>
+    <button class="menu-btn"><i class="fa-solid fa-ellipsis"></i></button>
+  </div>
+
+  <div class="hero">
+    <div class="label">Your squad is worth</div>
+    <div class="value-row">
+      <div class="value">£46.28</div>
+      <div class="delta up"><i class="fa-solid fa-caret-up"></i> £2.14 today</div>
+    </div>
+    <div class="meta">
+      <div class="meta-item"><b>3rd</b> of 12</div>
+      <div class="meta-item dot">·</div>
+      <div class="meta-item">Gameweek 4</div>
+      <div class="meta-item dot">·</div>
+      <div class="meta-item">Locks in <b>2d 6h</b></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2><i class="fa-solid fa-users"></i>Your Six</h2>
+    <span>Tap a player to expand</span>
+  </div>
+  <div class="list" id="myList"></div>
+
+  <div class="section-head">
+    <h2><i class="fa-solid fa-shield-halved"></i>This Week's Opponent</h2>
+    <span>Tap to see their breakdown</span>
+  </div>
+  <div class="vs-strip">
+    <div class="who">Facing <b>PieFaceKev</b></div>
+    <div class="who-value">£41.90</div>
+  </div>
+  <div class="list" id="oppList"></div>
+
+  <footer>Values update after every match. Nothing here is investment advice — it's football.</footer>
+
+<script>
+const MY_PLAYERS = [
+  { id:1, name:'Raya', team:'Arsenal', pos:'GK', photo:'154561', value:612, delta:18, status:'played', own:0, share:18,
+    stats:[['SV','5',true],['GC','0',true],['CS','1',true]] },
+  { id:2, name:'Gabriel', team:'Arsenal', pos:'DEF', photo:'226597', value:845, delta:-22, status:'played', own:-22, share:0,
+    stats:[['CS','1',true],['YC','1',false],['GC','0',true]] },
+  { id:3, name:'Saka', team:'Arsenal', pos:'MID', photo:'223340', value:1204, delta:61, status:'played', own:40, share:21,
+    stats:[['GL','1',true],['AS','1',true],['YC','0',true]] },
+  { id:4, name:'Palmer', team:'Chelsea', pos:'MID', photo:'244851', value:968, delta:-8, status:'injured', own:0, share:-8,
+    stats:[['GL','0',true],['AS','0',true],['MIN','0',false]] },
+  { id:5, name:'Haaland', team:'Man City', pos:'FWD', photo:'223094', value:1690, delta:84, status:'played', own:60, share:24,
+    stats:[['GL','2',true],['AS','0',true],['YC','0',true]] },
+  { id:6, name:'Isak', team:'Liverpool', pos:'FWD', photo:'219168', value:908, delta:0, status:'benched', own:0, share:0,
+    stats:[['MIN','0',false],['GL','0',true]] }
+];
+
+const OPP_PLAYERS = [
+  { id:101, name:'Sánchez', team:'Chelsea', pos:'GK', photo:'215059', value:520, delta:-14, status:'played', own:-14, share:0,
+    stats:[['SV','2',true],['GC','2',false],['CS','0',false]] },
+  { id:102, name:'Watkins', team:'Aston Villa', pos:'FWD', photo:'178301', value:730, delta:12, status:'played', own:12, share:0,
+    stats:[['GL','1',true],['AS','0',true],['YC','0',true]] },
+  { id:103, name:'Foden', team:'Man City', pos:'MID', photo:'209244', value:701, delta:-5, status:'played', own:-5, share:0,
+    stats:[['GL','0',true],['AS','0',true],['YC','1',false]] },
+  { id:104, name:'Isak', team:'Liverpool', pos:'FWD', photo:'219168', value:908, delta:0, status:'benched', own:0, share:0,
+    stats:[['MIN','0',false]] },
+  { id:105, name:'Trippier', team:'Newcastle', pos:'DEF', photo:'54694', value:410, delta:22, status:'played', own:22, share:0,
+    stats:[['AS','1',true],['CS','1',true],['YC','0',true]] },
+  { id:106, name:'Gordon', team:'Newcastle', pos:'MID', photo:'222731', value:544, delta:-4.19, status:'played', own:0, share:-4.19,
+    stats:[['GL','0',true],['AS','0',true],['CS','1',true]] }
+];
+
+function money(p){
+  const sign = p < 0 ? '-' : '';
+  return `${sign}£${(Math.abs(p)/100).toFixed(2)}`;
+}
+function initials(name){
+  return name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+}
+function statusMeta(status){
+  if (status === 'injured') return { cls:'injured', icon:'fa-user-injured', label:'Injured this week' };
+  if (status === 'benched') return { cls:'benched', icon:'fa-chair', label:'Didn\u2019t play — benched' };
+  return { cls:'played', icon:'fa-check', label:'Played 90 mins' };
+}
+function sparkline(seed, delta){
+  let s = seed * 9301 + 49297;
+  const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  const points = [0];
+  for (let i = 1; i < 6; i++){
+    const bias = (delta / 100) * (i / 5);
+    points.push(points[i-1] + (rand() - 0.5) * 8 + bias * 2);
+  }
+  const min = Math.min(...points), max = Math.max(...points);
+  const range = (max - min) || 1;
+  const norm = points.map(v => 22 - ((v - min) / range) * 20 - 1);
+  const path = norm.map((y, i) => `${i === 0 ? 'M' : 'L'}${(i * 40/5).toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const color = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--text-faint)';
+  return `<svg class="spark" viewBox="0 0 40 24"><path d="${path}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+// prefix keeps each list's row ids (and therefore toggle state) independent,
+// so opening a row in "Your Six" can never collide with or accidentally
+// close a row in the opponent's list
+function renderList(containerId, players, prefix, showSell){
+  const list = document.getElementById(containerId);
+  list.innerHTML = players.map(p => {
+    const dCls = p.delta > 0 ? 'up' : p.delta < 0 ? 'down' : 'flat';
+    const dIcon = p.delta > 0 ? 'fa-caret-up' : p.delta < 0 ? 'fa-caret-down' : 'fa-minus';
+    const st = statusMeta(p.status);
+    const photoUrl = `https://resources.premierleague.com/premierleague25/photos/players/250x250/p${p.photo}.png`;
+    const rowId = `${prefix}-${p.id}`;
+
+    const ownLine = p.own === 0
+      ? `<div class="breakdown-line"><span class="k">Own play</span><span class="v">£0.00</span></div>`
+      : `<div class="breakdown-line"><span class="k">Own play</span><span class="v ${p.own>0?'up':'down'}">${p.own>0?'+':''}${money(p.own)}</span></div>`;
+    const shareLine = p.share === 0 ? '' :
+      `<div class="breakdown-line"><span class="k">Share</span><span class="v ${p.share>0?'up':'down'}">${p.share>0?'+':''}${money(p.share)}</span></div>`;
+
+    const pills = p.stats.map(([label, val, good]) => {
+      const cls = val === '0' ? '' : (good ? 'hot' : 'bad');
+      return `<span class="pill ${cls}">${label} ${val}</span>`;
+    }).join('');
+
+    const actionsHtml = showSell
+      ? `<div class="actions">
+           <button class="btn">Sell player</button>
+           <button class="btn btn-info"><i class="fa-solid fa-circle-info"></i></button>
+         </div>`
+      : `<div class="actions">
+           <button class="btn btn-info" style="flex:1;"><i class="fa-solid fa-circle-info"></i> Full breakdown</button>
+         </div>`;
+
+    return `
+      <div class="row ${p.status==='injured'?'flagged':''}" data-id="${rowId}">
+        <div class="row-main" onclick="toggleRow('${rowId}')">
+          <div class="photo-wrap">
+            <img class="photo" src="${photoUrl}" alt="${p.name}"
+                 onerror="this.outerHTML='<div class=&quot;photo&quot; style=&quot;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;color:var(--accent-2);font-family:var(--font-head);&quot;>${initials(p.name)}</div>'">
+            <div class="status-dot ${st.cls}"><i class="fa-solid ${st.icon}"></i></div>
+          </div>
+          <div class="who">
+            <div class="name">${p.name}</div>
+            <div class="sub"><span class="pos-tag">${p.pos}</span>${p.team}</div>
+          </div>
+          ${sparkline(p.id, p.delta)}
+          <div class="numbers">
+            <div class="value">${money(p.value)}</div>
+            <div class="delta ${dCls}"><i class="fa-solid ${dIcon}"></i> ${money(Math.abs(p.delta))}</div>
+          </div>
+          <div class="chevron"><i class="fa-solid fa-chevron-down"></i></div>
+        </div>
+        <div class="detail">
+          <div class="detail-inner">
+            <div class="status-line"><i class="fa-solid ${st.icon}" style="font-size:10px;"></i> ${st.label}</div>
+            <div class="breakdown">${ownLine}${shareLine}</div>
+            <div class="stat-pills">${pills}</div>
+            ${actionsHtml}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleRow(rowId){
+  const prefix = rowId.split('-')[0];
+  document.querySelectorAll(`.row[data-id^="${prefix}-"]`).forEach(row => {
+    if (row.dataset.id === rowId) row.classList.toggle('open');
+    else row.classList.remove('open');
+  });
+}
+
+renderList('myList', MY_PLAYERS, 'mine', true);
+renderList('oppList', OPP_PLAYERS, 'opp', false);
+</script>
+
+</body>
+</html>

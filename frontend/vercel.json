@@ -35,6 +35,7 @@
     { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },
     { "source": "/stock-market-history", "destination": "/stockmarket-history.html" },
     { "source": "/stock-market-player", "destination": "/stock-market-player.html" },
+    { "source": "/stock-market-test", "destination": "/test-stockmarket.html" },
     { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
     { "source": "/wallet", "destination": "/wallet.html" },
     { "source": "/how-it-works", "destination": "/how-it-works.html" },
