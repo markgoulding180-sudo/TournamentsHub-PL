@@ -735,15 +735,25 @@
         } else {
           try {
             const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: authHeaders() });
-            const entryData = await entryRes.json();
-            if (entryData.entry) {
-              isEnteredInTournament = true;
-              entryHtml = `<button class="hero-enter-btn entered" disabled><i class="fas fa-circle-check"></i> You're Entered</button>`;
-              // Real fix: this is the actual, stored cumulative total
-              // across every gameweek (updated whenever a gameweek
-              // finalizes) - not the current-gameweek-only running total
-              // that was here before.
-              myTotalPoints = entryData.entry.entry_points || 0;
+
+            // Real bug fixed here: fetch() doesn't throw on a 401, so an
+            // expired/invalid token used to leave the default "Enter
+            // Tournament" button showing - wrongly inviting an already
+            // entered user to enter again, instead of telling them their
+            // login just needs refreshing.
+            if (entryRes.status === 401) {
+              entryHtml = `<a href="/login?redirect=%2Fpredictions" class="hero-enter-btn"><i class="fas fa-triangle-exclamation"></i> Session Expired — Log In Again</a>`;
+            } else {
+              const entryData = await entryRes.json();
+              if (entryData.entry) {
+                isEnteredInTournament = true;
+                entryHtml = `<button class="hero-enter-btn entered" disabled><i class="fas fa-circle-check"></i> You're Entered</button>`;
+                // Real fix: this is the actual, stored cumulative total
+                // across every gameweek (updated whenever a gameweek
+                // finalizes) - not the current-gameweek-only running total
+                // that was here before.
+                myTotalPoints = entryData.entry.entry_points || 0;
+              }
             }
           } catch (e) {
             console.error('[hero points] Failed to load entry / points:', e);

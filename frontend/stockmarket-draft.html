@@ -247,6 +247,18 @@
     <h1><i class="fas fa-box-open" style="color:var(--gold);"></i> Draft Your Squad</h1>
     <p class="subtitle">Open a starter pack and pick 6 players — 1 goalkeeper, at least one defender/midfielder/forward, plus 2 more of your choice.</p>
 
+    <!-- Only shown if checking for an existing squad hits an expired
+         session - doesn't block the normal draft flow below, since a
+         genuinely new entrant with no prior squad should keep working
+         exactly as before. Just an honest heads-up for someone who might
+         already have a squad but couldn't have that confirmed here. -->
+    <div class="card" id="sessionExpiredBanner" style="display:none; border-color:var(--red, #ef4444); margin-bottom:16px; padding:14px 18px;">
+      <div style="display:flex; align-items:center; gap:10px; font-size:13.5px;">
+        <i class="fas fa-triangle-exclamation" style="color:var(--red, #ef4444);"></i>
+        <span>Your session has expired, so we couldn't check whether you've already drafted a squad. If you have, <a href="/login?redirect=%2Fstock-market-draft" style="color:var(--accent-2); font-weight:600;">log in again</a> before opening a new pack.</span>
+      </div>
+    </div>
+
     <div class="card" id="preOpenCard">
       <div class="empty-state">
         <i class="fas fa-info-circle" style="font-size:20px;"></i>
@@ -365,6 +377,16 @@
 
       try {
         const res = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=stockmarket`, { headers: authHeaders() });
+
+        // Real bug fixed here: fetch() doesn't throw on a 401, so an
+        // expired/invalid token used to fall through as "no entry found"
+        // and silently let a genuinely-drafted user reach the pack-
+        // opening screen again with no warning at all.
+        if (res.status === 401) {
+          document.getElementById('sessionExpiredBanner').style.display = 'block';
+          return;
+        }
+
         const data = await res.json();
         const entry = data.entry;
         if (!entry || !entry.squad_players || entry.squad_players.length === 0) return;

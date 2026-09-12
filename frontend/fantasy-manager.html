@@ -361,6 +361,19 @@
       <button class="btn-primary" id="fmEnterBtn"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
     </div>
 
+    <!-- Distinct from the not-entered gate above - an expired/invalid
+         session used to be shown as if the user had never entered at
+         all, which isn't true and needlessly alarming for someone who
+         genuinely has a squad saved. -->
+    <div class="fm-card" id="fmSessionExpired" style="display:none; text-align:center; padding:44px 24px; border-color:var(--accent-red, #ef4444);">
+      <i class="fas fa-triangle-exclamation" style="font-size:36px; color:var(--accent-red, #ef4444); margin-bottom:14px;"></i>
+      <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Your session has expired</h2>
+      <p class="text-muted" style="max-width:440px; margin:0 auto 22px; font-size:14px;">
+        This doesn't affect your entry or squad — just log back in and everything will be exactly as you left it.
+      </p>
+      <a href="/login?redirect=%2Ffantasy-manager" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+    </div>
+
     <div id="fmMainContent" style="display:none;">
     <div class="fm-budget-bar">
       <div class="fm-stat" style="border-color:var(--accent); min-width:170px;">

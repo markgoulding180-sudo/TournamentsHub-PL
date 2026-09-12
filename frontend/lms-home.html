@@ -405,6 +405,18 @@
       <button class="btn-primary" id="enterBtn"><i class="fas fa-right-to-bracket"></i> Enter Now</button>
     </div>
 
+    <!-- Distinct from the not-entered gate above - an expired/invalid
+         session used to show as if the user had never joined, even for
+         someone with real picks and points already on the board. -->
+    <div class="card enter-gate" id="sessionExpiredGate" style="display:none; border-color:var(--red, #ef4444);">
+      <i class="fas fa-triangle-exclamation" style="font-size:36px; color:var(--red, #ef4444); margin-bottom:14px;"></i>
+      <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Your session has expired</h2>
+      <p style="max-width:440px; margin:0 auto 22px; font-size:14px; color:var(--text-dim);">
+        This doesn't affect your entry or picks — just log back in and everything will be exactly as you left it.
+      </p>
+      <a href="/login?redirect=%2Flast-man-standing" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+    </div>
+
     <div id="mainContent" style="display:none;">
 
       <!-- This gameweek's pick -->
@@ -574,15 +586,29 @@
       }
 
       const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
+
+      // Real bug fixed here: fetch() doesn't throw on a 401, so an
+      // expired/invalid token used to fall straight into "not entered"
+      // below, wrongly telling a genuinely entered user with real picks
+      // on the board that they'd never joined at all.
+      if (entryRes.status === 401) {
+        document.getElementById('enterGate').style.display = 'none';
+        document.getElementById('sessionExpiredGate').style.display = 'block';
+        document.getElementById('mainContent').style.display = 'none';
+        return;
+      }
+
       const entryData = await entryRes.json();
 
       if (!entryData.entry) {
+        document.getElementById('sessionExpiredGate').style.display = 'none';
         document.getElementById('enterGate').style.display = 'block';
         document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · Prize pool £${((tournament.prize_pool||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
         document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
         return;
       }
 
+      document.getElementById('sessionExpiredGate').style.display = 'none';
       document.getElementById('enterGate').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
 

@@ -222,6 +222,7 @@
       }
 
       try {
+        let sessionExpired = false;
         const results = await Promise.all(GAMES.map(async (game) => {
           const tRes = await fetch(`/api/tournaments?status=live&tournament_type=${game.type}`);
           const tData = await tRes.json();
@@ -229,6 +230,14 @@
           if (!tournament) return null;
 
           const eRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournament.id}&tournament_type=${game.type}`, { headers: authHeaders() });
+
+          // Real bug fixed here: fetch() doesn't throw on a 401, so an
+          // expired/invalid token used to make every single tournament
+          // silently return null here - checking all 6 game types in
+          // parallel with the same token meant an expired session could
+          // wipe EVERY real entry from this page at once.
+          if (eRes.status === 401) { sessionExpired = true; return null; }
+
           const eData = await eRes.json();
           if (!eData.entry) return null;
 
@@ -245,6 +254,11 @@
 
           return { game, tournament, entry: eData.entry, rank, total };
         }));
+
+        if (sessionExpired) {
+          document.getElementById('tournamentsBody').innerHTML = `<div class="empty">Your session has expired — this doesn't affect any of your entries.<br><br><a href="/login?redirect=%2Fprofile">Log In Again</a></div>`;
+          return;
+        }
 
         const entered = results.filter(Boolean);
         renderOverview(entered);

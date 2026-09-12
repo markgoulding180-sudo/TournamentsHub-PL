@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     deadlineLabel: document.getElementById('fmDeadlineLabel'),
     deadlineValue: document.getElementById('fmDeadlineValue'),
     enterGate: document.getElementById('fmEnterGate'),
+    sessionExpired: document.getElementById('fmSessionExpired'),
     enterDesc: document.getElementById('fmEnterDesc'),
     enterBtn: document.getElementById('fmEnterBtn'),
     mainContent: document.getElementById('fmMainContent'),
@@ -199,6 +200,19 @@ document.addEventListener('DOMContentLoaded', async function () {
       const res = await fetch(`/api/tournaments?tournament_id=${tournamentId}&my_entry=true&tournament_type=fantasy`, {
         headers: authHeaders()
       });
+
+      // Real bug fixed here: fetch() doesn't throw on a 401, so an
+      // expired/invalid token used to flow straight into "not entered"
+      // below - wrongly telling a genuinely entered user with a real
+      // saved squad that they'd never joined at all.
+      if (res.status === 401) {
+        els.statusBadge.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Session expired';
+        if (els.enterGate) els.enterGate.style.display = 'none';
+        if (els.sessionExpired) els.sessionExpired.style.display = 'block';
+        if (els.mainContent) els.mainContent.style.display = 'none';
+        return;
+      }
+
       const data = await res.json();
 
       hasEntered = !!data.entry;
@@ -206,12 +220,14 @@ document.addEventListener('DOMContentLoaded', async function () {
       if (!hasEntered) {
         // Not entered yet — show the Enter Tournament gate, hide the builder
         els.statusBadge.innerHTML = '<i class="fas fa-circle-info"></i> Not entered yet';
+        if (els.sessionExpired) els.sessionExpired.style.display = 'none';
         if (els.enterGate) els.enterGate.style.display = 'block';
         if (els.mainContent) els.mainContent.style.display = 'none';
         return;
       }
 
       // Entered — show the squad builder
+      if (els.sessionExpired) els.sessionExpired.style.display = 'none';
       if (els.enterGate) els.enterGate.style.display = 'none';
       if (els.mainContent) els.mainContent.style.display = 'block';
 

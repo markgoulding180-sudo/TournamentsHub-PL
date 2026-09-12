@@ -182,6 +182,17 @@
       <a href="/last-man-standing" class="btn-primary"><i class="fas fa-arrow-left"></i> Go to Last Man Standing</a>
     </div>
 
+    <!-- Distinct from the not-entered gate above - an expired/invalid
+         session used to show as if the user had never joined at all. -->
+    <div class="card enter-gate" id="sessionExpiredGate" style="display:none; border-color:var(--red, #ef4444);">
+      <i class="fas fa-triangle-exclamation" style="font-size:36px; color:var(--red, #ef4444); margin-bottom:14px;"></i>
+      <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Your session has expired</h2>
+      <p style="max-width:440px; margin:0 auto 22px; font-size:14px; color:var(--text-dim);">
+        This doesn't affect your entry or picks — just log back in and everything will be exactly as you left it.
+      </p>
+      <a href="/login?redirect=%2Flast-man-standing%2Fpick" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+    </div>
+
     <!-- Fixtures -->
     <div id="fixturesWrap" style="display:none;">
       <div class="fixtures-list" id="fixturesList"><div class="loading">Loading fixtures…</div></div>
@@ -266,6 +277,16 @@
 
         // Entry check
         const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
+
+        // Real bug fixed here: fetch() doesn't throw on a 401, so an
+        // expired/invalid token used to fall straight into "not entered"
+        // below, wrongly telling a genuinely entered user they'd never
+        // joined at all.
+        if (entryRes.status === 401) {
+          document.getElementById('sessionExpiredGate').style.display = 'block';
+          return;
+        }
+
         const entryData = await entryRes.json();
         if (!entryData.entry) {
           document.getElementById('enterGate').style.display = 'block';

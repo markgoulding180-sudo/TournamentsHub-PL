@@ -170,6 +170,7 @@
       }
 
       try {
+        let sessionExpired = false;
         const results = await Promise.all(GAMES.map(async (game) => {
           const tRes = await fetch(`/api/tournaments?status=live&tournament_type=${game.type}`);
           const tData = await tRes.json();
@@ -177,11 +178,26 @@
           if (!tournament) return null;
 
           const eRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournament.id}&tournament_type=${game.type}`, { headers: authHeaders() });
+
+          // Real bug fixed here: fetch() doesn't throw on a 401, so an
+          // expired/invalid token used to make every single tournament
+          // silently return null here - since this checks all 6 game
+          // types in parallel with the same token, an expired session
+          // could wipe EVERY real entry from this page at once and show
+          // "You're not entered in anything yet", even for someone
+          // entered in several live tournaments.
+          if (eRes.status === 401) { sessionExpired = true; return null; }
+
           const eData = await eRes.json();
           if (!eData.entry) return null;
 
           return { game, tournament, entry: eData.entry };
         }));
+
+        if (sessionExpired) {
+          container.innerHTML = `<div class="empty">Your session has expired — this doesn't affect any of your entries.<br><br><a href="/login?redirect=%2Fmy-tournaments">Log In Again</a></div>`;
+          return;
+        }
 
         const entered = results.filter(Boolean);
 
