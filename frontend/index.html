@@ -436,6 +436,22 @@
   /* ================= TOURNAMENT CARDS ================= */
   .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
   .card-row-3{grid-template-columns:repeat(3,1fr);}
+
+  /* Registering row is scoped separately from every other .card-row on
+     the page, deliberately - the count here varies (0 to however many
+     sports currently have something upcoming), so it needs to center
+     whatever's left over on the last line instead of always filling a
+     fixed 4-column grid. flex-wrap does this for free: each row wraps
+     independently and justify-content:center re-centers whatever's on
+     it, whether that's 1 card alone, a full row of 4, or a lone 5th
+     card by itself underneath. flex:0 (no grow) keeps cards at a
+     consistent width instead of stretching to fill a partial row. */
+  #registeringCardRow{ display:flex; flex-wrap:wrap; justify-content:center; gap:18px; }
+  #registeringCardRow .t-card{ flex:0 1 calc(25% - 13.5px); min-width:240px; }
+  @media (max-width:900px){
+    #registeringCardRow{ gap:12px; }
+    #registeringCardRow .t-card{ flex:0 1 calc(50% - 6px); min-width:150px; }
+  }
   .t-card{
     position:relative; background:rgba(13,23,48,0.82); backdrop-filter:blur(4px);
     border:1.5px solid rgba(59,130,246,0.6);
@@ -1115,6 +1131,10 @@
         <div class="quick-lb-title"><i class="fas fa-shield-halved" style="color:var(--accent-2);"></i> Champions League</div>
         <ol class="pl-live-leaders" id="qlbChampionsLeague"><li class="pl-live-empty">Loading…</li></ol>
       </div>
+      <div class="quick-lb-card">
+        <div class="quick-lb-title"><i class="fas fa-bullseye" style="color:var(--red);"></i> Darts</div>
+        <ol class="pl-live-leaders" id="qlbDarts"><li class="pl-live-empty">Loading…</li></ol>
+      </div>
     </div>
 
   </main>
@@ -1717,6 +1737,11 @@
     loadQuickLeaderboard('qlbFantasy', 'fantasy', 'fantasy_squad', 'entry_points');
     loadQuickStockMarket();
     loadQuickLeaderboard('qlbChampionsLeague', 'champions_league', null, 'entry_points');
+    // Darts uses the exact same generic loader as Fantasy/Champions
+    // League - no bespoke function needed. Whichever darts tournament is
+    // currently live gets picked up automatically; when this one
+    // finishes and a new one launches, this line doesn't need touching.
+    loadQuickLeaderboard('qlbDarts', 'darts', null, 'entry_points');
   }
   window.addEventListener('gbf-data-refreshed', loadAllQuickLeaderboards);
   loadAllQuickLeaderboards();
