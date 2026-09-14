@@ -1820,6 +1820,56 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ transactions: transactions || [] });
       }
 
+      // Admin — Payments & Bookkeeping: a full audit log of every payment
+      // ever recorded (both the old lump-sum kind and the new per-
+      // tournament kind), with the username and real tournament name
+      // attached so it reads as an actual receipt rather than raw ids.
+      // Grouped by payment_batch_id so one real £20 payment covering two
+      // tournaments still shows as one payment with two line items,
+      // not two unrelated-looking rows.
+      const adminPaymentHistory = params.get('admin_payment_history');
+      if (adminPaymentHistory === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { data: payments, error: payErr } = await supabaseAdmin
+          .from('wallet_transactions')
+          .select('*')
+          .eq('type', 'payment')
+          .order('created_at', { ascending: false });
+        if (payErr) return res.status(500).json({ error: payErr.message });
+
+        const userIds = [...new Set((payments || []).map(p => p.user_id))];
+        const { data: users } = await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds);
+        const userMap = {};
+        (users || []).forEach(u => { userMap[u.id] = u.display_name || u.username; });
+
+        // Real tournament names, looked up per schema rather than
+        // trusting the transaction's own description text to stay
+        // accurate if a tournament gets renamed later.
+        const namesByTypeAndId = {};
+        for (const schema of PAYMENT_SCHEMAS) {
+          const ids = [...new Set((payments || []).filter(p => p.tournament_type === schema && p.tournament_id).map(p => p.tournament_id))];
+          if (ids.length === 0) continue;
+          const { data: tRows } = await supabaseAdmin.schema(schema).from('tournaments').select('id, name').in('id', ids);
+          (tRows || []).forEach(t => { namesByTypeAndId[`${schema}:${t.id}`] = t.name; });
+        }
+
+        const enriched = (payments || []).map(p => ({
+          ...p,
+          username: userMap[p.user_id] || 'Unknown user',
+          tournament_name: p.tournament_id ? (namesByTypeAndId[`${p.tournament_type}:${p.tournament_id}`] || 'Unknown tournament') : null
+        }));
+
+        return res.status(200).json({ payments: enriched });
+      }
+
       // Admin-only: unacknowledged warning/error entries from
       // platform_event_log — what the admin dashboard banner reads to
       // show "X issues need attention" without anyone needing to
@@ -2416,6 +2466,85 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (txError) return res.status(500).json({ error: 'Failed to record payment', details: txError.message });
 
         return res.status(200).json({ success: true, transaction: txRow });
+      }
+
+      // Admin — Payments & Bookkeeping, per-tournament: which of this
+      // user's tournament entries are still unpaid right now. "Current"
+      // deliberately means "still has a balance", not "still live" -
+      // over a full season there will be many finished tournaments, and
+      // someone who never paid for one of those still genuinely owes for
+      // it, so it stays on this list until it's actually settled.
+      //
+      // Real complication handled here: payments recorded before this
+      // per-tournament system existed are a single lump sum with no
+      // tournament attached at all (tournament_id is null - a real,
+      // confirmed case: 3 users had already paid this way). Those old
+      // payments are treated as unallocated credit and applied FIFO
+      // (oldest entry first) against whichever entries aren't already
+      // covered by a real per-tournament payment - so someone who paid
+      // £30 under the old system still shows as covered for their oldest
+      // £30 of real entry fees, without needing to rewrite any history.
+      if (action === 'admin_get_user_dues') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { user_id: targetUserId } = req.body;
+        if (!targetUserId) return res.status(400).json({ error: 'user_id is required' });
+
+        const dues = await computeUserTournamentDues(supabaseAdmin, targetUserId);
+        return res.status(200).json({ dues });
+      }
+
+      // Admin — Payments & Bookkeeping: record one real-world payment
+      // (e.g. a single £20 bank transfer) that covers one or more
+      // specific tournaments at once, ticked as checkboxes on the admin
+      // side. Writes one wallet_transactions row per tournament covered,
+      // each for that tournament's exact fee (never a guessed split),
+      // all sharing one payment_batch_id so they're still recognisable
+      // as one real payment when looking at the history afterward.
+      if (action === 'admin_record_tournament_payment') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { user_id: targetUserId, allocations, total_amount } = req.body;
+        if (!targetUserId || !Array.isArray(allocations) || allocations.length === 0) {
+          return res.status(400).json({ error: 'user_id and at least one tournament allocation are required' });
+        }
+
+        const dues = await computeUserTournamentDues(supabaseAdmin, targetUserId);
+
+        const rows = [];
+        let computedTotal = 0;
+        for (const alloc of allocations) {
+          const match = dues.find(d => d.tournament_id === alloc.tournament_id && d.tournament_type === alloc.tournament_type);
+          if (!match) return res.status(400).json({ error: 'One of the selected tournaments no longer matches a real entry for this user — refresh and try again.' });
+          if (match.covered) return res.status(400).json({ error: `${match.tournament_name} is already paid for — refresh to see the current status.` });
+          computedTotal += match.outstanding;
+          rows.push({ match, amount: match.outstanding });
+        }
+
+        if (typeof total_amount === 'number' && total_amount !== computedTotal) {
+          return res.status(400).json({
+            error: `The selected tournaments add up to £${(computedTotal / 100).toFixed(2)}, but £${(total_amount / 100).toFixed(2)} was entered. Adjust the amount or the tournaments selected.`
+          });
+        }
+
+        const batchId = require('crypto').randomUUID();
+        const insertRows = rows.map(({ match, amount }) => ({
+          user_id: targetUserId,
+          type: 'payment',
+          amount: -Math.abs(amount),
+          tournament_type: match.tournament_type,
+          tournament_id: match.tournament_id,
+          description: `Payment received — £${(amount / 100).toFixed(2)} for ${match.tournament_name}`,
+          created_by: user.id,
+          payment_batch_id: batchId
+        }));
+
+        const { error: insErr } = await supabaseAdmin.from('wallet_transactions').insert(insertRows);
+        if (insErr) return res.status(500).json({ error: 'Failed to record payment', details: insErr.message });
+
+        return res.status(200).json({ success: true, recorded: insertRows.length, total: computedTotal, batch_id: batchId });
       }
 
       if (action === 'admin_broadcast') {
@@ -7776,6 +7905,80 @@ async function promoteIfDeadlinePassed(supabaseAdmin, schemaName, tournament) {
     .select('*')
     .maybeSingle();
   return updated || { ...tournament, status: 'live' };
+}
+
+const PAYMENT_SCHEMAS = ['predictions', 'lms', 'fantasy', 'stockmarket', 'darts', 'champions_league'];
+
+async function computeUserTournamentDues(supabaseAdmin, userId) {
+  let allEntries = [];
+  for (const schema of PAYMENT_SCHEMAS) {
+    const { data: entries } = await supabaseAdmin
+      .schema(schema).from('tournament_entries')
+      .select('id, tournament_id, entered_at').eq('user_id', userId);
+    if (!entries || entries.length === 0) continue;
+
+    const tournamentIds = [...new Set(entries.map(e => e.tournament_id))];
+    const { data: tournaments } = await supabaseAdmin
+      .schema(schema).from('tournaments')
+      .select('id, name, entry_fee, status').in('id', tournamentIds);
+    const tMap = {};
+    (tournaments || []).forEach(t => { tMap[t.id] = t; });
+
+    entries.forEach(e => {
+      const t = tMap[e.tournament_id];
+      if (!t) return; // entry with no matching tournament row - skip, nothing to charge
+      allEntries.push({
+        tournament_type: schema,
+        tournament_id: e.tournament_id,
+        tournament_name: t.name,
+        tournament_status: t.status,
+        entry_fee: t.entry_fee || 0,
+        entered_at: e.entered_at
+      });
+    });
+  }
+
+  // Oldest first, so unallocated legacy credit is applied to whichever
+  // entry actually came first - a real, defensible ordering rather than
+  // an arbitrary one.
+  allEntries.sort((a, b) => new Date(a.entered_at) - new Date(b.entered_at));
+
+  const { data: allTx } = await supabaseAdmin
+    .from('wallet_transactions')
+    .select('type, amount, tournament_type, tournament_id')
+    .eq('user_id', userId);
+
+  const scopedPaidByTournament = {};
+  let legacyGeneralCredit = 0;
+  (allTx || []).forEach(t => {
+    if (t.type !== 'payment') return;
+    if (t.tournament_id) {
+      scopedPaidByTournament[t.tournament_id] = (scopedPaidByTournament[t.tournament_id] || 0) + Math.abs(t.amount);
+    } else {
+      legacyGeneralCredit += Math.abs(t.amount);
+    }
+  });
+
+  return allEntries.map(e => {
+    const fee = e.entry_fee;
+    const scopedPaid = scopedPaidByTournament[e.tournament_id] || 0;
+    let remaining = Math.max(0, fee - scopedPaid);
+    let coveredBy = scopedPaid >= fee ? 'scoped' : null;
+
+    if (remaining > 0 && legacyGeneralCredit >= remaining) {
+      legacyGeneralCredit -= remaining;
+      remaining = 0;
+      coveredBy = 'legacy';
+    }
+
+    return {
+      ...e,
+      paid: scopedPaid,
+      covered: remaining === 0,
+      covered_by: coveredBy,
+      outstanding: remaining
+    };
+  });
 }
 
 function packPriceFor(config, rarity) {

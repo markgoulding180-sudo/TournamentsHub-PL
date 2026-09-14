@@ -869,11 +869,36 @@
             <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
               <th style="padding:0.5rem;">User</th>
               <th style="padding:0.5rem;">Owed</th>
-              <th style="padding:0.5rem;">Record a payment</th>
-              <th style="padding:0.5rem;"></th>
+              <th colspan="2" style="padding:0.5rem;"></th>
             </tr>
           </thead>
           <tbody id="walletListBody">
+            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
+      <h3><i class="fas fa-receipt"></i> Payment History</h3>
+      <p class="text-muted mb-2" style="font-size: 0.875rem;">
+        Every payment ever recorded, across every tournament and every user — a full receipt trail rather than just a running total.
+      </p>
+      <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+        <input type="text" id="paymentHistorySearch" class="form-input" placeholder="Search by username or tournament…" style="flex:1; min-width:200px;" oninput="renderPaymentHistory()">
+        <button class="btn btn-sm" onclick="loadPaymentHistory()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+      <div style="overflow-x:auto; max-height:420px; overflow-y:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+          <thead style="position:sticky; top:0; background:var(--bg-panel, #0d1420);">
+            <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem;">Date</th>
+              <th style="padding:0.5rem;">User</th>
+              <th style="padding:0.5rem;">Tournament</th>
+              <th style="padding:0.5rem;">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="paymentHistoryBody">
             <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
           </tbody>
         </table>

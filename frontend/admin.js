@@ -147,6 +147,7 @@ async function refreshStatus() {
     loadBroadcastMessages();
     loadEventLogSummary();
     loadWalletList();
+    loadPaymentHistory();
     loadPollingStatus();
     const response = await fetch('/api/admin-stats');
     const data = await response.json();
@@ -263,6 +264,62 @@ function moneyWallet(pence) {
   return `£${pounds.toFixed(2)}`;
 }
 
+let paymentHistoryCache = [];
+async function loadPaymentHistory() {
+  const body = document.getElementById('paymentHistoryBody');
+  if (!body) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments?admin_payment_history=true', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      body.innerHTML = `<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Failed to load: ${escapeHtmlWallet(data.error)}</td></tr>`;
+      return;
+    }
+    paymentHistoryCache = data.payments || [];
+    renderPaymentHistory();
+  } catch (error) {
+    console.error('loadPaymentHistory error:', error);
+    body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Failed to load payment history.</td></tr>';
+  }
+}
+
+function renderPaymentHistory() {
+  const body = document.getElementById('paymentHistoryBody');
+  if (!body) return;
+  const searchInput = document.getElementById('paymentHistorySearch');
+  const search = (searchInput ? searchInput.value : '').trim().toLowerCase();
+
+  let list = paymentHistoryCache;
+  if (search) {
+    list = list.filter(p =>
+      (p.username || '').toLowerCase().includes(search) ||
+      (p.tournament_name || '').toLowerCase().includes(search)
+    );
+  }
+
+  if (list.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">No payments recorded yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = list.map(p => {
+    const dateStr = new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const tournamentLabel = p.tournament_name
+      ? `${escapeHtmlWallet(p.tournament_name)} <span class="text-muted">(${WALLET_GAME_LABELS[p.tournament_type] || p.tournament_type})</span>`
+      : '<span class="text-muted">General — not tied to a specific tournament</span>';
+    return `
+      <tr style="border-top:1px solid var(--border-color);">
+        <td style="padding:0.4rem 0.5rem; white-space:nowrap;">${dateStr}</td>
+        <td style="padding:0.4rem 0.5rem;">${escapeHtmlWallet(p.username)}</td>
+        <td style="padding:0.4rem 0.5rem;">${tournamentLabel}</td>
+        <td style="padding:0.4rem 0.5rem; font-weight:700; color:var(--green);">${moneyWallet(Math.abs(p.amount))}</td>
+      </tr>`;
+  }).join('');
+}
+
 async function loadWalletList() {
   const body = document.getElementById('walletListBody');
   if (!body) return; // panel not on this page
@@ -315,7 +372,11 @@ function renderWalletList() {
     const detailRowHtml = isExpanded ? `
       <tr id="${detailRowId}" style="border-bottom:1px solid var(--border-color); background:var(--bg-hover);">
         <td colspan="4" style="padding:0.75rem 0.5rem;">
-          <div id="walletDetailBody_${u.id}" style="font-size:0.85rem;">Loading…</div>
+          <div id="walletDuesBody_${u.id}" style="font-size:0.85rem; margin-bottom:1rem;">Loading outstanding tournaments…</div>
+          <details style="margin-bottom:0.5rem;">
+            <summary style="cursor:pointer; font-size:0.78rem; color:var(--text-muted, #8a97b0);">Full transaction history</summary>
+            <div id="walletDetailBody_${u.id}" style="font-size:0.85rem; margin-top:0.5rem;">Loading…</div>
+          </details>
         </td>
       </tr>` : '';
     return `
@@ -329,20 +390,15 @@ function renderWalletList() {
         <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : owed < 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">
           ${owed > 0 ? moneyWallet(owed) : owed < 0 ? `${moneyWallet(owed)} in credit` : '£0.00'}
         </td>
-        <td style="padding:0.5rem;">
-          <select id="${selectId}" style="padding:0.4rem; border-radius:0.4rem; border:1px solid var(--border-color); background:var(--bg-hover); color:var(--text-primary);">
-            ${optionsHtml}
-          </select>
-        </td>
-        <td style="padding:0.5rem;">
-          <button class="btn btn-sm btn-green" onclick="recordWalletPayment('${u.id}', '${selectId}')">
-            <i class="fas fa-check"></i> Paid
+        <td colspan="2" style="padding:0.5rem;">
+          <button class="btn btn-sm btn-green" onclick="toggleWalletDetail('${u.id}')">
+            <i class="fas fa-list-check"></i> Record Payment
           </button>
         </td>
       </tr>${detailRowHtml}`;
   }).join('');
 
-  if (walletExpandedUserId) loadWalletDetail(walletExpandedUserId);
+  if (walletExpandedUserId) { loadWalletDetail(walletExpandedUserId); loadWalletDues(walletExpandedUserId); }
 }
 
 let walletExpandedUserId = null;
@@ -351,6 +407,121 @@ const walletDetailCache = {};
 function toggleWalletDetail(userId) {
   walletExpandedUserId = walletExpandedUserId === userId ? null : userId;
   renderWalletList();
+}
+
+const WALLET_GAME_LABELS = {
+  predictions: 'Predictions',
+  lms: 'Last Man Standing',
+  fantasy: 'Fantasy Manager',
+  stockmarket: 'Stock Market',
+  darts: 'Darts',
+  champions_league: 'Champions League'
+};
+
+async function loadWalletDues(userId) {
+  const el = document.getElementById(`walletDuesBody_${userId}`);
+  if (!el) return;
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_get_user_dues', user_id: userId })
+    });
+    const data = await response.json();
+    if (!response.ok) { el.innerHTML = `<span class="text-muted">Failed to load: ${escapeHtmlWallet(data.error)}</span>`; return; }
+    renderWalletDues(userId, data.dues || []);
+  } catch (error) {
+    console.error('loadWalletDues error:', error);
+    el.innerHTML = '<span class="text-muted">Failed to load outstanding tournaments.</span>';
+  }
+}
+
+function renderWalletDues(userId, dues) {
+  const el = document.getElementById(`walletDuesBody_${userId}`);
+  if (!el) return;
+
+  if (dues.length === 0) {
+    el.innerHTML = '<span class="text-muted">This user has no tournament entries yet.</span>';
+    return;
+  }
+
+  const rowsHtml = dues.map((d, i) => {
+    const label = WALLET_GAME_LABELS[d.tournament_type] || d.tournament_type;
+    const inputId = `due_${userId}_${i}`;
+    const feeStr = moneyWallet(d.entry_fee);
+    if (d.covered) {
+      const via = d.covered_by === 'legacy' ? ' (via an earlier general payment)' : d.entry_fee === 0 ? ' (free entry)' : '';
+      return `
+        <label style="display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0; opacity:0.55;">
+          <input type="checkbox" checked disabled>
+          <span style="flex:1;">${escapeHtmlWallet(d.tournament_name)} <span class="text-muted">— ${label}</span></span>
+          <span style="font-weight:600;">${feeStr}${via}</span>
+        </label>`;
+    }
+    return `
+      <label style="display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0; cursor:pointer;">
+        <input type="checkbox" id="${inputId}" data-user="${userId}" data-idx="${i}" class="due-checkbox" onchange="recalcWalletDueTotal('${userId}')">
+        <span style="flex:1;">${escapeHtmlWallet(d.tournament_name)} <span class="text-muted">— ${label}</span></span>
+        <span style="font-weight:600; color:var(--red);">${feeStr} owed</span>
+      </label>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="font-weight:700; margin-bottom:0.5rem;">Outstanding tournaments</div>
+    <div id="walletDuesList_${userId}" data-dues='${JSON.stringify(dues).replace(/'/g, '&#39;')}'>${rowsHtml}</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid var(--border-color);">
+      <div>Recording: <span id="walletDueTotal_${userId}" style="font-weight:700;">£0.00</span></div>
+      <button class="btn btn-sm btn-green" id="walletDuePayBtn_${userId}" disabled onclick="submitTournamentPayment('${userId}')">
+        <i class="fas fa-check"></i> Record This Payment
+      </button>
+    </div>`;
+}
+
+function recalcWalletDueTotal(userId) {
+  const checkboxes = document.querySelectorAll(`.due-checkbox[data-user="${userId}"]:checked`);
+  const listEl = document.getElementById(`walletDuesList_${userId}`);
+  const dues = JSON.parse(listEl.dataset.dues);
+  let total = 0;
+  checkboxes.forEach(cb => { total += dues[parseInt(cb.dataset.idx, 10)].entry_fee; });
+  document.getElementById(`walletDueTotal_${userId}`).textContent = moneyWallet(total);
+  document.getElementById(`walletDuePayBtn_${userId}`).disabled = checkboxes.length === 0;
+}
+
+async function submitTournamentPayment(userId) {
+  const checkboxes = document.querySelectorAll(`.due-checkbox[data-user="${userId}"]:checked`);
+  const listEl = document.getElementById(`walletDuesList_${userId}`);
+  const dues = JSON.parse(listEl.dataset.dues);
+  const selected = Array.from(checkboxes).map(cb => dues[parseInt(cb.dataset.idx, 10)]);
+  if (selected.length === 0) return;
+
+  const total = selected.reduce((s, d) => s + d.entry_fee, 0);
+  const names = selected.map(d => d.tournament_name).join(', ');
+  if (!confirm(`Record a payment of ${moneyWallet(total)} covering: ${names}?\n\nOnly do this after you've actually received the money.`)) return;
+
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        action: 'admin_record_tournament_payment',
+        user_id: userId,
+        total_amount: total,
+        allocations: selected.map(d => ({ tournament_type: d.tournament_type, tournament_id: d.tournament_id }))
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) { log(`Failed to record payment: ${data.error}`, 'error'); return; }
+    log(`Payment of ${moneyWallet(total)} recorded for ${names}`, 'success');
+    delete walletDetailCache[userId];
+    loadWalletDues(userId);
+    loadWalletDetail(userId);
+    loadWalletList();
+  } catch (error) {
+    console.error('submitTournamentPayment error:', error);
+    log('Failed to record payment — check the console.', 'error');
+  }
 }
 
 async function loadWalletDetail(userId) {
