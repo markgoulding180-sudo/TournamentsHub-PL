@@ -155,7 +155,27 @@
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    const TOURNAMENT_ID = '2ee35c29-c25d-45a8-85a4-cb39c4cef368'; // World Grand Prix
+    // Used to be a hardcoded constant pointing at a specific tournament
+    // ID - broke the moment that tournament was gone and a new one
+    // existed instead (same real, confirmed bug already fixed in
+    // darts-home.html and admin.js, but missed in this file). This is
+    // exactly why the leaderboard showed "No entrants yet" despite 3
+    // real entries existing under the real tournament - it was querying
+    // an ID that matches nothing, which returns an empty result rather
+    // than an error, so it looked like a legitimately empty leaderboard.
+    async function resolveDefaultTournamentId() {
+      for (const status of ['live', 'upcoming']) {
+        try {
+          const res = await fetch(`/api/tournaments?tournament_type=darts&status=${status}`);
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data.tournaments || []);
+          if (list[0]) return list[0].id;
+        } catch (e) {
+          console.error(`Failed to look up ${status} darts tournament:`, e);
+        }
+      }
+      return null;
+    }
 
     async function loadLeaderboard() {
       const list = document.getElementById('lbList');
@@ -165,6 +185,12 @@
         return;
       }
       list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>';
+
+      const TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || await resolveDefaultTournamentId();
+      if (!TOURNAMENT_ID) {
+        list.innerHTML = '<div class="empty"><i class="fas fa-circle-info"></i>No darts tournament is currently available.</div>';
+        return;
+      }
 
       try {
         const response = await fetch('/api/tournaments', {
