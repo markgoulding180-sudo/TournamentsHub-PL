@@ -147,6 +147,7 @@ async function refreshStatus() {
     loadBroadcastMessages();
     loadEventLogSummary();
     loadWalletList();
+    loadTournamentDuesOverview();
     loadPaymentHistory();
     loadPollingStatus();
     const response = await fetch('/api/admin-stats');
@@ -262,6 +263,68 @@ function escapeHtmlWallet(str) {
 function moneyWallet(pence) {
   const pounds = Math.abs(pence || 0) / 100;
   return `£${pounds.toFixed(2)}`;
+}
+
+let tournamentDuesOverviewCache = [];
+async function loadTournamentDuesOverview() {
+  const el = document.getElementById('tournamentDuesOverview');
+  if (!el) return;
+  el.innerHTML = '<span class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading…</span>';
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_get_tournament_dues_overview' })
+    });
+    const data = await response.json();
+    if (!response.ok) { el.innerHTML = `<span class="text-muted">Failed to load: ${escapeHtmlWallet(data.error)}</span>`; return; }
+    tournamentDuesOverviewCache = data.overview || [];
+    renderTournamentDuesOverview();
+  } catch (error) {
+    console.error('loadTournamentDuesOverview error:', error);
+    el.innerHTML = '<span class="text-muted">Failed to load.</span>';
+  }
+}
+
+function renderTournamentDuesOverview() {
+  const el = document.getElementById('tournamentDuesOverview');
+  if (!el) return;
+  const overview = tournamentDuesOverviewCache;
+
+  if (overview.length === 0) {
+    el.innerHTML = '<span class="text-muted"><i class="fas fa-circle-check" style="color:var(--green);"></i> Nobody owes anything right now.</span>';
+    return;
+  }
+
+  el.innerHTML = overview.map(t => {
+    const label = WALLET_GAME_LABELS[t.tournament_type] || t.tournament_type;
+    const statusBadge = t.tournament_status === 'live'
+      ? '<span style="font-size:0.7rem; font-weight:700; color:var(--green); text-transform:uppercase;">Live</span>'
+      : `<span style="font-size:0.7rem; color:var(--text-muted, #8a97b0); text-transform:uppercase;">${escapeHtmlWallet(t.tournament_status)}</span>`;
+    const namesHtml = t.owing.map(o =>
+      `<button onclick="jumpToWalletUser('${o.user_id}')" style="background:var(--bg-hover); border:1px solid var(--border-color); border-radius:2rem; padding:0.25rem 0.7rem; font-size:0.8rem; color:inherit; cursor:pointer; white-space:nowrap;">
+        ${escapeHtmlWallet(o.username)} <span style="color:var(--red); font-weight:700;">${moneyWallet(o.outstanding)}</span>
+      </button>`
+    ).join(' ');
+
+    return `
+      <div style="padding:0.7rem 0; border-bottom:1px solid var(--border-color);">
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+          <strong>${escapeHtmlWallet(t.tournament_name)}</strong>
+          <span class="text-muted" style="font-size:0.8rem;">— ${label}</span>
+          ${statusBadge}
+          <span class="text-muted" style="font-size:0.8rem; margin-left:auto;">${t.owing.length} owing · ${moneyWallet(t.total_outstanding)} total</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">${namesHtml}</div>
+      </div>`;
+  }).join('');
+}
+
+function jumpToWalletUser(userId) {
+  walletExpandedUserId = userId;
+  renderWalletList();
+  document.getElementById(`walletDetail_${userId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 let paymentHistoryCache = [];

@@ -2484,6 +2484,68 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // covered by a real per-tournament payment - so someone who paid
       // £30 under the old system still shows as covered for their oldest
       // £30 of real entry fees, without needing to rewrite any history.
+      // Admin — Payments & Bookkeeping, the main "quick look" view: every
+      // tournament with a list of just the users who still owe for it.
+      // Reuses the exact same per-user dues calculation as the detailed
+      // checkbox recorder below (same is_test handling, same legacy
+      // credit reconciliation) - just re-grouped by tournament instead
+      // of by user, since "which tournaments have people still owing"
+      // is the everyday question, and "here's one user's full picture"
+      // is the occasional detailed one.
+      if (action === 'admin_get_tournament_dues_overview') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const userIdSet = new Set();
+        for (const schema of PAYMENT_SCHEMAS) {
+          const { data: entries } = await supabaseAdmin.schema(schema).from('tournament_entries').select('user_id');
+          (entries || []).forEach(e => userIdSet.add(e.user_id));
+        }
+        const userIds = [...userIdSet];
+
+        const { data: allUsers } = await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds);
+        const nameById = {};
+        (allUsers || []).forEach(u => { nameById[u.id] = u.display_name || u.username; });
+
+        const byTournament = {};
+        for (const uid of userIds) {
+          const dues = await computeUserTournamentDues(supabaseAdmin, uid);
+          dues.forEach(d => {
+            if (d.covered) return; // only interested in who still owes
+            const key = `${d.tournament_type}:${d.tournament_id}`;
+            if (!byTournament[key]) {
+              byTournament[key] = {
+                tournament_type: d.tournament_type,
+                tournament_id: d.tournament_id,
+                tournament_name: d.tournament_name,
+                tournament_status: d.tournament_status,
+                owing: []
+              };
+            }
+            byTournament[key].owing.push({
+              user_id: uid,
+              username: nameById[uid] || 'Unknown user',
+              outstanding: d.outstanding
+            });
+          });
+        }
+
+        // Live tournaments first (the ones actually being played right
+        // now), then by however much is outstanding - the tournaments
+        // needing the most chasing float to the top within each group.
+        const overview = Object.values(byTournament)
+          .map(t => ({ ...t, owing: t.owing.sort((a, b) => b.outstanding - a.outstanding), total_outstanding: t.owing.reduce((s, o) => s + o.outstanding, 0) }))
+          .sort((a, b) => {
+            if (a.tournament_status === 'live' && b.tournament_status !== 'live') return -1;
+            if (a.tournament_status !== 'live' && b.tournament_status === 'live') return 1;
+            return b.total_outstanding - a.total_outstanding;
+          });
+
+        return res.status(200).json({ overview });
+      }
+
+      // Admin — Payments & Bookkeeping, per-tournament: which of this
+      // user's tournament entries are still unpaid right now.
       if (action === 'admin_get_user_dues') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
