@@ -3070,6 +3070,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
         }
 
+        // Real bug fixed here: a partial submission (e.g. 15 of 16
+        // matches picked) used to be accepted as if it were complete,
+        // and the one-time lock below then permanently blocked ever
+        // adding the missing pick - confirmed as a real, live case.
+        // Every real match with both players confirmed and not yet
+        // finished must now be included, or the whole submission is
+        // rejected up front (nothing saved) with a message naming
+        // exactly which match numbers are still missing.
+        const pickableMatchNumbers = roundMatches
+          .filter(m => m.player1_id && m.player2_id && m.status !== 'finished')
+          .map(m => m.match_number);
+        const submittedMatchNumbers = new Set(submittedPredictions.map(p => p.match_number));
+        const missingMatchNumbers = pickableMatchNumbers.filter(n => !submittedMatchNumbers.has(n));
+        if (missingMatchNumbers.length > 0) {
+          return res.status(400).json({
+            error: `You still need to pick a winner for match${missingMatchNumbers.length > 1 ? 'es' : ''} ${missingMatchNumbers.join(', ')} before you can submit this round — nothing has been saved yet.`,
+            missing_match_numbers: missingMatchNumbers
+          });
+        }
+
         try {
           let { data: entry } = await supabaseAdmin
             .schema('darts').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();

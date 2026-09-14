@@ -502,15 +502,21 @@
         // there's no more editing and no more submit button, just the
         // locked-in read-only picks shown above.
         if (!locked && !alreadySubmittedThisRound && roundHasAvailableMatch) {
-          const roundPickedCount = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
-            .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; })
-            .filter(m => myPicks[`${round}-${m}`]).length;
-          const roundAvailableCount = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
-            .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; }).length;
+          const roundMatchNumbers = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
+            .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; });
+          const missingNumbers = roundMatchNumbers.filter(m => !myPicks[`${round}-${m}`]);
+          const roundPickedCount = roundMatchNumbers.length - missingNumbers.length;
+          const roundAvailableCount = roundMatchNumbers.length;
+          const isComplete = missingNumbers.length === 0;
           html += `
-            <button class="btn-primary" style="width:100%; margin:6px 0 16px;" onclick="submitRoundPicks(${round})">
+            <button class="btn-primary" style="width:100%; margin:6px 0 4px;" onclick="submitRoundPicks(${round})" ${isComplete ? '' : 'disabled'}>
               Submit ${ROUND_NAMES[round]} Picks — Locks Them In (${roundPickedCount}/${roundAvailableCount})
             </button>`;
+          if (!isComplete) {
+            html += `<div style="font-size:12.5px; color:var(--gold); text-align:center; margin-bottom:16px;">
+              <i class="fas fa-triangle-exclamation"></i> Still need a pick for match${missingNumbers.length > 1 ? 'es' : ''} ${missingNumbers.join(', ')} before you can submit
+            </div>`;
+          }
         }
       }
 
@@ -541,17 +547,15 @@
 
     async function submitRoundPicks(round) {
       const msgEl = document.getElementById('submitMsg');
-      const predictions = Object.entries(myPicks)
-        .filter(([key]) => key.startsWith(`${round}-`))
-        .map(([key, predicted_winner_id]) => {
-          const [, match_number] = key.split('-').map(Number);
-          return { match_number, predicted_winner_id };
-        });
-      if (predictions.length === 0) {
+      const roundMatchNumbers = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => i + 1)
+        .filter(m => { const match = getMatch(round, m); return match.player1_id && match.player2_id && match.status !== 'finished'; });
+      const missingNumbers = roundMatchNumbers.filter(m => !myPicks[`${round}-${m}`]);
+      if (missingNumbers.length > 0) {
         msgEl.style.color = 'var(--red)';
-        msgEl.textContent = `Pick at least one winner in ${ROUND_NAMES[round]} first.`;
+        msgEl.textContent = `You still need to pick a winner for match${missingNumbers.length > 1 ? 'es' : ''} ${missingNumbers.join(', ')} before you can submit ${ROUND_NAMES[round]}.`;
         return;
       }
+      const predictions = roundMatchNumbers.map(m => ({ match_number: m, predicted_winner_id: myPicks[`${round}-${m}`] }));
       msgEl.style.color = 'var(--text-dim)';
       msgEl.textContent = 'Saving…';
       try {
