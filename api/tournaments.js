@@ -7918,21 +7918,31 @@ async function computeUserTournamentDues(supabaseAdmin, userId) {
     if (!entries || entries.length === 0) continue;
 
     const tournamentIds = [...new Set(entries.map(e => e.tournament_id))];
+    // is_test only exists on stockmarket - that's the one game type
+    // where entry_fee does double duty as the in-game draft budget, not
+    // purely a real-money charge (confirmed: a real "Free EntryTesting
+    // Stoxk" tournament has entry_fee=3000 for the squad-value mechanic
+    // to work correctly, with is_test=true meaning the wallet was never
+    // actually charged for it - treating that £30 as real money owed
+    // would be a real, confirmed mistake).
+    const selectCols = schema === 'stockmarket' ? 'id, name, entry_fee, status, is_test' : 'id, name, entry_fee, status';
     const { data: tournaments } = await supabaseAdmin
       .schema(schema).from('tournaments')
-      .select('id, name, entry_fee, status').in('id', tournamentIds);
+      .select(selectCols).in('id', tournamentIds);
     const tMap = {};
     (tournaments || []).forEach(t => { tMap[t.id] = t; });
 
     entries.forEach(e => {
       const t = tMap[e.tournament_id];
       if (!t) return; // entry with no matching tournament row - skip, nothing to charge
+      const isTest = schema === 'stockmarket' && t.is_test === true;
       allEntries.push({
         tournament_type: schema,
         tournament_id: e.tournament_id,
         tournament_name: t.name,
         tournament_status: t.status,
-        entry_fee: t.entry_fee || 0,
+        entry_fee: isTest ? 0 : (t.entry_fee || 0),
+        is_test: isTest,
         entered_at: e.entered_at
       });
     });

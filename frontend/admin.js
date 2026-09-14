@@ -451,7 +451,7 @@ function renderWalletDues(userId, dues) {
     const inputId = `due_${userId}_${i}`;
     const feeStr = moneyWallet(d.entry_fee);
     if (d.covered) {
-      const via = d.covered_by === 'legacy' ? ' (via an earlier general payment)' : d.entry_fee === 0 ? ' (free entry)' : '';
+      const via = d.covered_by === 'legacy' ? ' (via an earlier general payment)' : d.is_test ? ' (test tournament — never charged)' : d.entry_fee === 0 ? ' (free entry)' : '';
       return `
         <label style="display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0; opacity:0.55;">
           <input type="checkbox" checked disabled>
