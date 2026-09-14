@@ -427,6 +427,34 @@
 
   .quick-lb-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
   .quick-lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  /* Winner celebration state - a finished tournament shouldn't just
+     show the same ranked list as a live one with nothing to distinguish
+     it. This deliberately "pops": gold glow on the whole card, a
+     trophy that scales in, the champion's name front and centre
+     instead of buried as rank #1 in a list. */
+  .quick-lb-card.is-finished{
+    background: linear-gradient(160deg, rgba(242,185,61,0.16), var(--bg-panel) 60%);
+    border-color: var(--gold);
+    box-shadow: 0 0 26px rgba(242,185,61,0.28);
+  }
+  .quick-lb-winner{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:8px 4px 2px; list-style:none; }
+  .quick-lb-winner .trophy{
+    font-size:30px; color:var(--gold); margin-bottom:6px;
+    text-shadow:0 0 18px rgba(242,185,61,0.65);
+    animation: qlbPop 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+  .quick-lb-winner .crowns{ font-size:11px; color:var(--gold); margin-bottom:3px; letter-spacing:2px; }
+  .quick-lb-winner .label{
+    font-size:10px; font-weight:800; letter-spacing:1.6px; text-transform:uppercase;
+    color:var(--gold); margin-bottom:5px;
+  }
+  .quick-lb-winner .name{ font-family:var(--font-head); font-weight:700; font-size:18px; color:#fff; margin-bottom:3px; }
+  .quick-lb-winner .sub{ font-size:11px; color:var(--text-dim); }
+  @keyframes qlbPop{
+    0%{ transform:scale(0.4); opacity:0; }
+    65%{ transform:scale(1.18); opacity:1; }
+    100%{ transform:scale(1); }
+  }
   .quick-lb-title{ font-family:var(--font-head); font-weight:700; font-size:14.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
   @media (max-width:1080px){ .quick-lb-grid{ grid-template-columns:repeat(2, 1fr); } }
   @media (max-width:640px){ .quick-lb-grid{ grid-template-columns:1fr; } }
@@ -1273,6 +1301,26 @@
       </li>`).join('');
   }
 
+  // Shared "winner" celebration state - used whenever a tournament's
+  // leaderboard is genuinely finished, instead of showing the exact same
+  // ranked list a live tournament would show with nothing to mark the
+  // occasion. Applies the gold glow to the whole card too, not just the
+  // list content, so it actually pops against the other live cards
+  // around it rather than just being a slightly different list.
+  function renderQuickLbWinner(elId, winnerName){
+    const el = document.getElementById(elId);
+    const card = el.closest('.quick-lb-card');
+    if (card) card.classList.add('is-finished');
+    el.innerHTML = `
+      <li class="quick-lb-winner">
+        <div class="trophy"><i class="fas fa-trophy"></i></div>
+        <div class="crowns"><i class="fas fa-crown"></i>&nbsp;&nbsp;<i class="fas fa-crown"></i>&nbsp;&nbsp;<i class="fas fa-crown"></i></div>
+        <div class="label">Champion</div>
+        <div class="name">${plEsc(winnerName)}</div>
+        <div class="sub"><i class="fas fa-circle-check"></i> Tournament complete</div>
+      </li>`;
+  }
+
   // Generic top-5 loader for LMS/Fantasy — same live-then-finished pattern
   // used everywhere else this tournament finish logic touches, so a
   // genuinely finished tournament still shows its real final standings
@@ -1301,12 +1349,16 @@
         el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
         return;
       }
+      const nameOf = (r) => r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
+      if (t.status === 'finished') {
+        renderQuickLbWinner(elId, nameOf(rows[0]));
+        return;
+      }
       el.innerHTML = rows.map((r, i) => {
-        const name = r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
         return `
           <li>
             <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(name)}</span>
+            <span class="name">${plEsc(nameOf(r))}</span>
             <span class="pts">${plEsc(r[pointsField] ?? 0)} pts</span>
           </li>`;
       }).join('');
@@ -1340,8 +1392,17 @@
         el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
         return;
       }
+      const nameOf = (r) => r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
+      if (t.status === 'finished') {
+        // The last one standing is always rank 1 in the sort order this
+        // endpoint already applies (alive-first, then most weeks
+        // survived) - by the time the tournament is genuinely finished,
+        // that's the sole winner, not just "currently in the lead".
+        renderQuickLbWinner('qlbLms', nameOf(rows[0]));
+        return;
+      }
       el.innerHTML = rows.map((r, i) => {
-        const name = r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
+        const name = nameOf(r);
         const status = r.is_eliminated ? `Out GW${r.eliminated_gameweek}` : 'Alive';
         return `
           <li>
@@ -1387,6 +1448,11 @@
         .slice(0, 5);
       if (rows.length === 0) {
         el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
+        return;
+      }
+      if (t.status === 'finished') {
+        const winnerName = rows[0].users ? (rows[0].users.display_name || rows[0].users.username) : 'Player';
+        renderQuickLbWinner('qlbStockmarket', winnerName);
         return;
       }
       el.innerHTML = rows.map((r, i) => {
