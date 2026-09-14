@@ -89,25 +89,31 @@
   .vs-strip .who-value{ font-family:var(--font-head); font-size:15px; font-weight:700; color:var(--accent-2); }
 
   /* ---------- Player list ---------- */
-  .list{ display:flex; flex-direction:column; margin:10px 20px 0; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
-  .row{ border-bottom:1px solid var(--border); background:var(--bg-card); }
-  .row:last-child{ border-bottom:none; }
+  .list{ display:flex; flex-direction:column; gap:8px; margin:10px 0 0; }
+  .row{ border-radius:10px; background:var(--bg-card); border:1.5px solid rgba(255,255,255,0.28); overflow:hidden; }
   .row-main{
     display:flex; align-items:center; gap:11px;
     padding:12px 14px; cursor:pointer;
+    background:var(--bg-card);
     transition:background 0.15s ease;
   }
   .row-main:active{ background:var(--bg-card-2); }
   .row.open .row-main{ background:var(--bg-card-2); }
 
-  .photo-wrap{ position:relative; flex-shrink:0; }
+  /* Status now lives on the photo ring, not the row border - a coloured
+     padding-ring behind the photo, same technique used for the hazard
+     stripes since it clips cleanly to a circle (border-image doesn't
+     respect border-radius reliably, so this is more robust). */
+  .photo-wrap{ position:relative; flex-shrink:0; border-radius:50%; padding:3px; }
+  .photo-wrap.status-played{ background:var(--green); }
+  .photo-wrap.status-benched{ background:var(--red); }
+  .photo-wrap.status-injured{ background: repeating-linear-gradient(135deg, var(--gold) 0 5px, #0a0a0a 5px 10px); }
   .photo{
-    width:44px; height:44px; border-radius:50%;
+    display:block; width:44px; height:44px; border-radius:50%;
     object-fit:cover; object-position:top;
     background:var(--bg-panel);
-    border:1.5px solid var(--border);
+    border:2px solid var(--bg-card);
   }
-  .row-main:hover .photo{ border-color:var(--border-hover); }
   .status-dot{
     position:absolute; bottom:-1px; right:-1px;
     width:13px; height:13px; border-radius:50%;
@@ -119,14 +125,30 @@
   .status-dot.injured{ background:var(--red); color:#fff; }
   .status-dot.benched{ background:var(--text-faint); }
 
+  /* Player name now sits above the photo/meta row, left-aligned to the
+     photo's own left edge (same flex column, no extra indent). */
+  .player-block{ display:flex; flex-direction:column; gap:5px; flex:1; min-width:0; }
+  .player-name{ font-size:14px; font-weight:700; font-family:var(--font-head); letter-spacing:0.2px; text-align:left; }
+  .player-row{ display:flex; align-items:center; gap:11px; }
+
   .who{ flex:1; min-width:0; }
-  .who .name{ font-size:14px; font-weight:700; font-family:var(--font-head); letter-spacing:0.2px; }
-  .who .sub{ font-size:11.5px; color:var(--text-dim); margin-top:1px; }
+  .who .sub{ font-size:11.5px; color:var(--text); display:flex; align-items:center; gap:5px; }
   .who .sub .pos-tag{
     display:inline-block; font-size:9.5px; font-weight:800; letter-spacing:0.4px;
     color:#fff; background:var(--accent); padding:1.5px 5px; border-radius:4px;
-    margin-right:6px; position:relative; top:-0.5px;
+    position:relative; top:-0.5px;
   }
+  .who .sub .team-badge{
+    width:44px; height:44px; object-fit:contain; flex-shrink:0;
+    margin-left:2px;
+  }
+  .who .status-text{
+    font-size:10px; font-weight:800; letter-spacing:0.4px; text-transform:uppercase;
+    margin-top:3px;
+  }
+  .who .status-text.played{ color:var(--green); }
+  .who .status-text.benched{ color:var(--red); }
+  .who .status-text.injured{ color:var(--gold); }
 
   .spark{ flex-shrink:0; width:40px; height:24px; }
 
@@ -177,12 +199,35 @@
   .btn-info:hover{ background:var(--bg-panel); color:var(--accent-2); }
   .status-line{ font-size:11.5px; color:var(--text-dim); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
 
-  .row.flagged .row-main{ background:rgba(239,68,68,0.05); }
 
   footer{ padding:26px 20px 10px; text-align:center; font-size:11px; color:var(--text-faint); }
 
   @media (min-width:640px){
     body{ max-width:520px; margin:0 auto; border-left:1px solid var(--border); border-right:1px solid var(--border); min-height:100vh; }
+  }
+
+  /* ---------- Mobile fix ---------- */
+  /* Real bug on narrow screens: .who was allowed to shrink below its
+     content size (min-width:0) while its own children (pos-tag, team
+     name, 44px badge) never wrapped - so the badge just overflowed
+     rightward on top of the price/sparkline instead of wrapping,
+     exactly as seen in a real screenshot. Fixed properly here, not by
+     shrinking things arbitrarily: the sparkline moves into the detail
+     view (it's a nice-to-have, not essential in the compact row), the
+     badge drops to a smaller-but-still-clearly-a-crest size, and the
+     meta line is allowed to wrap onto a second line as a safety net
+     so nothing can ever overlap again even on very narrow devices. */
+  @media (max-width:480px){
+    .row-main{ padding:10px 12px; gap:9px; }
+    .spark{ display:none; }
+    .player-name{ font-size:13.5px; }
+    .photo-wrap{ padding:2.5px; }
+    .photo{ width:38px; height:38px; }
+    .who .sub{ flex-wrap:wrap; row-gap:3px; font-size:11px; }
+    .who .sub .team-badge{ width:22px; height:22px; margin-left:0; }
+    .numbers .value{ font-size:14.5px; }
+    .numbers .delta{ font-size:11px; }
+    .detail-inner{ padding-left:12px; }
   }
 </style>
 </head>
@@ -228,6 +273,13 @@
   <footer>Values update after every match. Nothing here is investment advice — it's football.</footer>
 
 <script>
+// Real Premier League team codes, used to pull each club's actual crest
+// from the same photo CDN as the player headshots.
+const TEAM_CODES = {
+  'Arsenal': 3, 'Chelsea': 8, 'Man City': 43, 'Liverpool': 14,
+  'Aston Villa': 7, 'Newcastle': 4
+};
+
 const MY_PLAYERS = [
   { id:1, name:'Raya', team:'Arsenal', pos:'GK', photo:'154561', value:612, delta:18, status:'played', own:0, share:18,
     stats:[['SV','5',true],['GC','0',true],['CS','1',true]] },
@@ -266,9 +318,9 @@ function initials(name){
   return name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 }
 function statusMeta(status){
-  if (status === 'injured') return { cls:'injured', icon:'fa-user-injured', label:'Injured this week' };
-  if (status === 'benched') return { cls:'benched', icon:'fa-chair', label:'Didn\u2019t play — benched' };
-  return { cls:'played', icon:'fa-check', label:'Played 90 mins' };
+  if (status === 'injured') return { cls:'injured', icon:'fa-user-injured', label:'Injured this week', shortLabel:'Injured' };
+  if (status === 'benched') return { cls:'benched', icon:'fa-chair', label:'Didn\u2019t play — benched', shortLabel:'Benched' };
+  return { cls:'played', icon:'fa-check', label:'Played 90 mins', shortLabel:'Played' };
 }
 function sparkline(seed, delta){
   let s = seed * 9301 + 49297;
@@ -319,16 +371,24 @@ function renderList(containerId, players, prefix, showSell){
          </div>`;
 
     return `
-      <div class="row ${p.status==='injured'?'flagged':''}" data-id="${rowId}">
+      <div class="row" data-id="${rowId}">
         <div class="row-main" onclick="toggleRow('${rowId}')">
-          <div class="photo-wrap">
-            <img class="photo" src="${photoUrl}" alt="${p.name}"
-                 onerror="this.outerHTML='<div class=&quot;photo&quot; style=&quot;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;color:var(--accent-2);font-family:var(--font-head);&quot;>${initials(p.name)}</div>'">
-            <div class="status-dot ${st.cls}"><i class="fa-solid ${st.icon}"></i></div>
-          </div>
-          <div class="who">
-            <div class="name">${p.name}</div>
-            <div class="sub"><span class="pos-tag">${p.pos}</span>${p.team}</div>
+          <div class="player-block">
+            <div class="player-name">${p.name}</div>
+            <div class="player-row">
+              <div class="photo-wrap status-${p.status}">
+                <img class="photo" src="${photoUrl}" alt="${p.name}"
+                     onerror="this.outerHTML='<div class=&quot;photo&quot; style=&quot;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;color:var(--accent-2);font-family:var(--font-head);&quot;>${initials(p.name)}</div>'">
+                <div class="status-dot ${st.cls}"><i class="fa-solid ${st.icon}"></i></div>
+              </div>
+              <div class="who">
+                <div class="sub">
+                  <span class="pos-tag">${p.pos}</span>${p.team}
+                  <img class="team-badge" src="https://resources.premierleague.com/premierleague/badges/50/t${TEAM_CODES[p.team] || 0}.png" alt="${p.team} crest" onerror="this.style.display='none'">
+                </div>
+                <div class="status-text ${st.cls}">${st.shortLabel}</div>
+              </div>
+            </div>
           </div>
           ${sparkline(p.id, p.delta)}
           <div class="numbers">
