@@ -529,8 +529,8 @@
     display:flex; flex-direction:column;
   }
   .t-card:hover{border-color:var(--border-hover); transform:translateY(-5px); box-shadow:0 16px 36px -10px var(--accent-glow);}
-  .t-card.coming-soon{opacity:0.55; cursor:default;}
-  .t-card.coming-soon:hover{transform:none; box-shadow:none; border-color:var(--border);}
+  .mini-card.mini-coming-soon{ opacity:0.5; cursor:default; }
+  .mini-card.mini-coming-soon .mini-sub{ color:var(--text-faint); }
   .t-card-media{height:132px; position:relative; border-bottom:1px solid var(--border); overflow:hidden;}
   .t-card-media.large-image{height:220px;}
   @media (max-width:480px){ .t-card-media.large-image{height:170px;} }
@@ -974,7 +974,7 @@
         <div class="section-title-group">
           <div class="section-icon"><svg class="icon"><use href="#i-ball"/></svg></div>
           <div class="section-title">
-            <h2>Football Tournaments (Premier League)</h2>
+            <h2>Premier League</h2>
             <p>Premier League &amp; European prediction tournaments.</p>
           </div>
         </div>
@@ -1033,14 +1033,7 @@
       <p>36 teams, 8 matchdays, then a real knockout to the final.</p>
     </div>
     <section class="section" id="champions-league">
-      <div class="section-head">
-        <div class="section-title-group">
-          <div class="section-icon"><svg class="icon"><use href="#i-target"/></svg></div>
-          <div class="section-title">
-            <h2>Champions League</h2>
-            <p>36 teams, 8 matchdays, then a real knockout to the final.</p>
-          </div>
-        </div>
+      <div class="section-head" style="justify-content:flex-end;">
         <a class="view-all" href="/champions-league-how-it-works">How It Works<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
       <div class="status-block" id="clLiveBlock" style="display:none;">
@@ -1068,14 +1061,7 @@
       <p>Join below and start predicting.</p>
     </div>
     <section class="section" id="darts">
-      <div class="section-head">
-        <div class="section-title-group">
-          <div class="section-icon"><svg class="icon"><use href="#i-target"/></svg></div>
-          <div class="section-title">
-            <h2>Darts</h2>
-            <p>180s, checkouts and winners. Predict the action.</p>
-          </div>
-        </div>
+      <div class="section-head" style="justify-content:flex-end;">
         <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
       <div class="status-block" id="dartsLiveBlock" style="display:none;">
@@ -1093,69 +1079,43 @@
         <div class="card-row-compact" id="dartsFinishedRow"></div>
       </div>
 
-      <div class="card-row">
-        <!-- Premier League Darts -->
-        <div class="t-card coming-soon">
-          <div class="t-card-media media-fixture">
-            <img src="assets/darts-generic.jpg" alt="Premier League Darts" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
+      <div class="status-block">
+        <div class="status-block-head" style="color:var(--text-faint);"><i class="fas fa-hourglass"></i> Coming Soon</div>
+        <div class="card-row-compact">
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="Premier League Darts">
+            <div class="mini-body">
+              <div class="mini-title">Premier League Darts</div>
+              <div class="mini-sub">Predict every night of the league</div>
+            </div>
           </div>
-          <div class="t-card-body">
-            <h3>Premier League Darts</h3>
-            <p class="desc">Predict every night of the league.</p>
-            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
-            <button class="btn-enter" disabled>Coming Soon</button>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="Grand Slam of Darts">
+            <div class="mini-body">
+              <div class="mini-title">Grand Slam of Darts</div>
+              <div class="mini-sub">The group-stage major</div>
+            </div>
           </div>
-        </div>
-
-        <!-- Grand Slam of Darts -->
-        <div class="t-card coming-soon">
-          <div class="t-card-media media-champion">
-            <img src="assets/darts-generic.jpg" alt="Grand Slam of Darts" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="World Cup of Darts">
+            <div class="mini-body">
+              <div class="mini-title">World Cup of Darts</div>
+              <div class="mini-sub">Nations go head to head</div>
+            </div>
           </div>
-          <div class="t-card-body">
-            <h3>Grand Slam of Darts</h3>
-            <p class="desc">The group-stage major. Predict every group.</p>
-            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
-            <button class="btn-enter" disabled>Coming Soon</button>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="UK Open">
+            <div class="mini-body">
+              <div class="mini-title">UK Open</div>
+              <div class="mini-sub">Anyone can enter, anyone can win</div>
+            </div>
           </div>
-        </div>
-
-        <!-- World Cup of Darts -->
-        <div class="t-card coming-soon">
-          <div class="t-card-media media-fixture">
-            <img src="assets/darts-generic.jpg" alt="World Cup of Darts" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
-          </div>
-          <div class="t-card-body">
-            <h3>World Cup of Darts</h3>
-            <p class="desc">Nations go head to head. Predict every tie.</p>
-            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
-            <button class="btn-enter" disabled>Coming Soon</button>
-          </div>
-        </div>
-
-        <!-- UK Open -->
-        <div class="t-card coming-soon">
-          <div class="t-card-media media-goal">
-            <img src="assets/darts-generic.jpg" alt="UK Open" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
-          </div>
-          <div class="t-card-body">
-            <h3>UK Open</h3>
-            <p class="desc">The open format major. Anyone can enter, anyone can win.</p>
-            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
-            <button class="btn-enter" disabled>Coming Soon</button>
-          </div>
-        </div>
-
-        <!-- World Championship -->
-        <div class="t-card coming-soon">
-          <div class="t-card-media media-breakout">
-            <img src="assets/darts-generic.jpg" alt="World Championship" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
-          </div>
-          <div class="t-card-body">
-            <h3>World Championship</h3>
-            <p class="desc">The biggest stage. Predict every round at Ally Pally.</p>
-            <div class="t-card-stats"><div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div></div>
-            <button class="btn-enter" disabled>Coming Soon</button>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="World Championship">
+            <div class="mini-body">
+              <div class="mini-title">World Championship</div>
+              <div class="mini-sub">The biggest stage, at Ally Pally</div>
+            </div>
           </div>
         </div>
       </div>
