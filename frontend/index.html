@@ -308,7 +308,7 @@
      new sports just need their own .sport-container.<name> rule added here. */
   .sport-container{
     border-radius:20px; border:1px solid var(--border); overflow:hidden;
-    padding:28px 24px; margin-bottom:38px;
+    padding:28px 24px; margin-bottom:20px;
     background-size:cover; background-position:center; background-repeat:no-repeat;
   }
   .sport-container.football{
@@ -598,10 +598,11 @@
     background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
     padding:14px; display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit;
   }
-  .mini-card .mini-thumb{ width:46px; height:46px; border-radius:9px; object-fit:contain; background:#0a1226; flex-shrink:0; }
+  .mini-card .mini-thumb{ width:56px; height:70px; border-radius:9px; object-fit:cover; background:#0a1226; flex-shrink:0; }
   .mini-card .mini-body{ flex:1; min-width:0; }
   .mini-card .mini-title{ font-family:var(--font-head); font-weight:700; font-size:13.5px; margin-bottom:2px; }
   .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
+  .mini-card .mini-sub-secondary{ margin-top:3px; color:var(--text-faint); opacity:0.85; }
   .mini-card.mini-registering .mini-sub{ color:#4ade80; }
   .mini-card.mini-live{ border-color:rgba(34,197,94,0.35); }
   .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
@@ -1028,7 +1029,7 @@
     <div class="sport-container champions-league">
     <div class="sport-container-header">
       <h2>Champions League</h2>
-      <p>Pick a team, once. Follow it through the whole tournament.</p>
+      <p>36 teams, 8 matchdays, then a real knockout to the final.</p>
     </div>
     <section class="section" id="champions-league">
       <div class="section-head">
@@ -1488,22 +1489,56 @@
       </a>`;
   }
 
+  let cachedGameweekInfo = null;
+  async function getCurrentGameweekInfo(){
+    if (cachedGameweekInfo) return cachedGameweekInfo;
+    try {
+      const res = await fetch('/api/current-gameweek');
+      const data = await res.json();
+      cachedGameweekInfo = data;
+      return data;
+    } catch (e) {
+      console.error('Failed to load current gameweek:', e);
+      return null;
+    }
+  }
+
   // Mobile-only variant of the live card - same small thumb + one-line
   // style as Registering/Finished, since the full rich card (big banner
   // image, description, two-column stats) takes up a lot of vertical
   // space on a phone. Kept as a genuinely separate function rather than
   // trying to squash the full t-card down with CSS, since the two have
   // different DOM shapes entirely.
-  function buildLiveMiniCard(type, t){
+  async function buildLiveMiniCard(type, t){
     const info = TYPE_INFO[type];
     const entries = t.current_entries ?? 0;
     const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
+
+    // Gameweek range + real progress through it - only meaningful for
+    // the four football sports that actually run on the shared PL
+    // gameweek clock (predictions/lms/fantasy/stockmarket). Champions
+    // League and Darts run on matchdays/rounds instead, so t.gameweek
+    // simply won't exist for those and this stays blank.
+    let gwLine = '';
+    if (t.gameweek) {
+      const gwInfo = await getCurrentGameweekInfo();
+      const rangeLabel = `GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
+      if (gwInfo && gwInfo.current_gameweek && t.end_gameweek) {
+        const played = Math.max(0, Math.min(gwInfo.current_gameweek - t.gameweek, t.end_gameweek - t.gameweek + 1));
+        const total = t.end_gameweek - t.gameweek + 1;
+        gwLine = `<div class="mini-sub mini-sub-secondary"><i class="fas fa-calendar-week"></i> ${rangeLabel} — Gameweek ${gwInfo.current_gameweek} of ${t.end_gameweek} played</div>`;
+      } else {
+        gwLine = `<div class="mini-sub mini-sub-secondary"><i class="fas fa-calendar-week"></i> ${rangeLabel}</div>`;
+      }
+    }
+
     return `
       <a class="mini-card mini-live" href="${info.href}">
         <img class="mini-thumb" src="${info.img}" alt="${info.title}">
         <div class="mini-body">
           <div class="mini-title">${info.title}</div>
           <div class="mini-sub"><i class="fas fa-circle" style="font-size:6px; color:#22c55e;"></i> ${entries} entries — ${prize} pool</div>
+          ${gwLine}
         </div>
       </a>`;
   }
@@ -1532,28 +1567,35 @@
   async function buildFinishedMini(type, t){
     const info = TYPE_INFO[type];
     try {
-      let winnerName = 'Player', prize = null;
+      let subLine;
       if (type === 'stockmarket') {
+        // Real difference on purpose: Stock Market is zero-sum and the
+        // whole field plays every gameweek right to the end, so "who
+        // survived to the final week" is the meaningful result here,
+        // not just a single winner the way every other sport treats it.
         const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
         const lbData = await lbRes.json();
         const rows = (lbData.leaderboard || []).filter(r => !r.relegated).sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
-        if (rows[0]) winnerName = rows[0].player_name || 'Player';
+        const names = rows.map(r => r.player_name || 'Player');
+        subLine = names.length > 0 ? plEsc(names.join(', ')) : 'No survivors reached the final week';
       } else {
         const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${type}`);
         const lbData = await lbRes.json();
         const rows = lbData.leaderboard || [];
         if (rows[0]) {
-          winnerName = sportUserName(rows[0].users);
-          prize = rows[0].prize_awarded || rows[0].prize_won || null;
+          const winnerName = sportUserName(rows[0].users);
+          const prize = rows[0].prize_awarded || rows[0].prize_won || null;
+          subLine = plEsc(winnerName) + (prize ? ` — ${qlbMoney(prize)}` : '');
+        } else {
+          subLine = 'Player';
         }
       }
-      const prizeHtml = prize ? ` — ${qlbMoney(prize)}` : '';
       return `
         <a class="mini-card mini-finished" href="${info.href}">
-          <i class="fas fa-trophy mini-trophy"></i>
+          <img class="mini-thumb" src="${info.img}" alt="${info.title}">
           <div class="mini-body">
-            <div class="mini-title">${info.title}</div>
-            <div class="mini-sub">${plEsc(winnerName)}${prizeHtml}</div>
+            <div class="mini-title"><i class="fas fa-trophy" style="color:var(--gold); font-size:12px; margin-right:5px;"></i>${info.title}</div>
+            <div class="mini-sub">${subLine}</div>
           </div>
         </a>`;
     } catch (e) {
@@ -1588,7 +1630,7 @@
         const liveRes = await fetch(`/api/tournaments?tournament_type=${type}&status=live`);
         const liveData = await liveRes.json();
         const liveT = (liveData.tournaments || [])[0];
-        if (liveT) { liveHtml += isMobile ? buildLiveMiniCard(type, liveT) : buildLiveCard(type, liveT); continue; }
+        if (liveT) { liveHtml += isMobile ? await buildLiveMiniCard(type, liveT) : buildLiveCard(type, liveT); continue; }
 
         const upRes = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
         const upData = await upRes.json();
