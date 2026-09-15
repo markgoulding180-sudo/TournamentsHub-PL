@@ -641,6 +641,7 @@
   }
   .reg-ticker-track:hover{ animation-play-state:paused; }
   .reg-ticker-item{ display:flex; align-items:center; gap:8px; font-size:13px; color:#fff; font-weight:600; text-decoration:none; }
+  .reg-ticker-item .reg-ticker-sport{ color:var(--text-dim); font-weight:500; }
   .reg-ticker-item .reg-ticker-fee{ color:#4ade80; font-weight:700; }
   @keyframes tickerScroll{
     0%{ transform:translateX(0); }
@@ -1468,12 +1469,12 @@
   };
 
   const TYPE_INFO = {
-    predictions: { href:'/predictions', title:'Premier League Score Predictions', img:'assets/predictions.png', imgClass:'media-shield large-image' },
-    lms: { href:'/last-man-standing', title:'Last Man Standing', img:'assets/LMS.png', imgClass:'media-fixture large-image' },
-    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', img:'assets/Fantasy.png', imgClass:'media-podium large-image' },
-    stockmarket: { href:'/stock-market', title:'Player Stock Market', img:'assets/StockCardImage.jpg?v=2', imgClass:'media-goal large-image' },
-    champions_league: { href:'/champions-league', title:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/champions-league-hero.jpg', imgClass:'media-fixture' },
-    darts: { href:'/darts', title:'World Grand Prix', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/darts-generic.jpg', imgClass:'media-fixture' }
+    predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/predictions.png', imgClass:'media-shield large-image' },
+    lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/LMS.png', imgClass:'media-fixture large-image' },
+    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/Fantasy.png', imgClass:'media-podium large-image' },
+    stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/StockCardImage.jpg?v=2', imgClass:'media-goal large-image' },
+    champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/champions-league-hero.jpg', imgClass:'media-fixture' },
+    darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/darts-generic.jpg', imgClass:'media-fixture' }
   };
 
   function sportUserName(userObj){
@@ -1817,7 +1818,7 @@
         const feeLabel = typeof t.entry_fee === 'number'
           ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free')
           : null;
-        return `<a class="reg-ticker-item" href="${info.href}"><i class="fas fa-circle" style="font-size:5px; color:#eab308;"></i> ${plEsc(info.title)}${feeLabel ? ` <span class="reg-ticker-fee">${feeLabel}</span>` : ''}</a>`;
+        return `<a class="reg-ticker-item" href="${info.href}"><i class="fas fa-circle" style="font-size:5px; color:#eab308;"></i> ${plEsc(info.title)} <span class="reg-ticker-sport">(${plEsc(info.sport)})</span>${feeLabel ? ` <span class="reg-ticker-fee">${feeLabel}</span>` : ''}</a>`;
       }).join('');
 
       // Duplicated once so the scroll animation (translateX -50%) loops
