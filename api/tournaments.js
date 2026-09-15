@@ -2398,11 +2398,28 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         // promoteIfDeadlinePassed-style mechanism already used for
         // Darts/Champions League). A tournament created for the current
         // gameweek still starts 'live' immediately, exactly as before.
+        //
+        // Real gap also found and fixed here, checked specifically
+        // because it was never actually tested: Champions League has no
+        // dedicated creation action of its own (unlike Darts, which
+        // always hardcodes 'upcoming') - it goes through this exact
+        // generic path, which was defaulting it straight to 'live' no
+        // matter how far in the future its real closes_at deadline was.
+        // Uses the same closes_at-deadline pattern already proven for
+        // Darts/Champions League's own promoteIfDeadlinePassed, since CL
+        // runs on matchdays with real kickoff times, not the shared
+        // gameweek clock predictions/lms/fantasy use.
+        const effectiveClosesAt = closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
         let initialStatus = schemaName === 'stockmarket' ? 'upcoming' : 'live';
         if (schemaName === 'predictions' || schemaName === 'lms' || schemaName === 'fantasy') {
           const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
           const currentGw = clock ? clock.current_gameweek : null;
           if (currentGw !== null && gameweek > currentGw) {
+            initialStatus = 'upcoming';
+          }
+        } else if (schemaName === 'champions_league') {
+          if (new Date(effectiveClosesAt).getTime() > Date.now()) {
             initialStatus = 'upcoming';
           }
         }
@@ -2415,7 +2432,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           max_entries: max_entries || 100,
           current_entries: 0,
           status: initialStatus,
-          closes_at: closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+          closes_at: effectiveClosesAt
         };
         if (schemaName !== 'stockmarket') {
           insertPayload.prize_pool = prizePoolPence;
