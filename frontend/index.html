@@ -544,6 +544,49 @@
     border-color:rgba(34,197,94,0.35);
   }
   .sport-container.registering .sport-container-header h2{ color:#eafff2; }
+
+  /* ---------- Per-sport status blocks (Registering / Live / Finished) ----------
+     Each sport section now organizes its own tournaments by real current
+     status instead of one flat row - a live tournament, one still open
+     for entries, and one that just finished are three different moments
+     for a visitor and shouldn't compete for attention as identical cards. */
+  .status-block{ margin-bottom:30px; }
+  .status-block:last-child{ margin-bottom:0; }
+  .status-block-head{
+    display:flex; align-items:center; gap:9px; margin-bottom:14px;
+    font-family:var(--font-head); font-weight:700; font-size:14px;
+    letter-spacing:0.5px; text-transform:uppercase; color:var(--text-dim);
+  }
+  .status-block-head .live-dot{
+    width:8px; height:8px; border-radius:50%; background:#22c55e;
+    box-shadow:0 0 8px rgba(34,197,94,0.8); animation:sbPulse 1.6s ease-in-out infinite;
+  }
+  .status-block-head.live-head{ color:#eafff2; }
+  .status-block-head.registering-head{ color:#eafff2; }
+  .status-block-head.finished-head{ color:var(--gold); }
+  @keyframes sbPulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  /* Compact card row for Registering/Finished - smaller than the full
+     live t-card, since there's less real information to show (no
+     live entries count worth showing yet, or nothing left to enter). */
+  .card-row-compact{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media (max-width:900px){ .card-row-compact{ grid-template-columns:repeat(2,1fr); } }
+
+  .mini-card{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+    padding:14px; display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit;
+  }
+  .mini-card .mini-thumb{ width:46px; height:46px; border-radius:9px; object-fit:contain; background:#0a1226; flex-shrink:0; }
+  .mini-card .mini-body{ flex:1; min-width:0; }
+  .mini-card .mini-title{ font-family:var(--font-head); font-weight:700; font-size:13.5px; margin-bottom:2px; }
+  .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
+  .mini-card.mini-registering .mini-sub{ color:#4ade80; }
+  .mini-card.mini-finished{
+    border-color:rgba(242,185,61,0.4);
+    background:linear-gradient(135deg, rgba(242,185,61,0.1), var(--bg-card) 65%);
+  }
+  .mini-card.mini-finished .mini-trophy{ color:var(--gold); font-size:20px; flex-shrink:0; }
+  .mini-card.mini-finished .mini-sub{ color:var(--gold); font-weight:600; }
   .t-card-body{padding:16px 18px 18px; flex:1; display:flex; flex-direction:column;}
   .t-card-body h3{font-family:var(--font-head); font-size:16.5px; font-weight:700; margin-bottom:4px; letter-spacing:0.2px;}
   .t-card-body .desc{font-size:12.5px; color:var(--text-faint); margin-bottom:16px; line-height:1.4; min-height:32px;}
@@ -894,21 +937,6 @@
       <a href="#champions-league" class="mobile-cat-item" style="flex:none;">Champions</a>
     </nav>
 
-    <!-- ================= REGISTERING (upcoming — added, not yet started) ================= -->
-    <!-- Fully data-driven, same as every other section: loadRegisteringSection()
-         below checks each sport's real status via /api/tournaments?status=upcoming
-         and only renders a card for a sport that genuinely hasn't started yet.
-         A sport that's already live (or has nothing upcoming) simply doesn't
-         get a card here. If NOTHING is upcoming across every sport, the whole
-         section hides itself rather than showing an empty header. -->
-    <div class="sport-container registering" id="registeringSection" style="display:none;">
-      <div class="sport-container-header">
-        <h2>Registering Now</h2>
-        <p>Added and opening for entries soon — get in before they fill up.</p>
-      </div>
-      <div class="card-row" id="registeringCardRow"></div>
-    </div>
-
     <!-- ================= FOOTBALL ================= -->
     <div class="sport-container football">
     <div class="sport-container-header">
@@ -956,64 +984,19 @@
         </div>
       </div>
 
-      <div class="card-row">
+      <div class="status-block" id="footballLiveBlock" style="display:none;">
+        <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
+        <div class="card-row" id="footballLiveRow"></div>
+      </div>
 
-        <!-- Premier League Score Predictions -->
-        <a class="t-card" href="/predictions" data-tournament-type="predictions" style="text-decoration:none;">
-          <div class="t-card-media media-shield large-image">
-            <span class="featured-badge">Featured</span>
-            <img src="assets/predictions.png" alt="Premier League Score Predictions" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
-          </div>
-          <div class="t-card-body" style="padding:12px 16px 16px;">
-            <div class="t-card-stats">
-              <div><div class="stat-label">Entries</div><div class="stat-value entries">--</div></div>
-              <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">£--</div></div>
-            </div>
-            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
-          </div>
-        </a>
+      <div class="status-block" id="footballRegisteringBlock" style="display:none;">
+        <div class="status-block-head registering-head"><i class="fas fa-user-plus"></i> Registering</div>
+        <div class="card-row-compact" id="footballRegisteringRow"></div>
+      </div>
 
-        <!-- Premier League Last Man Standing -->
-        <a class="t-card" href="/last-man-standing" data-tournament-type="lms" style="text-decoration:none;">
-          <div class="t-card-media media-fixture large-image">
-            <img src="assets/LMS.png" alt="Premier League Last Man Standing" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
-          </div>
-          <div class="t-card-body" style="padding:12px 16px 16px;">
-            <div class="t-card-stats">
-              <div><div class="stat-label">Entries</div><div class="stat-value entries">--</div></div>
-              <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">£--</div></div>
-            </div>
-            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
-          </div>
-        </a>
-
-        <!-- Fantasy Football Manager -->
-        <a class="t-card" href="/fantasy-manager" data-tournament-type="fantasy" style="text-decoration:none;">
-          <div class="t-card-media media-podium large-image">
-            <img src="assets/Fantasy.png" alt="Fantasy Football Manager" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
-          </div>
-          <div class="t-card-body" style="padding:12px 16px 16px;">
-            <div class="t-card-stats">
-              <div><div class="stat-label">Entries</div><div class="stat-value entries">--</div></div>
-              <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">£--</div></div>
-            </div>
-            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
-          </div>
-        </a>
-
-        <!-- Premier League Stock Market -->
-        <a class="t-card" href="/stock-market" data-tournament-type="stockmarket" style="text-decoration:none;">
-          <div class="t-card-media media-goal large-image">
-            <img src="assets/StockCardImage.jpg?v=2" alt="Premier League Stock Market" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
-          </div>
-          <div class="t-card-body" style="padding:12px 16px 16px;">
-            <div class="t-card-stats">
-              <div><div class="stat-label">Entry Fee</div><div class="stat-value">£10</div></div>
-              <div style="text-align:right"><div class="stat-label">Format</div><div class="stat-value">Zero-Sum</div></div>
-            </div>
-            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
-          </div>
-        </a>
+      <div class="status-block" id="footballFinishedBlock" style="display:none;">
+        <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
+        <div class="card-row-compact" id="footballFinishedRow"></div>
       </div>
     </section>
     </div>
@@ -1034,25 +1017,19 @@
         </div>
         <a class="view-all" href="/champions-league-how-it-works">How It Works<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
-      <div class="card-row">
+      <div class="status-block" id="clLiveBlock" style="display:none;">
+        <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
+        <div class="card-row" id="clLiveRow"></div>
+      </div>
 
-        <!-- Champions League — wired to real data via data-tournament-type,
-             same mechanism as every other sport card. -->
-        <a class="t-card" href="/champions-league" data-tournament-type="champions_league" style="text-decoration:none;">
-          <div class="t-card-media media-fixture">
-            <img src="assets/champions-league-hero.jpg" alt="Champions League" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
-          </div>
-          <div class="t-card-body">
-            <h3>Champions League</h3>
-            <p class="desc">Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Entries</div><div class="stat-value entries">--</div></div>
-              <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">£--</div></div>
-            </div>
-            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
-          </div>
-        </a>
+      <div class="status-block" id="clRegisteringBlock" style="display:none;">
+        <div class="status-block-head registering-head"><i class="fas fa-user-plus"></i> Registering</div>
+        <div class="card-row-compact" id="clRegisteringRow"></div>
+      </div>
 
+      <div class="status-block" id="clFinishedBlock" style="display:none;">
+        <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
+        <div class="card-row-compact" id="clFinishedRow"></div>
       </div>
     </section>
     </div>
@@ -1075,26 +1052,22 @@
         </div>
         <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
+      <div class="status-block" id="dartsLiveBlock" style="display:none;">
+        <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
+        <div class="card-row" id="dartsLiveRow"></div>
+      </div>
+
+      <div class="status-block" id="dartsRegisteringBlock" style="display:none;">
+        <div class="status-block-head registering-head"><i class="fas fa-user-plus"></i> Registering</div>
+        <div class="card-row-compact" id="dartsRegisteringRow"></div>
+      </div>
+
+      <div class="status-block" id="dartsFinishedBlock" style="display:none;">
+        <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
+        <div class="card-row-compact" id="dartsFinishedRow"></div>
+      </div>
+
       <div class="card-row">
-
-        <!-- World Grand Prix — the one real darts tournament that exists
-             right now. Wired to real data via data-tournament-type,
-             same mechanism as the football cards above. -->
-        <a class="t-card" href="/darts" data-tournament-type="darts" style="text-decoration:none;">
-          <div class="t-card-media media-fixture">
-            <img src="assets/darts-generic.jpg" alt="World Grand Prix" style="width:100%; height:100%; object-fit:cover; object-position:center 38%;">
-          </div>
-          <div class="t-card-body">
-            <h3>World Grand Prix</h3>
-            <p class="desc">32-player knockout bracket. Predict every match, double points each round.</p>
-            <div class="t-card-stats">
-              <div><div class="stat-label">Entries</div><div class="stat-value entries">--</div></div>
-              <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">£--</div></div>
-            </div>
-            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
-          </div>
-        </a>
-
         <!-- Premier League Darts -->
         <div class="t-card coming-soon">
           <div class="t-card-media media-fixture">
@@ -1161,42 +1134,6 @@
         </div>
       </div>
     </section>
-    </div>
-
-    <!-- ================= QUICK LOOK LEADERBOARDS ================= -->
-    <div class="section-title-group" style="margin-bottom:16px;">
-      <div class="section-icon"><svg class="icon"><use href="#i-trophy"/></svg></div>
-      <div class="section-title"><h2>Quick Look — Top 5</h2></div>
-    </div>
-    <div class="quick-lb-grid" id="quickLbGrid">
-      <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-futbol" style="color:var(--accent-2);"></i> Predictions<span class="quick-lb-tname" id="qlbPredictionsName"></span></div>
-        <div class="quick-lb-gw" id="qlbPredictionsGw"></div>
-        <ol class="pl-live-leaders" id="qlbPredictions"><li class="pl-live-empty">Loading…</li></ol>
-      </div>
-      <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Last Man Standing<span class="quick-lb-tname" id="qlbLmsName"></span></div>
-        <div class="quick-lb-gw" id="qlbLmsGw"></div>
-        <ol class="pl-live-leaders" id="qlbLms"><li class="pl-live-empty">Loading…</li></ol>
-      </div>
-      <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-users" style="color:var(--green);"></i> Fantasy<span class="quick-lb-tname" id="qlbFantasyName"></span></div>
-        <div class="quick-lb-gw" id="qlbFantasyGw"></div>
-        <ol class="pl-live-leaders" id="qlbFantasy"><li class="pl-live-empty">Loading…</li></ol>
-      </div>
-      <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Stock Market<span class="quick-lb-tname" id="qlbStockmarketName"></span></div>
-        <div class="quick-lb-gw" id="qlbStockmarketGw"></div>
-        <ol class="pl-live-leaders" id="qlbStockmarket"><li class="pl-live-empty">Loading…</li></ol>
-      </div>
-      <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-shield-halved" style="color:var(--accent-2);"></i> Champions League<span class="quick-lb-tname" id="qlbChampionsLeagueName"></span></div>
-        <ol class="pl-live-leaders" id="qlbChampionsLeague"><li class="pl-live-empty">Loading…</li></ol>
-      </div>
-      <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-bullseye" style="color:var(--red);"></i> Darts<span class="quick-lb-tname" id="qlbDartsName"></span></div>
-        <ol class="pl-live-leaders" id="qlbDarts"><li class="pl-live-empty">Loading…</li></ol>
-      </div>
     </div>
 
   </main>
@@ -1321,273 +1258,8 @@
     }).join('');
   }
 
-  function renderPLLeaders(leaderboard){
-    const el = document.getElementById('qlbPredictions');
-    if (!leaderboard || leaderboard.length === 0){
-      el.innerHTML = '<li class="pl-live-empty">No leaderboard data yet.</li>';
-      return;
-    }
-    el.innerHTML = leaderboard.slice(0, 5).map(entry => `
-      <li>
-        <span class="rank">${plEsc(entry.rank)}</span>
-        <span class="name">${plEsc(entry.user?.display_name || entry.user?.username || 'Player')}</span>
-        <span class="pts">${plEsc(entry.total_points ?? 0)} pts</span>
-      </li>`).join('');
-  }
-
   function qlbMoney(pence){
     return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-
-  // Shared "winner" celebration state - used whenever a tournament's
-  // leaderboard is genuinely finished, instead of showing the exact same
-  // ranked list a live tournament would show with nothing to mark the
-  // occasion. Applies the gold glow to the whole card too, not just the
-  // list content, so it actually pops against the other live cards
-  // around it rather than just being a slightly different list.
-  // prizePence is optional and only rendered when we have a real,
-  // stored amount for this specific entry - never a guessed split of
-  // the pool for tournament types that don't track this per-entry.
-  function renderQuickLbWinner(elId, winnerName, prizePence){
-    const el = document.getElementById(elId);
-    const card = el.closest('.quick-lb-card');
-    if (card) card.classList.add('is-finished');
-    const prizeHtml = (typeof prizePence === 'number' && prizePence > 0)
-      ? `<div class="prize"><i class="fas fa-sack-dollar"></i> ${qlbMoney(prizePence)}</div>`
-      : '';
-    el.innerHTML = `
-      <li class="quick-lb-winner">
-        <div class="trophy"><i class="fas fa-trophy"></i></div>
-        <div class="crowns"><i class="fas fa-crown"></i>&nbsp;&nbsp;<i class="fas fa-crown"></i>&nbsp;&nbsp;<i class="fas fa-crown"></i></div>
-        <div class="label">Champion</div>
-        <div class="name">${plEsc(winnerName)}</div>
-        ${prizeHtml}
-        <div class="sub"><i class="fas fa-circle-check"></i> Tournament complete</div>
-      </li>`;
-  }
-
-  // Generic top-5 loader for LMS/Fantasy — same live-then-finished pattern
-  // used everywhere else this tournament finish logic touches, so a
-  // genuinely finished tournament still shows its real final standings
-  // here instead of silently going blank.
-  async function loadQuickLeaderboard(elId, tournamentType, formatFilter, pointsField){
-    const el = document.getElementById(elId);
-    try {
-      let res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=live`);
-      let data = await res.json();
-      let list = data.tournaments || [];
-      let t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
-      if (!t) {
-        // Real bug fixed here: this only ever checked live, then
-        // finished - skipping "upcoming" entirely. A tournament with a
-        // real announced draw and real registered entrants (confirmed:
-        // Darts World Grand Prix, 3 real entries) showed the misleading
-        // "Not set up yet." purely because it hadn't started, which
-        // reads as if the tournament doesn't exist at all.
-        res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=upcoming`);
-        data = await res.json();
-        list = data.tournaments || [];
-        t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
-      }
-      if (!t) {
-        res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=finished`);
-        data = await res.json();
-        list = data.tournaments || [];
-        t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
-      }
-      if (!t) {
-        el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
-        return;
-      }
-      const nameEl = document.getElementById(`${elId}Name`);
-      if (nameEl) nameEl.textContent = t.name || '';
-      const gwEl = document.getElementById(`${elId}Gw`);
-      if (gwEl && t.status !== 'finished' && t.gameweek) {
-        gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
-      } else if (gwEl) {
-        gwEl.innerHTML = '';
-      }
-      const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${tournamentType}`);
-      const lbData = await lbRes.json();
-      const rows = (lbData.leaderboard || []).slice(0, 5);
-      if (rows.length === 0) {
-        el.innerHTML = t.status === 'upcoming'
-          ? '<li class="pl-live-empty">Registering — nobody\'s entered yet.</li>'
-          : '<li class="pl-live-empty">No entries yet.</li>';
-        return;
-      }
-      const nameOf = (r) => r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
-      if (t.status === 'finished') {
-        const winnerRow = rows[0];
-        const prize = winnerRow.prize_awarded || winnerRow.prize_won || null;
-        renderQuickLbWinner(elId, nameOf(winnerRow), prize);
-        return;
-      }
-      if (t.status === 'upcoming') {
-        // Real entrants, genuinely nothing to rank yet - points/scores
-        // would be meaningless before the tournament has even started,
-        // so this shows who's in rather than a misleading "0 pts" row.
-        el.innerHTML = rows.map((r, i) => `
-          <li>
-            <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(nameOf(r))}</span>
-            <span class="pts" style="color:var(--gold);">Registered</span>
-          </li>`).join('');
-        return;
-      }
-      el.innerHTML = rows.map((r, i) => {
-        return `
-          <li>
-            <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(nameOf(r))}</span>
-            <span class="pts">${plEsc(r[pointsField] ?? 0)} pts</span>
-          </li>`;
-      }).join('');
-    } catch (e) {
-      console.error(`Quick leaderboard failed for ${tournamentType}:`, e);
-      el.innerHTML = '<li class="pl-live-empty">Couldn\'t load right now.</li>';
-    }
-  }
-
-  // LMS shows survival status, not points - "alive" or which gameweek
-  // they went out, since that's what's actually meaningful here.
-  async function loadQuickLms(){
-    const el = document.getElementById('qlbLms');
-    try {
-      let res = await fetch('/api/tournaments?tournament_type=lms&status=live');
-      let data = await res.json();
-      let t = (data.tournaments || [])[0];
-      if (!t) {
-        res = await fetch('/api/tournaments?tournament_type=lms&status=finished');
-        data = await res.json();
-        t = (data.tournaments || [])[0];
-      }
-      if (!t) {
-        el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
-        return;
-      }
-      const nameEl = document.getElementById('qlbLmsName');
-      if (nameEl) nameEl.textContent = t.name || '';
-      const gwEl = document.getElementById('qlbLmsGw');
-      if (gwEl && t.status !== 'finished' && t.gameweek) {
-        gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
-      } else if (gwEl) {
-        gwEl.innerHTML = '';
-      }
-      const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=lms`);
-      const lbData = await lbRes.json();
-      const rows = (lbData.leaderboard || []).slice(0, 5);
-      if (rows.length === 0) {
-        el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
-        return;
-      }
-      const nameOf = (r) => r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
-      if (t.status === 'finished') {
-        // The last one standing is always rank 1 in the sort order this
-        // endpoint already applies (alive-first, then most weeks
-        // survived) - by the time the tournament is genuinely finished,
-        // that's the sole winner, not just "currently in the lead".
-        renderQuickLbWinner('qlbLms', nameOf(rows[0]), rows[0].prize_awarded || null);
-        return;
-      }
-      el.innerHTML = rows.map((r, i) => {
-        const name = nameOf(r);
-        const status = r.is_eliminated ? `Out GW${r.eliminated_gameweek}` : 'Alive';
-        return `
-          <li>
-            <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(name)}</span>
-            <span class="pts">${plEsc(status)}</span>
-          </li>`;
-      }).join('');
-    } catch (e) {
-      console.error('Quick leaderboard failed for lms:', e);
-      el.innerHTML = '<li class="pl-live-empty">Couldn\'t load right now.</li>';
-    }
-  }
-
-  // Stock Market shows real money (current_value), not points — the
-  // user's actual request: "top 5 users that have the most money".
-  async function loadQuickStockMarket(){
-    const el = document.getElementById('qlbStockmarket');
-    try {
-      let res = await fetch('/api/tournaments?tournament_type=stockmarket&status=live');
-      let data = await res.json();
-      let list = data.tournaments || [];
-      let t = list[0];
-      if (!t) {
-        res = await fetch('/api/tournaments?tournament_type=stockmarket&status=upcoming');
-        data = await res.json();
-        t = (data.tournaments || [])[0];
-      }
-      if (!t) {
-        res = await fetch('/api/tournaments?tournament_type=stockmarket&status=finished');
-        data = await res.json();
-        t = (data.tournaments || [])[0];
-      }
-      if (!t) {
-        el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
-        return;
-      }
-      const nameEl = document.getElementById('qlbStockmarketName');
-      if (nameEl) nameEl.textContent = t.name || '';
-      const gwEl = document.getElementById('qlbStockmarketGw');
-      if (gwEl && t.status !== 'finished' && t.gameweek) {
-        gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
-      } else if (gwEl) {
-        gwEl.innerHTML = '';
-      }
-      const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
-      const lbData = await lbRes.json();
-
-      // Real second bug found while fixing the first: this endpoint has
-      // a genuinely different response shape during the drafting phase
-      // (entrants, with player_name) versus once live (leaderboard, also
-      // with player_name - not a nested users object like every other
-      // sport's leaderboard uses). This code only ever read .leaderboard
-      // with the wrong field name, so it silently showed "Player" for
-      // everyone once live, and "No entries yet" during drafting even
-      // when people genuinely had drafted.
-      if (lbData.drafting) {
-        const draftRows = (lbData.entrants || []).slice(0, 5);
-        if (draftRows.length === 0) {
-          el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
-          return;
-        }
-        el.innerHTML = draftRows.map((r, i) => `
-          <li>
-            <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(r.player_name)}</span>
-            <span class="pts">Drafting</span>
-          </li>`).join('');
-        return;
-      }
-
-      const rows = (lbData.leaderboard || [])
-        .filter(r => !r.relegated)
-        .sort((a, b) => (b.current_value || 0) - (a.current_value || 0))
-        .slice(0, 5);
-      if (rows.length === 0) {
-        el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
-        return;
-      }
-      if (t.status === 'finished') {
-        renderQuickLbWinner('qlbStockmarket', rows[0].player_name || 'Player');
-        return;
-      }
-      el.innerHTML = rows.map((r, i) => {
-        const value = ((r.current_value || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return `
-          <li>
-            <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(r.player_name || 'Player')}</span>
-            <span class="pts">£${value}</span>
-          </li>`;
-      }).join('');
-    } catch (e) {
-      console.error('Quick leaderboard failed for stockmarket:', e);
-      el.innerHTML = '<li class="pl-live-empty">Couldn\'t load right now.</li>';
-    }
   }
 
   async function loadPLLive(){
@@ -1596,16 +1268,11 @@
     const gwLabelEl = document.getElementById('plGwLabel');
 
     try{
-      const [gwRes, lbRes] = await Promise.all([
-        fetch(`${PL_BASE}/current-gameweek`),
-        fetch(`${PL_BASE}/leaderboard?limit=5`)
-      ]);
+      const gwRes = await fetch(`${PL_BASE}/current-gameweek`);
       const gwData = await gwRes.json();
-      const lbData = await lbRes.json();
 
       const gwNum = gwData.current_gameweek;
       gwLabelEl.textContent = gwNum ? `Gameweek ${gwNum}` : 'Gameweek —';
-      renderPLLeaders(lbData.leaderboard);
 
       if (gwNum){
         const mRes = await fetch(`${PL_BASE}/predictions?gameweek=${gwNum}`);
@@ -1622,7 +1289,6 @@
       dotEl.classList.add('off');
       stateEl.textContent = 'GB Fantasy is unreachable right now';
       document.getElementById('plMatches').innerHTML = '<div class="pl-live-empty">Couldn\'t load fixtures right now.</div>';
-      document.getElementById('plLeaders').innerHTML = '<li class="pl-live-empty">Couldn\'t load leaderboard right now.</li>';
     }
   }
 
@@ -1749,209 +1415,159 @@
   // already live, or has nothing upcoming at all, gets no card here.
   // If nothing across every sport is upcoming, the whole section hides
   // rather than showing an empty "Registering Now" header.
-  const REGISTERING_CONFIG = [
-    { type: 'predictions', href: '/predictions', title: 'Premier League Score Predictions', img: 'assets/predictions.png', imgClass: 'media-shield large-image' },
-    { type: 'lms', href: '/last-man-standing', title: 'Last Man Standing', img: 'assets/LMS.png', imgClass: 'media-fixture large-image' },
-    { type: 'fantasy', href: '/fantasy-manager', title: 'Fantasy Manager', img: 'assets/Fantasy.png', imgClass: 'media-podium large-image' },
-    { type: 'stockmarket', href: '/stock-market', title: 'Player Stock Market', img: 'assets/StockCardImage.jpg?v=2', imgClass: 'media-goal large-image' },
-    // These two don't have their name baked into the image graphic like
-    // the four above — the live Champions League/Darts sections show a
-    // real h3 + description in the card body instead, so these need the
-    // same treatment here or the card renders with no title at all.
-    { type: 'champions_league', href: '/champions-league', title: 'Champions League', desc: 'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img: 'assets/champions-league-hero.jpg', imgClass: 'media-fixture' },
-    { type: 'darts', href: '/darts', title: 'World Grand Prix', desc: '32-player knockout bracket. Predict every match, double points each round.', img: 'assets/darts-generic.jpg', imgClass: 'media-fixture' }
-  ];
 
-  async function loadRegisteringSection(){
-    const section = document.getElementById('registeringSection');
-    const row = document.getElementById('registeringCardRow');
-    if (!section || !row) return;
+  // ---------- Per-sport status sections (Registering / Live / Finished) ----------
+  // Each sport section now shows its own tournaments grouped by their
+  // real current status, replacing the old setup where the same
+  // tournament could appear as a plain entry card in its sport section
+  // AND again in a separate global "Registering Now" strip AND again in
+  // a separate global "Quick Look" leaderboard grid - three different
+  // treatments of the same thing, none of them telling you where to
+  // actually look first.
+  const SPORT_TYPES = {
+    football: ['predictions', 'lms', 'fantasy', 'stockmarket'],
+    cl: ['champions_league'],
+    darts: ['darts']
+  };
 
-    const results = await Promise.all(REGISTERING_CONFIG.map(async (cfg) => {
-      try {
-        const res = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(cfg.type)}&status=upcoming`);
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.tournaments || []);
-        return { cfg, tournament: list[0] || null };
-      } catch (e) {
-        console.error(`Failed to load upcoming data for ${cfg.type}:`, e);
-        return { cfg, tournament: null };
-      }
-    }));
+  const TYPE_INFO = {
+    predictions: { href:'/predictions', title:'Premier League Score Predictions', img:'assets/predictions.png', imgClass:'media-shield large-image' },
+    lms: { href:'/last-man-standing', title:'Last Man Standing', img:'assets/LMS.png', imgClass:'media-fixture large-image' },
+    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', img:'assets/Fantasy.png', imgClass:'media-podium large-image' },
+    stockmarket: { href:'/stock-market', title:'Player Stock Market', img:'assets/StockCardImage.jpg?v=2', imgClass:'media-goal large-image' },
+    champions_league: { href:'/champions-league', title:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/champions-league-hero.jpg', imgClass:'media-fixture' },
+    darts: { href:'/darts', title:'World Grand Prix', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/darts-generic.jpg', imgClass:'media-fixture' }
+  };
 
-    row.innerHTML = '';
-    let shown = 0;
-    results.forEach(({ cfg, tournament: t }) => {
-      if (!t) return; // nothing genuinely upcoming for this sport right now
-      shown++;
+  function sportUserName(userObj){
+    return userObj ? (userObj.display_name || userObj.username) : 'Player';
+  }
 
-      const rawDate = t.opens_at || t.starts_at || t.closes_at || null;
-      const dateLabel = rawDate
-        ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        : 'TBC';
-      const prizeLabel = typeof t.prize_pool === 'number'
-        ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`
-        : '£--';
-
-      const card = document.createElement('a');
-      card.className = 't-card';
-      card.href = cfg.href;
-      card.style.textDecoration = 'none';
-      const titleBlock = cfg.desc
-        ? `<h3>${cfg.title}</h3><p class="desc">${cfg.desc}</p>`
-        : '';
-      card.innerHTML = `
-        <div class="t-card-media ${cfg.imgClass}">
-          <span class="registering-badge"><span class="dot"></span>Registering</span>
-          <img src="${cfg.img}" alt="${cfg.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
+  function buildLiveCard(type, t){
+    const info = TYPE_INFO[type];
+    const entries = t.current_entries ?? 0;
+    const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
+    const titleBlock = info.desc ? `<h3>${info.title}</h3><p class="desc">${info.desc}</p>` : '';
+    return `
+      <a class="t-card" href="${info.href}" style="text-decoration:none;">
+        <div class="t-card-media ${info.imgClass}">
+          <img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
         </div>
-        <div class="t-card-body" style="padding:${cfg.desc ? '16px 18px 18px' : '12px 16px 16px'};">
+        <div class="t-card-body" style="padding:${info.desc ? '16px 18px 18px' : '12px 16px 16px'};">
           ${titleBlock}
           <div class="t-card-stats">
-            <div><div class="stat-label">Starts</div><div class="stat-value starts">${dateLabel}</div></div>
-            <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">${prizeLabel}</div></div>
+            <div><div class="stat-label">Entries</div><div class="stat-value entries">${entries}</div></div>
+            <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">${prize}</div></div>
           </div>
-          <span class="btn-enter" style="display:block; text-align:center;">Register Now</span>
-        </div>`;
-      row.appendChild(card);
-    });
-
-    section.style.display = shown > 0 ? '' : 'none';
+          <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
+        </div>
+      </a>`;
   }
 
-  // ---- Real tournament card data (Football section) ----
-  // Cards used to show hardcoded placeholder numbers regardless of
-  // whether a real tournament existed. This pulls the genuine live
-  // tournament for each type and shows its real prize pool/entry fee, or
-  // a "Coming Soon" state if that type hasn't been launched yet.
-  async function loadRealTournamentCardData(){
-    const cards = document.querySelectorAll('[data-tournament-type]');
-    await Promise.all(Array.from(cards).map(async (card) => {
-      const type = card.getAttribute('data-tournament-type');
-      try {
-        const res = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=live`);
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.tournaments || []);
-        let t = list[0];
-
-        // Stock Market's normal, correct state during its draft window is
-        // 'upcoming', not 'live' — it hasn't gone live yet on purpose,
-        // that's not the same thing as "doesn't exist". Only fall back to
-        // Coming Soon if genuinely neither state has a real tournament.
-        // Darts has the exact same situation while bracket predictions
-        // are still open — the real bracket hasn't started yet either.
-        if (!t && (type === 'stockmarket' || type === 'darts' || type === 'champions_league')) {
-          const upRes = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=upcoming`);
-          const upData = await upRes.json();
-          const upList = Array.isArray(upData) ? upData : (upData.tournaments || []);
-          t = upList[0];
-        }
-
-        // A finished tournament isn't "coming soon" — it already
-        // happened, and has real results worth seeing. Without this, the
-        // moment any tournament finishes, its card silently reverted to
-        // Coming Soon (implying the future) instead of showing it's over.
-        let finished = false;
-        if (!t) {
-          const finRes = await fetch(`/api/tournaments?tournament_type=${encodeURIComponent(type)}&status=finished`);
-          const finData = await finRes.json();
-          const finList = Array.isArray(finData) ? finData : (finData.tournaments || []);
-          t = finList[0];
-          finished = !!t;
-        }
-
-        if (!t) {
-          markCardComingSoon(card);
-          return;
-        }
-
-        if (finished) {
-          markCardFinished(card);
-        }
-
-        const prizeEl = card.querySelector('.stat-value.prize');
-        const entriesEl = card.querySelector('.stat-value.entries');
-        const statValues = card.querySelectorAll('.stat-value');
-        // Stock Market's card wasn't changed - still Entry Fee (first) /
-        // Format (second), no dedicated classes, so it needs its own
-        // positional lookup rather than the new .entries/.prize classes
-        // the other three cards now use.
-        const stockMarketEntryFeeEl = type === 'stockmarket' ? (statValues[0] || null) : null;
-
-        if (prizeEl && typeof t.prize_pool === 'number') {
-          prizeEl.textContent = `£${(t.prize_pool / 100).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-        }
-        if (entriesEl && typeof t.current_entries === 'number') {
-          entriesEl.textContent = t.current_entries;
-        }
-        if (stockMarketEntryFeeEl && typeof t.entry_fee === 'number') {
-          stockMarketEntryFeeEl.textContent = `£${(t.entry_fee / 100).toFixed(2).replace(/\.00$/, '')}`;
-        }
-      } catch (e) {
-        console.error(`Failed to load real data for ${type}:`, e);
-        markCardComingSoon(card);
-      }
-    }));
+  function buildRegisteringMini(type, t){
+    const info = TYPE_INFO[type];
+    const rawDate = t.opens_at || t.starts_at || t.closes_at || null;
+    const dateLabel = rawDate ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
+    return `
+      <a class="mini-card mini-registering" href="${info.href}">
+        <img class="mini-thumb" src="${info.img}" alt="${info.title}">
+        <div class="mini-body">
+          <div class="mini-title">${info.title}</div>
+          <div class="mini-sub"><i class="fas fa-hourglass-half"></i> Starts ${plEsc(dateLabel)} — Register now</div>
+        </div>
+      </a>`;
   }
 
-  function markCardComingSoon(card){
-    card.classList.add('coming-soon');
-    const statsRow = card.querySelector('.t-card-stats');
-    if (statsRow) statsRow.innerHTML = '<div style="width:100%; text-align:center; color:var(--text-faint); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;">Coming Soon</div>';
-    const btn = card.querySelector('.btn-enter');
-    if (btn) { btn.textContent = 'Coming Soon'; }
-    card.addEventListener('click', (e) => e.preventDefault());
-  }
-
-  function markCardFinished(card){
-    const statsRow = card.querySelector('.t-card-stats');
-    if (statsRow) statsRow.innerHTML = '<div style="width:100%; text-align:center; color:var(--gold); font-family:var(--font-head); font-weight:600; font-size:13px; letter-spacing:.4px; text-transform:uppercase;"><i class="fas fa-trophy"></i> Finished — See Results</div>';
-    const btn = card.querySelector('.btn-enter');
-    if (btn) { btn.textContent = 'View Results'; }
-    // Deliberately no click-prevention here, unlike Coming Soon — the
-    // card should stay clickable so people can actually go see who won.
-  }
-
-  document.addEventListener('DOMContentLoaded', loadNotifications);
-
-  // Live data refresh is handled by the shared live-poll.js script — just
-  // re-render this page's own live strip whenever it runs.
-  // Predictions' leaderboard rows come from a separate, external live
-  // service (PL_BASE), but the gameweek range itself is still real
-  // internal tournament metadata - fetched independently here so the GW
-  // subtitle doesn't depend on that external service's response shape.
-  async function loadPredictionsGw(){
-    const gwEl = document.getElementById('qlbPredictionsGw');
-    const nameEl = document.getElementById('qlbPredictionsName');
-    if (!gwEl) return;
+  // Note: finished tournaments show here with no time-based expiry for
+  // now - there's genuinely no "finished_at" timestamp anywhere in the
+  // database to base a fair "hide after N days" rule on, and using
+  // closes_at (the entry deadline, sometimes months earlier for a
+  // season-long tournament) would risk wrongly hiding one that finished
+  // five minutes ago. Worth adding a real finished_at column later if a
+  // rolling window is wanted - not guessing at one with the wrong field now.
+  async function buildFinishedMini(type, t){
+    const info = TYPE_INFO[type];
     try {
-      const res = await fetch('/api/tournaments?tournament_type=predictions&status=live');
-      const data = await res.json();
-      const t = (data.tournaments || [])[0];
-      if (nameEl) nameEl.textContent = t ? (t.name || '') : '';
-      gwEl.innerHTML = (t && t.gameweek)
-        ? `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`
-        : '';
+      let winnerName = 'Player', prize = null;
+      if (type === 'stockmarket') {
+        const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
+        const lbData = await lbRes.json();
+        const rows = (lbData.leaderboard || []).filter(r => !r.relegated).sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
+        if (rows[0]) winnerName = rows[0].player_name || 'Player';
+      } else {
+        const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${type}`);
+        const lbData = await lbRes.json();
+        const rows = lbData.leaderboard || [];
+        if (rows[0]) {
+          winnerName = sportUserName(rows[0].users);
+          prize = rows[0].prize_awarded || rows[0].prize_won || null;
+        }
+      }
+      const prizeHtml = prize ? ` — ${qlbMoney(prize)}` : '';
+      return `
+        <a class="mini-card mini-finished" href="${info.href}">
+          <i class="fas fa-trophy mini-trophy"></i>
+          <div class="mini-body">
+            <div class="mini-title">${info.title}</div>
+            <div class="mini-sub">${plEsc(winnerName)}${prizeHtml}</div>
+          </div>
+        </a>`;
     } catch (e) {
-      console.error('Failed to load predictions GW range:', e);
+      console.error(`Failed building finished card for ${type}:`, e);
+      return '';
     }
   }
 
-  function loadAllQuickLeaderboards(){
-    loadPLLive();
-    loadPredictionsGw();
-    loadQuickLms();
-    loadQuickLeaderboard('qlbFantasy', 'fantasy', 'fantasy_squad', 'entry_points');
-    loadQuickStockMarket();
-    loadQuickLeaderboard('qlbChampionsLeague', 'champions_league', null, 'entry_points');
-    // Darts uses the exact same generic loader as Fantasy/Champions
-    // League - no bespoke function needed. Whichever darts tournament is
-    // currently live gets picked up automatically; when this one
-    // finishes and a new one launches, this line doesn't need touching.
-    loadQuickLeaderboard('qlbDarts', 'darts', null, 'entry_points');
+  async function renderSportSection(prefix, types){
+    const liveRow = document.getElementById(`${prefix}LiveRow`);
+    if (!liveRow) return;
+    const regRow = document.getElementById(`${prefix}RegisteringRow`);
+    const finRow = document.getElementById(`${prefix}FinishedRow`);
+    const liveBlock = document.getElementById(`${prefix}LiveBlock`);
+    const regBlock = document.getElementById(`${prefix}RegisteringBlock`);
+    const finBlock = document.getElementById(`${prefix}FinishedBlock`);
+
+    let liveHtml = '', regHtml = '';
+    const finPromises = [];
+
+    for (const type of types) {
+      try {
+        const liveRes = await fetch(`/api/tournaments?tournament_type=${type}&status=live`);
+        const liveData = await liveRes.json();
+        const liveT = (liveData.tournaments || [])[0];
+        if (liveT) { liveHtml += buildLiveCard(type, liveT); continue; }
+
+        const upRes = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
+        const upData = await upRes.json();
+        const upT = (upData.tournaments || [])[0];
+        if (upT) { regHtml += buildRegisteringMini(type, upT); continue; }
+
+        const finRes = await fetch(`/api/tournaments?tournament_type=${type}&status=finished`);
+        const finData = await finRes.json();
+        const finT = (finData.tournaments || [])[0];
+        if (finT) finPromises.push(buildFinishedMini(type, finT));
+      } catch (e) {
+        console.error(`Failed to load ${type} for ${prefix} section:`, e);
+      }
+    }
+
+    const finHtml = (await Promise.all(finPromises)).filter(Boolean).join('');
+
+    liveRow.innerHTML = liveHtml;
+    if (regRow) regRow.innerHTML = regHtml;
+    if (finRow) finRow.innerHTML = finHtml;
+    liveBlock.style.display = liveHtml ? 'block' : 'none';
+    if (regBlock) regBlock.style.display = regHtml ? 'block' : 'none';
+    if (finBlock) finBlock.style.display = finHtml ? 'block' : 'none';
   }
-  window.addEventListener('gbf-data-refreshed', loadAllQuickLeaderboards);
-  loadAllQuickLeaderboards();
+
+  function renderAllSportSections(){
+    renderSportSection('football', SPORT_TYPES.football);
+    renderSportSection('cl', SPORT_TYPES.cl);
+    renderSportSection('darts', SPORT_TYPES.darts);
+  }
+  window.addEventListener('gbf-data-refreshed', renderAllSportSections);
+  renderAllSportSections();
 
   // Hero slideshow — cycles through .hero-slide elements every 3s,
   // cross-fading via the opacity transition already set on .hero-slide.
@@ -1966,7 +1582,6 @@
     }, 5000);
   })();
   loadRealTournamentCardData();
-  loadRegisteringSection();
 </script>
 
 </body>
