@@ -103,16 +103,47 @@ document.addEventListener('DOMContentLoaded', async function () {
       tournamentInfo = t;
 
       if (tournamentUpcoming) {
-        // Real, honest status instead of the generic entry copy - this
-        // tournament genuinely hasn't started yet.
+        // Real bug fixed here: this always showed the "Enter Now" gate
+        // regardless of whether the user had already entered - same
+        // class of bug already found and fixed on LMS. Checks their
+        // real entry status first now, same way loadMyEntry() does for
+        // a live tournament.
         const startLabel = t.gameweek ? `Gameweek ${t.gameweek}` : 'soon';
-        els.statusBadge.innerHTML = `<i class="fas fa-hourglass-half"></i> Registration open — starts ${startLabel}`;
-        if (els.enterDesc) {
-          const fee = ((t.entry_fee || 0) / 100).toFixed(2);
-          els.enterDesc.innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${fee} · ${t.current_entries || 0} entered so far.`;
+        const fee = ((t.entry_fee || 0) / 100).toFixed(2);
+        const token = localStorage.getItem('gbf_token');
+
+        if (!token) {
+          els.statusBadge.innerHTML = `<i class="fas fa-hourglass-half"></i> Registration open — starts ${startLabel}`;
+          if (els.enterDesc) els.enterDesc.innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${fee} · ${t.current_entries || 0} entered so far.`;
+          if (els.enterGate) els.enterGate.style.display = 'block';
+          if (els.mainContent) els.mainContent.style.display = 'none';
+          return;
         }
-        if (els.enterGate) els.enterGate.style.display = 'block';
-        if (els.mainContent) els.mainContent.style.display = 'none';
+
+        try {
+          const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true&tournament_type=fantasy`, { headers: authHeaders() });
+          if (entryRes.status === 401) {
+            els.statusBadge.innerHTML = '<i class="fas fa-triangle-exclamation"></i> Session expired';
+            if (els.enterGate) els.enterGate.style.display = 'none';
+            if (els.sessionExpired) els.sessionExpired.style.display = 'block';
+            if (els.mainContent) els.mainContent.style.display = 'none';
+            return;
+          }
+          const entryData = await entryRes.json();
+          if (els.enterGate) els.enterGate.style.display = 'block';
+          if (els.mainContent) els.mainContent.style.display = 'none';
+
+          if (entryData.entry) {
+            els.statusBadge.innerHTML = `<i class="fas fa-circle-check"></i> You're entered — starts ${startLabel}`;
+            if (els.enterDesc) els.enterDesc.innerHTML = `<i class="fas fa-circle-check" style="color:var(--green);"></i> You're entered — this tournament starts <b>${startLabel}</b>. Come back once it's underway to build your squad.`;
+            if (els.enterBtn) els.enterBtn.style.display = 'none';
+          } else {
+            els.statusBadge.innerHTML = `<i class="fas fa-hourglass-half"></i> Registration open — starts ${startLabel}`;
+            if (els.enterDesc) els.enterDesc.innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${fee} · ${t.current_entries || 0} entered so far.`;
+          }
+        } catch (e) {
+          console.error('Failed to check entry status for upcoming tournament:', e);
+        }
         return;
       }
 

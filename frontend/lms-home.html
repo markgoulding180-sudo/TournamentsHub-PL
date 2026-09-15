@@ -585,19 +585,44 @@
         tournamentId = t.id;
 
         if (tournamentUpcoming) {
-          // Real, honest status instead of the generic entry copy -
-          // this tournament genuinely hasn't started, so say so plainly
-          // and show which gameweek it kicks off, rather than the usual
-          // "entry fee / prize pool / entered so far" framing that reads
-          // as if it might already be underway.
-          document.getElementById('enterGate').style.display = 'block';
+          // Real bug fixed here: this always showed the "Enter Now" gate
+          // regardless of whether the user had already entered -
+          // confirmed as a real case: a user successfully entered, then
+          // the next refresh (the page's own periodic poll) ran this
+          // same code again and showed "Enter Now" as if nothing had
+          // happened, even though their real entry was sitting in the
+          // database the whole time. Now actually checks first.
           const startLabel = t.gameweek ? `Gameweek ${t.gameweek}` : 'soon';
-          document.getElementById('enterDesc').innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${((t.entry_fee||0)/100).toFixed(2)} · ${t.current_entries||0} entered so far.`;
+
           if (!isLoggedIn()) {
+            document.getElementById('enterGate').style.display = 'block';
+            document.getElementById('enterDesc').innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${((t.entry_fee||0)/100).toFixed(2)} · ${t.current_entries||0} entered so far.`;
             document.getElementById('enterBtn').outerHTML = `<a href="/login?redirect=%2Flast-man-standing" class="btn-primary"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`;
+            return;
+          }
+
+          const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${t.id}&tournament_type=lms`, { headers: authHeaders() });
+          if (entryRes.status === 401) {
+            document.getElementById('enterGate').style.display = 'none';
+            document.getElementById('sessionExpiredGate').style.display = 'block';
+            return;
+          }
+          const entryData = await entryRes.json();
+
+          document.getElementById('enterGate').style.display = 'block';
+          if (entryData.entry) {
+            // Genuinely already entered - say so plainly instead of
+            // showing "Enter Now" again.
+            document.getElementById('enterDesc').innerHTML = `<i class="fas fa-circle-check" style="color:var(--green);"></i> You're entered — this tournament starts <b>${startLabel}</b>. Come back once it's underway to make your first pick.`;
+            const btn = document.getElementById('enterBtn');
+            if (btn) { btn.style.display = 'none'; }
           } else {
-            document.getElementById('enterBtn').style.display = 'inline-flex';
-            document.getElementById('enterBtn').onclick = () => enterTournament(t);
+            document.getElementById('enterDesc').innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${((t.entry_fee||0)/100).toFixed(2)} · ${t.current_entries||0} entered so far.`;
+            const btn = document.getElementById('enterBtn');
+            if (btn) {
+              btn.style.display = 'inline-flex';
+              btn.onclick = () => enterTournament(t);
+            }
           }
           return;
         }
