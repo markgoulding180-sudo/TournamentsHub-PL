@@ -5214,13 +5214,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           // Stock Market's drafting phase happens BEFORE the market goes
           // live (status starts 'upcoming' and only flips to 'live' once
-          // the draft deadline passes) — every other schema only opens
-          // entries once status is 'live', but Stock Market needs to allow
-          // joining/drafting during 'upcoming' too. Darts has the exact
-          // same situation while bracket predictions are still open.
-          const entriesOpen = (schemaName === 'stockmarket' || schemaName === 'darts' || schemaName === 'champions_league')
-            ? (tournament.status === 'upcoming' || tournament.status === 'live')
-            : tournament.status === 'live';
+          // the draft deadline passes) — Darts and Champions League have
+          // the same situation while bracket/matchday predictions are
+          // still open. Predictions/LMS/Fantasy now get the same genuine
+          // 'upcoming' registering phase too (see the 'create' action) -
+          // this was the real cause of a fresh 'upcoming' LMS tournament
+          // showing a working "Enter Now" button that then rejected the
+          // actual join with "not open for entries", since this list
+          // hadn't been updated to match.
+          const entriesOpen = (tournament.status === 'upcoming' || tournament.status === 'live');
 
           if (!entriesOpen) {
             return res.status(400).json({ error: 'Tournament is not open for entries' });
