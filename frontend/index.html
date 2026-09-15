@@ -494,6 +494,17 @@
   /* ================= TOURNAMENT CARDS ================= */
   .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
   .card-row-3{grid-template-columns:repeat(3,1fr);}
+  /* Scoped specifically to the sport sections' status blocks - cards
+     center themselves on the page regardless of how many there are,
+     instead of grid's default left-aligned tracks leaving a visibly
+     empty gap on the right whenever there are fewer than a full row's
+     worth (confirmed: 2 live cards out of 4 possible columns sat
+     bunched to the left with dead space next to them). */
+  .sport-container .card-row{ display:flex; flex-wrap:wrap; justify-content:center; }
+  .sport-container .card-row > .t-card{ flex:0 1 calc(25% - 13.5px); min-width:260px; }
+  @media (max-width:640px){
+    .sport-container .card-row > .t-card{ flex:0 1 calc(50% - 9px); min-width:140px; }
+  }
 
   /* Registering row is scoped separately from every other .card-row on
      the page, deliberately - the count here varies (0 to however many
@@ -562,15 +573,26 @@
     box-shadow:0 0 8px rgba(34,197,94,0.8); animation:sbPulse 1.6s ease-in-out infinite;
   }
   .status-block-head.live-head{ color:#eafff2; }
-  .status-block-head.registering-head{ color:#eafff2; }
+  .status-block-head.registering-head{
+    color:#04140a; background:#22c55e; align-self:flex-start;
+    padding:6px 16px; border-radius:20px; font-size:14.5px;
+    box-shadow:0 0 18px rgba(34,197,94,0.5);
+  }
+  .status-block-head.registering-head i{ font-size:13px; }
   .status-block-head.finished-head{ color:var(--gold); }
   @keyframes sbPulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
 
   /* Compact card row for Registering/Finished - smaller than the full
      live t-card, since there's less real information to show (no
      live entries count worth showing yet, or nothing left to enter). */
-  .card-row-compact{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-  @media (max-width:900px){ .card-row-compact{ grid-template-columns:repeat(2,1fr); } }
+  .card-row-compact{ display:flex; flex-wrap:wrap; justify-content:center; gap:14px; }
+  .card-row-compact > .mini-card{ flex:0 1 calc(25% - 10.5px); min-width:220px; }
+  @media (max-width:900px){
+    .card-row-compact > .mini-card{ flex:0 1 calc(50% - 7px); min-width:200px; }
+  }
+  @media (max-width:640px){
+    .card-row-compact > .mini-card{ flex:0 1 100%; }
+  }
 
   .mini-card{
     background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
