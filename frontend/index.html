@@ -484,6 +484,8 @@
     100%{ transform:scale(1) rotate(0deg); }
   }
   .quick-lb-title{ font-family:var(--font-head); font-weight:700; font-size:14.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .quick-lb-tname{ font-weight:500; color:var(--text-dim); font-size:12.5px; margin-left:-2px; }
+  .quick-lb-tname:not(:empty)::before{ content:'— '; }
   @media (max-width:1080px){ .quick-lb-grid{ grid-template-columns:repeat(2, 1fr); } }
   @media (max-width:640px){ .quick-lb-grid{ grid-template-columns:1fr; } }
   @media (max-width:760px){ .pl-live-grid{grid-template-columns:1fr;} }
@@ -1168,31 +1170,31 @@
     </div>
     <div class="quick-lb-grid" id="quickLbGrid">
       <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-futbol" style="color:var(--accent-2);"></i> Predictions</div>
+        <div class="quick-lb-title"><i class="fas fa-futbol" style="color:var(--accent-2);"></i> Predictions<span class="quick-lb-tname" id="qlbPredictionsName"></span></div>
         <div class="quick-lb-gw" id="qlbPredictionsGw"></div>
         <ol class="pl-live-leaders" id="qlbPredictions"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Last Man Standing</div>
+        <div class="quick-lb-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Last Man Standing<span class="quick-lb-tname" id="qlbLmsName"></span></div>
         <div class="quick-lb-gw" id="qlbLmsGw"></div>
         <ol class="pl-live-leaders" id="qlbLms"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-users" style="color:var(--green);"></i> Fantasy</div>
+        <div class="quick-lb-title"><i class="fas fa-users" style="color:var(--green);"></i> Fantasy<span class="quick-lb-tname" id="qlbFantasyName"></span></div>
         <div class="quick-lb-gw" id="qlbFantasyGw"></div>
         <ol class="pl-live-leaders" id="qlbFantasy"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Stock Market</div>
+        <div class="quick-lb-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Stock Market<span class="quick-lb-tname" id="qlbStockmarketName"></span></div>
         <div class="quick-lb-gw" id="qlbStockmarketGw"></div>
         <ol class="pl-live-leaders" id="qlbStockmarket"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-shield-halved" style="color:var(--accent-2);"></i> Champions League</div>
+        <div class="quick-lb-title"><i class="fas fa-shield-halved" style="color:var(--accent-2);"></i> Champions League<span class="quick-lb-tname" id="qlbChampionsLeagueName"></span></div>
         <ol class="pl-live-leaders" id="qlbChampionsLeague"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
-        <div class="quick-lb-title"><i class="fas fa-bullseye" style="color:var(--red);"></i> Darts</div>
+        <div class="quick-lb-title"><i class="fas fa-bullseye" style="color:var(--red);"></i> Darts<span class="quick-lb-tname" id="qlbDartsName"></span></div>
         <ol class="pl-live-leaders" id="qlbDarts"><li class="pl-live-empty">Loading…</li></ol>
       </div>
     </div>
@@ -1397,6 +1399,8 @@
         el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
         return;
       }
+      const nameEl = document.getElementById(`${elId}Name`);
+      if (nameEl) nameEl.textContent = t.name || '';
       const gwEl = document.getElementById(`${elId}Gw`);
       if (gwEl && t.status !== 'finished' && t.gameweek) {
         gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
@@ -1462,6 +1466,8 @@
         el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
         return;
       }
+      const nameEl = document.getElementById('qlbLmsName');
+      if (nameEl) nameEl.textContent = t.name || '';
       const gwEl = document.getElementById('qlbLmsGw');
       if (gwEl && t.status !== 'finished' && t.gameweek) {
         gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
@@ -1523,6 +1529,8 @@
         el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
         return;
       }
+      const nameEl = document.getElementById('qlbStockmarketName');
+      if (nameEl) nameEl.textContent = t.name || '';
       const gwEl = document.getElementById('qlbStockmarketGw');
       if (gwEl && t.status !== 'finished' && t.gameweek) {
         gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
@@ -1914,11 +1922,13 @@
   // subtitle doesn't depend on that external service's response shape.
   async function loadPredictionsGw(){
     const gwEl = document.getElementById('qlbPredictionsGw');
+    const nameEl = document.getElementById('qlbPredictionsName');
     if (!gwEl) return;
     try {
       const res = await fetch('/api/tournaments?tournament_type=predictions&status=live');
       const data = await res.json();
       const t = (data.tournaments || [])[0];
+      if (nameEl) nameEl.textContent = t ? (t.name || '') : '';
       gwEl.innerHTML = (t && t.gameweek)
         ? `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`
         : '';
