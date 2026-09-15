@@ -572,13 +572,12 @@
     width:8px; height:8px; border-radius:50%; background:#22c55e;
     box-shadow:0 0 8px rgba(34,197,94,0.8); animation:sbPulse 1.6s ease-in-out infinite;
   }
-  .status-block-head.live-head{ color:#eafff2; }
-  .status-block-head.registering-head{
-    color:#04140a; background:#22c55e; align-self:flex-start;
-    padding:6px 16px; border-radius:20px; font-size:14.5px;
-    box-shadow:0 0 18px rgba(34,197,94,0.5);
+  .status-block-head .registering-dot{
+    width:8px; height:8px; border-radius:50%; background:#eab308;
+    box-shadow:0 0 8px rgba(234,179,8,0.8); animation:sbPulse 1.6s ease-in-out infinite;
   }
-  .status-block-head.registering-head i{ font-size:13px; }
+  .status-block-head.live-head{ color:#eafff2; }
+  .status-block-head.registering-head{ color:#fde68a; }
   .status-block-head.finished-head{ color:var(--gold); }
   @keyframes sbPulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
 
@@ -1016,7 +1015,7 @@
       </div>
 
       <div class="status-block" id="footballRegisteringBlock" style="display:none;">
-        <div class="status-block-head registering-head"><i class="fas fa-user-plus"></i> Registering</div>
+        <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
         <div class="card-row-compact" id="footballRegisteringRow"></div>
       </div>
 
@@ -1042,7 +1041,7 @@
       </div>
 
       <div class="status-block" id="clRegisteringBlock" style="display:none;">
-        <div class="status-block-head registering-head"><i class="fas fa-user-plus"></i> Registering</div>
+        <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
         <div class="card-row-compact" id="clRegisteringRow"></div>
       </div>
 
@@ -1070,7 +1069,7 @@
       </div>
 
       <div class="status-block" id="dartsRegisteringBlock" style="display:none;">
-        <div class="status-block-head registering-head"><i class="fas fa-user-plus"></i> Registering</div>
+        <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
         <div class="card-row-compact" id="dartsRegisteringRow"></div>
       </div>
 
