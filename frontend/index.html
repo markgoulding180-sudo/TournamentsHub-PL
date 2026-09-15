@@ -1376,6 +1376,18 @@
       let list = data.tournaments || [];
       let t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
       if (!t) {
+        // Real bug fixed here: this only ever checked live, then
+        // finished - skipping "upcoming" entirely. A tournament with a
+        // real announced draw and real registered entrants (confirmed:
+        // Darts World Grand Prix, 3 real entries) showed the misleading
+        // "Not set up yet." purely because it hadn't started, which
+        // reads as if the tournament doesn't exist at all.
+        res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=upcoming`);
+        data = await res.json();
+        list = data.tournaments || [];
+        t = formatFilter ? list.find(x => x.format === formatFilter) : list[0];
+      }
+      if (!t) {
         res = await fetch(`/api/tournaments?tournament_type=${tournamentType}&status=finished`);
         data = await res.json();
         list = data.tournaments || [];
@@ -1395,7 +1407,9 @@
       const lbData = await lbRes.json();
       const rows = (lbData.leaderboard || []).slice(0, 5);
       if (rows.length === 0) {
-        el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
+        el.innerHTML = t.status === 'upcoming'
+          ? '<li class="pl-live-empty">Registering — nobody\'s entered yet.</li>'
+          : '<li class="pl-live-empty">No entries yet.</li>';
         return;
       }
       const nameOf = (r) => r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
@@ -1403,6 +1417,18 @@
         const winnerRow = rows[0];
         const prize = winnerRow.prize_awarded || winnerRow.prize_won || null;
         renderQuickLbWinner(elId, nameOf(winnerRow), prize);
+        return;
+      }
+      if (t.status === 'upcoming') {
+        // Real entrants, genuinely nothing to rank yet - points/scores
+        // would be meaningless before the tournament has even started,
+        // so this shows who's in rather than a misleading "0 pts" row.
+        el.innerHTML = rows.map((r, i) => `
+          <li>
+            <span class="rank">${i + 1}</span>
+            <span class="name">${plEsc(nameOf(r))}</span>
+            <span class="pts" style="color:var(--gold);">Registered</span>
+          </li>`).join('');
         return;
       }
       el.innerHTML = rows.map((r, i) => {
