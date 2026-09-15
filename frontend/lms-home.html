@@ -585,13 +585,18 @@
         tournamentId = t.id;
 
         if (tournamentUpcoming) {
-          // Real bug fixed here: this always showed the "Enter Now" gate
-          // regardless of whether the user had already entered -
-          // confirmed as a real case: a user successfully entered, then
-          // the next refresh (the page's own periodic poll) ran this
-          // same code again and showed "Enter Now" as if nothing had
-          // happened, even though their real entry was sitting in the
-          // database the whole time. Now actually checks first.
+          // Real, serious mistake fixed here, flagged directly by a
+          // real user: "come back once it's underway" blocked an
+          // already-entered user from picking at all - but the real
+          // constraint on a pick was never "has the tournament's status
+          // flipped to live", it's "has the first match of the gameweek
+          // actually kicked off" (checked further down using real match
+          // times, same as always). Waiting for the tournament to go
+          // properly live would often be too late - by the time GW6
+          // "starts", its first match may have already locked picks.
+          // An entered user now goes straight into the exact same real
+          // pick flow as a live tournament; "upcoming" only changes what
+          // a NOT-yet-entered user sees.
           const startLabel = t.gameweek ? `Gameweek ${t.gameweek}` : 'soon';
 
           if (!isLoggedIn()) {
@@ -609,22 +614,24 @@
           }
           const entryData = await entryRes.json();
 
-          document.getElementById('enterGate').style.display = 'block';
-          if (entryData.entry) {
-            // Genuinely already entered - say so plainly instead of
-            // showing "Enter Now" again.
-            document.getElementById('enterDesc').innerHTML = `<i class="fas fa-circle-check" style="color:var(--green);"></i> You're entered — this tournament starts <b>${startLabel}</b>. Come back once it's underway to make your first pick.`;
-            const btn = document.getElementById('enterBtn');
-            if (btn) { btn.style.display = 'none'; }
-          } else {
+          if (!entryData.entry) {
+            document.getElementById('enterGate').style.display = 'block';
             document.getElementById('enterDesc').innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${((t.entry_fee||0)/100).toFixed(2)} · ${t.current_entries||0} entered so far.`;
             const btn = document.getElementById('enterBtn');
             if (btn) {
               btn.style.display = 'inline-flex';
               btn.onclick = () => enterTournament(t);
             }
+            return;
           }
-          return;
+          // Already entered - fall through to the real pick interface
+          // below, exactly like a live tournament. Re-show anything the
+          // earlier tournamentUpcoming-hides block above turned off,
+          // since this user genuinely has picking to do.
+          const howEl = document.getElementById('howCollapsible');
+          if (howEl) howEl.style.display = '';
+          const pickCard = document.querySelector('.pick-card');
+          if (pickCard) pickCard.style.display = '';
         }
 
         const gwRes = await fetch('/api/current-gameweek');
