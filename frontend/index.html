@@ -1442,6 +1442,30 @@
       }
       const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
       const lbData = await lbRes.json();
+
+      // Real second bug found while fixing the first: this endpoint has
+      // a genuinely different response shape during the drafting phase
+      // (entrants, with player_name) versus once live (leaderboard, also
+      // with player_name - not a nested users object like every other
+      // sport's leaderboard uses). This code only ever read .leaderboard
+      // with the wrong field name, so it silently showed "Player" for
+      // everyone once live, and "No entries yet" during drafting even
+      // when people genuinely had drafted.
+      if (lbData.drafting) {
+        const draftRows = (lbData.entrants || []).slice(0, 5);
+        if (draftRows.length === 0) {
+          el.innerHTML = '<li class="pl-live-empty">No entries yet.</li>';
+          return;
+        }
+        el.innerHTML = draftRows.map((r, i) => `
+          <li>
+            <span class="rank">${i + 1}</span>
+            <span class="name">${plEsc(r.player_name)}</span>
+            <span class="pts">Drafting</span>
+          </li>`).join('');
+        return;
+      }
+
       const rows = (lbData.leaderboard || [])
         .filter(r => !r.relegated)
         .sort((a, b) => (b.current_value || 0) - (a.current_value || 0))
@@ -1451,17 +1475,15 @@
         return;
       }
       if (t.status === 'finished') {
-        const winnerName = rows[0].users ? (rows[0].users.display_name || rows[0].users.username) : 'Player';
-        renderQuickLbWinner('qlbStockmarket', winnerName);
+        renderQuickLbWinner('qlbStockmarket', rows[0].player_name || 'Player');
         return;
       }
       el.innerHTML = rows.map((r, i) => {
-        const name = r.users ? (r.users.display_name || r.users.username) : 'Player';
         const value = ((r.current_value || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return `
           <li>
             <span class="rank">${i + 1}</span>
-            <span class="name">${plEsc(name)}</span>
+            <span class="name">${plEsc(r.player_name || 'Player')}</span>
             <span class="pts">£${value}</span>
           </li>`;
       }).join('');
