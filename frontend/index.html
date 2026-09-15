@@ -600,7 +600,10 @@
   }
   .mini-card .mini-thumb{ width:82px; height:auto; border-radius:0; object-fit:cover; background:#0a1226; flex-shrink:0; align-self:stretch; }
   .mini-card .mini-body{ flex:1; min-width:0; padding:14px 14px 14px 0; display:flex; flex-direction:column; justify-content:center; }
-  .mini-card .mini-title{ font-family:var(--font-head); font-weight:700; font-size:13.5px; margin-bottom:2px; }
+  .mini-card .mini-title{
+    font-family:var(--font-head); font-weight:700; font-size:15.5px; margin-bottom:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
   .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
   .mini-card .mini-sub-secondary{ margin-top:3px; color:var(--text-faint); opacity:0.85; }
   .mini-card.mini-registering .mini-sub{ color:#4ade80; }
@@ -615,6 +618,30 @@
     display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700;
     color:#fff; background:linear-gradient(90deg, rgba(239,68,68,0.9), rgba(239,68,68,0.7));
     padding:8px 12px; border-radius:8px; margin:8px 0;
+  }
+
+  /* ---------- Registering ticker, under the hero ---------- */
+  .reg-ticker{
+    display:flex; align-items:center; gap:0; background:rgba(234,179,8,0.08);
+    border-top:1px solid rgba(234,179,8,0.25); border-bottom:1px solid rgba(234,179,8,0.25);
+    padding:10px 0; overflow:hidden; margin-bottom:18px;
+  }
+  .reg-ticker-label{
+    flex-shrink:0; display:flex; align-items:center; gap:7px; padding:0 16px;
+    font-family:var(--font-head); font-weight:700; font-size:11.5px;
+    letter-spacing:0.8px; color:#fde68a; text-transform:uppercase;
+    border-right:1px solid rgba(234,179,8,0.3);
+  }
+  .reg-ticker-track{
+    display:flex; gap:40px; white-space:nowrap; padding-left:20px;
+    animation:tickerScroll 24s linear infinite;
+  }
+  .reg-ticker-track:hover{ animation-play-state:paused; }
+  .reg-ticker-item{ display:flex; align-items:center; gap:8px; font-size:13px; color:#fff; font-weight:600; text-decoration:none; }
+  .reg-ticker-item .reg-ticker-fee{ color:#4ade80; font-weight:700; }
+  @keyframes tickerScroll{
+    0%{ transform:translateX(0); }
+    100%{ transform:translateX(-50%); }
   }
   .mini-card.mini-live{ border-color:rgba(34,197,94,0.35); }
   .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
@@ -959,6 +986,16 @@
         </div>
       </div>
     </section>
+
+    <!-- Auto-scrolling ticker of currently-registering tournaments across
+         every sport, right under the hero - the one place on the page
+         that answers "what can I still join right now" at a glance,
+         without needing to scroll through each sport section. Hidden
+         entirely when nothing is genuinely open for registration. -->
+    <div class="reg-ticker" id="regTicker" style="display:none;">
+      <div class="reg-ticker-label"><i class="fas fa-circle" style="font-size:7px; color:#eab308;"></i> Registering</div>
+      <div class="reg-ticker-track" id="regTickerTrack"></div>
+    </div>
 
     <!-- Mobile-only quick category strip (sidebar is hidden below 860px) —
          sits directly under the hero; sticks under the navbar once
@@ -1548,6 +1585,13 @@
     const entries = t.current_entries ?? 0;
     const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
 
+    // Gameweek info and the needs-action check don't depend on each
+    // other, so they fire together rather than one waiting on the other.
+    const [gwInfo, action] = await Promise.all([
+      t.gameweek ? getCurrentGameweekInfo() : Promise.resolve(null),
+      checkNeedsAction(type, t.id)
+    ]);
+
     // Gameweek range + real progress through it - only meaningful for
     // the four football sports that actually run on the shared PL
     // gameweek clock (predictions/lms/fantasy/stockmarket). Champions
@@ -1555,18 +1599,14 @@
     // simply won't exist for those and this stays blank.
     let gwLine = '';
     if (t.gameweek) {
-      const gwInfo = await getCurrentGameweekInfo();
       const rangeLabel = `GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
       if (gwInfo && gwInfo.current_gameweek && t.end_gameweek) {
-        const played = Math.max(0, Math.min(gwInfo.current_gameweek - t.gameweek, t.end_gameweek - t.gameweek + 1));
-        const total = t.end_gameweek - t.gameweek + 1;
         gwLine = `<div class="mini-sub mini-sub-secondary"><i class="fas fa-calendar-week"></i> ${rangeLabel} — Gameweek ${gwInfo.current_gameweek} of ${t.end_gameweek} played</div>`;
       } else {
         gwLine = `<div class="mini-sub mini-sub-secondary"><i class="fas fa-calendar-week"></i> ${rangeLabel}</div>`;
       }
     }
 
-    const action = await checkNeedsAction(type, t.id);
     const actionLine = (action && action.needsAction)
       ? `<div class="mini-sub mini-sub-secondary needs-action-line"><i class="fas fa-triangle-exclamation"></i> ${plEsc(action.label)}</div>`
       : '';
@@ -1695,31 +1735,51 @@
     const isMobile = window.innerWidth <= 640;
     liveRow.className = isMobile ? 'card-row-compact' : 'card-row';
 
-    let liveHtml = '', regHtml = '';
-    const finPromises = [];
-
-    for (const type of types) {
+    // Real fix for a genuine performance bug: this used to check each
+    // type's live status, then (only if not live) its upcoming status,
+    // then (only if not upcoming) its finished status, one type at a
+    // time, each awaited before the next type even started - up to 3
+    // chained round-trips per type, times 4 types for football alone,
+    // all one after another. Every status check for every type now
+    // fires at once instead, so the whole section's data arrives in
+    // roughly the time of one round-trip, not the sum of a dozen+.
+    const results = await Promise.all(types.map(async (type) => {
       try {
-        const liveRes = await fetch(`/api/tournaments?tournament_type=${type}&status=live`);
-        const liveData = await liveRes.json();
+        const [liveRes, upRes, finRes] = await Promise.all([
+          fetch(`/api/tournaments?tournament_type=${type}&status=live`),
+          fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`),
+          fetch(`/api/tournaments?tournament_type=${type}&status=finished`)
+        ]);
+        const [liveData, upData, finData] = await Promise.all([liveRes.json(), upRes.json(), finRes.json()]);
         const liveT = (liveData.tournaments || [])[0];
-        if (liveT) { liveHtml += isMobile ? await buildLiveMiniCard(type, liveT) : await buildLiveCard(type, liveT); continue; }
-
-        const upRes = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
-        const upData = await upRes.json();
+        if (liveT) return { zone: 'live', type, t: liveT };
         const upT = (upData.tournaments || [])[0];
-        if (upT) { regHtml += buildRegisteringMini(type, upT); continue; }
-
-        const finRes = await fetch(`/api/tournaments?tournament_type=${type}&status=finished`);
-        const finData = await finRes.json();
+        if (upT) return { zone: 'registering', type, t: upT };
         const finT = (finData.tournaments || [])[0];
-        if (finT) finPromises.push(buildFinishedMini(type, finT));
+        if (finT) return { zone: 'finished', type, t: finT };
+        return null;
       } catch (e) {
         console.error(`Failed to load ${type} for ${prefix} section:`, e);
+        return null;
       }
-    }
+    }));
 
-    const finHtml = (await Promise.all(finPromises)).filter(Boolean).join('');
+    // Card-building for live/finished results also happens in parallel
+    // across types now, not one blocking the next - each of these still
+    // makes its own extra awaited calls internally (gameweek info,
+    // needs-action check, leaderboard lookups).
+    const liveResults = results.filter(r => r && r.zone === 'live');
+    const finResults = results.filter(r => r && r.zone === 'finished');
+    const regResults = results.filter(r => r && r.zone === 'registering');
+
+    const [liveHtmlParts, finHtmlParts] = await Promise.all([
+      Promise.all(liveResults.map(r => isMobile ? buildLiveMiniCard(r.type, r.t) : buildLiveCard(r.type, r.t))),
+      Promise.all(finResults.map(r => buildFinishedMini(r.type, r.t)))
+    ]);
+
+    const liveHtml = liveHtmlParts.join('');
+    const finHtml = finHtmlParts.filter(Boolean).join('');
+    const regHtml = regResults.map(r => buildRegisteringMini(r.type, r.t)).join('');
 
     liveRow.innerHTML = liveHtml;
     if (regRow) regRow.innerHTML = regHtml;
@@ -1729,8 +1789,47 @@
     if (finBlock) finBlock.style.display = finHtml ? 'block' : 'none';
   }
 
+  // Auto-scrolling ticker under the hero - a quick, separate parallel
+  // check across all 6 sport types (independent of whichever sport
+  // sections happen to be doing their own render), since this needs to
+  // answer "what's open right now" before the user has scrolled to any
+  // individual sport section at all.
+  async function loadRegisteringTicker(){
+    const wrap = document.getElementById('regTicker');
+    const track = document.getElementById('regTickerTrack');
+    if (!wrap || !track) return;
+    const allTypes = ['predictions', 'lms', 'fantasy', 'stockmarket', 'champions_league', 'darts'];
+    try {
+      const results = await Promise.all(allTypes.map(async (type) => {
+        const res = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
+        const data = await res.json();
+        const t = (data.tournaments || [])[0];
+        return t ? { type, t } : null;
+      }));
+      const items = results.filter(Boolean);
+      if (items.length === 0) { wrap.style.display = 'none'; return; }
+
+      const itemHtml = items.map(({ type, t }) => {
+        const info = TYPE_INFO[type];
+        const feeLabel = typeof t.entry_fee === 'number'
+          ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free')
+          : null;
+        return `<a class="reg-ticker-item" href="${info.href}"><i class="fas fa-circle" style="font-size:5px; color:#eab308;"></i> ${plEsc(info.title)}${feeLabel ? ` <span class="reg-ticker-fee">${feeLabel}</span>` : ''}</a>`;
+      }).join('');
+
+      // Duplicated once so the scroll animation (translateX -50%) loops
+      // back into visually identical content instead of a visible jump.
+      track.innerHTML = itemHtml + itemHtml;
+      wrap.style.display = 'flex';
+    } catch (e) {
+      console.error('Failed to load registering ticker:', e);
+      wrap.style.display = 'none';
+    }
+  }
+
   function renderAllSportSections(){
     loadPLLive();
+    loadRegisteringTicker();
     renderSportSection('football', SPORT_TYPES.football);
     renderSportSection('cl', SPORT_TYPES.cl);
     renderSportSection('darts', SPORT_TYPES.darts);
