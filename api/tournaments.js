@@ -5961,10 +5961,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           if (tournamentError || !tournament) {
             return res.status(404).json({ error: 'Tournament not found' });
           }
-          if (tournament.status !== 'live') {
+          if (tournament.status !== 'live' && tournament.status !== 'upcoming') {
             return res.status(400).json({ error: 'This tournament is not open for picks' });
           }
 
+          // Real bug fixed here, same class as the join action: this
+          // used to hard-require status==='live', completely ignoring
+          // that an 'upcoming' tournament can have picks genuinely open
+          // already (confirmed real case: a tournament starting GW6
+          // while the site-wide clock is still on GW5 - getLmsLockStatus
+          // right below already correctly returns locked:false for
+          // exactly this case, but this cruder check was rejecting the
+          // request before ever reaching it).
           const lock = await getLmsLockStatus(masterDb, supabaseAdmin, tournament_id);
           if (lock.locked) {
             return res.status(403).json({ error: lock.reason || 'Picks are currently locked.', lock });
