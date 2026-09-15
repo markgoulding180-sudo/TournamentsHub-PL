@@ -604,6 +604,18 @@
   .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
   .mini-card .mini-sub-secondary{ margin-top:3px; color:var(--text-faint); opacity:0.85; }
   .mini-card.mini-registering .mini-sub{ color:#4ade80; }
+  .mini-card .mini-countdown{
+    flex-shrink:0; align-self:center; text-align:center; padding:8px 12px; margin-right:12px;
+    background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); border-radius:9px;
+  }
+  .mini-card .mini-countdown-value{ font-family:var(--font-head); font-weight:700; font-size:15px; color:#fde68a; white-space:nowrap; }
+  .mini-card .mini-countdown-label{ font-size:9px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.4px; }
+  .needs-action-line{ color:var(--red) !important; font-weight:700; }
+  .needs-action-banner{
+    display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700;
+    color:#fff; background:linear-gradient(90deg, rgba(239,68,68,0.9), rgba(239,68,68,0.7));
+    padding:8px 12px; border-radius:8px; margin:8px 0;
+  }
   .mini-card.mini-live{ border-color:rgba(34,197,94,0.35); }
   .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
   .mini-card.mini-finished{
@@ -1428,11 +1440,72 @@
     return userObj ? (userObj.display_name || userObj.username) : 'Player';
   }
 
-  function buildLiveCard(type, t){
+  // Personalised "you need to pick" check - only for a logged-in user
+  // who's actually entered, and only for the two sports where the real
+  // current round/matchday can be worked out reliably from data already
+  // returned by an endpoint that exists (darts_get_bracket /
+  // cl_get_tournament). Predictions/LMS/Stock Market would each need
+  // their own dedicated check built the same way - not attempted here
+  // rather than guessed at with incomplete data.
+  async function checkNeedsAction(type, tournamentId){
+    const token = localStorage.getItem('gbf_token');
+    if (!token) return null;
+    try {
+      if (type === 'darts') {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: tournamentId })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.my_entry) return null;
+        const matches = data.matches || [];
+        const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
+        for (const round of rounds) {
+          const pickable = matches.filter(m => m.round === round && m.player1_id && m.player2_id && m.status !== 'finished');
+          if (pickable.length === 0) continue;
+          const picked = (data.my_predictions || []).filter(p => p.round === round).length;
+          if (picked < pickable.length) return { needsAction: true, label: `Round ${round} picks needed` };
+          return { needsAction: false };
+        }
+        return { needsAction: false };
+      }
+      if (type === 'champions_league') {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'cl_get_tournament', tournament_id: tournamentId })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.my_entry) return null;
+        const matches = data.matches || [];
+        const matchdays = [...new Set(matches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
+        for (const md of matchdays) {
+          const mdMatches = matches.filter(m => m.matchday === md);
+          const started = mdMatches.some(m => new Date(m.kickoff_time) <= new Date());
+          if (started) continue; // this matchday's deadline has passed, nothing to pick anymore
+          const picked = (data.my_picks || []).filter(p => p.matchday === md).length;
+          if (picked < 3) return { needsAction: true, label: `Matchday ${md} picks needed` };
+          return { needsAction: false };
+        }
+        return { needsAction: false };
+      }
+      return null;
+    } catch (e) {
+      console.error(`Needs-action check failed for ${type}:`, e);
+      return null;
+    }
+  }
+
+  async function buildLiveCard(type, t){
     const info = TYPE_INFO[type];
     const entries = t.current_entries ?? 0;
     const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
     const titleBlock = info.desc ? `<h3>${info.title}</h3><p class="desc">${info.desc}</p>` : '';
+    const action = await checkNeedsAction(type, t.id);
+    const actionBanner = (action && action.needsAction)
+      ? `<div class="needs-action-banner"><i class="fas fa-triangle-exclamation"></i> ${plEsc(action.label)} — tap to pick</div>`
+      : '';
     return `
       <a class="t-card" href="${info.href}" style="text-decoration:none;">
         <div class="t-card-media ${info.imgClass}">
@@ -1440,6 +1513,7 @@
         </div>
         <div class="t-card-body" style="padding:${info.desc ? '16px 18px 18px' : '12px 16px 16px'};">
           ${titleBlock}
+          ${actionBanner}
           <div class="t-card-stats">
             <div><div class="stat-label">Entries</div><div class="stat-value entries">${entries}</div></div>
             <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">${prize}</div></div>
@@ -1492,6 +1566,11 @@
       }
     }
 
+    const action = await checkNeedsAction(type, t.id);
+    const actionLine = (action && action.needsAction)
+      ? `<div class="mini-sub mini-sub-secondary needs-action-line"><i class="fas fa-triangle-exclamation"></i> ${plEsc(action.label)}</div>`
+      : '';
+
     return `
       <a class="mini-card mini-live" href="${info.href}">
         <img class="mini-thumb" src="${info.img}" alt="${info.title}">
@@ -1499,8 +1578,27 @@
           <div class="mini-title">${info.title}</div>
           <div class="mini-sub"><i class="fas fa-circle" style="font-size:6px; color:#22c55e;"></i> ${entries} entries — ${prize} pool</div>
           ${gwLine}
+          ${actionLine}
         </div>
       </a>`;
+  }
+
+  // Real countdown to a real timestamp - opens_at/starts_at/closes_at
+  // all include an actual time-of-day, not just a date, so this can be
+  // precise down to the hour once it's under a day away, rather than a
+  // vague "today". Computed once at render time, not a ticking live
+  // timer - it refreshes naturally whenever the page's normal periodic
+  // data reload runs, same as everything else on this page.
+  function countdownLabel(targetIso){
+    const diffMs = new Date(targetIso).getTime() - Date.now();
+    if (diffMs <= 0) return 'Starting soon';
+    const totalMins = Math.floor(diffMs / 60000);
+    const days = Math.floor(totalMins / 1440);
+    const hours = Math.floor((totalMins % 1440) / 60);
+    const mins = totalMins % 60;
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
   }
 
   function buildRegisteringMini(type, t){
@@ -1510,6 +1608,7 @@
     const feeLabel = typeof t.entry_fee === 'number'
       ? (t.entry_fee > 0 ? `Entry ${qlbMoney(t.entry_fee)}` : 'Free entry')
       : null;
+    const countdown = rawDate ? countdownLabel(rawDate) : null;
     return `
       <a class="mini-card mini-registering" href="${info.href}">
         <img class="mini-thumb" src="${info.img}" alt="${info.title}">
@@ -1518,6 +1617,7 @@
           ${feeLabel ? `<div class="mini-sub" style="color:var(--text-dim);">${feeLabel}</div>` : ''}
           <div class="mini-sub"><i class="fas fa-hourglass-half"></i> Starts ${plEsc(dateLabel)} — Register now</div>
         </div>
+        ${countdown ? `<div class="mini-countdown"><div class="mini-countdown-value">${plEsc(countdown)}</div><div class="mini-countdown-label">to go</div></div>` : ''}
       </a>`;
   }
 
@@ -1603,7 +1703,7 @@
         const liveRes = await fetch(`/api/tournaments?tournament_type=${type}&status=live`);
         const liveData = await liveRes.json();
         const liveT = (liveData.tournaments || [])[0];
-        if (liveT) { liveHtml += isMobile ? await buildLiveMiniCard(type, liveT) : buildLiveCard(type, liveT); continue; }
+        if (liveT) { liveHtml += isMobile ? await buildLiveMiniCard(type, liveT) : await buildLiveCard(type, liveT); continue; }
 
         const upRes = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
         const upData = await upRes.json();
