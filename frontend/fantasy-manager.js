@@ -69,6 +69,21 @@ document.addEventListener('DOMContentLoaded', async function () {
       const res = await fetch('/api/tournaments?status=live&tournament_type=fantasy');
       const data = await res.json();
       let t = (data.tournaments || []).find(t => t.format === 'fantasy_squad');
+      let tournamentUpcoming = false;
+
+      // Real bug fixed here, same pattern already found and fixed on
+      // LMS: this jumped straight from "no live tournament" to checking
+      // finished, completely skipping upcoming - so a Fantasy tournament
+      // created for a future gameweek (now a real possibility since
+      // tournament creation was fixed to give these a genuine
+      // registering phase) would show "not set up yet" or the old
+      // finished tournament instead of a working entry screen.
+      if (!t) {
+        const upRes = await fetch('/api/tournaments?status=upcoming&tournament_type=fantasy');
+        const upData = await upRes.json();
+        t = (upData.tournaments || []).find(t => t.format === 'fantasy_squad');
+        tournamentUpcoming = !!t;
+      }
 
       // Must also accept 'finished' — otherwise the moment the Fantasy
       // tournament genuinely finishes, this page shows "not set up yet"
@@ -86,6 +101,21 @@ document.addEventListener('DOMContentLoaded', async function () {
       }
       tournamentId = t.id;
       tournamentInfo = t;
+
+      if (tournamentUpcoming) {
+        // Real, honest status instead of the generic entry copy - this
+        // tournament genuinely hasn't started yet.
+        const startLabel = t.gameweek ? `Gameweek ${t.gameweek}` : 'soon';
+        els.statusBadge.innerHTML = `<i class="fas fa-hourglass-half"></i> Registration open — starts ${startLabel}`;
+        if (els.enterDesc) {
+          const fee = ((t.entry_fee || 0) / 100).toFixed(2);
+          els.enterDesc.innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${fee} · ${t.current_entries || 0} entered so far.`;
+        }
+        if (els.enterGate) els.enterGate.style.display = 'block';
+        if (els.mainContent) els.mainContent.style.display = 'none';
+        return;
+      }
+
       if (els.enterDesc) {
         const fee = ((t.entry_fee || 0) / 100).toFixed(2);
         els.enterDesc.textContent = `Entry fee £${fee}. Once you're entered, build your 15-player squad — you can edit it any time until the next gameweek deadline.`;

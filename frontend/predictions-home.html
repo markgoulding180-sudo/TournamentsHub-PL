@@ -672,6 +672,22 @@
         const data = await res.json();
         let t = (data.tournaments || [])[0];
         let isFinished = false;
+        let isUpcoming = false;
+
+        // Real bug fixed here, same pattern already found and fixed on
+        // LMS/Fantasy: this jumped straight from "no live tournament" to
+        // checking finished, completely skipping upcoming - so a
+        // Predictions tournament created for a future gameweek (now a
+        // real possibility since tournament creation was fixed to give
+        // these a genuine registering phase) would show "no tournament
+        // set up" or the old finished tournament instead of a working
+        // entry screen.
+        if (!t) {
+          const upRes = await fetch('/api/tournaments?status=upcoming');
+          const upData = await upRes.json();
+          t = (upData.tournaments || [])[0];
+          isUpcoming = !!t;
+        }
 
         // Must also accept 'finished' — otherwise the moment the season
         // genuinely finishes, this hero card shows "no tournament set up"
@@ -691,6 +707,10 @@
         }
         tournamentId = t.id;
         document.getElementById('heroTournamentName').textContent = isFinished ? 'Season Finished' : (t.name || 'Predictions');
+        if (isUpcoming && metaRow) {
+          const startLabel = t.gameweek ? `Gameweek ${t.gameweek}` : 'soon';
+          metaRow.innerHTML = `<div style="color:var(--gold, #f2b93d); font-size:12.5px; font-weight:600;"><i class="fas fa-hourglass-half"></i> Registration open — starts ${escapeHtml(startLabel)}</div>`;
+        }
 
         if (isFinished) {
           document.getElementById('heroCtaRow').innerHTML = '';

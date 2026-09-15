@@ -525,10 +525,25 @@
         let res = await fetch('/api/tournaments?status=live&tournament_type=lms');
         let data = await res.json();
         let t = (data.tournaments || [])[0];
+        let tournamentUpcoming = false;
 
         if (!t) {
-          // No live tournament — check whether one just finished, so we can
-          // show the final result instead of a generic "nothing live" message.
+          // Real bug fixed here: this used to jump straight from "no
+          // live tournament" to checking finished, completely skipping
+          // upcoming - so a tournament that was genuinely open for
+          // registration (confirmed real case: an LMS tournament
+          // created for a future gameweek) showed the OLD finished
+          // tournament's results instead of a working entry screen.
+          const upRes = await fetch('/api/tournaments?status=upcoming&tournament_type=lms');
+          const upData = await upRes.json();
+          t = (upData.tournaments || [])[0];
+          tournamentUpcoming = !!t;
+        }
+
+        if (!t) {
+          // Still nothing live or upcoming — check whether one just
+          // finished, so we can show the final result instead of a
+          // generic "nothing live" message.
           const finRes = await fetch('/api/tournaments?status=finished&tournament_type=lms');
           const finData = await finRes.json();
           t = (finData.tournaments || [])[0];
@@ -543,7 +558,9 @@
         // thing being over), and How It Works (nobody's joining a
         // finished tournament). Hide them so the finished summary is
         // the actual story, not buried under leftover "in progress" UI.
-        if (tournamentFinished) {
+        // Same treatment for an upcoming tournament - there's nothing to
+        // pick yet either.
+        if (tournamentFinished || tournamentUpcoming) {
           const howEl = document.getElementById('howCollapsible');
           if (howEl) howEl.style.display = 'none';
           const pickCard = document.querySelector('.pick-card');
@@ -566,6 +583,24 @@
           return;
         }
         tournamentId = t.id;
+
+        if (tournamentUpcoming) {
+          // Real, honest status instead of the generic entry copy -
+          // this tournament genuinely hasn't started, so say so plainly
+          // and show which gameweek it kicks off, rather than the usual
+          // "entry fee / prize pool / entered so far" framing that reads
+          // as if it might already be underway.
+          document.getElementById('enterGate').style.display = 'block';
+          const startLabel = t.gameweek ? `Gameweek ${t.gameweek}` : 'soon';
+          document.getElementById('enterDesc').innerHTML = `Registration is open now — this tournament starts <b>${startLabel}</b>. Entry fee £${((t.entry_fee||0)/100).toFixed(2)} · ${t.current_entries||0} entered so far.`;
+          if (!isLoggedIn()) {
+            document.getElementById('enterBtn').outerHTML = `<a href="/login?redirect=%2Flast-man-standing" class="btn-primary"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`;
+          } else {
+            document.getElementById('enterBtn').style.display = 'inline-flex';
+            document.getElementById('enterBtn').onclick = () => enterTournament(t);
+          }
+          return;
+        }
 
         const gwRes = await fetch('/api/current-gameweek');
         const gwData = await gwRes.json();
