@@ -596,7 +596,7 @@
   .mini-card{
     background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
     padding:0; display:flex; align-items:stretch; gap:14px; text-decoration:none; color:inherit;
-    overflow:hidden;
+    overflow:hidden; min-height:102px;
   }
   .mini-card .mini-thumb{ width:82px; height:auto; border-radius:0; object-fit:cover; background:#0a1226; flex-shrink:0; align-self:stretch; }
   .mini-card .mini-body{ flex:1; min-width:0; padding:14px 14px 14px 0; display:flex; flex-direction:column; justify-content:center; }
@@ -1078,7 +1078,7 @@
         <div class="card-row-compact" id="dartsFinishedRow"></div>
       </div>
 
-      <div class="status-block">
+      <div class="status-block" style="display:none;">
         <div class="status-block-head" style="color:var(--text-faint);"><i class="fas fa-hourglass"></i> Coming Soon</div>
         <div class="card-row-compact">
           <div class="mini-card mini-coming-soon">
@@ -1507,11 +1507,15 @@
     const info = TYPE_INFO[type];
     const rawDate = t.opens_at || t.starts_at || t.closes_at || null;
     const dateLabel = rawDate ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
+    const feeLabel = typeof t.entry_fee === 'number'
+      ? (t.entry_fee > 0 ? `Entry ${qlbMoney(t.entry_fee)}` : 'Free entry')
+      : null;
     return `
       <a class="mini-card mini-registering" href="${info.href}">
         <img class="mini-thumb" src="${info.img}" alt="${info.title}">
         <div class="mini-body">
           <div class="mini-title">${info.title}</div>
+          ${feeLabel ? `<div class="mini-sub" style="color:var(--text-dim);">${feeLabel}</div>` : ''}
           <div class="mini-sub"><i class="fas fa-hourglass-half"></i> Starts ${plEsc(dateLabel)} — Register now</div>
         </div>
       </a>`;
@@ -1533,11 +1537,14 @@
         // whole field plays every gameweek right to the end, so "who
         // survived to the final week" is the meaningful result here,
         // not just a single winner the way every other sport treats it.
+        // Each survivor's real final portfolio value shown too - that
+        // value is literally what they "won" (or kept) in this format,
+        // same real number the live card shows week to week.
         const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
         const lbData = await lbRes.json();
         const rows = (lbData.leaderboard || []).filter(r => !r.relegated).sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
-        const names = rows.map(r => r.player_name || 'Player');
-        subLine = names.length > 0 ? plEsc(names.join(', ')) : 'No survivors reached the final week';
+        const parts = rows.map(r => `${plEsc(r.player_name || 'Player')} ${qlbMoney(r.current_value || 0)}`);
+        subLine = parts.length > 0 ? parts.join(', ') : 'No survivors reached the final week';
       } else {
         const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${type}`);
         const lbData = await lbRes.json();
@@ -1545,6 +1552,12 @@
         if (rows[0]) {
           const winnerName = sportUserName(rows[0].users);
           const prize = rows[0].prize_awarded || rows[0].prize_won || null;
+          // Real prize amount shown whenever the game type actually
+          // tracks one (Predictions/LMS/Fantasy). Champions League and
+          // Darts genuinely have no per-entry prize field in the
+          // database at all - showing a number there would mean
+          // guessing a split of the pool, so it's left as just the
+          // winner's name rather than a fabricated figure.
           subLine = plEsc(winnerName) + (prize ? ` — ${qlbMoney(prize)}` : '');
         } else {
           subLine = 'Player';
