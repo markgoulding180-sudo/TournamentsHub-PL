@@ -596,10 +596,11 @@
 
   .mini-card{
     background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
-    padding:14px; display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit;
+    padding:0; display:flex; align-items:stretch; gap:14px; text-decoration:none; color:inherit;
+    overflow:hidden;
   }
-  .mini-card .mini-thumb{ width:56px; height:70px; border-radius:9px; object-fit:cover; background:#0a1226; flex-shrink:0; }
-  .mini-card .mini-body{ flex:1; min-width:0; }
+  .mini-card .mini-thumb{ width:82px; height:auto; border-radius:0; object-fit:cover; background:#0a1226; flex-shrink:0; align-self:stretch; }
+  .mini-card .mini-body{ flex:1; min-width:0; padding:14px 14px 14px 0; display:flex; flex-direction:column; justify-content:center; }
   .mini-card .mini-title{ font-family:var(--font-head); font-weight:700; font-size:13.5px; margin-bottom:2px; }
   .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
   .mini-card .mini-sub-secondary{ margin-top:3px; color:var(--text-faint); opacity:0.85; }
@@ -707,7 +708,7 @@
        mobile, not sit inset within main-content's own side padding. */
     .sport-container{
       border-radius:0; margin-left:-20px; margin-right:-20px; width:auto;
-      padding:22px 14px;
+      padding:22px 10px;
     }
     /* Full-bleed to the screen edges — breaks out of main-content's own
        side padding with matching negative margins — and sits directly
