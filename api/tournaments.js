@@ -2201,6 +2201,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
         const singleTournament = (schemaName === 'champions_league' || schemaName === 'darts')
           ? await promoteIfDeadlinePassed(supabaseAdmin, schemaName, rawSingleTournament)
+          : (schemaName === 'predictions' || schemaName === 'lms' || schemaName === 'fantasy')
+          ? await (async () => {
+              const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+              return promoteIfGameweekReached(supabaseAdmin, schemaName, rawSingleTournament, clock ? clock.current_gameweek : null);
+            })()
           : rawSingleTournament;
 
         // Same public-safe draw-status signal as the list endpoint below -
@@ -2248,6 +2253,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       let data = rawData;
       if ((schemaName === 'champions_league' || schemaName === 'darts') && (rawData || []).length > 0) {
         data = await Promise.all(rawData.map(t => promoteIfDeadlinePassed(supabaseAdmin, schemaName, t)));
+        if (status) data = data.filter(t => t.status === status);
+      } else if ((schemaName === 'predictions' || schemaName === 'lms' || schemaName === 'fantasy') && (rawData || []).length > 0) {
+        const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        const currentGw = clock ? clock.current_gameweek : null;
+        data = await Promise.all(rawData.map(t => promoteIfGameweekReached(supabaseAdmin, schemaName, t, currentGw)));
         if (status) data = data.filter(t => t.status === status);
       }
 
@@ -2377,6 +2387,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         // columns at all — confirmed against the real schema, not
         // assumed. The other three schemas do, so this only needs to be
         // conditional here rather than everywhere.
+        // Real bug fixed here, confirmed with an actual case: an LMS
+        // tournament created for GW6 (weeks in the future) was still
+        // set status='live' immediately, same as every other football
+        // type - only Stock Market ever got a genuine upcoming/
+        // registering phase. Now checks the real shared gameweek clock:
+        // if the tournament's own start gameweek hasn't arrived yet, it
+        // starts 'upcoming' like Stock Market does, and gets promoted to
+        // 'live' automatically once that gameweek actually begins (same
+        // promoteIfDeadlinePassed-style mechanism already used for
+        // Darts/Champions League). A tournament created for the current
+        // gameweek still starts 'live' immediately, exactly as before.
+        let initialStatus = schemaName === 'stockmarket' ? 'upcoming' : 'live';
+        if (schemaName === 'predictions' || schemaName === 'lms' || schemaName === 'fantasy') {
+          const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+          const currentGw = clock ? clock.current_gameweek : null;
+          if (currentGw !== null && gameweek > currentGw) {
+            initialStatus = 'upcoming';
+          }
+        }
+
         const insertPayload = {
           name,
           entry_fee: entryFeePence,
@@ -2384,14 +2414,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           end_gameweek: end_gameweek || gameweek,
           max_entries: max_entries || 100,
           current_entries: 0,
-          // Stock Market's own lock-status check treats status='live' as
-          // "drafting already closed", regardless of closes_at — it needs
-          // to start 'upcoming' so there's an actual open draft window
-          // before the market goes live. Every other schema is fine
-          // starting 'live' immediately (they don't have a separate draft
-          // phase), confirmed against the real getStockMarketLockStatus
-          // logic rather than assumed.
-          status: schemaName === 'stockmarket' ? 'upcoming' : 'live',
+          status: initialStatus,
           closes_at: closes_at || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         };
         if (schemaName !== 'stockmarket') {
@@ -7979,6 +8002,26 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
 async function promoteIfDeadlinePassed(supabaseAdmin, schemaName, tournament) {
   if (!tournament || tournament.status !== 'upcoming' || !tournament.closes_at) return tournament;
   if (new Date(tournament.closes_at).getTime() > Date.now()) return tournament;
+  const { data: updated } = await supabaseAdmin
+    .schema(schemaName).from('tournaments')
+    .update({ status: 'live' })
+    .eq('id', tournament.id)
+    .eq('status', 'upcoming')
+    .select('*')
+    .maybeSingle();
+  return updated || { ...tournament, status: 'live' };
+}
+
+// Same self-healing idea as promoteIfDeadlinePassed above, but for the
+// three football types that now get a genuine 'upcoming' phase when
+// created for a future gameweek (see the 'create' action) - promoted to
+// 'live' once the shared gameweek clock actually reaches their start
+// gameweek, rather than a closes_at timestamp. currentGw is passed in
+// rather than re-fetched per tournament, since callers already have it
+// or can fetch it once for a whole list.
+async function promoteIfGameweekReached(supabaseAdmin, schemaName, tournament, currentGw) {
+  if (!tournament || tournament.status !== 'upcoming' || currentGw === null || currentGw === undefined) return tournament;
+  if (tournament.gameweek > currentGw) return tournament;
   const { data: updated } = await supabaseAdmin
     .schema(schemaName).from('tournaments')
     .update({ status: 'live' })
