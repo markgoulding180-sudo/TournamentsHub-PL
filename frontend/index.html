@@ -427,33 +427,61 @@
 
   .quick-lb-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
   .quick-lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .quick-lb-gw{ font-size:11px; color:var(--text-dim); margin:-6px 0 10px; display:flex; align-items:center; gap:5px; }
+  .quick-lb-gw i{ font-size:9px; color:var(--accent-2); }
+
   /* Winner celebration state - a finished tournament shouldn't just
      show the same ranked list as a live one with nothing to distinguish
-     it. This deliberately "pops": gold glow on the whole card, a
-     trophy that scales in, the champion's name front and centre
-     instead of buried as rank #1 in a list. */
+     it. This deliberately "pops": gold glow on the whole card (now
+     animated, not static), a trophy that scales in, the champion's name
+     big and bold, and the real prize money front and centre when we
+     actually have that figure — never a guessed or fabricated one. */
   .quick-lb-card.is-finished{
-    background: linear-gradient(160deg, rgba(242,185,61,0.16), var(--bg-panel) 60%);
+    background: linear-gradient(160deg, rgba(242,185,61,0.18), var(--bg-panel) 60%);
     border-color: var(--gold);
-    box-shadow: 0 0 26px rgba(242,185,61,0.28);
+    box-shadow: 0 0 26px rgba(242,185,61,0.3);
+    animation: qlbGlow 2.6s ease-in-out infinite;
+    position:relative; overflow:hidden;
   }
-  .quick-lb-winner{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:8px 4px 2px; list-style:none; }
+  .quick-lb-card.is-finished::before{
+    content:''; position:absolute; top:-60%; left:-20%; width:60%; height:220%;
+    background:linear-gradient(100deg, transparent, rgba(242,185,61,0.14), transparent);
+    transform:rotate(20deg); animation:qlbSheen 4.5s ease-in-out infinite;
+  }
+  @keyframes qlbGlow{
+    0%, 100%{ box-shadow:0 0 22px rgba(242,185,61,0.24); }
+    50%{ box-shadow:0 0 38px rgba(242,185,61,0.45); }
+  }
+  @keyframes qlbSheen{
+    0%{ left:-30%; } 100%{ left:130%; }
+  }
+  .quick-lb-winner{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:10px 4px 4px; list-style:none; position:relative; z-index:1; }
   .quick-lb-winner .trophy{
-    font-size:30px; color:var(--gold); margin-bottom:6px;
-    text-shadow:0 0 18px rgba(242,185,61,0.65);
-    animation: qlbPop 0.5s cubic-bezier(.34,1.56,.64,1);
+    font-size:38px; color:var(--gold); margin-bottom:6px;
+    text-shadow:0 0 22px rgba(242,185,61,0.75);
+    animation: qlbPop 0.55s cubic-bezier(.34,1.56,.64,1);
   }
-  .quick-lb-winner .crowns{ font-size:11px; color:var(--gold); margin-bottom:3px; letter-spacing:2px; }
+  .quick-lb-winner .crowns{ font-size:12px; color:var(--gold); margin-bottom:4px; letter-spacing:3px; }
   .quick-lb-winner .label{
-    font-size:10px; font-weight:800; letter-spacing:1.6px; text-transform:uppercase;
-    color:var(--gold); margin-bottom:5px;
+    font-size:10.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
+    color:var(--gold); margin-bottom:6px;
   }
-  .quick-lb-winner .name{ font-family:var(--font-head); font-weight:700; font-size:18px; color:#fff; margin-bottom:3px; }
+  .quick-lb-winner .name{
+    font-family:var(--font-display); font-weight:400; font-size:24px; color:#fff;
+    margin-bottom:8px; letter-spacing:0.5px; line-height:1.1;
+    text-shadow:0 0 14px rgba(255,255,255,0.25);
+  }
+  .quick-lb-winner .prize{
+    display:flex; align-items:center; gap:7px; font-family:var(--font-head);
+    font-weight:700; font-size:20px; color:var(--gold); background:rgba(242,185,61,0.12);
+    border:1px solid rgba(242,185,61,0.4); border-radius:20px; padding:5px 16px; margin-bottom:8px;
+  }
+  .quick-lb-winner .prize i{ font-size:15px; }
   .quick-lb-winner .sub{ font-size:11px; color:var(--text-dim); }
   @keyframes qlbPop{
-    0%{ transform:scale(0.4); opacity:0; }
-    65%{ transform:scale(1.18); opacity:1; }
-    100%{ transform:scale(1); }
+    0%{ transform:scale(0.4) rotate(-8deg); opacity:0; }
+    65%{ transform:scale(1.2) rotate(4deg); opacity:1; }
+    100%{ transform:scale(1) rotate(0deg); }
   }
   .quick-lb-title{ font-family:var(--font-head); font-weight:700; font-size:14.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
   @media (max-width:1080px){ .quick-lb-grid{ grid-template-columns:repeat(2, 1fr); } }
@@ -1141,18 +1169,22 @@
     <div class="quick-lb-grid" id="quickLbGrid">
       <div class="quick-lb-card">
         <div class="quick-lb-title"><i class="fas fa-futbol" style="color:var(--accent-2);"></i> Predictions</div>
+        <div class="quick-lb-gw" id="qlbPredictionsGw"></div>
         <ol class="pl-live-leaders" id="qlbPredictions"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
         <div class="quick-lb-title"><i class="fas fa-skull-crossbones" style="color:var(--gold);"></i> Last Man Standing</div>
+        <div class="quick-lb-gw" id="qlbLmsGw"></div>
         <ol class="pl-live-leaders" id="qlbLms"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
         <div class="quick-lb-title"><i class="fas fa-users" style="color:var(--green);"></i> Fantasy</div>
+        <div class="quick-lb-gw" id="qlbFantasyGw"></div>
         <ol class="pl-live-leaders" id="qlbFantasy"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
         <div class="quick-lb-title"><i class="fas fa-chart-line" style="color:var(--accent-2);"></i> Stock Market</div>
+        <div class="quick-lb-gw" id="qlbStockmarketGw"></div>
         <ol class="pl-live-leaders" id="qlbStockmarket"><li class="pl-live-empty">Loading…</li></ol>
       </div>
       <div class="quick-lb-card">
@@ -1301,22 +1333,33 @@
       </li>`).join('');
   }
 
+  function qlbMoney(pence){
+    return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
   // Shared "winner" celebration state - used whenever a tournament's
   // leaderboard is genuinely finished, instead of showing the exact same
   // ranked list a live tournament would show with nothing to mark the
   // occasion. Applies the gold glow to the whole card too, not just the
   // list content, so it actually pops against the other live cards
   // around it rather than just being a slightly different list.
-  function renderQuickLbWinner(elId, winnerName){
+  // prizePence is optional and only rendered when we have a real,
+  // stored amount for this specific entry - never a guessed split of
+  // the pool for tournament types that don't track this per-entry.
+  function renderQuickLbWinner(elId, winnerName, prizePence){
     const el = document.getElementById(elId);
     const card = el.closest('.quick-lb-card');
     if (card) card.classList.add('is-finished');
+    const prizeHtml = (typeof prizePence === 'number' && prizePence > 0)
+      ? `<div class="prize"><i class="fas fa-sack-dollar"></i> ${qlbMoney(prizePence)}</div>`
+      : '';
     el.innerHTML = `
       <li class="quick-lb-winner">
         <div class="trophy"><i class="fas fa-trophy"></i></div>
         <div class="crowns"><i class="fas fa-crown"></i>&nbsp;&nbsp;<i class="fas fa-crown"></i>&nbsp;&nbsp;<i class="fas fa-crown"></i></div>
         <div class="label">Champion</div>
         <div class="name">${plEsc(winnerName)}</div>
+        ${prizeHtml}
         <div class="sub"><i class="fas fa-circle-check"></i> Tournament complete</div>
       </li>`;
   }
@@ -1342,6 +1385,12 @@
         el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
         return;
       }
+      const gwEl = document.getElementById(`${elId}Gw`);
+      if (gwEl && t.status !== 'finished' && t.gameweek) {
+        gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
+      } else if (gwEl) {
+        gwEl.innerHTML = '';
+      }
       const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${tournamentType}`);
       const lbData = await lbRes.json();
       const rows = (lbData.leaderboard || []).slice(0, 5);
@@ -1351,7 +1400,9 @@
       }
       const nameOf = (r) => r.users ? (r.users.display_name || r.users.username) : (r.user ? (r.user.display_name || r.user.username) : 'Player');
       if (t.status === 'finished') {
-        renderQuickLbWinner(elId, nameOf(rows[0]));
+        const winnerRow = rows[0];
+        const prize = winnerRow.prize_awarded || winnerRow.prize_won || null;
+        renderQuickLbWinner(elId, nameOf(winnerRow), prize);
         return;
       }
       el.innerHTML = rows.map((r, i) => {
@@ -1385,6 +1436,12 @@
         el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
         return;
       }
+      const gwEl = document.getElementById('qlbLmsGw');
+      if (gwEl && t.status !== 'finished' && t.gameweek) {
+        gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
+      } else if (gwEl) {
+        gwEl.innerHTML = '';
+      }
       const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=lms`);
       const lbData = await lbRes.json();
       const rows = (lbData.leaderboard || []).slice(0, 5);
@@ -1398,7 +1455,7 @@
         // endpoint already applies (alive-first, then most weeks
         // survived) - by the time the tournament is genuinely finished,
         // that's the sole winner, not just "currently in the lead".
-        renderQuickLbWinner('qlbLms', nameOf(rows[0]));
+        renderQuickLbWinner('qlbLms', nameOf(rows[0]), rows[0].prize_awarded || null);
         return;
       }
       el.innerHTML = rows.map((r, i) => {
@@ -1439,6 +1496,12 @@
       if (!t) {
         el.innerHTML = '<li class="pl-live-empty">Not set up yet.</li>';
         return;
+      }
+      const gwEl = document.getElementById('qlbStockmarketGw');
+      if (gwEl && t.status !== 'finished' && t.gameweek) {
+        gwEl.innerHTML = `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
+      } else if (gwEl) {
+        gwEl.innerHTML = '';
       }
       const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
       const lbData = await lbRes.json();
@@ -1819,8 +1882,28 @@
 
   // Live data refresh is handled by the shared live-poll.js script — just
   // re-render this page's own live strip whenever it runs.
+  // Predictions' leaderboard rows come from a separate, external live
+  // service (PL_BASE), but the gameweek range itself is still real
+  // internal tournament metadata - fetched independently here so the GW
+  // subtitle doesn't depend on that external service's response shape.
+  async function loadPredictionsGw(){
+    const gwEl = document.getElementById('qlbPredictionsGw');
+    if (!gwEl) return;
+    try {
+      const res = await fetch('/api/tournaments?tournament_type=predictions&status=live');
+      const data = await res.json();
+      const t = (data.tournaments || [])[0];
+      gwEl.innerHTML = (t && t.gameweek)
+        ? `<i class="fas fa-calendar-week"></i> GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`
+        : '';
+    } catch (e) {
+      console.error('Failed to load predictions GW range:', e);
+    }
+  }
+
   function loadAllQuickLeaderboards(){
     loadPLLive();
+    loadPredictionsGw();
     loadQuickLms();
     loadQuickLeaderboard('qlbFantasy', 'fantasy', 'fantasy_squad', 'entry_points');
     loadQuickStockMarket();
