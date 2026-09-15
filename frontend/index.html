@@ -603,6 +603,8 @@
   .mini-card .mini-title{ font-family:var(--font-head); font-weight:700; font-size:13.5px; margin-bottom:2px; }
   .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
   .mini-card.mini-registering .mini-sub{ color:#4ade80; }
+  .mini-card.mini-live{ border-color:rgba(34,197,94,0.35); }
+  .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
   .mini-card.mini-finished{
     border-color:rgba(242,185,61,0.4);
     background:linear-gradient(135deg, rgba(242,185,61,0.1), var(--bg-card) 65%);
@@ -1486,6 +1488,26 @@
       </a>`;
   }
 
+  // Mobile-only variant of the live card - same small thumb + one-line
+  // style as Registering/Finished, since the full rich card (big banner
+  // image, description, two-column stats) takes up a lot of vertical
+  // space on a phone. Kept as a genuinely separate function rather than
+  // trying to squash the full t-card down with CSS, since the two have
+  // different DOM shapes entirely.
+  function buildLiveMiniCard(type, t){
+    const info = TYPE_INFO[type];
+    const entries = t.current_entries ?? 0;
+    const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
+    return `
+      <a class="mini-card mini-live" href="${info.href}">
+        <img class="mini-thumb" src="${info.img}" alt="${info.title}">
+        <div class="mini-body">
+          <div class="mini-title">${info.title}</div>
+          <div class="mini-sub"><i class="fas fa-circle" style="font-size:6px; color:#22c55e;"></i> ${entries} entries — ${prize} pool</div>
+        </div>
+      </a>`;
+  }
+
   function buildRegisteringMini(type, t){
     const info = TYPE_INFO[type];
     const rawDate = t.opens_at || t.starts_at || t.closes_at || null;
@@ -1549,6 +1571,15 @@
     const regBlock = document.getElementById(`${prefix}RegisteringBlock`);
     const finBlock = document.getElementById(`${prefix}FinishedBlock`);
 
+    // Mobile gets the same compact mini-card treatment for Live as
+    // Registering/Finished already use - same 640px breakpoint the rest
+    // of the page's CSS already switches on, checked once at render
+    // time (matches how the page already behaves - this isn't meant to
+    // hot-swap mid-session if someone resizes, just to pick the right
+    // style for whatever device loaded the page).
+    const isMobile = window.innerWidth <= 640;
+    liveRow.className = isMobile ? 'card-row-compact' : 'card-row';
+
     let liveHtml = '', regHtml = '';
     const finPromises = [];
 
@@ -1557,7 +1588,7 @@
         const liveRes = await fetch(`/api/tournaments?tournament_type=${type}&status=live`);
         const liveData = await liveRes.json();
         const liveT = (liveData.tournaments || [])[0];
-        if (liveT) { liveHtml += buildLiveCard(type, liveT); continue; }
+        if (liveT) { liveHtml += isMobile ? buildLiveMiniCard(type, liveT) : buildLiveCard(type, liveT); continue; }
 
         const upRes = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
         const upData = await upRes.json();
