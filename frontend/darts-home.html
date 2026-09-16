@@ -121,12 +121,18 @@
        the whole card is the clickable "this is my pick" target, not a
        small button with a name next to a tiny avatar. */
     .match-row-cards{ margin-bottom:16px; }
-    .match-cards-pair{ display:flex; align-items:flex-start; gap:12px; }
+    /* Centered on the page, and using flex order (not separate markup
+       per breakpoint) to rearrange the same 5 elements - card/stats/VS/
+       stats/card - differently depending on screen size. Desktop reads
+       [P1 card][P1 stats] VS [P2 stats][P2 card]: stats flank a big
+       central VS, photos on the outside. Mobile groups each player's
+       card with its own stats stacked underneath instead. */
+    .match-cards-pair{ display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:12px; }
     .pick-card-btn{
-      flex:1; position:relative; border-radius:14px; overflow:hidden;
+      position:relative; border-radius:14px; overflow:hidden;
       border:2px solid var(--border); background:var(--bg-panel);
       aspect-ratio:3/4; cursor:pointer; padding:0; transition:.15s;
-      max-width:240px;
+      width:220px; flex:0 0 220px;
     }
     .pick-card-btn img{ width:100%; height:100%; object-fit:cover; display:block; }
     .pick-card-btn:hover:not(:disabled){ border-color:var(--border-hover); }
@@ -147,32 +153,45 @@
     }
     .pick-card-btn.selected .pick-card-check{ display:flex; }
     .pick-card-btn.correct .pick-card-check{ display:flex; background:var(--green); }
-    .vs-label-big{ font-family:var(--font-head); font-size:13px; color:var(--text-faint); flex:none; font-weight:700; margin-top:140px; }
+    /* Bigger, more dramatic VS on desktop, sitting between the two
+       stats cards at the true centre of the row. */
+    .vs-label-big{
+      font-family:var(--font-head); font-size:34px; color:var(--text-dim); flex:none;
+      font-weight:700; align-self:center; padding:0 6px; opacity:.85;
+    }
     .match-points-big{
       font-family:var(--font-head); font-size:12px; font-weight:700; color:var(--text-faint);
       text-align:center; margin-top:6px;
     }
     .match-points-big.earned{ color:var(--gold); }
-    .player-col{ flex:1; max-width:240px; display:flex; flex-direction:column; }
+
+    /* Order: desktop default reads card / stats / VS / stats / card */
+    .card-slot.slot-0{ order:1; }
+    .stats-slot.slot-0{ order:2; }
+    .vs-label-big{ order:3; }
+    .stats-slot.slot-1{ order:4; }
+    .card-slot.slot-1{ order:5; }
 
     /* Real player stats, sourced once from the 2026 World Grand Prix
-       player pack - desktop only, hidden on mobile below so the pick
-       screen stays compact and scannable on a small screen. */
+       player pack. Same size as the player card so the two visually
+       pair up as a matching set. */
     .player-stats-panel{
-      margin-top:8px; padding:10px 12px; background:var(--bg-card);
-      border:1px solid var(--border); border-radius:10px; font-size:12px;
+      width:220px; flex:0 0 220px; aspect-ratio:3/4;
+      display:flex; flex-direction:column; justify-content:center;
+      padding:14px; background:var(--bg-card);
+      border:1px solid var(--border); border-radius:14px; font-size:12px;
     }
-    .stats-nickname{ font-family:var(--font-head); font-style:italic; color:var(--accent-2); font-size:12.5px; margin-bottom:5px; }
-    .stats-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:var(--text-dim); }
-    .stats-avg{ font-weight:700; color:var(--gold); }
-    .stats-form{ display:flex; gap:3px; margin-bottom:7px; }
+    .stats-nickname{ font-family:var(--font-head); font-style:italic; color:var(--accent-2); font-size:13.5px; margin-bottom:8px; }
+    .stats-row{ display:flex; flex-direction:column; gap:4px; margin-bottom:10px; color:var(--text-dim); }
+    .stats-avg{ font-weight:700; color:var(--gold); font-size:14px; }
+    .stats-form{ display:flex; gap:4px; margin-bottom:10px; }
     .form-pill{
-      width:18px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center;
-      font-size:10px; font-weight:700; color:#fff;
+      width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:700; color:#fff;
     }
     .form-pill.win{ background:var(--green); }
     .form-pill.loss{ background:var(--red); }
-    .stats-bio{ color:var(--text-faint); font-size:11px; line-height:1.4; }
+    .stats-bio{ color:var(--text-faint); font-size:11.5px; line-height:1.45; }
 
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
@@ -226,12 +245,25 @@
       .match-points{ display:none; }
       .match-row{ gap:6px; padding:8px; }
       .match-cards-pair{ gap:8px; }
-      .pick-card-btn{ max-width:none; }
+      .pick-card-btn{ width:calc(50% - 20px); flex-basis:calc(50% - 20px); }
       .pick-card-name{ font-size:11px; }
       .pick-card-noimg i{ font-size:22px; }
       .pick-card-check{ width:20px; height:20px; font-size:10px; top:5px; right:5px; }
-      .vs-label-big{ font-size:11px; margin-top:0; align-self:center; }
-      .player-stats-panel{ display:none; }
+      /* Mobile groups each player's own card with its stats stacked
+         right underneath it, instead of desktop's card/stats/VS/stats/
+         card flanking arrangement - same 5 elements, different order. */
+      .card-slot.slot-0{ order:1; }
+      .player-stats-panel{ width:calc(50% - 20px); flex-basis:calc(50% - 20px); aspect-ratio:auto; padding:10px; }
+      .stats-slot.slot-0{ order:2; }
+      .card-slot.slot-1{ order:3; }
+      .stats-slot.slot-1{ order:4; }
+      .vs-label-big{ order:0; flex-basis:100%; text-align:center; font-size:16px; margin-bottom:4px; }
+      .stats-nickname{ font-size:12px; margin-bottom:5px; }
+      .stats-row{ margin-bottom:6px; }
+      .stats-avg{ font-size:12px; }
+      .stats-form{ margin-bottom:6px; }
+      .form-pill{ width:16px; height:16px; font-size:9px; }
+      .stats-bio{ font-size:10.5px; }
     }
   </style>
 </head>
@@ -320,17 +352,18 @@
     // 2026 televised average/nickname/recent form, Darts World for the
     // field confirmation and bios) - not a live feed, since no free
     // darts stats API exists anywhere; entered once per player the same
-    // way names and photos are. Desktop-only, shown right under each
-    // player's card - hidden on mobile via CSS to keep the pick screen
-    // scannable on a small screen.
-    function renderPlayerStatsPanel(id) {
+    // way names and photos are. Now shown on mobile too (stacked under
+    // the card) as well as desktop (flanking a big central VS) - the
+    // slot-N class is what lets the CSS reorder these differently per
+    // breakpoint without needing different markup.
+    function renderPlayerStatsPanel(id, slotIndex) {
       const p = bracketData.players.find(pl => pl.id === id);
       if (!p || !p.nickname && !p.country && !p.avg_2026 && !p.recent_form && !p.bio) return '';
       const formPills = (p.recent_form || '').split('').map(r =>
         `<span class="form-pill ${r === 'W' ? 'win' : 'loss'}">${r}</span>`
       ).join('');
       return `
-        <div class="player-stats-panel">
+        <div class="player-stats-panel stats-slot slot-${slotIndex}">
           ${p.nickname ? `<div class="stats-nickname">"${escapeHtml(p.nickname)}"</div>` : ''}
           <div class="stats-row">
             ${p.country ? `<span class="stats-country">${escapeHtml(p.country)}</span>` : ''}
@@ -699,10 +732,14 @@
                 ${checkBadge}`;
             }
             cls += photoCandidates.length === 0 ? ' no-photo' : '';
-            html += `<div class="player-col">`;
-            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">${cardInner}</button>`;
-            html += renderPlayerStatsPanel(pid);
-            html += `</div>`;
+            // Flat, order-controlled elements rather than nested columns -
+            // on desktop this naturally reads [P1 card][P1 stats] VS
+            // [P2 stats][P2 card], stats flanking a big central VS with
+            // photos on the outside; on mobile a CSS override alone
+            // regroups the exact same elements into [P1 card][P1 stats]
+            // then [P2 card][P2 stats] stacked, no separate markup needed.
+            html += `<button class="${cls} card-slot slot-${i}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">${cardInner}</button>`;
+            html += renderPlayerStatsPanel(pid, i);
             if (i === 0) html += `<span class="vs-label-big">VS</span>`;
           });
           html += `</div>`;
