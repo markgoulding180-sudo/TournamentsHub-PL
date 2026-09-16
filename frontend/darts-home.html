@@ -115,6 +115,45 @@
     .match-points.earned{ color:var(--gold); }
     .tbd{ color:var(--text-faint); font-style:italic; font-size:13px; padding:8px; }
 
+    /* ---------- Big-card pick UI ---------- */
+    /* Each match is two full player-card images side by side, at a
+       consistent size regardless of whether a real photo exists yet -
+       the whole card is the clickable "this is my pick" target, not a
+       small button with a name next to a tiny avatar. */
+    .match-row-cards{ margin-bottom:16px; }
+    .match-cards-pair{ display:flex; align-items:center; gap:12px; }
+    .pick-card-btn{
+      flex:1; position:relative; border-radius:14px; overflow:hidden;
+      border:2px solid var(--border); background:var(--bg-panel);
+      aspect-ratio:3/4; cursor:pointer; padding:0; transition:.15s;
+      max-width:240px;
+    }
+    .pick-card-btn img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .pick-card-btn:hover:not(:disabled){ border-color:var(--border-hover); }
+    .pick-card-btn.selected{ border-color:var(--accent-2); box-shadow:0 0 0 3px rgba(59,130,246,0.35); }
+    .pick-card-btn.correct{ border-color:var(--green); box-shadow:0 0 0 3px rgba(34,197,94,0.35); }
+    .pick-card-btn.wrong{ border-color:var(--red); opacity:.5; }
+    .pick-card-btn:disabled{ cursor:not-allowed; }
+    .pick-card-noimg{
+      width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:8px; padding:10px; text-align:center; background:var(--bg-card);
+    }
+    .pick-card-noimg i{ font-size:30px; color:var(--text-faint); }
+    .pick-card-name{ font-family:var(--font-head); font-weight:700; font-size:13px; line-height:1.25; }
+    .pick-card-check{
+      position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%;
+      background:var(--accent-2); color:#fff; display:none; align-items:center; justify-content:center; font-size:13px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.45);
+    }
+    .pick-card-btn.selected .pick-card-check{ display:flex; }
+    .pick-card-btn.correct .pick-card-check{ display:flex; background:var(--green); }
+    .vs-label-big{ font-family:var(--font-head); font-size:13px; color:var(--text-faint); flex:none; font-weight:700; }
+    .match-points-big{
+      font-family:var(--font-head); font-size:12px; font-weight:700; color:var(--text-faint);
+      text-align:center; margin-top:6px;
+    }
+    .match-points-big.earned{ color:var(--gold); }
+
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
     /* Mobile hamburger drawer — standard across every page */
@@ -166,6 +205,12 @@
       .pick-avatar{ width:22px; height:22px; }
       .match-points{ display:none; }
       .match-row{ gap:6px; padding:8px; }
+      .match-cards-pair{ gap:8px; }
+      .pick-card-btn{ max-width:none; }
+      .pick-card-name{ font-size:11px; }
+      .pick-card-noimg i{ font-size:22px; }
+      .pick-card-check{ width:20px; height:20px; font-size:10px; top:5px; right:5px; }
+      .vs-label-big{ font-size:11px; }
     }
   </style>
 </head>
@@ -309,17 +354,20 @@
 
     // Chains through every candidate filename in turn (2-4 depending on
     // the name's connector words/apostrophes) before finally falling
-    // back to the plain person icon - generalized rather than hardcoded
-    // to 2, since some real names now generate more guesses than that.
-    window.tryNextDartsPhoto = function(imgEl, candidatesJson, idx) {
+    // back to a plain name+icon card - real bug fixed here: candidates
+    // are always *guessed* URLs (we can't know a file exists until we've
+    // tried loading it), so every real player name was taking the "has
+    // a photo" path and, once every guess 404'd, landing on a bare icon
+    // with no name at all instead of the proper no-photo card design.
+    window.tryNextDartsPhoto = function(imgEl, candidatesJson, idx, nameEscaped) {
       const candidates = JSON.parse(candidatesJson);
       const nextIdx = idx + 1;
       if (nextIdx >= candidates.length) {
-        imgEl.parentElement.innerHTML = '<i class="fas fa-user"></i>';
-        imgEl.parentElement.classList.remove('pick-avatar-photo');
+        imgEl.parentElement.innerHTML = `<div class="pick-card-noimg"><i class="fas fa-user"></i><span class="pick-card-name">${nameEscaped}</span></div><span class="pick-card-check"><i class="fas fa-check"></i></span>`;
+        imgEl.parentElement.classList.add('no-photo');
         return;
       }
-      imgEl.onerror = function(){ tryNextDartsPhoto(imgEl, candidatesJson, nextIdx); };
+      imgEl.onerror = function(){ tryNextDartsPhoto(imgEl, candidatesJson, nextIdx, nameEscaped); };
       imgEl.src = candidates[nextIdx];
     };
 
@@ -547,9 +595,10 @@
           const matchPrediction = (bracketData.my_predictions || []).find(p => p.round === round && p.match_number === m);
           const matchPointsEarned = matchPrediction && matchPrediction.points_earned != null ? matchPrediction.points_earned : null;
 
-          html += `<div class="match-row ${finished ? 'finished' : ''}">`;
+          html += `<div class="match-row-cards ${finished ? 'finished' : ''}">`;
+          html += `<div class="match-cards-pair">`;
           options.forEach((pid, i) => {
-            let cls = 'pick-btn';
+            let cls = 'pick-card-btn';
             if (myPick === pid) cls += ' selected';
             // The real result colours the actual winner/loser directly —
             // confirmed real gap in the old logic: it only coloured a
@@ -559,24 +608,36 @@
             if (finished && match.winner_id === pid) cls += ' correct';
             if (finished && match.winner_id && match.winner_id !== pid) cls += ' wrong';
             const disabled = (locked || finished || alreadySubmittedThisRound) ? 'disabled' : '';
-            const nameSpan = `<span>${escapeHtml(playerName(pid))}</span>`;
+            const name = playerName(pid);
             const photoCandidates = playerPhotoAllCandidates(pid);
-            let avatarSpan;
+            const checkBadge = `<span class="pick-card-check"><i class="fas fa-check"></i></span>`;
+
+            let cardInner;
             if (photoCandidates.length === 0) {
-              avatarSpan = `<span class="pick-avatar"><i class="fas fa-user"></i></span>`;
+              // No real card image yet for this player - a plain
+              // name-only placeholder at the exact same size, so the row
+              // never looks broken or mismatched while photos are added
+              // one at a time.
+              cardInner = `
+                <div class="pick-card-noimg">
+                  <i class="fas fa-user"></i>
+                  <span class="pick-card-name">${escapeHtml(name)}</span>
+                </div>${checkBadge}`;
             } else {
               const candidatesJsonEscaped = JSON.stringify(photoCandidates).replace(/"/g, '&quot;');
-              avatarSpan = `<span class="pick-avatar pick-avatar-photo"><img src="${photoCandidates[0]}" alt="" onerror="tryNextDartsPhoto(this, '${candidatesJsonEscaped}', 0)"></span>`;
+              cardInner = `
+                <img src="${photoCandidates[0]}" alt="${escapeHtml(name)}" onerror="tryNextDartsPhoto(this, '${candidatesJsonEscaped}', 0, '${escapeHtml(name).replace(/'/g, '&#39;')}')">
+                ${checkBadge}`;
             }
-            const innerHtml = i === 0
-              ? `${avatarSpan}${nameSpan}`
-              : `${nameSpan}${avatarSpan}`;
-            const styleAttr = i === 1 ? ' style="justify-content:flex-end; text-align:right;"' : '';
-            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')"${styleAttr}>${innerHtml}</button>`;
-            if (i === 0) html += `<span class="vs-label">VS</span>`;
+            cls += photoCandidates.length === 0 ? ' no-photo' : '';
+            html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">${cardInner}</button>`;
+            if (i === 0) html += `<span class="vs-label-big">VS</span>`;
           });
+          html += `</div>`;
           const showPoints = finished && matchPointsEarned !== null;
-          html += `<span class="match-points ${showPoints && matchPointsEarned > 0 ? 'earned' : ''}">${showPoints ? `${matchPointsEarned > 0 ? '+' : ''}${matchPointsEarned} pt${Math.abs(matchPointsEarned)===1?'':'s'}` : ''}</span>`;
+          if (showPoints) {
+            html += `<div class="match-points-big ${matchPointsEarned > 0 ? 'earned' : ''}">${matchPointsEarned > 0 ? '+' : ''}${matchPointsEarned} pt${Math.abs(matchPointsEarned)===1?'':'s'}</div>`;
+          }
           html += `</div>`;
         }
 
