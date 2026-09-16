@@ -250,23 +250,48 @@
     }
 
     // Master folder for real darts player headshots: frontend/assets/DARTS CARDS
-    // Matched against your real uploaded files (Title-Case-Hyphenated,
-    // .png, apostrophe replaced with underscore - e.g. "Ross Smith" ->
+    // Matched against your real files (Title-Case-Hyphenated, .png,
+    // apostrophe replaced with underscore - e.g. "Ross Smith" ->
     // Ross-Smith.png, "William O'Connor" -> William-O_connor.png).
-    // Generates two candidate filenames to allow for the one casing
-    // inconsistency actually seen in the real files (O_connor with a
-    // lowercase c, not O_Connor) - tries the exact-case version first,
-    // then the lowercase-after-underscore version, before falling back
-    // to the plain person icon if neither file exists.
+    // Generates every reasonable casing combination automatically for
+    // names with a lowercase connector word (van/de/etc, e.g. "Gian van
+    // Veen") and apostrophe cases, rather than needing to know your
+    // exact convention in advance - tries each guess in turn and only
+    // falls back to the plain person icon if none of them exist.
     const DARTS_PHOTO_FOLDER = 'assets/DARTS CARDS';
 
     function playerPhotoCandidates(name) {
       if (!name) return [];
       const words = name.split(' ').filter(Boolean);
-      const titleJoined = words.map(w => w.replace(/'/g, '_')).join('-');
-      const lowerAfterUnderscore = titleJoined.replace(/_([A-Z])/g, (m, c) => '_' + c.toLowerCase());
-      const candidates = [...new Set([titleJoined, lowerAfterUnderscore])];
-      return candidates.map(c => `${DARTS_PHOTO_FOLDER}/${c}.png`);
+
+      // Each word gets 1 or 2 case variants: a lowercase connector word
+      // like "van" tries both "van" and "Van", since we don't know
+      // which the real files use.
+      const wordVariants = words.map(w => {
+        const cleaned = w.replace(/'/g, '_');
+        if (/^[a-z]/.test(cleaned)) {
+          return [...new Set([cleaned, cleaned.charAt(0).toUpperCase() + cleaned.slice(1)])];
+        }
+        return [cleaned];
+      });
+
+      // Cartesian product of all word variants, joined by hyphen.
+      let combos = [''];
+      wordVariants.forEach(variants => {
+        const next = [];
+        combos.forEach(prefix => {
+          variants.forEach(v => next.push(prefix ? `${prefix}-${v}` : v));
+        });
+        combos = next;
+      });
+
+      // For any apostrophe case (now an underscore), also try lowercasing
+      // the letter right after it - confirmed real inconsistency: one
+      // actual file uses "O_connor", not "O_Connor".
+      const withLowerAfterUnderscore = combos.map(c => c.replace(/_([A-Z])/g, (m, ch) => '_' + ch.toLowerCase()));
+
+      const all = [...new Set([...combos, ...withLowerAfterUnderscore])];
+      return all.map(c => `${DARTS_PHOTO_FOLDER}/${c}.png`);
     }
     function playerPhotoUrl(id) {
       const name = playerName(id);
@@ -281,6 +306,22 @@
       if (!name || name === 'Unknown') return [];
       return playerPhotoCandidates(name);
     }
+
+    // Chains through every candidate filename in turn (2-4 depending on
+    // the name's connector words/apostrophes) before finally falling
+    // back to the plain person icon - generalized rather than hardcoded
+    // to 2, since some real names now generate more guesses than that.
+    window.tryNextDartsPhoto = function(imgEl, candidatesJson, idx) {
+      const candidates = JSON.parse(candidatesJson);
+      const nextIdx = idx + 1;
+      if (nextIdx >= candidates.length) {
+        imgEl.parentElement.innerHTML = '<i class="fas fa-user"></i>';
+        imgEl.parentElement.classList.remove('pick-avatar-photo');
+        return;
+      }
+      imgEl.onerror = function(){ tryNextDartsPhoto(imgEl, candidatesJson, nextIdx); };
+      imgEl.src = candidates[nextIdx];
+    };
 
     function getMatch(round, matchNumber) {
       return bracketData.matches.find(m => m.round === round && m.match_number === matchNumber);
@@ -523,14 +564,9 @@
             let avatarSpan;
             if (photoCandidates.length === 0) {
               avatarSpan = `<span class="pick-avatar"><i class="fas fa-user"></i></span>`;
-            } else if (photoCandidates.length === 1) {
-              avatarSpan = `<span class="pick-avatar pick-avatar-photo"><img src="${photoCandidates[0]}" alt="" onerror="this.parentElement.innerHTML='&lt;i class=&quot;fas fa-user&quot;&gt;&lt;/i&gt;'; this.parentElement.classList.remove('pick-avatar-photo');"></span>`;
             } else {
-              // Two guesses at the real filename (casing can vary, e.g.
-              // O_connor vs O_Connor) - the first onerror swaps to the
-              // second candidate instead of giving up immediately; only
-              // the second candidate's own onerror falls back to the icon.
-              avatarSpan = `<span class="pick-avatar pick-avatar-photo"><img src="${photoCandidates[0]}" alt="" onerror="this.onerror=function(){this.parentElement.innerHTML='&lt;i class=&quot;fas fa-user&quot;&gt;&lt;/i&gt;'; this.parentElement.classList.remove('pick-avatar-photo');}; this.src='${photoCandidates[1]}';"></span>`;
+              const candidatesJsonEscaped = JSON.stringify(photoCandidates).replace(/"/g, '&quot;');
+              avatarSpan = `<span class="pick-avatar pick-avatar-photo"><img src="${photoCandidates[0]}" alt="" onerror="tryNextDartsPhoto(this, '${candidatesJsonEscaped}', 0)"></span>`;
             }
             const innerHtml = i === 0
               ? `${avatarSpan}${nameSpan}`
