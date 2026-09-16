@@ -121,7 +121,7 @@
        the whole card is the clickable "this is my pick" target, not a
        small button with a name next to a tiny avatar. */
     .match-row-cards{ margin-bottom:16px; }
-    .match-cards-pair{ display:flex; align-items:center; gap:12px; }
+    .match-cards-pair{ display:flex; align-items:flex-start; gap:12px; }
     .pick-card-btn{
       flex:1; position:relative; border-radius:14px; overflow:hidden;
       border:2px solid var(--border); background:var(--bg-panel);
@@ -147,12 +147,32 @@
     }
     .pick-card-btn.selected .pick-card-check{ display:flex; }
     .pick-card-btn.correct .pick-card-check{ display:flex; background:var(--green); }
-    .vs-label-big{ font-family:var(--font-head); font-size:13px; color:var(--text-faint); flex:none; font-weight:700; }
+    .vs-label-big{ font-family:var(--font-head); font-size:13px; color:var(--text-faint); flex:none; font-weight:700; margin-top:140px; }
     .match-points-big{
       font-family:var(--font-head); font-size:12px; font-weight:700; color:var(--text-faint);
       text-align:center; margin-top:6px;
     }
     .match-points-big.earned{ color:var(--gold); }
+    .player-col{ flex:1; max-width:240px; display:flex; flex-direction:column; }
+
+    /* Real player stats, sourced once from the 2026 World Grand Prix
+       player pack - desktop only, hidden on mobile below so the pick
+       screen stays compact and scannable on a small screen. */
+    .player-stats-panel{
+      margin-top:8px; padding:10px 12px; background:var(--bg-card);
+      border:1px solid var(--border); border-radius:10px; font-size:12px;
+    }
+    .stats-nickname{ font-family:var(--font-head); font-style:italic; color:var(--accent-2); font-size:12.5px; margin-bottom:5px; }
+    .stats-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:var(--text-dim); }
+    .stats-avg{ font-weight:700; color:var(--gold); }
+    .stats-form{ display:flex; gap:3px; margin-bottom:7px; }
+    .form-pill{
+      width:18px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center;
+      font-size:10px; font-weight:700; color:#fff;
+    }
+    .form-pill.win{ background:var(--green); }
+    .form-pill.loss{ background:var(--red); }
+    .stats-bio{ color:var(--text-faint); font-size:11px; line-height:1.4; }
 
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
@@ -210,7 +230,8 @@
       .pick-card-name{ font-size:11px; }
       .pick-card-noimg i{ font-size:22px; }
       .pick-card-check{ width:20px; height:20px; font-size:10px; top:5px; right:5px; }
-      .vs-label-big{ font-size:11px; }
+      .vs-label-big{ font-size:11px; margin-top:0; align-self:center; }
+      .player-stats-panel{ display:none; }
     }
   </style>
 </head>
@@ -292,6 +313,32 @@
       if (!id) return null;
       const p = bracketData.players.find(pl => pl.id === id);
       return p ? p.name : 'Unknown';
+    }
+
+    // Real player bio/stats, sourced from the 2026 World Grand Prix
+    // player pack (DartsRankings for seeding/prize money, Darts Info for
+    // 2026 televised average/nickname/recent form, Darts World for the
+    // field confirmation and bios) - not a live feed, since no free
+    // darts stats API exists anywhere; entered once per player the same
+    // way names and photos are. Desktop-only, shown right under each
+    // player's card - hidden on mobile via CSS to keep the pick screen
+    // scannable on a small screen.
+    function renderPlayerStatsPanel(id) {
+      const p = bracketData.players.find(pl => pl.id === id);
+      if (!p || !p.nickname && !p.country && !p.avg_2026 && !p.recent_form && !p.bio) return '';
+      const formPills = (p.recent_form || '').split('').map(r =>
+        `<span class="form-pill ${r === 'W' ? 'win' : 'loss'}">${r}</span>`
+      ).join('');
+      return `
+        <div class="player-stats-panel">
+          ${p.nickname ? `<div class="stats-nickname">"${escapeHtml(p.nickname)}"</div>` : ''}
+          <div class="stats-row">
+            ${p.country ? `<span class="stats-country">${escapeHtml(p.country)}</span>` : ''}
+            ${p.avg_2026 ? `<span class="stats-avg">${escapeHtml(String(p.avg_2026))} avg</span>` : ''}
+          </div>
+          ${formPills ? `<div class="stats-form">${formPills}</div>` : ''}
+          ${p.bio ? `<div class="stats-bio">${escapeHtml(p.bio)}</div>` : ''}
+        </div>`;
     }
 
     // Master folder for real darts player headshots: frontend/assets/DARTS CARDS
@@ -652,7 +699,10 @@
                 ${checkBadge}`;
             }
             cls += photoCandidates.length === 0 ? ' no-photo' : '';
+            html += `<div class="player-col">`;
             html += `<button class="${cls}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">${cardInner}</button>`;
+            html += renderPlayerStatsPanel(pid);
+            html += `</div>`;
             if (i === 0) html += `<span class="vs-label-big">VS</span>`;
           });
           html += `</div>`;
