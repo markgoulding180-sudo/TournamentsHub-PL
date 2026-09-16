@@ -176,7 +176,7 @@
        player pack. Same size as the player card so the two visually
        pair up as a matching set. */
     .player-stats-panel{
-      width:220px; flex:0 0 220px; aspect-ratio:3/4;
+      width:220px; flex:0 0 220px; aspect-ratio:3/4; overflow:hidden;
       display:flex; flex-direction:column; justify-content:center;
       padding:14px; background:var(--bg-card);
       border:1px solid var(--border); border-radius:14px; font-size:12px;
@@ -244,16 +244,21 @@
       .pick-avatar{ width:22px; height:22px; }
       .match-points{ display:none; }
       .match-row{ gap:6px; padding:8px; }
-      .match-cards-pair{ gap:8px; }
-      .pick-card-btn{ width:calc(50% - 20px); flex-basis:calc(50% - 20px); }
+      .match-cards-pair{ gap:10px; }
+      .pick-card-btn{ width:100%; flex-basis:100%; max-width:360px; margin:0 auto; }
       .pick-card-name{ font-size:11px; }
       .pick-card-noimg i{ font-size:22px; }
       .pick-card-check{ width:20px; height:20px; font-size:10px; top:5px; right:5px; }
-      /* Mobile groups each player's own card with its stats stacked
-         right underneath it, instead of desktop's card/stats/VS/stats/
-         card flanking arrangement - same 5 elements, different order. */
+      /* Mobile stacks each player's own card directly above their own
+         stats panel, full width - card, stats, card, stats, in that
+         order top to bottom, with VS centred above both as a divider
+         rather than flanking anything (there's nothing to flank on a
+         single narrow column). */
       .card-slot.slot-0{ order:1; }
-      .player-stats-panel{ width:calc(50% - 20px); flex-basis:calc(50% - 20px); aspect-ratio:auto; padding:10px; }
+      .player-stats-panel{
+        width:100%; flex-basis:100%; max-width:360px; margin:0 auto;
+        aspect-ratio:auto; padding:12px; min-height:150px;
+      }
       .stats-slot.slot-0{ order:2; }
       .card-slot.slot-1{ order:3; }
       .stats-slot.slot-1{ order:4; }
