@@ -359,15 +359,37 @@
     // tried loading it), so every real player name was taking the "has
     // a photo" path and, once every guess 404'd, landing on a bare icon
     // with no name at all instead of the proper no-photo card design.
-    window.tryNextDartsPhoto = function(imgEl, candidatesJson, idx, nameEscaped) {
+    //
+    // Real bug fixed here, confirmed on William O'Connor specifically:
+    // the name used to be passed as a 4th inline argument, HTML-entity-
+    // escaped (&#39; for the apostrophe). That looks safe, but HTML
+    // entities are decoded by the browser's HTML PARSER before the
+    // resulting text is ever handed to the JS engine as executable
+    // code - so by the time this onerror string actually ran, the
+    // apostrophe was back to a literal ' in the middle of a JS string
+    // literal, breaking it into three fragments and throwing a silent
+    // syntax error. Every name without an apostrophe worked fine; only
+    // O'Connor (the one real name with one) was ever affected. Fixed by
+    // reading the name from the image's own alt attribute at runtime
+    // instead - a normal HTML attribute the browser decodes safely on
+    // its own, with no JS string embedding involved at all.
+    window.tryNextDartsPhoto = function(imgEl, candidatesJson, idx) {
       const candidates = JSON.parse(candidatesJson);
       const nextIdx = idx + 1;
       if (nextIdx >= candidates.length) {
-        imgEl.parentElement.innerHTML = `<div class="pick-card-noimg"><i class="fas fa-user"></i><span class="pick-card-name">${nameEscaped}</span></div><span class="pick-card-check"><i class="fas fa-check"></i></span>`;
-        imgEl.parentElement.classList.add('no-photo');
+        const safeName = document.createElement('div');
+        safeName.textContent = imgEl.alt || '';
+        // Capture the parent BEFORE replacing its innerHTML - setting
+        // .innerHTML detaches imgEl from the DOM entirely, so reading
+        // imgEl.parentElement again afterward returns null. Real bug
+        // caught while testing the fix above: every placeholder player
+        // (no real photo yet) was throwing here.
+        const parent = imgEl.parentElement;
+        parent.innerHTML = `<div class="pick-card-noimg"><i class="fas fa-user"></i><span class="pick-card-name">${safeName.innerHTML}</span></div><span class="pick-card-check"><i class="fas fa-check"></i></span>`;
+        parent.classList.add('no-photo');
         return;
       }
-      imgEl.onerror = function(){ tryNextDartsPhoto(imgEl, candidatesJson, nextIdx, nameEscaped); };
+      imgEl.onerror = function(){ tryNextDartsPhoto(imgEl, candidatesJson, nextIdx); };
       imgEl.src = candidates[nextIdx];
     };
 
@@ -626,7 +648,7 @@
             } else {
               const candidatesJsonEscaped = JSON.stringify(photoCandidates).replace(/"/g, '&quot;');
               cardInner = `
-                <img src="${photoCandidates[0]}" alt="${escapeHtml(name)}" onerror="tryNextDartsPhoto(this, '${candidatesJsonEscaped}', 0, '${escapeHtml(name).replace(/'/g, '&#39;')}')">
+                <img src="${photoCandidates[0]}" alt="${escapeHtml(name)}" onerror="tryNextDartsPhoto(this, '${candidatesJsonEscaped}', 0)">
                 ${checkBadge}`;
             }
             cls += photoCandidates.length === 0 ? ' no-photo' : '';
