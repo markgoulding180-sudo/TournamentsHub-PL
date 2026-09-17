@@ -1839,7 +1839,35 @@
     renderSportSection('darts', SPORT_TYPES.darts);
   }
   window.addEventListener('gbf-data-refreshed', renderAllSportSections);
-  renderAllSportSections();
+  // Real bug fixed here: renderSportSection decides mobile vs desktop
+  // card style by checking window.innerWidth at the moment it runs.
+  // Calling it immediately, at script-parse time, can run before the
+  // browser has finished its very first layout pass on some mobile
+  // browsers - the viewport can briefly still reflect an earlier/wrong
+  // value at that exact instant, so the first paint used the wrong
+  // (desktop) card style, and only looked right a moment later once
+  // live-poll.js's own immediate first refresh re-ran this and read a
+  // now-settled, correct width. requestAnimationFrame guarantees at
+  // least one real layout pass has completed first, so the very first
+  // render is already correct - not reliant on a lucky second pass.
+  requestAnimationFrame(renderAllSportSections);
+
+  // Safety net: if the viewport crosses the mobile/desktop breakpoint
+  // (device rotation, browser window resize, or any other edge case),
+  // re-render immediately rather than waiting up to 2 minutes for the
+  // next scheduled data refresh to happen to fix the card style.
+  let lastIsMobile = window.innerWidth <= 640;
+  let resizeDebounce;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(() => {
+      const nowMobile = window.innerWidth <= 640;
+      if (nowMobile !== lastIsMobile) {
+        lastIsMobile = nowMobile;
+        renderAllSportSections();
+      }
+    }, 200);
+  });
 
   // Hero slideshow — cycles through .hero-slide elements every 3s,
   // cross-fading via the opacity transition already set on .hero-slide.
