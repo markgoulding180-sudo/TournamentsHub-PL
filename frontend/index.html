@@ -637,6 +637,9 @@
   }
 
   /* ---------- Registering ticker, under the hero ---------- */
+  .reg-ticker-heading{ text-align:center; margin:8px 20px 12px; }
+  .reg-ticker-heading h2{ font-family:var(--font-head); font-size:22px; margin-bottom:4px; }
+  .reg-ticker-heading p{ font-size:13px; color:var(--text-dim); }
   .reg-ticker{
     display:flex; align-items:center; gap:0; background:rgba(234,179,8,0.08);
     border-top:1px solid rgba(234,179,8,0.25); border-bottom:1px solid rgba(234,179,8,0.25);
@@ -1022,6 +1025,10 @@
          that answers "what can I still join right now" at a glance,
          without needing to scroll through each sport section. Hidden
          entirely when nothing is genuinely open for registration. -->
+    <div class="reg-ticker-heading" id="regTickerHeading" style="display:none;">
+      <h2>Join a Tournament</h2>
+      <p>Below are the tournaments currently registering — get in before they start.</p>
+    </div>
     <div class="reg-ticker" id="regTicker" style="display:none;">
       <div class="reg-ticker-label"><i class="fas fa-circle" style="font-size:7px; color:#eab308;"></i> Registering</div>
       <div class="reg-ticker-track" id="regTickerTrack"></div>
@@ -1673,9 +1680,30 @@
     return `${mins}m`;
   }
 
-  function buildRegisteringMini(type, t){
+  async function buildRegisteringMini(type, t){
     const info = TYPE_INFO[type];
-    const rawDate = t.opens_at || t.starts_at || t.closes_at || null;
+    // Real bug fixed here, confirmed against the actual database: for
+    // gameweek-based types (predictions/lms/fantasy), closes_at is just
+    // an arbitrary "7 days after creation" fallback set at admin
+    // creation time - it has nothing to do with when the gameweek
+    // actually kicks off. Confirmed on the real GW6 LMS tournament:
+    // closes_at said 22 Sept, but GW6's real first match doesn't kick
+    // off until 10 Oct - the card was showing a genuinely fake deadline.
+    // Fixed by pulling the real earliest kickoff time for that
+    // gameweek's fixtures instead, for these three types specifically.
+    // Champions League/Darts/Stock Market don't have this problem -
+    // their opens_at/closes_at already reflects a real deadline.
+    let rawDate = t.opens_at || t.starts_at || t.closes_at || null;
+    if (t.gameweek && (type === 'predictions' || type === 'lms' || type === 'fantasy')) {
+      try {
+        const res = await fetch(`${PL_BASE}/predictions?gameweek=${t.gameweek}`);
+        const data = await res.json();
+        const kickoffs = (data.matches || []).map(m => m.kickoff_time).filter(Boolean).sort();
+        if (kickoffs[0]) rawDate = kickoffs[0];
+      } catch (e) {
+        console.error(`Failed to load real GW${t.gameweek} kickoff time for ${type}:`, e);
+      }
+    }
     const dateLabel = rawDate ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
     const feeLabel = typeof t.entry_fee === 'number'
       ? (t.entry_fee > 0 ? `Entry ${qlbMoney(t.entry_fee)}` : 'Free entry')
@@ -1810,14 +1838,15 @@
     const finResults = results.filter(r => r && r.zone === 'finished');
     const regResults = results.filter(r => r && r.zone === 'registering');
 
-    const [liveHtmlParts, finHtmlParts] = await Promise.all([
+    const [liveHtmlParts, finHtmlParts, regHtmlParts] = await Promise.all([
       Promise.all(liveResults.map(r => isMobile ? buildLiveMiniCard(r.type, r.t) : buildLiveCard(r.type, r.t))),
-      Promise.all(finResults.map(r => buildFinishedMini(r.type, r.t)))
+      Promise.all(finResults.map(r => buildFinishedMini(r.type, r.t))),
+      Promise.all(regResults.map(r => buildRegisteringMini(r.type, r.t)))
     ]);
 
     const liveHtml = liveHtmlParts.join('');
     const finHtml = finHtmlParts.filter(Boolean).join('');
-    const regHtml = regResults.map(r => buildRegisteringMini(r.type, r.t)).join('');
+    const regHtml = regHtmlParts.join('');
 
     liveRow.innerHTML = liveHtml;
     if (regRow) regRow.innerHTML = regHtml;
@@ -1835,6 +1864,7 @@
   async function loadRegisteringTicker(){
     const wrap = document.getElementById('regTicker');
     const track = document.getElementById('regTickerTrack');
+    const heading = document.getElementById('regTickerHeading');
     if (!wrap || !track) return;
     const allTypes = ['predictions', 'lms', 'fantasy', 'stockmarket', 'champions_league', 'darts'];
     try {
@@ -1845,7 +1875,11 @@
         return t ? { type, t } : null;
       }));
       const items = results.filter(Boolean);
-      if (items.length === 0) { wrap.style.display = 'none'; return; }
+      if (items.length === 0) {
+        wrap.style.display = 'none';
+        if (heading) heading.style.display = 'none';
+        return;
+      }
 
       const itemHtml = items.map(({ type, t }) => {
         const info = TYPE_INFO[type];
@@ -1859,9 +1893,11 @@
       // back into visually identical content instead of a visible jump.
       track.innerHTML = itemHtml + itemHtml;
       wrap.style.display = 'flex';
+      if (heading) heading.style.display = 'block';
     } catch (e) {
       console.error('Failed to load registering ticker:', e);
       wrap.style.display = 'none';
+      if (heading) heading.style.display = 'none';
     }
   }
 
