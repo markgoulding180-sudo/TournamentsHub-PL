@@ -153,11 +153,11 @@
     }
     .pick-card-btn.selected .pick-card-check{ display:flex; }
     .pick-card-btn.correct .pick-card-check{ display:flex; background:var(--green); }
-    /* Bigger, more dramatic VS on desktop, sitting between the two
-       stats cards at the true centre of the row. */
+    /* Bigger, more dramatic VS on desktop, sitting between the two cards
+       at the true centre of the row. */
     .vs-label-big{
       font-family:var(--font-head); font-size:34px; color:var(--text-dim); flex:none;
-      font-weight:700; align-self:center; padding:0 6px; opacity:.85;
+      font-weight:700; align-self:center; padding:0 6px; opacity:.85; order:2;
     }
     .match-points-big{
       font-family:var(--font-head); font-size:12px; font-weight:700; color:var(--text-faint);
@@ -165,33 +165,8 @@
     }
     .match-points-big.earned{ color:var(--gold); }
 
-    /* Order: desktop default reads card / stats / VS / stats / card */
     .card-slot.slot-0{ order:1; }
-    .stats-slot.slot-0{ order:2; }
-    .vs-label-big{ order:3; }
-    .stats-slot.slot-1{ order:4; }
-    .card-slot.slot-1{ order:5; }
-
-    /* Real player stats, sourced once from the 2026 World Grand Prix
-       player pack. Same size as the player card so the two visually
-       pair up as a matching set. */
-    .player-stats-panel{
-      width:220px; flex:0 0 220px; aspect-ratio:3/4; overflow:hidden;
-      display:flex; flex-direction:column; justify-content:center;
-      padding:14px; background:var(--bg-card);
-      border:1px solid var(--border); border-radius:14px; font-size:12px;
-    }
-    .stats-nickname{ font-family:var(--font-head); font-style:italic; color:var(--accent-2); font-size:13.5px; margin-bottom:8px; }
-    .stats-row{ display:flex; flex-direction:column; gap:4px; margin-bottom:10px; color:var(--text-dim); }
-    .stats-avg{ font-weight:700; color:var(--gold); font-size:14px; }
-    .stats-form{ display:flex; gap:4px; margin-bottom:10px; }
-    .form-pill{
-      width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center;
-      font-size:11px; font-weight:700; color:#fff;
-    }
-    .form-pill.win{ background:var(--green); }
-    .form-pill.loss{ background:var(--red); }
-    .stats-bio{ color:var(--text-faint); font-size:11.5px; line-height:1.45; }
+    .card-slot.slot-1{ order:3; }
 
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
@@ -248,24 +223,10 @@
       .pick-card-name{ font-size:11px; }
       .pick-card-noimg i{ font-size:22px; }
       .pick-card-check{ width:20px; height:20px; font-size:10px; top:5px; right:5px; }
-      /* Rows of 2: both cards side by side in one row, then both stats
-         panels side by side directly underneath, each one aligned under
-         its own player's card - not everything in one stacked column. */
+      /* Both cards side by side, VS centred above. */
       .vs-label-big{ order:0; flex-basis:100%; text-align:center; font-size:16px; margin-bottom:2px; }
       .card-slot.slot-0{ order:1; width:calc(50% - 4px); flex:0 0 calc(50% - 4px); }
       .card-slot.slot-1{ order:2; width:calc(50% - 4px); flex:0 0 calc(50% - 4px); }
-      .stats-slot.slot-0{ order:3; }
-      .stats-slot.slot-1{ order:4; }
-      .player-stats-panel{
-        width:calc(50% - 4px); flex:0 0 calc(50% - 4px);
-        aspect-ratio:auto; padding:10px; min-height:150px;
-      }
-      .stats-nickname{ font-size:12px; margin-bottom:5px; }
-      .stats-row{ margin-bottom:6px; }
-      .stats-avg{ font-size:12px; }
-      .stats-form{ margin-bottom:6px; }
-      .form-pill{ width:16px; height:16px; font-size:9px; }
-      .stats-bio{ font-size:10.5px; }
     }
   </style>
 </head>
@@ -347,33 +308,6 @@
       if (!id) return null;
       const p = bracketData.players.find(pl => pl.id === id);
       return p ? p.name : 'Unknown';
-    }
-
-    // Real player bio/stats, sourced from the 2026 World Grand Prix
-    // player pack (DartsRankings for seeding/prize money, Darts Info for
-    // 2026 televised average/nickname/recent form, Darts World for the
-    // field confirmation and bios) - not a live feed, since no free
-    // darts stats API exists anywhere; entered once per player the same
-    // way names and photos are. Now shown on mobile too (stacked under
-    // the card) as well as desktop (flanking a big central VS) - the
-    // slot-N class is what lets the CSS reorder these differently per
-    // breakpoint without needing different markup.
-    function renderPlayerStatsPanel(id, slotIndex) {
-      const p = bracketData.players.find(pl => pl.id === id);
-      if (!p || !p.nickname && !p.country && !p.avg_2026 && !p.recent_form && !p.bio) return '';
-      const formPills = (p.recent_form || '').split('').map(r =>
-        `<span class="form-pill ${r === 'W' ? 'win' : 'loss'}">${r}</span>`
-      ).join('');
-      return `
-        <div class="player-stats-panel stats-slot slot-${slotIndex}">
-          ${p.nickname ? `<div class="stats-nickname">"${escapeHtml(p.nickname)}"</div>` : ''}
-          <div class="stats-row">
-            ${p.country ? `<span class="stats-country">${escapeHtml(p.country)}</span>` : ''}
-            ${p.avg_2026 ? `<span class="stats-avg">${escapeHtml(String(p.avg_2026))} avg</span>` : ''}
-          </div>
-          ${formPills ? `<div class="stats-form">${formPills}</div>` : ''}
-          ${p.bio ? `<div class="stats-bio">${escapeHtml(p.bio)}</div>` : ''}
-        </div>`;
     }
 
     // Master folder for real darts player headshots: frontend/assets/DARTS CARDS
@@ -741,7 +675,6 @@
             // regroups the exact same elements into [P1 card][P1 stats]
             // then [P2 card][P2 stats] stacked, no separate markup needed.
             html += `<button class="${cls} card-slot slot-${i}" ${disabled} onclick="selectPick(${round},${m},'${pid}')">${cardInner}</button>`;
-            html += renderPlayerStatsPanel(pid, i);
             if (i === 0) html += `<span class="vs-label-big">VS</span>`;
           });
           html += `</div>`;
