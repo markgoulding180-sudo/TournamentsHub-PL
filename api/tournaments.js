@@ -5962,6 +5962,61 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
       }
 
+      // Real check for whether a user still needs to pick for the
+      // upcoming gameweek, used by the hub's tournament cards - built
+      // fresh here because no equivalent existed for Predictions/LMS
+      // before (darts_get_bracket and cl_get_tournament already return
+      // this for their own sports, but those two run on rounds/
+      // matchdays, not the shared gameweek clock). Fantasy is
+      // deliberately excluded - it doesn't have a genuine per-gameweek
+      // "pick" action the way Predictions and LMS do; squads persist
+      // and transfers aren't a mandatory weekly requirement.
+      if (action === 'check_gameweek_pick_status') {
+        try {
+          const { tournament_type: pickCheckType, tournament_id: pickCheckTournamentId, gameweek: pickCheckGw } = req.body;
+          const authHeader = req.headers.authorization;
+          if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user: pickCheckUser }, error: pickCheckAuthError } = await supabaseAdmin.auth.getUser(token);
+          if (pickCheckAuthError || !pickCheckUser) return res.status(401).json({ error: 'Invalid token' });
+
+          if (pickCheckType === 'lms') {
+            const { data: lmsEntry } = await supabaseAdmin
+              .schema('lms').from('tournament_entries').select('id, is_eliminated')
+              .eq('tournament_id', pickCheckTournamentId).eq('user_id', pickCheckUser.id).maybeSingle();
+            if (!lmsEntry || lmsEntry.is_eliminated) {
+              return res.status(200).json({ applicable: false });
+            }
+            const { data: lmsPick } = await supabaseAdmin
+              .schema('lms').from('picks').select('id')
+              .eq('tournament_id', pickCheckTournamentId).eq('user_id', pickCheckUser.id).eq('gameweek', pickCheckGw).maybeSingle();
+            return res.status(200).json({ applicable: true, hasPicked: !!lmsPick });
+          }
+
+          if (pickCheckType === 'predictions') {
+            const { data: predEntry } = await supabaseAdmin
+              .schema('predictions').from('tournament_entries').select('id')
+              .eq('tournament_id', pickCheckTournamentId).eq('user_id', pickCheckUser.id).maybeSingle();
+            if (!predEntry) return res.status(200).json({ applicable: false });
+
+            const { count: totalMatches } = await masterDb
+              .from('matches').select('*', { count: 'exact', head: true }).eq('gameweek', pickCheckGw);
+            if (!totalMatches) return res.status(200).json({ applicable: false });
+
+            const { count: myPredictionsCount } = await supabaseAdmin
+              .schema('predictions').from('predictions').select('*', { count: 'exact', head: true })
+              .eq('user_id', pickCheckUser.id).eq('gameweek', pickCheckGw);
+
+            return res.status(200).json({ applicable: true, hasPicked: (myPredictionsCount || 0) >= totalMatches });
+          }
+
+          return res.status(200).json({ applicable: false });
+        } catch (err) {
+          console.error('check_gameweek_pick_status error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
       // Last Man Standing: submit/change this gameweek's pick.
       if (action === 'lms_pick') {
         try {
