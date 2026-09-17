@@ -529,6 +529,8 @@
     display:flex; flex-direction:column;
   }
   .t-card:hover{border-color:var(--border-hover); transform:translateY(-5px); box-shadow:0 16px 36px -10px var(--accent-glow);}
+  .t-card.t-card-live{ border-color:#15803d; }
+  .t-card.t-card-live:hover{ border-color:#1eae52; }
   .mini-card.mini-coming-soon{ opacity:0.5; cursor:default; }
   .mini-card.mini-coming-soon .mini-sub{ color:var(--text-faint); }
   .t-card-media{height:132px; position:relative; border-bottom:1px solid var(--border); overflow:hidden;}
@@ -563,6 +565,18 @@
      for a visitor and shouldn't compete for attention as identical cards. */
   .status-block{ margin-bottom:30px; }
   .status-block:last-child{ margin-bottom:0; }
+
+  /* Each status section gets its own distinct, consistent container
+     treatment - same three colours everywhere (Football, Champions
+     League, Darts alike), on both mobile and desktop, so a visitor
+     learns the pattern once and it applies everywhere on the page. */
+  .status-block-live, .status-block-registering, .status-block-finished{
+    border-radius:14px; padding:16px 16px 4px; border:1px solid;
+  }
+  .status-block-live{ border-color:rgba(21,128,61,0.4); background:rgba(21,128,61,0.05); }
+  .status-block-registering{ border-color:rgba(161,98,7,0.4); background:rgba(161,98,7,0.05); }
+  .status-block-finished{ border-color:rgba(153,27,27,0.4); background:rgba(153,27,27,0.05); }
+
   .status-block-head{
     display:flex; align-items:center; gap:9px; margin-bottom:14px;
     font-family:var(--font-head); font-weight:700; font-size:14px;
@@ -647,11 +661,12 @@
     0%{ transform:translateX(0); }
     100%{ transform:translateX(-50%); }
   }
-  .mini-card.mini-live{ border-color:rgba(34,197,94,0.35); }
+  .mini-card.mini-registering{ border-color:#a16207; border-width:1.5px; }
+  .mini-card.mini-live{ border-color:#15803d; border-width:1.5px; }
   .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
   .mini-card.mini-finished{
-    border-color:rgba(242,185,61,0.4);
-    background:linear-gradient(135deg, rgba(242,185,61,0.1), var(--bg-card) 65%);
+    border-color:#991b1b; border-width:1.5px;
+    background:linear-gradient(135deg, rgba(153,27,27,0.12), var(--bg-card) 65%);
   }
   .mini-card.mini-finished .mini-trophy{ color:var(--gold); font-size:20px; flex-shrink:0; }
   .mini-card.mini-finished .mini-sub{ color:var(--gold); font-weight:600; }
@@ -1062,17 +1077,17 @@
         </div>
       </div>
 
-      <div class="status-block" id="footballLiveBlock" style="display:none;">
+      <div class="status-block status-block-live" id="footballLiveBlock" style="display:none;">
         <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
         <div class="card-row" id="footballLiveRow"></div>
       </div>
 
-      <div class="status-block" id="footballRegisteringBlock" style="display:none;">
+      <div class="status-block status-block-registering" id="footballRegisteringBlock" style="display:none;">
         <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
         <div class="card-row-compact" id="footballRegisteringRow"></div>
       </div>
 
-      <div class="status-block" id="footballFinishedBlock" style="display:none;">
+      <div class="status-block status-block-finished" id="footballFinishedBlock" style="display:none;">
         <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
         <div class="card-row-compact" id="footballFinishedRow"></div>
       </div>
@@ -1088,17 +1103,17 @@
       <div class="section-head" style="justify-content:flex-end;">
         <a class="view-all" href="/champions-league-how-it-works">How It Works<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
-      <div class="status-block" id="clLiveBlock" style="display:none;">
+      <div class="status-block status-block-live" id="clLiveBlock" style="display:none;">
         <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
         <div class="card-row" id="clLiveRow"></div>
       </div>
 
-      <div class="status-block" id="clRegisteringBlock" style="display:none;">
+      <div class="status-block status-block-registering" id="clRegisteringBlock" style="display:none;">
         <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
         <div class="card-row-compact" id="clRegisteringRow"></div>
       </div>
 
-      <div class="status-block" id="clFinishedBlock" style="display:none;">
+      <div class="status-block status-block-finished" id="clFinishedBlock" style="display:none;">
         <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
         <div class="card-row-compact" id="clFinishedRow"></div>
       </div>
@@ -1116,17 +1131,17 @@
       <div class="section-head" style="justify-content:flex-end;">
         <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
       </div>
-      <div class="status-block" id="dartsLiveBlock" style="display:none;">
+      <div class="status-block status-block-live" id="dartsLiveBlock" style="display:none;">
         <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
         <div class="card-row" id="dartsLiveRow"></div>
       </div>
 
-      <div class="status-block" id="dartsRegisteringBlock" style="display:none;">
+      <div class="status-block status-block-registering" id="dartsRegisteringBlock" style="display:none;">
         <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
         <div class="card-row-compact" id="dartsRegisteringRow"></div>
       </div>
 
-      <div class="status-block" id="dartsFinishedBlock" style="display:none;">
+      <div class="status-block status-block-finished" id="dartsFinishedBlock" style="display:none;">
         <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
         <div class="card-row-compact" id="dartsFinishedRow"></div>
       </div>
@@ -1548,7 +1563,7 @@
       ? `<div class="needs-action-banner"><i class="fas fa-triangle-exclamation"></i> ${plEsc(action.label)} — tap to pick</div>`
       : '';
     return `
-      <a class="t-card" href="${info.href}" style="text-decoration:none;">
+      <a class="t-card t-card-live" href="${info.href}" style="text-decoration:none;">
         <div class="t-card-media ${info.imgClass}">
           <img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
         </div>
