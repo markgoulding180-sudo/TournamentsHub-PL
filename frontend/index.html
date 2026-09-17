@@ -623,11 +623,12 @@
   .mini-card .mini-sub-secondary{ margin-top:3px; color:var(--text-faint); opacity:0.85; }
   .mini-card.mini-registering .mini-sub{ color:#4ade80; }
   .mini-card .mini-countdown{
-    flex-shrink:0; align-self:center; text-align:center; padding:8px 12px; margin-right:12px;
-    background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); border-radius:9px;
+    flex-shrink:0; align-self:center; text-align:center; padding:6px 9px; margin-right:10px;
+    background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); border-radius:8px;
   }
-  .mini-card .mini-countdown-value{ font-family:var(--font-head); font-weight:700; font-size:15px; color:#fde68a; white-space:nowrap; }
-  .mini-card .mini-countdown-label{ font-size:9px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.4px; }
+  .mini-card .mini-countdown-value{ font-family:var(--font-head); font-weight:700; font-size:13.5px; color:#fde68a; white-space:nowrap; }
+  .mini-card .mini-countdown-label{ font-size:8px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.3px; }
+  .mini-card.mini-registering .mini-body .mini-sub{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .needs-action-line{ color:var(--red) !important; font-weight:700; }
   .needs-action-banner{
     display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700;
@@ -1680,13 +1681,19 @@
       ? (t.entry_fee > 0 ? `Entry ${qlbMoney(t.entry_fee)}` : 'Free entry')
       : null;
     const countdown = rawDate ? countdownLabel(rawDate) : null;
+    // Combined onto one line instead of two, and dropped the redundant
+    // "— Register now" (the section header already says "Registration
+    // Open" and the whole card is a link) - real fix for the card
+    // growing taller than the others: the countdown badge takes a fixed
+    // chunk of the row's width, so cramming two full lines of text plus
+    // the badge into what's left was forcing heavy wrapping.
+    const metaLine = [feeLabel, rawDate ? `Starts ${dateLabel}` : null].filter(Boolean).join(' · ');
     return `
       <a class="mini-card mini-registering" href="${info.href}">
         <img class="mini-thumb" src="${info.img}" alt="${info.title}">
         <div class="mini-body">
           <div class="mini-title">${info.title}</div>
-          ${feeLabel ? `<div class="mini-sub" style="color:var(--text-dim);">${feeLabel}</div>` : ''}
-          <div class="mini-sub"><i class="fas fa-hourglass-half"></i> Starts ${plEsc(dateLabel)} — Register now</div>
+          ${metaLine ? `<div class="mini-sub" style="color:var(--text-dim);">${metaLine}</div>` : ''}
         </div>
         ${countdown ? `<div class="mini-countdown"><div class="mini-countdown-value">${plEsc(countdown)}</div><div class="mini-countdown-label">to go</div></div>` : ''}
       </a>`;
