@@ -2403,6 +2403,16 @@ function dartsAdminPlayerButton(name, isWinner, disabled, onclick) {
     </button>`;
 }
 
+// Real World Grand Prix set format - the only valid winning scores for
+// Quarter-Finals, Semi-Finals and the Final. Shared between the match
+// list (to render the dropdown) and setDartsResult (to validate against
+// it), so there's exactly one source of truth for what's a real score.
+const DARTS_VALID_SCORES_BY_ROUND = {
+  3: ['3-0', '3-1', '3-2'],
+  4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
+  5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
+};
+
 async function loadDartsMatches() {
   const round = parseInt(document.getElementById('dartsRoundSelect').value);
   const listEl = document.getElementById('dartsMatchesList');
@@ -2421,6 +2431,7 @@ async function loadDartsMatches() {
 
     const playerName = (id) => { const p = data.players.find(pl => pl.id === id); return p ? p.name : 'TBD'; };
     const matches = data.matches.filter(m => m.round === round).sort((a, b) => a.match_number - b.match_number);
+    const scoreOptions = DARTS_VALID_SCORES_BY_ROUND[round];
 
     listEl.innerHTML = matches.map(m => {
       const p1Name = playerName(m.player1_id);
@@ -2430,12 +2441,23 @@ async function loadDartsMatches() {
       if (!bothKnown) {
         return `<div style="padding:0.6rem; border-bottom:1px solid var(--border-color); color:var(--text-muted); font-size:0.85rem;">Match ${m.match_number}: waiting on earlier round results</div>`;
       }
+      // Real proper input, not a popup - a dropdown sitting right in the
+      // match row, same score options the user-facing page validates
+      // against. Selected before clicking a winner; setDartsResult reads
+      // whatever's chosen here instead of prompting separately.
+      const scoreSelectHtml = scoreOptions ? `
+        <select id="dartsScoreSelect-${round}-${m.match_number}" ${finished ? 'disabled' : ''}
+          style="padding:0.4rem 0.6rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px; font-size:0.8rem;">
+          <option value="">Score…</option>
+          ${scoreOptions.map(s => `<option value="${s}" ${m.winning_score === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>` : '';
       return `
-        <div style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem; border-bottom:1px solid var(--border-color); ${finished ? 'opacity:0.6;' : ''}">
+        <div style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem; border-bottom:1px solid var(--border-color); flex-wrap:wrap; ${finished ? 'opacity:0.6;' : ''}">
           <span style="width:60px; font-size:0.8rem; color:var(--text-muted);">M${m.match_number}</span>
           ${dartsAdminPlayerButton(p1Name, m.winner_id === m.player1_id, finished, `setDartsResult(${round}, ${m.match_number}, '${m.player1_id}')`)}
           <span style="font-size:0.75rem; color:var(--text-muted);">vs</span>
           ${dartsAdminPlayerButton(p2Name, m.winner_id === m.player2_id, finished, `setDartsResult(${round}, ${m.match_number}, '${m.player2_id}')`)}
+          ${scoreSelectHtml}
           ${finished ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : ''}
         </div>`;
     }).join('') || '<p class="text-muted">No matches in this round.</p>';
@@ -2452,22 +2474,19 @@ async function setDartsResult(round, matchNumber, winnerId) {
   // winner, since predictions for these three rounds now require a
   // score guess too and need something real to be checked against.
   // Last 32/Last 16 don't use sets in the same way here, so no score is
-  // collected for those.
-  const VALID_SCORES_BY_ROUND = {
-    3: ['3-0', '3-1', '3-2'],
-    4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
-    5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
-  };
+  // collected for those. Real proper input now - reads the dropdown
+  // that's sitting right in the match row instead of popping up a
+  // separate prompt box to type into.
   let winningScore = null;
-  if (VALID_SCORES_BY_ROUND[round]) {
-    const options = VALID_SCORES_BY_ROUND[round];
-    const entered = prompt(`What was the final score in sets (winner first)?\n\nValid options: ${options.join(', ')}`, options[0]);
-    if (entered === null) return; // cancelled
-    if (!options.includes(entered.trim())) {
-      resultEl.innerHTML = `<span style="color:var(--accent-red);">"${entered}" isn't a valid score for this round — must be one of: ${options.join(', ')}. Nothing was saved.</span>`;
+  if (DARTS_VALID_SCORES_BY_ROUND[round]) {
+    const options = DARTS_VALID_SCORES_BY_ROUND[round];
+    const selectEl = document.getElementById(`dartsScoreSelect-${round}-${matchNumber}`);
+    const chosen = selectEl ? selectEl.value : '';
+    if (!chosen || !options.includes(chosen)) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red);">Pick the real score from the dropdown next to this match first — must be one of: ${options.join(', ')}. Nothing was saved.</span>`;
       return;
     }
-    winningScore = entered.trim();
+    winningScore = chosen;
   }
 
   if (!confirm(`Set this player as the winner of Round ${round}, Match ${matchNumber}${winningScore ? ` (${winningScore})` : ''}?\n\nThis scores every prediction for this match and advances the winner. This cannot be undone from here.`)) return;
