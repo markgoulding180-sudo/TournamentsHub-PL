@@ -759,18 +759,14 @@
             const photoCandidates = playerPhotoAllCandidates(pid);
             const checkBadge = `<span class="pick-card-check"><i class="fas fa-check"></i></span>`;
 
-            // Per-card points feedback, sitting right under the tick:
-            // the picked player's card shows what that pick actually
-            // earned (real value, or 0 if wrong); the actual winner's
-            // card shows 0pt too when it wasn't the user's pick, making
-            // it clear at a glance which side would have scored.
+            // Per-card points feedback, sitting right under the tick -
+            // only on the card the user actually picked. Showing it on
+            // the unpicked winner too (even just "0pt") ended up
+            // confusing rather than clarifying, since two badges on the
+            // same match read like two separate results.
             let pointsBadge = '';
-            if (finished) {
-              if (pid === myPick && matchPointsEarned !== null) {
-                pointsBadge = `<span class="pick-card-points ${matchPointsEarned > 0 ? 'earned' : ''}">${matchPointsEarned > 0 ? '+' : ''}${matchPointsEarned}pt${Math.abs(matchPointsEarned) === 1 ? '' : 's'}</span>`;
-              } else if (pid === match.winner_id) {
-                pointsBadge = `<span class="pick-card-points">0pt</span>`;
-              }
+            if (finished && pid === myPick && matchPointsEarned !== null) {
+              pointsBadge = `<span class="pick-card-points ${matchPointsEarned > 0 ? 'earned' : ''}">${matchPointsEarned > 0 ? '+' : ''}${matchPointsEarned}pt${Math.abs(matchPointsEarned) === 1 ? '' : 's'}</span>`;
             }
 
             let cardInner;
