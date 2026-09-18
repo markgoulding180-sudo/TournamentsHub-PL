@@ -172,7 +172,9 @@
       { type: 'predictions', label: 'Predictions', icon: 'fa-futbol', href: '/predictions' },
       { type: 'fantasy', label: 'Fantasy Manager', icon: 'fa-people-group', href: '/fantasy-manager' },
       { type: 'lms', label: 'Last Man Standing', icon: 'fa-skull-crossbones', href: '/last-man-standing' },
-      { type: 'stockmarket', label: 'Stock Market', icon: 'fa-chart-line', href: '/stock-market' }
+      { type: 'stockmarket', label: 'Stock Market', icon: 'fa-chart-line', href: '/stock-market' },
+      { type: 'champions_league', label: 'Champions League', icon: 'fa-shield-halved', href: '/champions-league' },
+      { type: 'darts', label: 'Darts', icon: 'fa-bullseye', href: '/darts' }
     ];
 
     function escapeHtml(str) {
@@ -195,6 +197,12 @@
       }
       if (game.type === 'fantasy') {
         return `${entry.entry_points || 0} points this season`;
+      }
+      if (game.type === 'champions_league') {
+        return `${entry.entry_points || 0} points this season`;
+      }
+      if (game.type === 'darts') {
+        return `${entry.entry_points || 0} points in the bracket`;
       }
       return `${entry.entry_points || 0} points`;
     }
@@ -223,36 +231,54 @@
 
       try {
         let sessionExpired = false;
-        const results = await Promise.all(GAMES.map(async (game) => {
-          const tRes = await fetch(`/api/tournaments?status=live&tournament_type=${game.type}`);
-          const tData = await tRes.json();
-          const tournament = (tData.tournaments || [])[0];
-          if (!tournament) return null;
+        // Real gap closed here: this only ever checked status=live, so
+        // a tournament the user registered for while it's upcoming (a
+        // real case right now - LMS has both a live and an upcoming
+        // tournament at once) never showed up here at all until it went
+        // live. Checks both statuses per sport now, and since a user
+        // can genuinely be entered in more than one tournament of the
+        // same sport at once (one live, one still registering), each
+        // sport can now contribute more than one card, not just one.
+        const perGameResults = await Promise.all(GAMES.map(async (game) => {
+          const [liveRes, upcomingRes] = await Promise.all([
+            fetch(`/api/tournaments?status=live&tournament_type=${game.type}`),
+            fetch(`/api/tournaments?status=upcoming&tournament_type=${game.type}`)
+          ]);
+          const [liveData, upcomingData] = await Promise.all([liveRes.json(), upcomingRes.json()]);
+          const candidateTournaments = [...(liveData.tournaments || []), ...(upcomingData.tournaments || [])];
+          if (candidateTournaments.length === 0) return [];
 
-          const eRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournament.id}&tournament_type=${game.type}`, { headers: authHeaders() });
+          const perTournament = await Promise.all(candidateTournaments.map(async (tournament) => {
+            const eRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournament.id}&tournament_type=${game.type}`, { headers: authHeaders() });
 
-          // Real bug fixed here: fetch() doesn't throw on a 401, so an
-          // expired/invalid token used to make every single tournament
-          // silently return null here - checking all 6 game types in
-          // parallel with the same token meant an expired session could
-          // wipe EVERY real entry from this page at once.
-          if (eRes.status === 401) { sessionExpired = true; return null; }
+            // Real bug fixed here: fetch() doesn't throw on a 401, so an
+            // expired/invalid token used to make every single tournament
+            // silently return null here - checking all game types in
+            // parallel with the same token meant an expired session could
+            // wipe EVERY real entry from this page at once.
+            if (eRes.status === 401) { sessionExpired = true; return null; }
 
-          const eData = await eRes.json();
-          if (!eData.entry) return null;
+            const eData = await eRes.json();
+            if (!eData.entry) return null;
 
-          // Get rank + total from the shared leaderboard endpoint
-          let rank = null, total = null;
-          try {
-            const lbRes = await fetch(`/api/tournaments?leaderboard=true&tournament_id=${tournament.id}&tournament_type=${game.type}`);
-            const lbData = await lbRes.json();
-            const rows = lbData.leaderboard || [];
-            total = rows.length;
-            const mine = rows.find(r => r.user_id === user.id);
-            if (mine) rank = mine.rank;
-          } catch (e) { console.error('Leaderboard fetch failed for', game.type, e); }
+            // Get rank + total from the shared leaderboard endpoint -
+            // only meaningful once the tournament is actually live, since
+            // an upcoming one has no real standings yet.
+            let rank = null, total = null;
+            if (tournament.status === 'live') {
+              try {
+                const lbRes = await fetch(`/api/tournaments?leaderboard=true&tournament_id=${tournament.id}&tournament_type=${game.type}`);
+                const lbData = await lbRes.json();
+                const rows = lbData.leaderboard || [];
+                total = rows.length;
+                const mine = rows.find(r => r.user_id === user.id);
+                if (mine) rank = mine.rank;
+              } catch (e) { console.error('Leaderboard fetch failed for', game.type, e); }
+            }
 
-          return { game, tournament, entry: eData.entry, rank, total };
+            return { game, tournament, entry: eData.entry, rank, total };
+          }));
+          return perTournament.filter(Boolean);
         }));
 
         if (sessionExpired) {
@@ -260,7 +286,7 @@
           return;
         }
 
-        const entered = results.filter(Boolean);
+        const entered = perGameResults.flat();
         renderOverview(entered);
         renderTournaments(entered);
         renderChart(entered);
@@ -291,9 +317,11 @@
 
       body.innerHTML = `<div class="t-grid">${entered.map(({ game, tournament, entry, rank, total }) => `
         <a class="t-card" href="${game.href}" style="display:block;">
-          <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}</div>
+          <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}
+            ${tournament.status === 'upcoming' ? '<span style="margin-left:6px; color:#eab308; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-circle" style="font-size:6px;"></i> Registering</span>' : ''}
+          </div>
           <h3>${escapeHtml(tournament.name)}</h3>
-          <div class="t-detail">${escapeHtml(detailFor(game, entry))}</div>
+          <div class="t-detail">${tournament.status === 'upcoming' ? 'You\'re entered — starts soon' : escapeHtml(detailFor(game, entry))}</div>
           <div class="t-rank">
             <span style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Rank</span>
             <span class="rank-value ${rank === 1 ? 'gold' : ''}">${rank ? `#${rank}` : '--'}${total ? ` / ${total}` : ''}</span>
