@@ -195,7 +195,17 @@
       box-shadow:0 2px 6px rgba(0,0,0,0.45);
     }
     .pick-card-btn.selected .pick-card-check{ display:flex; }
-    .pick-card-btn.correct .pick-card-check{ display:flex; background:var(--green); }
+    /* Real fix here: the tick used to turn green on a correct pick,
+       on top of the card's own border also turning green - two green
+       signals for the same fact, confusing rather than clarifying. The
+       tick now only ever means one thing (this is who you picked) and
+       always stays blue; the border alone tells you if that pick won. */
+    .pick-card-points{
+      position:absolute; top:38px; right:8px; padding:3px 8px; border-radius:10px;
+      font-family:var(--font-head); font-weight:700; font-size:11px; color:#fff;
+      background:rgba(0,0,0,0.55); box-shadow:0 2px 6px rgba(0,0,0,0.45); white-space:nowrap;
+    }
+    .pick-card-points.earned{ background:var(--green); }
     /* Bigger, more dramatic VS on desktop, sitting between the two cards
        at the true centre of the row. */
     .vs-label-big{
@@ -449,7 +459,18 @@
         // caught while testing the fix above: every placeholder player
         // (no real photo yet) was throwing here.
         const parent = imgEl.parentElement;
-        parent.innerHTML = `<div class="pick-card-noimg"><i class="fas fa-user"></i><span class="pick-card-name">${safeName.innerHTML}</span></div><span class="pick-card-check"><i class="fas fa-check"></i></span>`;
+        // Real bug fixed here, found while testing the new per-card
+        // points badge: this used to hardcode the check badge and drop
+        // anything else already sitting in the card (the points badge
+        // specifically), since a 404'd photo is common (any player
+        // without a real photo yet) and this rebuild silently wiped it
+        // every time. Now preserves whatever badges were actually there
+        // instead of assuming only the check mark exists.
+        const existingCheck = parent.querySelector('.pick-card-check');
+        const existingPoints = parent.querySelector('.pick-card-points');
+        const checkHtml = existingCheck ? existingCheck.outerHTML : '<span class="pick-card-check"><i class="fas fa-check"></i></span>';
+        const pointsHtml = existingPoints ? existingPoints.outerHTML : '';
+        parent.innerHTML = `<div class="pick-card-noimg"><i class="fas fa-user"></i><span class="pick-card-name">${safeName.innerHTML}</span></div>${checkHtml}${pointsHtml}`;
         parent.classList.add('no-photo');
         return;
       }
@@ -738,6 +759,20 @@
             const photoCandidates = playerPhotoAllCandidates(pid);
             const checkBadge = `<span class="pick-card-check"><i class="fas fa-check"></i></span>`;
 
+            // Per-card points feedback, sitting right under the tick:
+            // the picked player's card shows what that pick actually
+            // earned (real value, or 0 if wrong); the actual winner's
+            // card shows 0pt too when it wasn't the user's pick, making
+            // it clear at a glance which side would have scored.
+            let pointsBadge = '';
+            if (finished) {
+              if (pid === myPick && matchPointsEarned !== null) {
+                pointsBadge = `<span class="pick-card-points ${matchPointsEarned > 0 ? 'earned' : ''}">${matchPointsEarned > 0 ? '+' : ''}${matchPointsEarned}pt${Math.abs(matchPointsEarned) === 1 ? '' : 's'}</span>`;
+              } else if (pid === match.winner_id) {
+                pointsBadge = `<span class="pick-card-points">0pt</span>`;
+              }
+            }
+
             let cardInner;
             if (photoCandidates.length === 0) {
               // No real card image yet for this player - a plain
@@ -748,12 +783,12 @@
                 <div class="pick-card-noimg">
                   <i class="fas fa-user"></i>
                   <span class="pick-card-name">${escapeHtml(name)}</span>
-                </div>${checkBadge}`;
+                </div>${checkBadge}${pointsBadge}`;
             } else {
               const candidatesJsonEscaped = JSON.stringify(photoCandidates).replace(/"/g, '&quot;');
               cardInner = `
                 <img src="${photoCandidates[0]}" alt="${escapeHtml(name)}" onerror="tryNextDartsPhoto(this, '${candidatesJsonEscaped}', 0)">
-                ${checkBadge}`;
+                ${checkBadge}${pointsBadge}`;
             }
             cls += photoCandidates.length === 0 ? ' no-photo' : '';
             // Flat, order-controlled elements rather than nested columns -
