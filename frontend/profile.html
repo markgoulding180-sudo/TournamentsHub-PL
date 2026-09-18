@@ -60,10 +60,15 @@
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
     .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
 
-    .stat-row{ display:flex; gap:14px; margin-bottom:22px; flex-wrap:wrap; }
-    .stat{ flex:1; min-width:150px; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
-    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:4px; letter-spacing:.3px; }
-    .stat .value{ font-family:var(--font-head); font-size:26px; font-weight:700; }
+    .stat-row{ display:flex; gap:10px; margin-bottom:22px; flex-wrap:nowrap; }
+    .stat{ flex:1 1 0; min-width:0; background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:12px 10px; }
+    .stat .label{ font-size:11px; text-transform:uppercase; color:var(--text-faint); margin-bottom:4px; letter-spacing:.3px; line-height:1.3; }
+    .stat .value{ font-family:var(--font-head); font-size:22px; font-weight:700; white-space:nowrap; }
+    @media (max-width:480px){
+      .stat{ padding:10px 8px; }
+      .stat .label{ font-size:8.5px; }
+      .stat .value{ font-size:17px; }
+    }
 
     .t-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; margin-bottom:22px; }
     .t-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; }
@@ -71,6 +76,7 @@
        meaning carries over rather than needing to be learned twice. */
     .t-card.status-live{ border-color:#15803d; }
     .t-card.status-registering{ border-color:#a16207; }
+    .t-card.status-finished{ border-color:#991b1b; }
     .t-card .t-game-tag{ display:inline-flex; align-items:center; gap:6px; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--accent-2); font-weight:700; margin-bottom:8px; }
     .t-card h3{ font-family:var(--font-head); font-size:15px; margin-bottom:10px; }
     .t-card .t-rank{ display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid var(--border); }
@@ -161,6 +167,14 @@
     <div id="tournamentsSection">
       <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-trophy" style="color:var(--gold);"></i> My Tournaments</div>
       <div id="tournamentsBody"><div class="empty">Loading…</div></div>
+    </div>
+
+    <div id="pastTournamentsSection" style="display:none; margin-top:28px;">
+      <div class="card-title" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <span><i class="fas fa-clock-rotate-left" style="color:var(--text-faint);"></i> Past Tournament History</span>
+        <span style="font-size:14px; font-weight:700;">Total P&L: <span id="pastTournamentsTotal">--</span></span>
+      </div>
+      <div id="pastTournamentsBody"></div>
     </div>
 
     <div class="card" id="chartCard" style="display:none; margin-top:22px;">
@@ -255,12 +269,13 @@
         // same sport at once (one live, one still registering), each
         // sport can now contribute more than one card, not just one.
         const perGameResults = await Promise.all(GAMES.map(async (game) => {
-          const [liveRes, upcomingRes] = await Promise.all([
+          const [liveRes, upcomingRes, finishedRes] = await Promise.all([
             fetch(`/api/tournaments?status=live&tournament_type=${game.type}`),
-            fetch(`/api/tournaments?status=upcoming&tournament_type=${game.type}`)
+            fetch(`/api/tournaments?status=upcoming&tournament_type=${game.type}`),
+            fetch(`/api/tournaments?status=finished&tournament_type=${game.type}`)
           ]);
-          const [liveData, upcomingData] = await Promise.all([liveRes.json(), upcomingRes.json()]);
-          const candidateTournaments = [...(liveData.tournaments || []), ...(upcomingData.tournaments || [])];
+          const [liveData, upcomingData, finishedData] = await Promise.all([liveRes.json(), upcomingRes.json(), finishedRes.json()]);
+          const candidateTournaments = [...(liveData.tournaments || []), ...(upcomingData.tournaments || []), ...(finishedData.tournaments || [])];
           if (candidateTournaments.length === 0) return [];
 
           const perTournament = await Promise.all(candidateTournaments.map(async (tournament) => {
@@ -277,10 +292,11 @@
             if (!eData.entry) return null;
 
             // Get rank + total from the shared leaderboard endpoint -
-            // only meaningful once the tournament is actually live, since
-            // an upcoming one has no real standings yet.
+            // meaningful once the tournament is live OR finished (a
+            // finished one has its real final standings); an upcoming
+            // one has no real standings yet, so this stays null there.
             let rank = null, total = null;
-            if (tournament.status === 'live') {
+            if (tournament.status === 'live' || tournament.status === 'finished') {
               try {
                 const lbRes = await fetch(`/api/tournaments?leaderboard=true&tournament_id=${tournament.id}&tournament_type=${game.type}`);
                 const lbData = await lbRes.json();
@@ -343,26 +359,90 @@
       document.getElementById('statLeading').textContent = leading;
     }
 
+    // Sports where a real prize field actually exists and gets written
+    // to when a tournament finishes - confirmed directly against the
+    // database. Champions League, Darts and Stock Market don't have
+    // this wired up at all yet, so their finished tournaments are shown
+    // honestly as "no payout data" rather than guessing a number.
+    const PRIZE_WIRED_TYPES = ['predictions', 'lms', 'fantasy'];
+
     function renderTournaments(entered) {
       const body = document.getElementById('tournamentsBody');
-      if (entered.length === 0) {
-        body.innerHTML = `<div class="empty">You're not entered in anything yet.<br><br><a href="/tournaments">Browse all tournaments</a></div>`;
-        return;
+      const current = entered.filter(e => e.tournament.status !== 'finished');
+      const past = entered.filter(e => e.tournament.status === 'finished');
+
+      if (current.length === 0) {
+        body.innerHTML = `<div class="empty">You're not entered in anything live or registering right now.<br><br><a href="/tournaments">Browse all tournaments</a></div>`;
+      } else {
+        body.innerHTML = `<div class="t-grid">${current.map(({ game, tournament, entry, rank, total }) => `
+          <a class="t-card ${tournament.status === 'upcoming' ? 'status-registering' : 'status-live'}" href="${game.href}" style="display:block;">
+            <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}
+              ${tournament.status === 'upcoming' ? '<span style="margin-left:6px; color:#eab308; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-circle" style="font-size:6px;"></i> Registering</span>' : ''}
+            </div>
+            <h3>${escapeHtml(tournament.name)}</h3>
+            <div class="t-detail">${tournament.status === 'upcoming' ? 'You\'re entered — starts soon' : escapeHtml(detailFor(game, entry))}</div>
+            <div class="t-payment" style="margin-top:4px; font-size:11.5px; color:var(--text-faint);">${tournament.entry_fee ? `Entry fee: ${money(tournament.entry_fee)}` : 'Free entry'}</div>
+            <div class="t-rank">
+              <span style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Rank</span>
+              <span class="rank-value ${rank === 1 ? 'gold' : ''}">${rank ? `#${rank}` : '--'}${total ? ` / ${total}` : ''}</span>
+            </div>
+          </a>`).join('')}</div>`;
       }
 
-      body.innerHTML = `<div class="t-grid">${entered.map(({ game, tournament, entry, rank, total }) => `
-        <a class="t-card ${tournament.status === 'upcoming' ? 'status-registering' : 'status-live'}" href="${game.href}" style="display:block;">
-          <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}
-            ${tournament.status === 'upcoming' ? '<span style="margin-left:6px; color:#eab308; font-size:10.5px; text-transform:uppercase; letter-spacing:0.3px;"><i class="fas fa-circle" style="font-size:6px;"></i> Registering</span>' : ''}
-          </div>
-          <h3>${escapeHtml(tournament.name)}</h3>
-          <div class="t-detail">${tournament.status === 'upcoming' ? 'You\'re entered — starts soon' : escapeHtml(detailFor(game, entry))}</div>
-          <div class="t-payment" style="margin-top:4px; font-size:11.5px; color:var(--text-faint);">${tournament.entry_fee ? `Entry fee: ${money(tournament.entry_fee)}` : 'Free entry'}</div>
-          <div class="t-rank">
-            <span style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Rank</span>
-            <span class="rank-value ${rank === 1 ? 'gold' : ''}">${rank ? `#${rank}` : '--'}${total ? ` / ${total}` : ''}</span>
-          </div>
-        </a>`).join('')}</div>`;
+      renderPastTournaments(past);
+    }
+
+    // Past Tournament History - every finished tournament the user was
+    // genuinely entered in, across every sport. Shows real profit/loss
+    // (prize won minus entry fee paid) only for the three sports where
+    // that data actually exists; the other three show plainly that
+    // payout tracking isn't wired up for them yet, rather than a fake
+    // number that looks precise but isn't real.
+    function renderPastTournaments(past) {
+      const section = document.getElementById('pastTournamentsSection');
+      const body = document.getElementById('pastTournamentsBody');
+      if (!section || !body) return;
+
+      if (past.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+
+      let totalPL = 0;
+      let anyUnwired = false;
+
+      body.innerHTML = `<div class="t-grid">${past.map(({ game, tournament, entry, rank, total }) => {
+        const fee = tournament.entry_fee || 0;
+        const wired = PRIZE_WIRED_TYPES.includes(game.type);
+        let plHtml;
+        if (wired) {
+          const prize = entry.prize_awarded || 0;
+          const pl = prize - fee;
+          totalPL += pl;
+          plHtml = `<div class="t-pl" style="margin-top:6px; font-weight:700; font-size:13px; color:${pl > 0 ? '#22c55e' : pl < 0 ? '#ef4444' : 'var(--text-faint)'};">${pl > 0 ? '+' : ''}${money(pl)} ${pl >= 0 ? 'profit' : 'loss'}</div>`;
+        } else {
+          anyUnwired = true;
+          plHtml = `<div class="t-pl" style="margin-top:6px; font-size:11.5px; color:#eab308;"><i class="fas fa-triangle-exclamation"></i> Payout tracking not wired up for this sport yet</div>`;
+        }
+        return `
+          <a class="t-card status-finished" href="${game.href}" style="display:block;">
+            <div class="t-game-tag"><i class="fas ${game.icon}"></i> ${escapeHtml(game.label)}</div>
+            <h3>${escapeHtml(tournament.name)}</h3>
+            <div class="t-detail">Finished — ${escapeHtml(detailFor(game, entry))}</div>
+            <div class="t-rank">
+              <span style="font-size:11px; color:var(--text-faint); text-transform:uppercase;">Final Rank</span>
+              <span class="rank-value ${rank === 1 ? 'gold' : ''}">${rank ? `#${rank}` : '--'}${total ? ` / ${total}` : ''}</span>
+            </div>
+            ${plHtml}
+          </a>`;
+      }).join('')}</div>
+      ${anyUnwired ? `<div style="margin-top:12px; font-size:12px; color:var(--text-faint);">Total profit/loss only reflects the sports with payout tracking wired up so far.</div>` : ''}`;
+
+      const totalsEl = document.getElementById('pastTournamentsTotal');
+      if (totalsEl) {
+        totalsEl.innerHTML = `<span style="color:${totalPL > 0 ? '#22c55e' : totalPL < 0 ? '#ef4444' : 'var(--text-faint)'};">${totalPL > 0 ? '+' : ''}${money(totalPL)}</span>`;
+      }
     }
 
     // Real overall balance from the wallet ledger - the only thing this
