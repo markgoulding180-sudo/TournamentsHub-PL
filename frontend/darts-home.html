@@ -212,11 +212,6 @@
       font-family:var(--font-head); font-size:34px; color:var(--text-dim); flex:none;
       font-weight:700; align-self:center; padding:0 6px; opacity:.85; order:2;
     }
-    .match-points-big{
-      font-family:var(--font-head); font-size:12px; font-weight:700; color:var(--text-faint);
-      text-align:center; margin-top:6px;
-    }
-    .match-points-big.earned{ color:var(--gold); }
 
     .card-slot.slot-0{ order:1; }
     .card-slot.slot-1{ order:3; }
@@ -797,10 +792,13 @@
             if (i === 0) html += `<span class="vs-label-big">VS</span>`;
           });
           html += `</div>`;
-          const showPoints = finished && matchPointsEarned !== null;
-          if (showPoints) {
-            html += `<div class="match-points-big ${matchPointsEarned > 0 ? 'earned' : ''}">${matchPointsEarned > 0 ? '+' : ''}${matchPointsEarned} pt${Math.abs(matchPointsEarned)===1?'':'s'}</div>`;
-          }
+          // Real duplication removed here: this used to repeat the same
+          // points value as a separate line sitting outside the cards,
+          // below the whole pair - now that the picked player's own
+          // card shows it directly, this second copy just floated there
+          // disconnected from which player it was even about, especially
+          // confusing on mobile where it had nothing visually tying it
+          // back to the picked card above it.
           html += `</div>`;
         }
 
