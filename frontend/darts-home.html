@@ -503,9 +503,18 @@
       let rankLine = '';
       if (entry && currentUser) {
         try {
+          // Real bug fixed here, confirmed from an actual browser
+          // console error (401 on this exact request): every POST to
+          // /api/tournaments requires a valid Authorization header at
+          // the very top of the handler, regardless of which action is
+          // being called - darts_get_leaderboard doesn't check auth
+          // itself, but the request never even reached that check
+          // without a token, since the blanket auth requirement runs
+          // first and rejects it before the action logic ever executes.
+          const token = localStorage.getItem('gbf_token');
           const res = await fetch('/api/tournaments', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ action: 'darts_get_leaderboard', tournament_id: t.id })
           });
           const data = await res.json();
