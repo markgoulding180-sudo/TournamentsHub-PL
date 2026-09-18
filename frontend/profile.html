@@ -338,10 +338,25 @@
 
         const entered = perGameResults.flat();
 
+        // Real gap closed here, flagged directly by a real user: the
+        // Past Tournament History total only ever summed finished
+        // tournaments - entirely correct for what it's labelled as, but
+        // it left out the real entry fees already committed to LIVE
+        // tournaments (Predictions, Champions League) that haven't paid
+        // off yet. Confirmed against the real wallet ledger: those
+        // costs are just as real as a finished tournament's, so the
+        // true overall position is total prizes won so far minus EVERY
+        // entry fee committed so far, live or finished - not just the
+        // ones that have already resolved one way or the other.
+        const totalWonSoFar = entered
+          .filter(e => e.tournament.status === 'finished' && PRIZE_WIRED_TYPES.includes(e.game.type))
+          .reduce((sum, e) => sum + (e.entry.prize_awarded || 0), 0);
+        const netPosition = totalWonSoFar - totalOwed;
+
         renderOverview(entered);
         renderTournaments(entered);
         renderChart(entered);
-        renderWalletSummary(netOwed);
+        renderWalletSummary(netOwed, netPosition);
       } catch (e) {
         console.error('Failed to load profile:', e);
         document.getElementById('tournamentsBody').innerHTML = '<div class="empty">Couldn\'t load your tournaments right now.</div>';
@@ -452,14 +467,14 @@
     // account settlements never tied to one specific tournament. Shown
     // once, for the whole account, rather than a per-card claim that
     // can't actually be verified per tournament.
-    function renderWalletSummary(netOwed) {
+    function renderWalletSummary(netOwed, netPosition) {
       const el = document.getElementById('walletSummary');
       if (!el) return;
-      if (netOwed <= 0) {
-        el.innerHTML = `<span style="color:#22c55e;"><i class="fas fa-circle-check"></i> All settled — nothing owed</span>`;
-      } else {
-        el.innerHTML = `<span style="color:#eab308;"><i class="fas fa-triangle-exclamation"></i> ${money(netOwed)} owed across all entries — <a href="/wallet" style="color:inherit; text-decoration:underline;">view wallet</a></span>`;
-      }
+      const owedLine = netOwed <= 0
+        ? `<span style="color:#22c55e;"><i class="fas fa-circle-check"></i> All settled — nothing owed</span>`
+        : `<span style="color:#eab308;"><i class="fas fa-triangle-exclamation"></i> ${money(netOwed)} owed across all entries — <a href="/wallet" style="color:inherit; text-decoration:underline;">view wallet</a></span>`;
+      const positionLine = `<div style="margin-top:6px; font-size:13px;">Overall net position (prizes won so far, minus every entry fee committed — live tournaments included, not just finished ones): <span style="font-weight:700; color:${netPosition >= 0 ? '#22c55e' : '#ef4444'};">${netPosition > 0 ? '+' : ''}${money(netPosition)}</span></div>`;
+      el.innerHTML = owedLine + positionLine;
     }
 
     function renderChart(entered) {
