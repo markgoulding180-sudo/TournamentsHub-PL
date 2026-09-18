@@ -62,7 +62,15 @@
     .hero-content{ position:relative; z-index:2; max-width:560px; }
     .hero-eyebrow{ display:flex; align-items:center; gap:8px; font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin-bottom:12px; }
     .hero-eyebrow .dot{ width:7px; height:7px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); }
+    .hero-title-row{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .hero h1{ font-family:var(--font-display); font-size:44px; line-height:1; margin-bottom:10px; }
+    .hero-rank-badge{
+      display:flex; align-items:center; gap:8px; flex-shrink:0; margin-bottom:10px;
+      background:var(--bg-card); border:1px solid var(--accent-dim); border-radius:20px;
+      padding:8px 16px;
+    }
+    .hero-rank-badge .label{ font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.4px; }
+    .hero-rank-badge .value{ font-family:var(--font-head); font-weight:700; font-size:17px; color:#fff; }
     .hero-sub{ font-family:var(--font-head); font-size:19px; font-weight:600; color:var(--accent-2); margin-bottom:12px; }
     .hero-desc{ font-size:14.5px; color:var(--text-dim); line-height:1.55; max-width:480px; }
 
@@ -282,7 +290,10 @@
     <section class="hero">
       <div class="hero-content">
         <div class="hero-eyebrow"><span class="dot"></span>Bracket Pool</div>
-        <h1>World Grand Prix</h1>
+        <div class="hero-title-row">
+          <h1>World Grand Prix</h1>
+          <div id="heroRankBadge"></div>
+        </div>
         <div class="hero-sub">Predict Every Match. Double Points Each Round.</div>
         <p class="hero-desc" id="heroDesc">Knockout bracket. Pick the winner of each match, round by round, as every round unlocks with the real results.</p>
         <div class="stat-row" id="heroStatRow" style="margin:16px 0 0; justify-content:flex-start;">
@@ -495,22 +506,16 @@
 
     async function renderHeroStats(t, entry) {
       const heroStatsInner = document.getElementById('heroStatsInner');
+      const heroRankBadge = document.getElementById('heroRankBadge');
       if (!heroStatsInner) return;
 
-      // Current rank - fetched from the real leaderboard and matched by
-      // user_id (added to that endpoint specifically for this), not
-      // guessed from points alone since ties would make that ambiguous.
-      let rankLine = '';
-      if (entry && currentUser) {
+      // Current rank - moved out of the stat row and placed top-right
+      // next to the H1 instead - confirmed real problem: with 4 items
+      // (Entries/Prize/Points/Rank) plus the Leaderboard button all
+      // competing for the same row, the button was getting pushed off
+      // the visible width entirely on narrower screens.
+      if (entry && currentUser && heroRankBadge) {
         try {
-          // Real bug fixed here, confirmed from an actual browser
-          // console error (401 on this exact request): every POST to
-          // /api/tournaments requires a valid Authorization header at
-          // the very top of the handler, regardless of which action is
-          // being called - darts_get_leaderboard doesn't check auth
-          // itself, but the request never even reached that check
-          // without a token, since the blanket auth requirement runs
-          // first and rejects it before the action logic ever executes.
           const token = localStorage.getItem('gbf_token');
           const res = await fetch('/api/tournaments', {
             method: 'POST',
@@ -519,7 +524,9 @@
           });
           const data = await res.json();
           const mine = (data.leaderboard || []).find(r => r.user_id === currentUser.id);
-          if (mine) rankLine = `<div class="stat"><div class="label">Current Rank</div><div class="value">#${mine.rank}</div></div>`;
+          if (mine) {
+            heroRankBadge.innerHTML = `<div class="hero-rank-badge"><span class="label">Current Rank</span><span class="value">#${mine.rank}</span></div>`;
+          }
         } catch (e) {
           console.error('Failed to load current rank:', e);
         }
@@ -531,7 +538,6 @@
         ${entry
           ? `<div class="stat"><div class="label">Your Points</div><div class="value">${entry.entry_points}</div></div>`
           : `<div class="stat"><div class="label">Entry Fee</div><div class="value">£${((t.entry_fee||0)/100).toFixed(2)}</div></div>`}
-        ${rankLine}
       `;
     }
 
