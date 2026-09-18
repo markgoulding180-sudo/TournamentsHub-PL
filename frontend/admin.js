@@ -2361,6 +2361,48 @@ function onDartsResultsTournamentSelected() {
   loadDartsMatches();
 }
 
+// Same real-photo matching used on the public darts page (frontend/assets/DARTS CARDS,
+// Title-Case-Hyphenated .png files) - ported here so admin can visually identify
+// players the same way, not just by name text.
+const DARTS_ADMIN_PHOTO_FOLDER = 'assets/DARTS CARDS';
+function dartsAdminPhotoCandidates(name) {
+  if (!name || name === 'TBD') return [];
+  const words = name.split(' ').filter(Boolean);
+  const wordVariants = words.map(w => {
+    const cleaned = w.replace(/'/g, '_');
+    if (/^[a-z]/.test(cleaned)) {
+      return [...new Set([cleaned, cleaned.charAt(0).toUpperCase() + cleaned.slice(1)])];
+    }
+    return [cleaned];
+  });
+  let combos = [''];
+  wordVariants.forEach(variants => {
+    const next = [];
+    combos.forEach(prefix => { variants.forEach(v => next.push(prefix ? `${prefix}-${v}` : v)); });
+    combos = next;
+  });
+  const withLowerAfterUnderscore = combos.map(c => c.replace(/_([A-Z])/g, (m, ch) => '_' + ch.toLowerCase()));
+  const all = [...new Set([...combos, ...withLowerAfterUnderscore])];
+  return all.map(c => `${DARTS_ADMIN_PHOTO_FOLDER}/${c}.png`);
+}
+window.dartsAdminTryNextPhoto = function(imgEl, candidatesJson, idx) {
+  const candidates = JSON.parse(candidatesJson);
+  const nextIdx = idx + 1;
+  if (nextIdx >= candidates.length) { imgEl.style.display = 'none'; return; }
+  imgEl.onerror = function(){ dartsAdminTryNextPhoto(imgEl, candidatesJson, nextIdx); };
+  imgEl.src = candidates[nextIdx];
+};
+function dartsAdminPlayerButton(name, isWinner, disabled, onclick) {
+  const candidates = dartsAdminPhotoCandidates(name);
+  const imgHtml = candidates.length
+    ? `<img src="${candidates[0]}" alt="" style="width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0;" onerror="dartsAdminTryNextPhoto(this, '${JSON.stringify(candidates).replace(/"/g, '&quot;')}', 0)">`
+    : '';
+  return `
+    <button class="btn" style="flex:1; display:flex; align-items:center; gap:8px; justify-content:center; background:${isWinner ? 'var(--accent-green)' : 'var(--bg-secondary)'}; color:#fff; font-weight:600;" ${disabled ? 'disabled' : ''} onclick="${onclick}">
+      ${imgHtml}<span>${escapeHtmlAdmin(name)}</span>
+    </button>`;
+}
+
 async function loadDartsMatches() {
   const round = parseInt(document.getElementById('dartsRoundSelect').value);
   const listEl = document.getElementById('dartsMatchesList');
@@ -2391,9 +2433,9 @@ async function loadDartsMatches() {
       return `
         <div style="display:flex; align-items:center; gap:0.6rem; padding:0.6rem; border-bottom:1px solid var(--border-color); ${finished ? 'opacity:0.6;' : ''}">
           <span style="width:60px; font-size:0.8rem; color:var(--text-muted);">M${m.match_number}</span>
-          <button class="btn" style="flex:1; background:${m.winner_id === m.player1_id ? 'var(--accent-green)' : 'var(--bg-secondary)'};" ${finished ? 'disabled' : ''} onclick="setDartsResult(${round}, ${m.match_number}, '${m.player1_id}')">${escapeHtmlAdmin(p1Name)}</button>
+          ${dartsAdminPlayerButton(p1Name, m.winner_id === m.player1_id, finished, `setDartsResult(${round}, ${m.match_number}, '${m.player1_id}')`)}
           <span style="font-size:0.75rem; color:var(--text-muted);">vs</span>
-          <button class="btn" style="flex:1; background:${m.winner_id === m.player2_id ? 'var(--accent-green)' : 'var(--bg-secondary)'};" ${finished ? 'disabled' : ''} onclick="setDartsResult(${round}, ${m.match_number}, '${m.player2_id}')">${escapeHtmlAdmin(p2Name)}</button>
+          ${dartsAdminPlayerButton(p2Name, m.winner_id === m.player2_id, finished, `setDartsResult(${round}, ${m.match_number}, '${m.player2_id}')`)}
           ${finished ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : ''}
         </div>`;
     }).join('') || '<p class="text-muted">No matches in this round.</p>';
