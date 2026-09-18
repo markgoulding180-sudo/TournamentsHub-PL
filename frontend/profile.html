@@ -174,6 +174,7 @@
         <span><i class="fas fa-clock-rotate-left" style="color:var(--text-faint);"></i> Past Tournament History</span>
         <span style="font-size:14px; font-weight:700;">Total P&L: <span id="pastTournamentsTotal">--</span></span>
       </div>
+      <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:14px;">Profit/loss reflects what you won versus what each tournament cost to enter — it's the real result of playing, not your current wallet balance. If an entry fee is still owed, it's counted here as a cost either way, since it's a real cost of that tournament regardless of when it's actually settled.</div>
       <div id="pastTournamentsBody"></div>
     </div>
 
@@ -359,12 +360,13 @@
       document.getElementById('statLeading').textContent = leading;
     }
 
-    // Sports where a real prize field actually exists and gets written
-    // to when a tournament finishes - confirmed directly against the
-    // database. Champions League, Darts and Stock Market don't have
-    // this wired up at all yet, so their finished tournaments are shown
-    // honestly as "no payout data" rather than guessing a number.
-    const PRIZE_WIRED_TYPES = ['predictions', 'lms', 'fantasy'];
+    // Real bug fixed here: this was written before the backend payout
+    // wiring for Champions League, Darts, and Stock Market existed -
+    // once that got built, this frontend list never got updated to
+    // match, so all three kept showing "not wired up" even after they
+    // genuinely were. All six sports now write a real prize_awarded
+    // when they finish, confirmed directly against the database.
+    const PRIZE_WIRED_TYPES = ['predictions', 'lms', 'fantasy', 'champions_league', 'darts', 'stockmarket'];
 
     function renderTournaments(entered) {
       const body = document.getElementById('tournamentsBody');
