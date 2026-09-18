@@ -1524,18 +1524,25 @@
   }
 
   // Real entry + pick status for a logged-in user, returned as one
-  // consistent shape across all four applicable types: entered
-  // (genuinely in this tournament or not), pickApplicable (is there
-  // even a meaningful weekly pick concept here - false once eliminated
-  // in LMS, or when there's nothing left to pick this period), and
-  // hasPicked (only meaningful when pickApplicable is true). The hub
-  // renders these as two separate lines - "You're entered" and
-  // "Picks submitted/needed" - not one combined message, since being
-  // entered and having picked are two different facts.
+  // consistent shape for EVERY sport, not just the four with a weekly
+  // pick concept - confirmed real gap: Fantasy showed nothing at all
+  // for an entered user, since the old version only ever checked entry
+  // as a side effect of checking picks, and Fantasy has no picks to
+  // check. Entry status is now checked generically first, for every
+  // type, via the same my_entry endpoint every sport already supports -
+  // pick-status is layered on top only for the four sports where a
+  // real weekly/round pick concept exists.
   async function checkEntryAndPickStatus(type, tournamentId){
     const token = localStorage.getItem('gbf_token');
     if (!token) return null;
     try {
+      const entryRes = await fetch(`/api/tournaments?tournament_id=${tournamentId}&my_entry=true&tournament_type=${type}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const entryData = await entryRes.json();
+      if (!entryRes.ok) return null;
+      if (!entryData.entry) return { entered: false };
+
       if (type === 'darts') {
         const res = await fetch('/api/tournaments', {
           method: 'POST',
@@ -1543,8 +1550,7 @@
           body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: tournamentId })
         });
         const data = await res.json();
-        if (!res.ok) return null;
-        if (!data.my_entry) return { entered: false };
+        if (!res.ok) return { entered: true, pickApplicable: false };
         const matches = data.matches || [];
         const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
         for (const round of rounds) {
@@ -1562,8 +1568,7 @@
           body: JSON.stringify({ action: 'cl_get_tournament', tournament_id: tournamentId })
         });
         const data = await res.json();
-        if (!res.ok) return null;
-        if (!data.my_entry) return { entered: false };
+        if (!res.ok) return { entered: true, pickApplicable: false };
         const matches = data.matches || [];
         const matchdays = [...new Set(matches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
         for (const md of matchdays) {
@@ -1577,21 +1582,23 @@
       }
       if (type === 'lms' || type === 'predictions') {
         const gwInfo = await getCurrentGameweekInfo();
-        if (!gwInfo || !gwInfo.current_gameweek) return null;
+        if (!gwInfo || !gwInfo.current_gameweek) return { entered: true, pickApplicable: false };
         const res = await fetch('/api/tournaments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ action: 'check_gameweek_pick_status', tournament_type: type, tournament_id: tournamentId, gameweek: gwInfo.current_gameweek })
         });
         const data = await res.json();
-        if (!res.ok) return null;
-        if (!data.entered) return { entered: false };
-        if (!data.pickApplicable) return { entered: true, pickApplicable: false };
+        if (!res.ok || !data.pickApplicable) return { entered: true, pickApplicable: false };
         return { entered: true, pickApplicable: true, hasPicked: data.hasPicked, label: `Gameweek ${gwInfo.current_gameweek}` };
       }
-      return null;
+
+      // Fantasy, Stock Market, or anything else - genuinely entered,
+      // but no weekly "pick" action to report on. The card still shows
+      // "You're entered", just without a second picks line under it.
+      return { entered: true, pickApplicable: false };
     } catch (e) {
-      console.error(`Needs-action check failed for ${type}:`, e);
+      console.error(`Entry/pick status check failed for ${type}:`, e);
       return null;
     }
   }
@@ -1756,13 +1763,24 @@
     // chunk of the row's width, so cramming two full lines of text plus
     // the badge into what's left was forcing heavy wrapping.
     const metaLine = [feeLabel, rawDate ? `Starts ${dateLabel}` : null].filter(Boolean).join(' · ');
+    // Real bug fixed here, confirmed directly from a real screenshot:
+    // this always said "Register Now" regardless of whether the user
+    // was already entered - same class of bug already found and fixed
+    // on the actual LMS/Fantasy pages themselves a while back, but
+    // never applied here on the hub's own registering card. Checks the
+    // same generic entry status used on live cards, so an already-
+    // entered user sees "You're entered" here too, consistently.
+    const status = await checkEntryAndPickStatus(type, t.id);
+    const ctaLine = (status && status.entered)
+      ? `<div class="mini-sub entered-line"><i class="fas fa-circle-check"></i> You're entered</div>`
+      : `<div class="mini-sub register-now-line"><i class="fas fa-arrow-right"></i> Register Now</div>`;
     return `
       <a class="mini-card mini-registering" href="${info.href}">
         <img class="mini-thumb" src="${info.img}" alt="${info.title}">
         <div class="mini-body">
           <div class="mini-title">${info.title}</div>
           ${metaLine ? `<div class="mini-sub" style="color:var(--text-dim);">${metaLine}</div>` : ''}
-          <div class="mini-sub register-now-line"><i class="fas fa-arrow-right"></i> Register Now</div>
+          ${ctaLine}
         </div>
         ${countdown ? `<div class="mini-countdown"><div class="mini-countdown-value">${plEsc(countdown)}</div><div class="mini-countdown-label">to go</div></div>` : ''}
       </a>`;
