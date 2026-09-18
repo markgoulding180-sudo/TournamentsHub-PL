@@ -3081,6 +3081,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'tournament_id, round, and at least one prediction are required' });
         }
 
+        // Same real World Grand Prix set format used to validate the
+        // admin's actual result - Quarter-Finals, Semi-Finals and the
+        // Final each require a genuine score guess alongside the winner
+        // pick, not just for these three rounds; Last 32/Last 16 don't
+        // use this at all.
+        const VALID_SCORES_BY_ROUND = {
+          3: ['3-0', '3-1', '3-2'],
+          4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
+          5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
+        };
+        const scoreRequiredThisRound = !!VALID_SCORES_BY_ROUND[round];
+
         const { data: tournament, error: tourErr } = await supabaseAdmin
           .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
         if (tourErr) return res.status(500).json({ error: tourErr.message });
@@ -3107,6 +3119,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
           if (p.predicted_winner_id !== match.player1_id && p.predicted_winner_id !== match.player2_id) {
             return res.status(400).json({ error: `Round ${round} match ${p.match_number}: pick must be one of the two real players in that match.` });
+          }
+          if (scoreRequiredThisRound && !VALID_SCORES_BY_ROUND[round].includes(p.predicted_score)) {
+            return res.status(400).json({ error: `Round ${round} match ${p.match_number}: a score prediction is required too — must be one of: ${VALID_SCORES_BY_ROUND[round].join(', ')}.` });
           }
         }
 
@@ -3164,7 +3179,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(403).json({ error: `You've already submitted your picks for this round — they're locked in.` });
           }
 
-          const rows = submittedPredictions.map(p => ({ entry_id: entry.id, round, match_number: p.match_number, predicted_winner_id: p.predicted_winner_id }));
+          const rows = submittedPredictions.map(p => ({
+            entry_id: entry.id, round, match_number: p.match_number, predicted_winner_id: p.predicted_winner_id,
+            predicted_score: scoreRequiredThisRound ? p.predicted_score : null
+          }));
           const { error: predErr } = await supabaseAdmin.schema('darts').from('predictions').insert(rows);
           if (predErr) return res.status(500).json({ error: predErr.message });
 
@@ -3229,9 +3247,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
-        const { tournament_id, round, match_number, winner_id } = req.body;
+        const { tournament_id, round, match_number, winner_id, winning_score } = req.body;
         if (!tournament_id || !round || !match_number || !winner_id) {
           return res.status(400).json({ error: 'tournament_id, round, match_number, and winner_id are all required' });
+        }
+
+        // Real World Grand Prix set format, per round - the only valid
+        // winning scores a real result can ever have. Quarter-Finals are
+        // best of 5 sets (first to 3), Semi-Finals best of 9 (first to
+        // 5), Final best of 11 (first to 6); Last 32/Last 16 don't use
+        // this at all, so no score is collected or required for those.
+        const VALID_SCORES_BY_ROUND = {
+          3: ['3-0', '3-1', '3-2'],
+          4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
+          5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
+        };
+        const scoreRequiredThisRound = !!VALID_SCORES_BY_ROUND[round];
+        if (scoreRequiredThisRound) {
+          if (!winning_score || !VALID_SCORES_BY_ROUND[round].includes(winning_score)) {
+            return res.status(400).json({ error: `A real winning score is required for this round — must be one of: ${VALID_SCORES_BY_ROUND[round].join(', ')}.` });
+          }
         }
 
         try {
@@ -3239,10 +3274,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // to call correctly since they depend on multiple earlier
           // results going the way the user predicted too.
           const POINTS_BY_ROUND = { 1: 1, 2: 2, 3: 4, 4: 8, 5: 16 };
+          // Flat bonus for correctly guessing the exact winning score too
+          // (Quarter-Finals, Semi-Finals, Final only) - same value every
+          // round, deliberately not scaled like the round points are.
+          const SCORE_BONUS = 2;
 
           const { error: matchErr } = await supabaseAdmin
             .schema('darts').from('matches')
-            .update({ winner_id, status: 'finished' })
+            .update({ winner_id, status: 'finished', winning_score: scoreRequiredThisRound ? winning_score : null })
             .eq('tournament_id', tournament_id).eq('round', round).eq('match_number', match_number);
           if (matchErr) return res.status(500).json({ error: matchErr.message });
 
@@ -3254,13 +3293,19 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const entryIds = (tournamentEntries || []).map(e => e.id);
 
           const { data: predsForMatch } = entryIds.length > 0
-            ? await supabaseAdmin.schema('darts').from('predictions').select('id, entry_id, predicted_winner_id')
+            ? await supabaseAdmin.schema('darts').from('predictions').select('id, entry_id, predicted_winner_id, predicted_score')
                 .eq('round', round).eq('match_number', match_number).in('entry_id', entryIds)
             : { data: [] };
 
           for (const pred of (predsForMatch || [])) {
-            const correct = pred.predicted_winner_id === winner_id;
-            const points = correct ? POINTS_BY_ROUND[round] : 0;
+            const correctWinner = pred.predicted_winner_id === winner_id;
+            let points = correctWinner ? POINTS_BY_ROUND[round] : 0;
+            // Bonus only ever applies on top of a correct winner pick -
+            // guessing the right score for the player who actually lost
+            // makes no sense to reward.
+            if (correctWinner && scoreRequiredThisRound && pred.predicted_score === winning_score) {
+              points += SCORE_BONUS;
+            }
             await supabaseAdmin.schema('darts').from('predictions').update({ points_earned: points }).eq('id', pred.id);
             if (points > 0) {
               const { data: entryRow } = await supabaseAdmin.schema('darts').from('tournament_entries').select('entry_points').eq('id', pred.entry_id).maybeSingle();

@@ -2446,7 +2446,31 @@ async function loadDartsMatches() {
 
 async function setDartsResult(round, matchNumber, winnerId) {
   const resultEl = document.getElementById('dartsResultMsg');
-  if (!confirm(`Set this player as the winner of Round ${round}, Match ${matchNumber}?\n\nThis scores every prediction for this match and advances the winner. This cannot be undone from here.`)) return;
+
+  // Real World Grand Prix set format - Quarter-Finals, Semi-Finals and
+  // the Final each need a genuine winning score recorded alongside the
+  // winner, since predictions for these three rounds now require a
+  // score guess too and need something real to be checked against.
+  // Last 32/Last 16 don't use sets in the same way here, so no score is
+  // collected for those.
+  const VALID_SCORES_BY_ROUND = {
+    3: ['3-0', '3-1', '3-2'],
+    4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
+    5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
+  };
+  let winningScore = null;
+  if (VALID_SCORES_BY_ROUND[round]) {
+    const options = VALID_SCORES_BY_ROUND[round];
+    const entered = prompt(`What was the final score in sets (winner first)?\n\nValid options: ${options.join(', ')}`, options[0]);
+    if (entered === null) return; // cancelled
+    if (!options.includes(entered.trim())) {
+      resultEl.innerHTML = `<span style="color:var(--accent-red);">"${entered}" isn't a valid score for this round — must be one of: ${options.join(', ')}. Nothing was saved.</span>`;
+      return;
+    }
+    winningScore = entered.trim();
+  }
+
+  if (!confirm(`Set this player as the winner of Round ${round}, Match ${matchNumber}${winningScore ? ` (${winningScore})` : ''}?\n\nThis scores every prediction for this match and advances the winner. This cannot be undone from here.`)) return;
 
   const dartsId = document.getElementById('dartsResultsTournamentSelect')?.value;
   if (!dartsId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Select a tournament above first.</span>'; return; }
@@ -2456,7 +2480,7 @@ async function setDartsResult(round, matchNumber, winnerId) {
     const response = await fetch('/api/tournaments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'darts_admin_set_result', tournament_id: dartsId, round, match_number: matchNumber, winner_id: winnerId })
+      body: JSON.stringify({ action: 'darts_admin_set_result', tournament_id: dartsId, round, match_number: matchNumber, winner_id: winnerId, winning_score: winningScore })
     });
     const data = await response.json();
     if (!response.ok) { resultEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
