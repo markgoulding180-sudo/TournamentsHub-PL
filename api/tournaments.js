@@ -5980,37 +5980,42 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const { data: { user: pickCheckUser }, error: pickCheckAuthError } = await supabaseAdmin.auth.getUser(token);
           if (pickCheckAuthError || !pickCheckUser) return res.status(401).json({ error: 'Invalid token' });
 
+          // Real fix here: this used to conflate "not entered at all"
+          // with "entered but nothing to check" (eliminated, or no
+          // fixtures yet) under one flat applicable:false - the hub
+          // needs to tell those apart, since "you're entered" and
+          // "you need to pick" are two separate things it shows as two
+          // separate lines, not one combined message.
           if (pickCheckType === 'lms') {
             const { data: lmsEntry } = await supabaseAdmin
               .schema('lms').from('tournament_entries').select('id, is_eliminated')
               .eq('tournament_id', pickCheckTournamentId).eq('user_id', pickCheckUser.id).maybeSingle();
-            if (!lmsEntry || lmsEntry.is_eliminated) {
-              return res.status(200).json({ applicable: false });
-            }
+            if (!lmsEntry) return res.status(200).json({ entered: false });
+            if (lmsEntry.is_eliminated) return res.status(200).json({ entered: true, pickApplicable: false });
             const { data: lmsPick } = await supabaseAdmin
               .schema('lms').from('picks').select('id')
               .eq('tournament_id', pickCheckTournamentId).eq('user_id', pickCheckUser.id).eq('gameweek', pickCheckGw).maybeSingle();
-            return res.status(200).json({ applicable: true, hasPicked: !!lmsPick });
+            return res.status(200).json({ entered: true, pickApplicable: true, hasPicked: !!lmsPick });
           }
 
           if (pickCheckType === 'predictions') {
             const { data: predEntry } = await supabaseAdmin
               .schema('predictions').from('tournament_entries').select('id')
               .eq('tournament_id', pickCheckTournamentId).eq('user_id', pickCheckUser.id).maybeSingle();
-            if (!predEntry) return res.status(200).json({ applicable: false });
+            if (!predEntry) return res.status(200).json({ entered: false });
 
             const { count: totalMatches } = await masterDb
               .from('matches').select('*', { count: 'exact', head: true }).eq('gameweek', pickCheckGw);
-            if (!totalMatches) return res.status(200).json({ applicable: false });
+            if (!totalMatches) return res.status(200).json({ entered: true, pickApplicable: false });
 
             const { count: myPredictionsCount } = await supabaseAdmin
               .schema('predictions').from('predictions').select('*', { count: 'exact', head: true })
               .eq('user_id', pickCheckUser.id).eq('gameweek', pickCheckGw);
 
-            return res.status(200).json({ applicable: true, hasPicked: (myPredictionsCount || 0) >= totalMatches });
+            return res.status(200).json({ entered: true, pickApplicable: true, hasPicked: (myPredictionsCount || 0) >= totalMatches });
           }
 
-          return res.status(200).json({ applicable: false });
+          return res.status(200).json({ entered: false });
         } catch (err) {
           console.error('check_gameweek_pick_status error:', err);
           return res.status(500).json({ error: err.message });

@@ -631,6 +631,8 @@
   .mini-card.mini-registering .mini-body .mini-sub{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .needs-action-line{ color:var(--red) !important; font-weight:700; }
   .picks-done-line{ color:var(--green) !important; font-weight:600; }
+  .entered-line{ color:var(--accent-2) !important; font-weight:600; }
+  .card-status-line{ font-size:12.5px; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
   .register-now-line{ color:var(--accent-2) !important; font-weight:700; margin-top:2px; }
   .needs-action-banner{
     display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700;
@@ -1521,14 +1523,16 @@
     return userObj ? (userObj.display_name || userObj.username) : 'Player';
   }
 
-  // Personalised "you need to pick" check - only for a logged-in user
-  // who's actually entered, and only for the two sports where the real
-  // current round/matchday can be worked out reliably from data already
-  // returned by an endpoint that exists (darts_get_bracket /
-  // cl_get_tournament). Predictions/LMS/Stock Market would each need
-  // their own dedicated check built the same way - not attempted here
-  // rather than guessed at with incomplete data.
-  async function checkNeedsAction(type, tournamentId){
+  // Real entry + pick status for a logged-in user, returned as one
+  // consistent shape across all four applicable types: entered
+  // (genuinely in this tournament or not), pickApplicable (is there
+  // even a meaningful weekly pick concept here - false once eliminated
+  // in LMS, or when there's nothing left to pick this period), and
+  // hasPicked (only meaningful when pickApplicable is true). The hub
+  // renders these as two separate lines - "You're entered" and
+  // "Picks submitted/needed" - not one combined message, since being
+  // entered and having picked are two different facts.
+  async function checkEntryAndPickStatus(type, tournamentId){
     const token = localStorage.getItem('gbf_token');
     if (!token) return null;
     try {
@@ -1539,17 +1543,17 @@
           body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: tournamentId })
         });
         const data = await res.json();
-        if (!res.ok || !data.my_entry) return null;
+        if (!res.ok) return null;
+        if (!data.my_entry) return { entered: false };
         const matches = data.matches || [];
         const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
         for (const round of rounds) {
           const pickable = matches.filter(m => m.round === round && m.player1_id && m.player2_id && m.status !== 'finished');
           if (pickable.length === 0) continue;
           const picked = (data.my_predictions || []).filter(p => p.round === round).length;
-          if (picked < pickable.length) return { needsAction: true, hasPicked: false, label: `Round ${round} picks needed` };
-          return { needsAction: false, hasPicked: true, label: 'Picks submitted' };
+          return { entered: true, pickApplicable: true, hasPicked: picked >= pickable.length, label: `Round ${round}` };
         }
-        return { needsAction: false, hasPicked: true, label: 'Picks submitted' };
+        return { entered: true, pickApplicable: false };
       }
       if (type === 'champions_league') {
         const res = await fetch('/api/tournaments', {
@@ -1558,7 +1562,8 @@
           body: JSON.stringify({ action: 'cl_get_tournament', tournament_id: tournamentId })
         });
         const data = await res.json();
-        if (!res.ok || !data.my_entry) return null;
+        if (!res.ok) return null;
+        if (!data.my_entry) return { entered: false };
         const matches = data.matches || [];
         const matchdays = [...new Set(matches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
         for (const md of matchdays) {
@@ -1566,10 +1571,9 @@
           const started = mdMatches.some(m => new Date(m.kickoff_time) <= new Date());
           if (started) continue; // this matchday's deadline has passed, nothing to pick anymore
           const picked = (data.my_picks || []).filter(p => p.matchday === md).length;
-          if (picked < 3) return { needsAction: true, hasPicked: false, label: `Matchday ${md} picks needed` };
-          return { needsAction: false, hasPicked: true, label: 'Picks submitted' };
+          return { entered: true, pickApplicable: true, hasPicked: picked >= 3, label: `Matchday ${md}` };
         }
-        return { needsAction: false, hasPicked: true, label: 'Picks submitted' };
+        return { entered: true, pickApplicable: false };
       }
       if (type === 'lms' || type === 'predictions') {
         const gwInfo = await getCurrentGameweekInfo();
@@ -1580,10 +1584,10 @@
           body: JSON.stringify({ action: 'check_gameweek_pick_status', tournament_type: type, tournament_id: tournamentId, gameweek: gwInfo.current_gameweek })
         });
         const data = await res.json();
-        if (!res.ok || !data.applicable) return null;
-        return data.hasPicked
-          ? { needsAction: false, hasPicked: true, label: 'Picks submitted' }
-          : { needsAction: true, hasPicked: false, label: 'Picks required' };
+        if (!res.ok) return null;
+        if (!data.entered) return { entered: false };
+        if (!data.pickApplicable) return { entered: true, pickApplicable: false };
+        return { entered: true, pickApplicable: true, hasPicked: data.hasPicked, label: `Gameweek ${gwInfo.current_gameweek}` };
       }
       return null;
     } catch (e) {
@@ -1592,18 +1596,31 @@
     }
   }
 
+  // Builds the two separate status lines the hub shows for a logged-in
+  // user on a live tournament card: "You're entered" (or nothing if
+  // they're not), then "Picks submitted"/"Picks needed this week" right
+  // below it when that tournament has a real weekly pick concept.
+  // Genuinely two different facts, shown as two different lines - not
+  // collapsed into one combined message.
+  function entryStatusLines(status, cssClass){
+    if (!status) return '';
+    if (!status.entered) return '';
+    let html = `<div class="${cssClass} entered-line"><i class="fas fa-circle-check"></i> You're entered in this tournament</div>`;
+    if (status.pickApplicable) {
+      html += status.hasPicked
+        ? `<div class="${cssClass} picks-done-line"><i class="fas fa-circle-check"></i> Picks submitted</div>`
+        : `<div class="${cssClass} needs-action-line"><i class="fas fa-circle-xmark"></i> Picks needed this week</div>`;
+    }
+    return html;
+  }
+
   async function buildLiveCard(type, t){
     const info = TYPE_INFO[type];
     const entries = t.current_entries ?? 0;
     const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
     const titleBlock = info.desc ? `<h3>${info.title}</h3><p class="desc">${info.desc}</p>` : '';
-    const action = await checkNeedsAction(type, t.id);
-    let actionBanner = '';
-    if (action && action.needsAction) {
-      actionBanner = `<div class="needs-action-banner"><i class="fas fa-circle-xmark"></i> ${plEsc(action.label)} — tap to pick</div>`;
-    } else if (action && action.hasPicked) {
-      actionBanner = `<div class="picks-done-banner"><i class="fas fa-circle-check"></i> ${plEsc(action.label)}</div>`;
-    }
+    const status = await checkEntryAndPickStatus(type, t.id);
+    const statusBlock = entryStatusLines(status, 'card-status-line');
     return `
       <a class="t-card t-card-live" href="${info.href}" style="text-decoration:none;">
         <div class="t-card-media ${info.imgClass}">
@@ -1611,7 +1628,7 @@
         </div>
         <div class="t-card-body" style="padding:16px 18px 18px;">
           ${titleBlock}
-          ${actionBanner}
+          ${statusBlock}
           <div class="t-card-bottom">
             <div class="t-card-stats">
               <div><div class="stat-label">Entries</div><div class="stat-value entries">${entries}</div></div>
@@ -1648,11 +1665,12 @@
     const entries = t.current_entries ?? 0;
     const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
 
-    // Gameweek info and the needs-action check don't depend on each
-    // other, so they fire together rather than one waiting on the other.
-    const [gwInfo, action] = await Promise.all([
+    // Gameweek info and the entry/pick status check don't depend on
+    // each other, so they fire together rather than one waiting on the
+    // other.
+    const [gwInfo, status] = await Promise.all([
       t.gameweek ? getCurrentGameweekInfo() : Promise.resolve(null),
-      checkNeedsAction(type, t.id)
+      checkEntryAndPickStatus(type, t.id)
     ]);
 
     // Gameweek range + real progress through it - only meaningful for
@@ -1670,12 +1688,7 @@
       }
     }
 
-    let actionLine = '';
-    if (action && action.needsAction) {
-      actionLine = `<div class="mini-sub mini-sub-secondary needs-action-line"><i class="fas fa-circle-xmark"></i> ${plEsc(action.label)}</div>`;
-    } else if (action && action.hasPicked) {
-      actionLine = `<div class="mini-sub mini-sub-secondary picks-done-line"><i class="fas fa-circle-check"></i> ${plEsc(action.label)}</div>`;
-    }
+    const statusLines = entryStatusLines(status, 'mini-sub mini-sub-secondary');
 
     return `
       <a class="mini-card mini-live" href="${info.href}">
@@ -1684,7 +1697,7 @@
           <div class="mini-title">${info.title}</div>
           <div class="mini-sub"><i class="fas fa-circle" style="font-size:6px; color:#22c55e;"></i> ${entries} entries — ${prize} pool</div>
           ${gwLine}
-          ${actionLine}
+          ${statusLines}
         </div>
       </a>`;
   }
