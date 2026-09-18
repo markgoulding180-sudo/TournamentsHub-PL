@@ -45,6 +45,20 @@
     .avatar{ width:36px;height:36px;border-radius:50%; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; }
 
     main{ position:relative; z-index:1; max-width:1440px; margin:0 auto; padding:32px 24px 60px; }
+    /* Background image behind the rounds/bracket area specifically, not
+       the whole page - a dark gradient layers over it so the round
+       cards and match rows (which already have their own solid
+       backgrounds) stay fully readable regardless of the image itself,
+       with the artwork showing through in the gaps between them. */
+    #root{
+      position:relative;
+      background-image: linear-gradient(rgba(4,8,18,0.88), rgba(4,8,18,0.92)), url('assets/dartsbackground2.png');
+      background-size: cover;
+      background-position: top center;
+      background-repeat: no-repeat;
+      border-radius: 16px;
+      padding: 20px;
+    }
 
     /* ================= HERO (matches every other page's hero, real darts image) ================= */
     .hero{
