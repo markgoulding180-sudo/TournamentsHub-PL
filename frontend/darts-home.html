@@ -68,8 +68,9 @@
 
     .card{ background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
     .enter-gate{ text-align:center; padding:40px 24px; }
-    .stat-row{ display:flex; gap:14px; flex-wrap:nowrap; margin:14px 0; justify-content:center; }
+    .stat-row{ display:flex; gap:14px; flex-wrap:nowrap; margin:14px 0; justify-content:center; align-items:stretch; }
     .stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:0; flex:1 1 0; white-space:nowrap; }
+    .hero-leaderboard-pill{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; flex-shrink:0; }
     .stat .label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; }
     .stat .value{ font-family:var(--font-head); font-weight:700; font-size:18px; margin-top:2px; }
     .btn-primary{ background:var(--accent); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; padding:12px 24px; border-radius:8px; }
@@ -284,10 +285,12 @@
         <h1>World Grand Prix</h1>
         <div class="hero-sub">Predict Every Match. Double Points Each Round.</div>
         <p class="hero-desc" id="heroDesc">Knockout bracket. Pick the winner of each match, round by round, as every round unlocks with the real results.</p>
-        <div class="stat-row" id="heroStatRow" style="margin:16px 0 0; justify-content:flex-start;"></div>
-        <a href="/darts-leaderboard" class="btn-secondary" style="display:inline-flex; align-items:center; gap:8px; margin-top:16px;">
-          <i class="fas fa-ranking-star"></i> Leaderboard
-        </a>
+        <div class="stat-row" id="heroStatRow" style="margin:16px 0 0; justify-content:flex-start;">
+          <div id="heroStatsInner" style="display:contents;"></div>
+          <a href="/darts-leaderboard" class="btn-secondary hero-leaderboard-pill">
+            <i class="fas fa-ranking-star"></i> Leaderboard
+          </a>
+        </div>
       </div>
     </section>
 
@@ -491,9 +494,9 @@
     }
 
     function renderHeroStats(t, entry) {
-      const heroStatRow = document.getElementById('heroStatRow');
-      if (!heroStatRow) return;
-      heroStatRow.innerHTML = `
+      const heroStatsInner = document.getElementById('heroStatsInner');
+      if (!heroStatsInner) return;
+      heroStatsInner.innerHTML = `
         <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries || 0}</div></div>
         <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
         ${entry
