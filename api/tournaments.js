@@ -3329,6 +3329,34 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           } else {
             await supabaseAdmin.schema('darts').from('tournaments').update({ status: 'finished' }).eq('id', tournament_id);
+
+            // Real gap closed here: the tournament was already correctly
+            // marked finished the moment the Final's result went in, but
+            // nothing ever actually paid anyone - this is a prediction
+            // pool (entrants pick winners round by round, they don't
+            // play the actual darts themselves), so the real winner is
+            // whoever earned the most points overall across every round,
+            // same winner-takes-all/tied-split convention already used
+            // for Predictions and Fantasy - not specifically whoever
+            // picked the real Final's winner correctly.
+            const { data: allEntries } = await supabaseAdmin
+              .schema('darts').from('tournament_entries')
+              .select('id, entry_points').eq('tournament_id', tournament_id)
+              .order('entry_points', { ascending: false })
+              .order('id', { ascending: true });
+
+            if (allEntries && allEntries.length > 0) {
+              const { data: tForPrize } = await supabaseAdmin
+                .schema('darts').from('tournaments').select('entry_fee').eq('id', tournament_id).maybeSingle();
+              const topScore = allEntries[0].entry_points || 0;
+              const winners = allEntries.filter(e => (e.entry_points || 0) === topScore);
+              const prizePool = (tForPrize?.entry_fee || 0) * allEntries.length;
+              const share = Math.floor(prizePool / winners.length);
+              for (const w of winners) {
+                await supabaseAdmin.schema('darts').from('tournament_entries')
+                  .update({ prize_awarded: share }).eq('id', w.id);
+              }
+            }
           }
 
           return res.status(200).json({ success: true });
@@ -3541,6 +3569,36 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               const { data: entryRow } = await supabaseAdmin.schema('champions_league').from('tournament_entries').select('entry_points').eq('id', pick.entry_id).maybeSingle();
               await supabaseAdmin.schema('champions_league').from('tournament_entries')
                 .update({ entry_points: (entryRow?.entry_points || 0) + points }).eq('id', pick.entry_id);
+            }
+          }
+
+          // Real gap closed here: Champions League genuinely supports a
+          // knockout phase in its own scoring table (r16/qf/sf/final),
+          // but nothing ever finished the tournament or paid anyone once
+          // it reached the end - the Final is the real end, same as
+          // darts' Round 5, and the real winner is whoever earned the
+          // most points overall (winner-takes-all/tied-split, same
+          // convention as every other sport here).
+          if (match.round === 'final') {
+            await supabaseAdmin.schema('champions_league').from('tournaments').update({ status: 'finished' }).eq('id', match.tournament_id);
+
+            const { data: allEntries } = await supabaseAdmin
+              .schema('champions_league').from('tournament_entries')
+              .select('id, entry_points').eq('tournament_id', match.tournament_id)
+              .order('entry_points', { ascending: false })
+              .order('id', { ascending: true });
+
+            if (allEntries && allEntries.length > 0) {
+              const { data: tForPrize } = await supabaseAdmin
+                .schema('champions_league').from('tournaments').select('entry_fee').eq('id', match.tournament_id).maybeSingle();
+              const topScore = allEntries[0].entry_points || 0;
+              const winners = allEntries.filter(e => (e.entry_points || 0) === topScore);
+              const prizePool = (tForPrize?.entry_fee || 0) * allEntries.length;
+              const share = Math.floor(prizePool / winners.length);
+              for (const w of winners) {
+                await supabaseAdmin.schema('champions_league').from('tournament_entries')
+                  .update({ prize_awarded: share }).eq('id', w.id);
+              }
             }
           }
 
@@ -7852,6 +7910,19 @@ async function checkAndFinishStockMarketTournament(supabaseAdmin, tournamentId, 
 
   const activeFinal = finalRows.filter(e => !e.relegated);
   const topValue = activeFinal.length > 0 ? Math.max(...activeFinal.map(e => e.final_value || 0)) : 0;
+
+  // Real gap closed here: this whole function already correctly worked
+  // out each survivor's real final value and even logged a zero-sum
+  // check confirming the numbers were right - it just never actually
+  // credited anyone with it. Your own rule, applied exactly as
+  // described: every non-relegated entry keeps what they finished
+  // with as their payout; anyone relegated earlier gets nothing, since
+  // their value was already redistributed away during the tournament.
+  const payoutRows = finalRows.map(e => ({ id: e.id, prize_awarded: e.relegated ? 0 : Math.round(e.final_value || 0) }));
+  for (const p of payoutRows) {
+    await supabaseAdmin.schema('stockmarket').from('tournament_entries')
+      .update({ prize_awarded: p.prize_awarded }).eq('id', p.id);
+  }
   // The real, currently-circulating pot is just what the active survivors
   // hold — relegated entries correctly sit at £0 now, their value having
   // already been redistributed away in past gameweeks. Summing their
