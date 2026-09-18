@@ -69,10 +69,10 @@
     .card{ background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:14px; padding:20px 22px; margin-bottom:20px; }
     .enter-gate{ text-align:center; padding:40px 24px; }
     .stat-row{ display:flex; gap:14px; flex-wrap:nowrap; margin:14px 0; justify-content:center; align-items:stretch; }
-    .stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:0; flex:1 1 0; white-space:nowrap; }
+    .stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:0; flex:1 1 0; white-space:nowrap; text-align:center; }
     .hero-leaderboard-pill{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; flex-shrink:0; }
-    .stat .label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; }
-    .stat .value{ font-family:var(--font-head); font-weight:700; font-size:18px; margin-top:2px; }
+    .stat .label{ font-size:11px; color:#fff; text-transform:uppercase; }
+    .stat .value{ font-family:var(--font-head); font-weight:700; font-size:18px; margin-top:2px; color:#fff; }
     .btn-primary{ background:var(--accent); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; padding:12px 24px; border-radius:8px; }
     .btn-primary:hover{ background:var(--accent-dim); }
     .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
@@ -263,11 +263,11 @@
     <div class="nav-right">
       <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><i class="fas fa-wallet" style="font-size:14px;color:var(--text-dim);"></i></a>
       <button class="icon-btn bell-btn"><i class="fas fa-bell"></i></button>
+      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
       <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2Fdarts" title="Log in">
         <div class="avatar" id="navAvatar"><i class="fas fa-user" style="font-size:14px;color:var(--text-dim);"></i></div>
         <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
-      <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
     </div>
   </header>
 
@@ -493,15 +493,36 @@
       renderBracket();
     }
 
-    function renderHeroStats(t, entry) {
+    async function renderHeroStats(t, entry) {
       const heroStatsInner = document.getElementById('heroStatsInner');
       if (!heroStatsInner) return;
+
+      // Current rank - fetched from the real leaderboard and matched by
+      // user_id (added to that endpoint specifically for this), not
+      // guessed from points alone since ties would make that ambiguous.
+      let rankLine = '';
+      if (entry && currentUser) {
+        try {
+          const res = await fetch('/api/tournaments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'darts_get_leaderboard', tournament_id: t.id })
+          });
+          const data = await res.json();
+          const mine = (data.leaderboard || []).find(r => r.user_id === currentUser.id);
+          if (mine) rankLine = `<div class="stat"><div class="label">Current Rank</div><div class="value">#${mine.rank}</div></div>`;
+        } catch (e) {
+          console.error('Failed to load current rank:', e);
+        }
+      }
+
       heroStatsInner.innerHTML = `
         <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries || 0}</div></div>
         <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
         ${entry
-          ? `<div class="stat"><div class="label">Your Points</div><div class="value" style="color:var(--gold);">${entry.entry_points}</div></div>`
+          ? `<div class="stat"><div class="label">Your Points</div><div class="value">${entry.entry_points}</div></div>`
           : `<div class="stat"><div class="label">Entry Fee</div><div class="value">£${((t.entry_fee||0)/100).toFixed(2)}</div></div>`}
+        ${rankLine}
       `;
     }
 

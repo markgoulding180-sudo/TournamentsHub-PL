@@ -3309,7 +3309,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; });
 
         return res.status(200).json({
-          leaderboard: entries.map((e, i) => ({ rank: i + 1, display_name: byId[e.user_id] || 'Unknown', entry_points: e.entry_points }))
+          leaderboard: entries.map((e, i) => ({ rank: i + 1, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', entry_points: e.entry_points }))
         });
       }
 
