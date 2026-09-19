@@ -69,6 +69,21 @@
     .stat-box .label{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-faint); margin-bottom:4px; }
     .stat-box .value{ font-family:var(--font-head); font-size:19px; font-weight:700; }
 
+    /* Real bug fixed here: this page's menu button used class="icon-btn"
+       but the base style for that class was never actually defined
+       anywhere on this page - only the show/hide rule below existed, so
+       it rendered as an unstyled default button instead of matching
+       every other page's circular icon button. */
+    .icon-btn{
+      width:38px;height:38px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:var(--bg-card); border:1px solid var(--border);
+      transition:border-color .2s, transform .2s;
+    }
+    .icon-btn i{ font-size:15px; color:var(--text-dim); }
+    .icon-btn:hover{border-color:var(--accent); transform:translateY(-1px);}
+    .icon-btn:hover i{color:var(--accent-2);}
+
     /* Mobile hamburger drawer — standard across every page */
     .icon-btn.menu-toggle{ display:none; }
     .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }

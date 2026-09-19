@@ -9,29 +9,44 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    /* Real gap fixed here: this page's mobile menu button used class
+       "icon-btn" but that class was never actually defined anywhere on
+       this page, and the shared style.css sets background:none and
+       border:none for .mobile-menu-btn specifically - together that
+       meant the inline width/height/border-radius alone couldn't make
+       it look like the standard circular icon button every other page
+       uses. This matches that reference exactly, scoped to this page
+       only so the shared stylesheet isn't touched for anyone else. */
+    .mobile-menu-btn{
+      width:38px !important; height:38px !important; border-radius:50% !important;
+      background:var(--bg-card, #0d1730) !important; border:1px solid var(--border, #131f35) !important;
+      display:none; align-items:center; justify-content:center;
+    }
+    @media (max-width:768px){ .mobile-menu-btn{ display:flex !important; } }
+  </style>
 </head>
 <body>
   <!-- Sidebar Navigation (Desktop) -->
   <aside class="sidebar">
     <div class="sidebar-header">
-      <a href="index.html" class="sidebar-logo">
+      <a href="/" class="sidebar-logo">
         <i class="fas fa-trophy"></i>
         <span>GB Fantasy</span>
       </a>
     </div>
     <nav class="sidebar-nav">
-      <a href="index.html" class="sidebar-link active" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
-      <a href="predictions.html" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
-      <a href="tournaments.html" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
-      <a href="table.html" class="sidebar-link" data-page="table"><i class="fas fa-table"></i><span>PL Table</span></a>
-      <a href="injuries.html" class="sidebar-link" data-page="injuries"><i class="fas fa-medkit"></i><span>Injuries</span></a>
-      <a href="leaderboard.html" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <a href="/" class="sidebar-link active" data-page="index"><i class="fas fa-home"></i><span>Home</span></a>
+      <a href="/predictions" class="sidebar-link" data-page="predictions"><i class="fas fa-futbol"></i><span>Predictions</span></a>
+      <a href="/tournaments" class="sidebar-link" data-page="tournaments"><i class="fas fa-trophy"></i><span>Tournaments</span></a>
+      <a href="/leaderboard" class="sidebar-link" data-page="leaderboard"><i class="fas fa-chart-line"></i><span>Leaderboard</span></a>
+      <a href="/links" class="sidebar-link" data-page="links"><i class="fas fa-link"></i><span>Links</span></a>
       <div class="sidebar-divider"></div>
-      <a href="profile.html" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
-      <a href="admin.html" class="sidebar-link" data-page="admin"><i class="fas fa-cog"></i><span>Admin</span></a>
+      <a href="/wallet" class="sidebar-link" data-page="wallet"><i class="fas fa-wallet"></i><span>Wallet</span></a>
+      <a href="/profile" class="sidebar-link" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>
     </nav>
     <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-user" id="sidebar-user">
+      <a href="/profile" class="sidebar-user" id="sidebar-user">
         <div class="sidebar-user-avatar" id="sidebar-avatar">--</div>
         <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-username">Guest</div><div class="sidebar-user-role">View Profile</div></div>
       </a>
@@ -41,25 +56,21 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="nav-container">
-      <a href="index.html" class="logo">
+      <a href="/" class="logo">
         <i class="fas fa-trophy"></i>
         GB Fantasy
       </a>
       <ul class="nav-links">
-        <li><a href="index.html" class="active"><i class="fas fa-home"></i> Home</a></li>
-        <li><a href="predictions.html"><i class="fas fa-futbol"></i> Predictions</a></li>
-        <li><a href="table.html"><i class="fas fa-table"></i> PL Table</a></li>
-        <li><a href="injuries.html"><i class="fas fa-medkit"></i> Injuries</a></li>
-        <li><a href="links.html"><i class="fas fa-link"></i> Links</a></li>
-        <li><a href="leaderboard.html"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
-        <li><a href="tournaments.html"><i class="fas fa-trophy"></i> Tournaments</a></li>
-        <li><a href="register.html"><i class="fas fa-user-plus"></i> Register</a></li>
-        <li><a href="login.html"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-        <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
-        <li><a href="admin.html"><i class="fas fa-cog"></i> Admin</a></li>
+        <li><a href="/" class="active"><i class="fas fa-home"></i> Home</a></li>
+        <li><a href="/predictions"><i class="fas fa-futbol"></i> Predictions</a></li>
+        <li><a href="/tournaments"><i class="fas fa-trophy"></i> Tournaments</a></li>
+        <li><a href="/leaderboard"><i class="fas fa-chart-line"></i> Leaderboard</a></li>
+        <li><a href="/links"><i class="fas fa-link"></i> Links</a></li>
+        <li><a href="/wallet"><i class="fas fa-wallet"></i> Wallet</a></li>
+        <li><a href="/profile"><i class="fas fa-user"></i> Profile</a></li>
       </ul>
-      <button class="mobile-menu-btn">
-        <i class="fas fa-bars"></i>
+      <button class="icon-btn mobile-menu-btn" style="width:38px;height:38px;border-radius:50%;">
+        <i class="fas fa-bars" style="font-size:15px;"></i>
       </button>
     </div>
   </nav>
@@ -105,7 +116,7 @@
             <div id="prediction-status-subtitle" class="text-muted" style="font-size: 0.875rem;">Please wait</div>
           </div>
         </div>
-        <a href="profile.html" class="btn btn-outline btn-sm" id="prediction-status-btn">
+        <a href="/profile" class="btn btn-outline btn-sm" id="prediction-status-btn">
           <i class="fas fa-user"></i> View Profile
         </a>
       </div>
@@ -117,7 +128,7 @@
         <div class="feature-card-icon"><i class="fas fa-futbol"></i></div>
         <h3>Make Predictions</h3>
         <p id="quick-action-predictions-text">GW -- fixtures are now live. Submit your predictions before kickoff.</p>
-        <a href="predictions.html" class="btn btn-primary">
+        <a href="/predictions" class="btn btn-primary">
           <i class="fas fa-arrow-right"></i> Predict Now
         </a>
       </div>
@@ -125,7 +136,7 @@
         <div class="feature-card-icon"><i class="fas fa-chart-line"></i></div>
         <h3>View Leaderboard</h3>
         <p>Check your ranking and see who's leading the pack this season.</p>
-        <a href="leaderboard.html" class="btn btn-primary">
+        <a href="/leaderboard" class="btn btn-primary">
           <i class="fas fa-list-ol"></i> See Rankings
         </a>
       </div>
@@ -133,7 +144,7 @@
         <div class="feature-card-icon"><i class="fas fa-trophy"></i></div>
         <h3>Join Tournament</h3>
         <p>Enter cash tournaments and compete for real money prizes.</p>
-        <a href="tournaments.html" class="btn btn-primary">
+        <a href="/tournaments" class="btn btn-primary">
           <i class="fas fa-plus"></i> Join Now
         </a>
       </div>
@@ -143,7 +154,7 @@
     <section class="mb-3">
       <div class="flex flex-between items-center mb-2">
         <h2><i class="fas fa-fire text-amber"></i> Live Tournaments</h2>
-        <a href="tournaments.html" class="btn btn-sm btn-outline">View All</a>
+        <a href="/tournaments" class="btn btn-sm btn-outline">View All</a>
       </div>
       <div class="grid grid-2" id="live-tournaments-container">
         <!-- Tournaments loaded dynamically -->
@@ -161,7 +172,7 @@
     <section>
       <div class="flex flex-between items-center mb-2">
         <h2><i class="fas fa-crown text-amber"></i> Top Players</h2>
-        <a href="leaderboard.html" class="btn btn-sm btn-outline">Full Leaderboard</a>
+        <a href="/leaderboard" class="btn btn-sm btn-outline">Full Leaderboard</a>
       </div>
       <div class="card">
         <table class="leaderboard-table">
