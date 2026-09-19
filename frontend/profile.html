@@ -209,11 +209,14 @@
         </div>
         <div id="avatarUploadPane">
           <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarFileSelected(event)">
-          <button class="btn-outline" style="width:100%; padding:24px;" onclick="document.getElementById('avatarFileInput').click()">
+          <button class="btn-outline" style="width:100%; padding:24px;" onclick="openAvatarFilePicker()">
             <i class="fas fa-cloud-arrow-up" style="font-size:22px; display:block; margin-bottom:8px;"></i>
             Click to choose an image
           </button>
           <div id="avatarUploadStatus" style="margin-top:10px; font-size:12.5px; color:var(--text-dim);"></div>
+          <div style="margin-top:10px; font-size:11.5px; color:var(--text-faint); line-height:1.4;">
+            If using your camera doesn't work: take the photo first using your phone's normal camera app, then come back here and choose it from your gallery/files instead — that route works reliably even when the in-app camera option doesn't.
+          </div>
         </div>
         <button class="btn-outline" style="width:100%; margin-top:14px; color:var(--text-faint);" onclick="removeAvatar()"><i class="fas fa-rotate-left"></i> Remove — use initials instead</button>
       </div>
@@ -314,7 +317,38 @@
     // canvas before it ever gets converted to base64 - much smaller
     // payload regardless of the original photo's size, and every step
     // now reports status immediately rather than failing quietly.
+    // Real defensive fix for a real, hard-to-pin-down mobile bug: some
+    // Android browsers reload the whole page in the background while
+    // the native camera app is in the foreground (the OS freeing
+    // memory), which silently destroys every bit of JS state - the
+    // selected photo, the open modal, all of it - with nothing to
+    // actually catch or report, since the page that would report it no
+    // longer exists by the time control returns. Can't be fixed outright
+    // (it's a platform behaviour, not a bug in this page), but this
+    // marks the moment the picker is about to open, and checks for that
+    // mark still being set on the very next load - if it is, the page
+    // genuinely did reload mid-flow, and this can at least explain that
+    // plainly instead of leaving it looking like nothing happened at all.
+    function openAvatarFilePicker() {
+      sessionStorage.setItem('gbf_avatar_picker_opening', '1');
+      document.getElementById('avatarFileInput').click();
+    }
+    function checkForInterruptedAvatarUpload() {
+      if (sessionStorage.getItem('gbf_avatar_picker_opening') === '1') {
+        sessionStorage.removeItem('gbf_avatar_picker_opening');
+        const statusEl = document.getElementById('avatarUploadStatus');
+        if (statusEl) {
+          statusEl.textContent = "Looks like the page reloaded while the camera was open (some Android phones do this) — the photo didn't make it through. Please try again using your gallery/files instead of the camera option, which is more reliable.";
+          statusEl.style.color = '#eab308';
+        }
+        openAvatarPicker();
+      } else {
+        sessionStorage.removeItem('gbf_avatar_picker_opening');
+      }
+    }
+
     function handleAvatarFileSelected(event) {
+      sessionStorage.removeItem('gbf_avatar_picker_opening');
       const file = event.target.files[0];
       const statusEl = document.getElementById('avatarUploadStatus');
       if (!file) {
@@ -787,7 +821,10 @@
       });
     }
 
-    document.addEventListener('DOMContentLoaded', loadProfile);
+    document.addEventListener('DOMContentLoaded', () => {
+      loadProfile();
+      checkForInterruptedAvatarUpload();
+    });
     function toggleMobileNav(open) {
       document.getElementById('mobileNavDrawer').classList.toggle('open', open);
       document.getElementById('mobileNavOverlay').classList.toggle('open', open);
