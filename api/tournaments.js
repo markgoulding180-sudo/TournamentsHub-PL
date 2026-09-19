@@ -1760,6 +1760,24 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ owed, transactions: transactions || [] });
       }
 
+      // Fresh copy of the current user's own profile row - needed
+      // anywhere the cached localStorage user object might be stale
+      // (avatar/background changes since last login, for instance).
+      const meParam = params.get('me');
+      if (meParam === 'true') {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: meUser }, error: meAuthError } = await supabaseAdmin.auth.getUser(token);
+        if (meAuthError || !meUser) return res.status(401).json({ error: 'Invalid token' });
+
+        const { data: profile, error: profileErr } = await supabaseAdmin
+          .from('users').select('*').eq('id', meUser.id).maybeSingle();
+        if (profileErr) return res.status(500).json({ error: profileErr.message });
+
+        return res.status(200).json({ user: profile });
+      }
+
       // Admin — Payments & Bookkeeping: every registered user with their
       // running total owed, computed fresh from the ledger every time
       // (never a cached/stored balance that could drift out of sync).
@@ -5751,6 +5769,115 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         } catch (err) {
           console.error('upload_player_photo error:', err);
           return res.status(500).json({ error: 'Failed to upload photo', detail: err.message });
+        }
+      }
+
+      // User uploads their own profile picture - same proven pattern as
+      // upload_player_photo (base64 in, Supabase Storage, public URL
+      // back), but self-service: any logged-in user can set their own,
+      // scoped to their own user_id so uploads can never collide with
+      // or overwrite anyone else's.
+      if (action === 'upload_avatar') {
+        try {
+          const authHeader = req.headers.authorization;
+          if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user: avUser }, error: avAuthError } = await supabaseAdmin.auth.getUser(token);
+          if (avAuthError || !avUser) return res.status(401).json({ error: 'Invalid token' });
+
+          const { image_base64, file_ext } = req.body;
+          if (!image_base64) return res.status(400).json({ error: 'image_base64 is required' });
+
+          const ext = (file_ext || 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
+          const path = `${avUser.id}.${ext}`;
+          const buffer = Buffer.from(image_base64, 'base64');
+          if (buffer.length > 5 * 1024 * 1024) {
+            return res.status(400).json({ error: 'Image too large (5MB max)' });
+          }
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('user-avatars')
+            .upload(path, buffer, { contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`, upsert: true });
+          if (uploadError) {
+            return res.status(500).json({ error: 'Upload failed', detail: uploadError.message });
+          }
+
+          const { data: publicUrlData } = supabaseAdmin.storage.from('user-avatars').getPublicUrl(path);
+          // Cache-bust with a timestamp - the path is always the same for
+          // this user (their own id), so a re-upload would otherwise keep
+          // showing the browser's cached old image under the same URL.
+          const publicUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+          const { error: dbError } = await supabaseAdmin
+            .from('users')
+            .update({ avatar_url: publicUrl, avatar_type: 'upload' })
+            .eq('id', avUser.id);
+          if (dbError) {
+            return res.status(500).json({ error: 'Uploaded but failed to save to profile', detail: dbError.message });
+          }
+
+          return res.status(200).json({ ok: true, avatar_url: publicUrl });
+        } catch (err) {
+          console.error('upload_avatar error:', err);
+          return res.status(500).json({ error: 'Failed to upload avatar', detail: err.message });
+        }
+      }
+
+      // Reset back to the plain initials circle - the original default.
+      if (action === 'remove_avatar') {
+        try {
+          const authHeader = req.headers.authorization;
+          if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user: rmAvUser }, error: rmAvAuthError } = await supabaseAdmin.auth.getUser(token);
+          if (rmAvAuthError || !rmAvUser) return res.status(401).json({ error: 'Invalid token' });
+
+          const { error: dbError } = await supabaseAdmin
+            .from('users')
+            .update({ avatar_url: null, avatar_type: 'initials' })
+            .eq('id', rmAvUser.id);
+          if (dbError) return res.status(500).json({ error: dbError.message });
+
+          return res.status(200).json({ ok: true });
+        } catch (err) {
+          console.error('remove_avatar error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Real Premier League team, used as the profile card's background -
+      // validated against the actual 20 real teams already used
+      // elsewhere in the app (frontend/links.js), so this can't be set
+      // to something made up.
+      if (action === 'set_profile_background') {
+        try {
+          const authHeader = req.headers.authorization;
+          if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user: bgUser }, error: bgAuthError } = await supabaseAdmin.auth.getUser(token);
+          if (bgAuthError || !bgUser) return res.status(401).json({ error: 'Invalid token' });
+
+          const VALID_TEAMS = [
+            'arsenal', 'aston-villa', 'bournemouth', 'brentford', 'brighton', 'burnley',
+            'chelsea', 'crystal-palace', 'everton', 'fulham', 'liverpool', 'manchester-city',
+            'manchester-united', 'newcastle-united', 'nottingham-forest', 'tottenham-hotspur',
+            'west-ham-united', 'wolverhampton-wanderers', 'leeds-united', 'sunderland'
+          ];
+          const { team } = req.body;
+          if (!team || (team !== 'none' && !VALID_TEAMS.includes(team))) {
+            return res.status(400).json({ error: `team must be "none" or one of: ${VALID_TEAMS.join(', ')}` });
+          }
+
+          const { error: dbError } = await supabaseAdmin
+            .from('users')
+            .update({ profile_background: team === 'none' ? null : team })
+            .eq('id', bgUser.id);
+          if (dbError) return res.status(500).json({ error: dbError.message });
+
+          return res.status(200).json({ ok: true });
+        } catch (err) {
+          console.error('set_profile_background error:', err);
+          return res.status(500).json({ error: err.message });
         }
       }
 

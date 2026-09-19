@@ -45,17 +45,58 @@
     .profile-header{
       display:flex; align-items:center; gap:20px; padding:26px;
       background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:22px;
-      flex-wrap:wrap;
+      flex-wrap:wrap; position:relative; background-size:cover; background-position:center;
     }
+    /* When a team background is set, a dark overlay keeps the name and
+       stats readable regardless of the shirt image's own colours. */
+    .profile-header.has-bg::before{
+      content:''; position:absolute; inset:0; border-radius:var(--radius);
+      background:linear-gradient(120deg, rgba(4,8,18,0.88), rgba(4,8,18,0.72));
+      z-index:0;
+    }
+    .profile-header > *{ position:relative; z-index:1; }
     .profile-avatar{
-      width:72px; height:72px; border-radius:50%; flex:none;
+      width:72px; height:72px; border-radius:50%; flex:none; position:relative;
       background:linear-gradient(150deg,var(--accent-2),var(--accent-dim));
       display:flex; align-items:center; justify-content:center;
       font-family:var(--font-head); font-size:26px; font-weight:700; color:#fff;
+      border:none; cursor:pointer; padding:0; overflow:visible;
+    }
+    .profile-avatar img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+    .avatar-edit-badge{
+      position:absolute; bottom:-2px; right:-2px; width:24px; height:24px; border-radius:50%;
+      background:var(--accent-2); border:2px solid var(--bg-panel); display:flex; align-items:center; justify-content:center;
+      font-size:10px; color:#fff;
     }
     .profile-header h1{ font-family:var(--font-display); font-size:26px; letter-spacing:.3px; margin-bottom:4px; }
     .profile-header .username{ color:var(--text-dim); font-size:14px; margin-bottom:4px; }
     .profile-header .member-since{ color:var(--text-faint); font-size:12.5px; }
+
+    /* Picker modals - shared shell for both the avatar and background pickers */
+    .picker-overlay{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000;
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .picker-overlay.open{ display:flex; }
+    .picker-modal{
+      background:var(--bg-panel); border:1px solid var(--border); border-radius:16px;
+      padding:22px; width:100%; max-width:520px; max-height:80vh; overflow-y:auto;
+    }
+    .picker-modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .picker-modal-head h3{ font-family:var(--font-head); font-size:18px; }
+    .picker-close{ background:none; border:none; color:var(--text-dim); font-size:18px; cursor:pointer; padding:4px; }
+    .bg-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:10px; }
+    .bg-grid button{
+      border-radius:10px; border:2px solid var(--border); background:var(--bg-card);
+      cursor:pointer; overflow:hidden; padding:0; aspect-ratio:1; position:relative;
+    }
+    .bg-grid button:hover{ border-color:var(--border-hover); }
+    .bg-grid button.selected{ border-color:var(--accent-2); box-shadow:0 0 0 2px rgba(59,130,246,0.35); }
+    .bg-grid button img{ width:100%; height:100%; object-fit:cover; }
+    .bg-grid button span{
+      position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.7); color:#fff;
+      font-size:9.5px; padding:3px 4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
 
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
     .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
@@ -147,12 +188,46 @@
   </div>
 
   <main>
-    <div class="profile-header">
-      <div class="profile-avatar" id="profileAvatar">--</div>
-      <div>
+    <div class="profile-header" id="profileHeader">
+      <button class="profile-avatar" id="profileAvatar" onclick="openAvatarPicker()" title="Change profile picture">--
+        <span class="avatar-edit-badge"><i class="fas fa-pen"></i></span>
+      </button>
+      <div style="flex:1; min-width:180px;">
         <h1 id="profileName">Loading…</h1>
         <div class="username" id="profileUsername">@username</div>
         <div class="member-since"><i class="fas fa-calendar" style="margin-right:4px;"></i>Member since <span id="profileJoinDate">--</span></div>
+      </div>
+      <button class="btn-outline btn-sm" onclick="openBackgroundPicker()" style="flex:none;"><i class="fas fa-image"></i> Card Background</button>
+    </div>
+
+    <!-- Avatar picker modal - upload only, stock avatar option removed -->
+    <div class="picker-overlay" id="avatarPickerOverlay" onclick="if(event.target===this) closeAvatarPicker()">
+      <div class="picker-modal">
+        <div class="picker-modal-head">
+          <h3>Profile Picture</h3>
+          <button class="picker-close" onclick="closeAvatarPicker()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="avatarUploadPane">
+          <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarFileSelected(event)">
+          <button class="btn-outline" style="width:100%; padding:24px;" onclick="document.getElementById('avatarFileInput').click()">
+            <i class="fas fa-cloud-arrow-up" style="font-size:22px; display:block; margin-bottom:8px;"></i>
+            Click to choose an image
+          </button>
+          <div id="avatarUploadStatus" style="margin-top:10px; font-size:12.5px; color:var(--text-dim);"></div>
+        </div>
+        <button class="btn-outline" style="width:100%; margin-top:14px; color:var(--text-faint);" onclick="removeAvatar()"><i class="fas fa-rotate-left"></i> Remove — use initials instead</button>
+      </div>
+    </div>
+
+    <!-- Background picker modal -->
+    <div class="picker-overlay" id="bgPickerOverlay" onclick="if(event.target===this) closeBackgroundPicker()">
+      <div class="picker-modal">
+        <div class="picker-modal-head">
+          <h3>Card Background</h3>
+          <button class="picker-close" onclick="closeBackgroundPicker()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="bg-grid" id="bgGrid"></div>
+        <button class="btn-outline" style="width:100%; margin-top:14px; color:var(--text-faint);" onclick="setBackground('none')"><i class="fas fa-rotate-left"></i> Remove background</button>
       </div>
     </div>
 
@@ -189,6 +264,153 @@
 
   <script src="live-poll.js"></script>
   <script>
+    // Fresh copy of the logged-in user's own row, including avatar and
+    // background - fetched once on load via ?me=true, updated locally
+    // whenever the user picks a new avatar/background so the page
+    // reflects it immediately without needing a full reload.
+    let currentProfile = null;
+
+    // Real Premier League teams, matching the same 20 already used for
+    // links.js - local shirt images (frontend/shirts/*.webp) used as
+    // the actual background image, team key used as the stored value.
+    const BACKGROUND_TEAMS = [
+      { key: 'arsenal', label: 'Arsenal', shirt: 'shirts/arsenal.webp' },
+      { key: 'aston-villa', label: 'Aston Villa', shirt: 'shirts/aston villa.webp' },
+      { key: 'bournemouth', label: 'Bournemouth', shirt: 'shirts/bournmouth.webp' },
+      { key: 'brentford', label: 'Brentford', shirt: 'shirts/brentford.webp' },
+      { key: 'brighton', label: 'Brighton', shirt: 'shirts/brighton.webp' },
+      { key: 'burnley', label: 'Burnley', shirt: 'shirts/burnley.webp' },
+      { key: 'chelsea', label: 'Chelsea', shirt: 'shirts/chelsea.webp' },
+      { key: 'crystal-palace', label: 'Crystal Palace', shirt: 'shirts/crystal.webp' },
+      { key: 'everton', label: 'Everton', shirt: 'shirts/everton.webp' },
+      { key: 'fulham', label: 'Fulham', shirt: 'shirts/fullham.webp' },
+      { key: 'liverpool', label: 'Liverpool', shirt: 'shirts/liverpool.webp' },
+      { key: 'manchester-city', label: 'Man City', shirt: 'shirts/man city.webp' },
+      { key: 'manchester-united', label: 'Man United', shirt: 'shirts/man u.webp' },
+      { key: 'newcastle-united', label: 'Newcastle', shirt: 'shirts/new castle.webp' },
+      { key: 'nottingham-forest', label: "Nott'm Forest", shirt: 'shirts/nots forest.webp' },
+      { key: 'tottenham-hotspur', label: 'Tottenham', shirt: 'shirts/spurs.webp' },
+      { key: 'west-ham-united', label: 'West Ham', shirt: 'shirts/west ham.webp' },
+      { key: 'wolverhampton-wanderers', label: 'Wolves', shirt: 'shirts/wovles temp.webp' },
+      { key: 'leeds-united', label: 'Leeds', shirt: 'shirts/leeds.webp' },
+      { key: 'sunderland', label: 'Sunderland', shirt: 'shirts/sunderland.webp' }
+    ];
+
+    function openAvatarPicker() {
+      document.getElementById('avatarPickerOverlay').classList.add('open');
+    }
+    function closeAvatarPicker() {
+      document.getElementById('avatarPickerOverlay').classList.remove('open');
+    }
+
+    function handleAvatarFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('avatarUploadStatus');
+      if (file.size > 5 * 1024 * 1024) {
+        statusEl.textContent = 'That image is too large — 5MB max.';
+        statusEl.style.color = 'var(--accent-red, #ef4444)';
+        return;
+      }
+      statusEl.textContent = 'Uploading…';
+      statusEl.style.color = 'var(--text-dim)';
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result.split(',')[1];
+        const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+        try {
+          const data = await apiPost('upload_avatar', { image_base64: base64, file_ext: ext });
+          currentProfile.avatar_url = data.avatar_url;
+          currentProfile.avatar_type = 'upload';
+          renderAvatar(currentProfile);
+          statusEl.textContent = 'Done!';
+          statusEl.style.color = '#22c55e';
+          setTimeout(closeAvatarPicker, 600);
+        } catch (e) {
+          statusEl.textContent = 'Upload failed: ' + e.message;
+          statusEl.style.color = 'var(--accent-red, #ef4444)';
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function removeAvatar() {
+      try {
+        await apiPost('remove_avatar', {});
+        currentProfile.avatar_url = null;
+        currentProfile.avatar_type = 'initials';
+        renderAvatar(currentProfile);
+        closeAvatarPicker();
+      } catch (e) {
+        alert('Failed to remove avatar: ' + e.message);
+      }
+    }
+
+    function renderAvatar(profile) {
+      const el = document.getElementById('profileAvatar');
+      const name = profile.display_name || profile.username || 'Account';
+      const badge = `<span class="avatar-edit-badge"><i class="fas fa-pen"></i></span>`;
+      if (profile.avatar_type === 'upload' && profile.avatar_url) {
+        el.innerHTML = `<img src="${profile.avatar_url}" alt="">${badge}`;
+      } else {
+        el.innerHTML = `${name.substring(0, 2).toUpperCase()}${badge}`;
+      }
+    }
+
+    function openBackgroundPicker() {
+      populateBackgroundGrid();
+      document.getElementById('bgPickerOverlay').classList.add('open');
+    }
+    function closeBackgroundPicker() {
+      document.getElementById('bgPickerOverlay').classList.remove('open');
+    }
+    function populateBackgroundGrid() {
+      const grid = document.getElementById('bgGrid');
+      if (grid.dataset.built) return;
+      grid.dataset.built = '1';
+      grid.innerHTML = BACKGROUND_TEAMS.map(t => `
+        <button data-team="${t.key}" onclick="setBackground('${t.key}')" class="${currentProfile && currentProfile.profile_background === t.key ? 'selected' : ''}">
+          <img src="${t.shirt}" alt="${t.label}">
+          <span>${t.label}</span>
+        </button>
+      `).join('');
+    }
+
+    async function setBackground(team) {
+      try {
+        await apiPost('set_profile_background', { team });
+        currentProfile.profile_background = team === 'none' ? null : team;
+        renderProfileBackground(currentProfile);
+        closeBackgroundPicker();
+      } catch (e) {
+        alert('Failed to set background: ' + e.message);
+      }
+    }
+
+    function renderProfileBackground(profile) {
+      const header = document.getElementById('profileHeader');
+      const team = BACKGROUND_TEAMS.find(t => t.key === profile.profile_background);
+      if (team) {
+        header.style.backgroundImage = `url('${team.shirt}')`;
+        header.classList.add('has-bg');
+      } else {
+        header.style.backgroundImage = '';
+        header.classList.remove('has-bg');
+      }
+    }
+
+    async function apiPost(action, body) {
+      const token = localStorage.getItem('gbf_token');
+      const res = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action, ...body })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
     const GAMES = [
       { type: 'predictions', label: 'Predictions', icon: 'fa-futbol', href: '/predictions' },
       { type: 'fantasy', label: 'Fantasy Manager', icon: 'fa-people-group', href: '/fantasy-manager' },
@@ -245,9 +467,28 @@
       const name = user.display_name || user.username || 'Account';
       document.getElementById('profileName').textContent = name;
       document.getElementById('profileUsername').textContent = `@${user.username || 'user'}`;
-      document.getElementById('profileAvatar').textContent = name.substring(0, 2).toUpperCase();
       if (user.created_at) {
         document.getElementById('profileJoinDate').textContent = new Date(user.created_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      }
+
+      // Real fresh copy from the database - the cached localStorage user
+      // object won't have avatar_url/avatar_type/profile_background
+      // unless they logged in since setting one, so this is fetched live
+      // every time rather than trusting what's cached.
+      try {
+        const meRes = await fetch('/api/tournaments?me=true', { headers: authHeaders() });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.user) {
+            currentProfile = meData.user;
+            renderAvatar(meData.user);
+            renderProfileBackground(meData.user);
+          }
+        }
+      } catch (e) { console.error('Failed to load fresh profile:', e); }
+
+      if (!currentProfile) {
+        document.getElementById('profileAvatar').innerHTML = `${name.substring(0, 2).toUpperCase()}<span class="avatar-edit-badge"><i class="fas fa-pen"></i></span>`;
       }
 
       try {
