@@ -208,15 +208,15 @@
           <button class="picker-close" onclick="closeAvatarPicker()"><i class="fas fa-times"></i></button>
         </div>
         <div id="avatarUploadPane">
+          <div style="margin-bottom:12px; padding:12px 14px; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.4); border-radius:10px; font-size:12.5px; color:#eab308; line-height:1.5;">
+            <i class="fas fa-circle-info"></i> When the picker opens, choose <strong>"Files"</strong> or <strong>"My Files"</strong> (your gallery) — not "Camera". If you need a new photo, take it first with your normal camera app, save it, then come back here and pick it from your gallery.
+          </div>
           <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarFileSelected(event)">
           <button class="btn-outline" style="width:100%; padding:24px;" onclick="openAvatarFilePicker()">
             <i class="fas fa-cloud-arrow-up" style="font-size:22px; display:block; margin-bottom:8px;"></i>
             Click to choose an image
           </button>
           <div id="avatarUploadStatus" style="margin-top:10px; font-size:12.5px; color:var(--text-dim);"></div>
-          <div style="margin-top:10px; font-size:11.5px; color:var(--text-faint); line-height:1.4;">
-            If using your camera doesn't work: take the photo first using your phone's normal camera app, then come back here and choose it from your gallery/files instead — that route works reliably even when the in-app camera option doesn't.
-          </div>
         </div>
         <button class="btn-outline" style="width:100%; margin-top:14px; color:var(--text-faint);" onclick="removeAvatar()"><i class="fas fa-rotate-left"></i> Remove — use initials instead</button>
       </div>
