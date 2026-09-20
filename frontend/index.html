@@ -2027,7 +2027,7 @@
           autoAdvanceTimer = setInterval(() => {
             const nextIdx = (currentIdx + 1) % slides.length;
             track.scrollTo({ left: slides[nextIdx].offsetLeft - (track.clientWidth - slides[nextIdx].offsetWidth) / 2, behavior: 'smooth' });
-          }, 2000);
+          }, 4000);
         }
         function stopAutoAdvance(){
           if (autoAdvanceTimer) { clearInterval(autoAdvanceTimer); autoAdvanceTimer = null; }
