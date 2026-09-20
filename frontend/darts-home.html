@@ -96,7 +96,7 @@
     .enter-gate{ text-align:center; padding:40px 24px; }
     .stat-row{ display:flex; gap:14px; flex-wrap:nowrap; margin:14px 0; justify-content:center; align-items:stretch; }
     .stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:10px 16px; min-width:0; flex:1 1 0; white-space:nowrap; text-align:center; }
-    .hero-leaderboard-pill{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; flex-shrink:0; }
+    .hero-leaderboard-pill{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; flex-shrink:0; color:#fff; }
     .stat .label{ font-size:11px; color:#fff; text-transform:uppercase; }
     .stat .value{ font-family:var(--font-head); font-weight:700; font-size:18px; margin-top:2px; color:#fff; }
     .btn-primary{ background:var(--accent); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; padding:12px 24px; border-radius:8px; }
@@ -260,13 +260,15 @@
       .avatar-btn{ margin-left:10px; padding:2px; }
       .avatar-btn .avatar{ width:34px; height:34px; }
       .icon-btn.menu-toggle{ display:flex; margin-left:auto; }
-      main{ padding:0 14px 60px; box-sizing:border-box; max-width:100%; }
-      /* Full-bleed to the screen edges, same proven pattern used on
-         every other page — breaks out of main's own side padding with
-         matching negative margins. */
+      main{ padding:0 0 60px; box-sizing:border-box; max-width:100%; }
+      /* Real fix here: this used a negative-margin "full bleed" trick to
+         break out of main's old 14px side padding - now that main has
+         no side padding left to break out of at all, that same -14px
+         margin just pulled the hero 14px past the actual screen edge on
+         both sides, causing a real horizontal scroll. No longer needed. */
       .hero{
         padding:28px 22px; min-height:auto; border-radius:0;
-        margin-left:-14px; margin-right:-14px; margin-top:0; width:auto;
+        margin:0; width:auto;
       }
       .hero h1{ font-size:32px; }
       .hero-sub{ font-size:15px; }
@@ -276,8 +278,8 @@
          phone screen after page/card padding, confirmed the same real
          cause found on the stock market summary cards earlier. */
       .stat-row{ gap:6px !important; }
-      .stat{ min-width:0 !important; flex:1 1 0; padding:8px 6px !important; }
-      .stat .label{ font-size:9.5px !important; }
+      .stat{ min-width:0 !important; flex:1 1 0; padding:8px 4px !important; }
+      .stat .label{ font-size:8.5px !important; white-space:normal !important; line-height:1.2; }
       .stat .value{ font-size:14px !important; }
       #root{ max-width:100% !important; }
       .pick-btn{ font-size:11px; padding:6px 7px; gap:6px; }
@@ -288,10 +290,16 @@
       .pick-card-name{ font-size:11px; }
       .pick-card-noimg i{ font-size:22px; }
       .pick-card-check{ width:20px; height:20px; font-size:10px; top:5px; right:5px; }
-      /* Both cards side by side, VS centred above. */
-      .vs-label-big{ order:0; flex-basis:100%; text-align:center; font-size:16px; margin-bottom:2px; }
-      .card-slot.slot-0{ order:1; width:calc(50% - 4px); flex:0 0 calc(50% - 4px); }
-      .card-slot.slot-1{ order:2; width:calc(50% - 4px); flex:0 0 calc(50% - 4px); }
+      /* Real fix here: VS was forced onto its own row above the two
+         cards (flex-basis:100%, order:0) instead of sitting between
+         them - now sits in the middle, cards pulled left/right to make
+         room, matching how it already worked on desktop. */
+      .vs-label-big{ order:2; flex:0 0 26px; width:26px; padding:0; box-sizing:border-box; text-align:center; font-size:14px; align-self:center; }
+      .card-slot.slot-0{ order:1; width:calc(50% - 23px); flex:0 0 calc(50% - 23px); }
+      .card-slot.slot-1{ order:3; width:calc(50% - 23px); flex:0 0 calc(50% - 23px); }
+      /* Background section now genuinely full width on mobile, via the
+         consolidated main{padding:0 0 60px} rule above. */
+      #root{ border-radius:0; }
     }
   </style>
 </head>
@@ -698,9 +706,12 @@
 
       if (!locked) {
         html += `
-          <div class="toolbar">
+          <div class="toolbar" style="flex-wrap:wrap;">
             <span class="progress-text">Pick winners round by round as each one unlocks</span>
             <button class="btn-secondary" onclick="clearPendingPicks()"><i class="fas fa-rotate-left"></i> Clear All</button>
+          </div>
+          <div style="font-size:12px; color:#eab308; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.35); border-radius:8px; padding:8px 12px; margin:-6px 0 16px; line-height:1.5;">
+            <i class="fas fa-triangle-exclamation"></i> You have to pick <strong>all</strong> games in the round at once, before the deadline (kick-off of the first game in that round). Miss the deadline and you miss the whole round!
           </div>`;
       }
 
