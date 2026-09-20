@@ -1525,7 +1525,7 @@
   const TYPE_INFO = {
     predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/predictions.png', imgClass:'media-shield large-image', carouselBg:'assets/registering-default-bg.jpg' },
     lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/LMS.png', imgClass:'media-fixture large-image', carouselBg:'assets/registering-default-bg.jpg' },
-    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/Fantasy-new.jpg', imgClass:'media-podium large-image', carouselBg:'assets/registering-default-bg.jpg' },
+    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/Fantasy-new.jpg', imgClass:'media-podium large-image', carouselBg:'assets/registering-default-bg.jpg', bgImage:true, bgPosition:'center 30%' },
     stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/StockCardImage.jpg?v=2', imgClass:'media-goal large-image', carouselBg:'assets/registering-default-bg.jpg' },
     champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/champions-league-hero.jpg', imgClass:'media-fixture', carouselBg:'assets/registering-default-bg.jpg' },
     darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/darts-generic.jpg', imgClass:'media-fixture', carouselBg:'assets/registering-default-bg.jpg' }
@@ -1642,8 +1642,8 @@
     const statusBlock = entryStatusLines(status, 'card-status-line');
     return `
       <a class="t-card t-card-live" href="${info.href}" style="text-decoration:none;">
-        <div class="t-card-media ${info.imgClass}">
-          <img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">
+        <div class="t-card-media ${info.imgClass}" ${info.bgImage ? `style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"` : ''}>
+          ${info.bgImage ? '' : `<img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">`}
         </div>
         <div class="t-card-body" style="padding:16px 18px 18px;">
           ${titleBlock}
@@ -1711,7 +1711,7 @@
 
     return `
       <a class="mini-card mini-live" href="${info.href}">
-        <img class="mini-thumb" src="${info.img}" alt="${info.title}">
+        ${info.bgImage ? `<div class="mini-thumb" style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"></div>` : `<img class="mini-thumb" src="${info.img}" alt="${info.title}">`}
         <div class="mini-body">
           <div class="mini-title">${info.title}</div>
           <div class="mini-sub"><i class="fas fa-circle" style="font-size:6px; color:#22c55e;"></i> ${entries} entries — ${prize} pool</div>
@@ -1788,7 +1788,7 @@
       : `<div class="mini-sub register-now-line"><i class="fas fa-arrow-right"></i> Register Now</div>`;
     return `
       <a class="mini-card mini-registering" href="${info.href}">
-        <img class="mini-thumb" src="${info.img}" alt="${info.title}">
+        ${info.bgImage ? `<div class="mini-thumb" style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"></div>` : `<img class="mini-thumb" src="${info.img}" alt="${info.title}">`}
         <div class="mini-body">
           <div class="mini-title">${info.title}</div>
           ${metaLine ? `<div class="mini-sub" style="color:var(--text-dim);">${metaLine}</div>` : ''}
@@ -1842,7 +1842,7 @@
       }
       return `
         <a class="mini-card mini-finished" href="${info.href}">
-          <img class="mini-thumb" src="${info.img}" alt="${info.title}">
+          ${info.bgImage ? `<div class="mini-thumb" style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"></div>` : `<img class="mini-thumb" src="${info.img}" alt="${info.title}">`}
           <div class="mini-body">
             <div class="mini-title"><i class="fas fa-trophy" style="color:var(--gold); font-size:12px; margin-right:5px;"></i>${info.title}</div>
             <div class="mini-sub">${subLine}</div>
