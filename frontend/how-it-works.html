@@ -36,6 +36,7 @@
   .nav-links a:hover{color:var(--text);}
   .nav-right{display:flex;align-items:center;gap:14px;}
   .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
+    .icon{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:var(--text-dim);}
   .icon-btn i{font-size:15px;color:var(--text-dim);}
 
   .mobile-nav-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
@@ -180,12 +181,20 @@
 </style>
 </head>
 <body>
+  <svg style="display:none">
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4z"/><path d="M7 5H4a3 3 0 0 0 3 3"/><path d="M17 5h3a3 3 0 0 1-3 3"/><path d="M12 12v3"/><path d="M9 19h6"/><path d="M10 16h4l1 3H9l1-3z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.3"/><path d="M5 20c0-3.6 3-6.2 7-6.2s7 2.6 7 6.2"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1.3"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  </svg>
+
 <div class="bg-glow"></div>
 
 <header class="navbar">
   <div class="nav-left" style="display:flex;align-items:center;gap:40px;">
     <a href="/" class="logo">
-      <div class="logo-mark"><i class="fas fa-trophy" style="color:#fff;font-size:16px;"></i></div>
+      <div class="logo-mark"><svg class="icon" style="stroke:#fff; width:16px; height:16px;"><use href="#i-trophy"/></svg></div>
       <div class="logo-text">GB HUB<span class="sub">CLICK HERE</span></div>
     </a>
     <nav class="nav-links">
@@ -195,7 +204,7 @@
     </nav>
   </div>
   <div class="nav-right">
-    <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><i class="fas fa-bars"></i></button>
+    <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
   </div>
 </header>
 
@@ -239,7 +248,7 @@
   <!-- WALLET -->
   <section class="wallet-section">
     <div class="wallet-visual">
-      <div class="wallet-icon-ring"><i class="fas fa-wallet"></i></div>
+      <div class="wallet-icon-ring"><svg class="icon"><use href="#i-wallet"/></svg></div>
     </div>
     <div class="wallet-text">
       <div class="eyebrow">Payments, explained</div>
@@ -251,7 +260,7 @@
         <div class="wallet-point"><i class="fas fa-check"></i><div><b>It gets marked off</b> — once received, your payment is recorded and your balance updates instantly.</div></div>
         <div class="wallet-point"><i class="fas fa-check"></i><div><b>Credit carries forward</b> — pay in ahead of time and it counts toward your next entry.</div></div>
       </div>
-      <a href="/wallet" class="wallet-cta"><i class="fas fa-wallet"></i> View Your Wallet</a>
+      <a href="/wallet" class="wallet-cta"><svg class="icon"><use href="#i-wallet"/></svg> View Your Wallet</a>
     </div>
   </section>
 
