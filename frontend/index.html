@@ -649,32 +649,44 @@
   .reg-ticker-heading{ text-align:center; margin:8px 20px 12px; }
   .reg-ticker-heading h2{ font-family:var(--font-head); font-size:22px; margin-bottom:4px; }
   .reg-ticker-heading p{ font-size:13px; color:var(--text-dim); }
-  .reg-ticker{
-    display:flex; align-items:center; gap:0; background:rgba(234,179,8,0.08);
-    border-top:1px solid rgba(234,179,8,0.25); border-bottom:1px solid rgba(234,179,8,0.25);
-    padding:10px 0; overflow:hidden; margin-bottom:18px;
+  /* Real replacement for the old auto-scrolling text marquee - a proper
+     swipeable card carousel instead. scroll-snap gives native, buttery
+     swipe-to-next-slide behaviour on touch devices for free, no custom
+     drag JS needed; the user moves at their own pace instead of text
+     scrolling past on a timer. Each slide auto-populates from whichever
+     sport currently has a real tournament in 'upcoming' status - create
+     a new one and it just appears here next load, same as the old
+     ticker did, no wiring needed per tournament. */
+  .reg-carousel-wrap{ margin:0 0 24px; }
+  .reg-carousel-track{
+    display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch; padding:4px 20px 10px; scrollbar-width:none;
   }
-  .reg-ticker-label{
-    position:relative; z-index:2;
-    flex-shrink:0; display:flex; align-items:center; gap:7px; padding:0 16px;
-    font-family:var(--font-head); font-weight:700; font-size:11.5px;
-    letter-spacing:0.8px; color:#fde68a; text-transform:uppercase;
-    border-right:1px solid rgba(234,179,8,0.3);
-    background:#0b0f1e;
+  .reg-carousel-track::-webkit-scrollbar{ display:none; }
+  .reg-carousel-slide{
+    scroll-snap-align:center; flex:0 0 min(340px, 84vw); position:relative;
+    border-radius:16px; overflow:hidden; height:170px; text-decoration:none;
+    background-size:cover; background-position:center; border:1px solid rgba(234,179,8,0.3);
   }
-  .reg-ticker-track{
-    position:relative; z-index:1;
-    display:flex; gap:40px; white-space:nowrap; padding-left:20px;
-    animation:tickerScroll 24s linear infinite;
+  .reg-carousel-slide::before{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(0deg, rgba(4,8,18,0.92) 10%, rgba(4,8,18,0.35) 55%, rgba(4,8,18,0.55) 100%);
   }
-  .reg-ticker-track:hover{ animation-play-state:paused; }
-  .reg-ticker-item{ display:flex; align-items:center; gap:8px; font-size:13px; color:#fff; font-weight:600; text-decoration:none; }
-  .reg-ticker-item .reg-ticker-sport{ color:var(--text-dim); font-weight:500; }
-  .reg-ticker-item .reg-ticker-fee{ color:#4ade80; font-weight:700; }
-  @keyframes tickerScroll{
-    0%{ transform:translateX(0); }
-    100%{ transform:translateX(-50%); }
+  .reg-carousel-slide-content{ position:relative; z-index:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; padding:16px; }
+  .reg-carousel-badge{
+    position:absolute; top:12px; left:12px; z-index:2; display:flex; align-items:center; gap:6px;
+    background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.4); color:#fde68a;
+    font-family:var(--font-head); font-weight:700; font-size:10.5px; letter-spacing:0.6px;
+    text-transform:uppercase; padding:4px 10px; border-radius:20px;
   }
+  .reg-carousel-sport{ font-size:11.5px; color:#fde68a; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+  .reg-carousel-name{ font-family:var(--font-head); font-weight:700; font-size:18px; color:#fff; margin-bottom:6px; line-height:1.15; }
+  .reg-carousel-meta{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:#e5e7eb; }
+  .reg-carousel-fee{ color:#4ade80; font-weight:700; }
+  .reg-carousel-dots{ display:flex; justify-content:center; gap:6px; margin-top:2px; }
+  .reg-carousel-dot{ width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s, width .2s; }
+  .reg-carousel-dot.active{ background:#eab308; width:18px; border-radius:4px; }
+
   .mini-card.mini-registering{ border-color:#a16207; border-width:1.5px; }
   .mini-card.mini-live{ border-color:#15803d; border-width:1.5px; }
   .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
@@ -1038,9 +1050,9 @@
       <h2>Join a Tournament</h2>
       <p>Below are the tournaments currently registering — get in before they start.</p>
     </div>
-    <div class="reg-ticker" id="regTicker" style="display:none;">
-      <div class="reg-ticker-label"><i class="fas fa-circle" style="font-size:7px; color:#eab308;"></i> Registering</div>
-      <div class="reg-ticker-track" id="regTickerTrack"></div>
+    <div class="reg-carousel-wrap" id="regTicker" style="display:none;">
+      <div class="reg-carousel-track" id="regTickerTrack"></div>
+      <div class="reg-carousel-dots" id="regCarouselDots"></div>
     </div>
 
     <!-- Mobile-only quick category strip (sidebar is hidden below 860px) —
@@ -1511,12 +1523,12 @@
   };
 
   const TYPE_INFO = {
-    predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/predictions.png', imgClass:'media-shield large-image' },
-    lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/LMS.png', imgClass:'media-fixture large-image' },
-    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/Fantasy.png', imgClass:'media-podium large-image' },
-    stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/StockCardImage.jpg?v=2', imgClass:'media-goal large-image' },
-    champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/champions-league-hero.jpg', imgClass:'media-fixture' },
-    darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/darts-generic.jpg', imgClass:'media-fixture' }
+    predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/predictions.png', imgClass:'media-shield large-image', carouselBg:'assets/registering-default-bg.jpg' },
+    lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/LMS.png', imgClass:'media-fixture large-image', carouselBg:'assets/registering-default-bg.jpg' },
+    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/Fantasy.png', imgClass:'media-podium large-image', carouselBg:'assets/registering-default-bg.jpg' },
+    stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/StockCardImage.jpg?v=2', imgClass:'media-goal large-image', carouselBg:'assets/registering-default-bg.jpg' },
+    champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/champions-league-hero.jpg', imgClass:'media-fixture', carouselBg:'assets/registering-default-bg.jpg' },
+    darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/darts-generic.jpg', imgClass:'media-fixture', carouselBg:'assets/registering-default-bg.jpg' }
   };
 
   function sportUserName(userObj){
@@ -1915,15 +1927,18 @@
     if (finBlock) finBlock.style.display = finHtml ? 'block' : 'none';
   }
 
-  // Auto-scrolling ticker under the hero - a quick, separate parallel
+  // Swipeable carousel under the hero - a quick, separate parallel
   // check across all 6 sport types (independent of whichever sport
   // sections happen to be doing their own render), since this needs to
   // answer "what's open right now" before the user has scrolled to any
-  // individual sport section at all.
+  // individual sport section at all. Each slide auto-populates the same
+  // way the old ticker did - create a new tournament and set it to
+  // upcoming, and it just appears here next load, no wiring needed.
   async function loadRegisteringTicker(){
     const wrap = document.getElementById('regTicker');
     const track = document.getElementById('regTickerTrack');
     const heading = document.getElementById('regTickerHeading');
+    const dotsWrap = document.getElementById('regCarouselDots');
     if (!wrap || !track) return;
     const allTypes = ['predictions', 'lms', 'fantasy', 'stockmarket', 'champions_league', 'darts'];
     try {
@@ -1940,21 +1955,65 @@
         return;
       }
 
-      const itemHtml = items.map(({ type, t }) => {
+      // Real deadline date, same real-fixture-lookup already used
+      // elsewhere on this page for the mini registering cards, rather
+      // than the fake "+7 days from creation" closes_at value.
+      const slideHtml = await Promise.all(items.map(async ({ type, t }) => {
         const info = TYPE_INFO[type];
-        const feeLabel = typeof t.entry_fee === 'number'
-          ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free')
-          : null;
-        return `<a class="reg-ticker-item" href="${info.href}"><i class="fas fa-circle" style="font-size:5px; color:#eab308;"></i> ${plEsc(info.title)} <span class="reg-ticker-sport">(${plEsc(info.sport)})</span>${feeLabel ? ` <span class="reg-ticker-fee">${feeLabel}</span>` : ''}</a>`;
-      }).join('');
+        const feeLabel = typeof t.entry_fee === 'number' ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free Entry') : null;
+        let dateLabel = '';
+        try {
+          if (['predictions', 'lms', 'fantasy'].includes(type) && t.gameweek) {
+            const fixRes = await fetch(`/api/predictions?gameweek=${t.gameweek}`);
+            const fixData = await fixRes.json();
+            const firstKickoff = (fixData.matches || []).map(m => m.kickoff_time).filter(Boolean).sort()[0];
+            if (firstKickoff) dateLabel = new Date(firstKickoff).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          } else if (t.closes_at) {
+            dateLabel = new Date(t.closes_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          }
+        } catch (e) { /* fall through with no date shown */ }
 
-      // Duplicated once so the scroll animation (translateX -50%) loops
-      // back into visually identical content instead of a visible jump.
-      track.innerHTML = itemHtml + itemHtml;
-      wrap.style.display = 'flex';
+        return `
+          <a class="reg-carousel-slide" href="${info.href}" style="background-image:url('${info.carouselBg}');">
+            <span class="reg-carousel-badge"><i class="fas fa-circle" style="font-size:6px;"></i> Registering</span>
+            <div class="reg-carousel-slide-content">
+              <div class="reg-carousel-sport">${plEsc(info.sport)}</div>
+              <div class="reg-carousel-name">${plEsc(info.title)}</div>
+              <div class="reg-carousel-meta">
+                ${feeLabel ? `<span class="reg-carousel-fee">${feeLabel}</span>` : ''}
+                ${dateLabel ? `<span>· Starts ${dateLabel}</span>` : ''}
+              </div>
+            </div>
+          </a>`;
+      }));
+
+      track.innerHTML = slideHtml.join('');
+      wrap.style.display = 'block';
       if (heading) heading.style.display = 'block';
+
+      // Dot indicators, kept in sync with whichever slide is actually
+      // centred as the user swipes - scroll position drives the dots,
+      // not the other way around, so it always reflects the truth.
+      if (dotsWrap) {
+        dotsWrap.innerHTML = items.map((_, i) => `<span class="reg-carousel-dot ${i === 0 ? 'active' : ''}"></span>`).join('');
+        const slides = track.querySelectorAll('.reg-carousel-slide');
+        const dots = dotsWrap.querySelectorAll('.reg-carousel-dot');
+        let scrollTimeout;
+        track.addEventListener('scroll', () => {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(() => {
+            const trackCenter = track.scrollLeft + track.clientWidth / 2;
+            let closestIdx = 0, closestDist = Infinity;
+            slides.forEach((slide, i) => {
+              const dist = Math.abs((slide.offsetLeft + slide.offsetWidth / 2) - trackCenter);
+              if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+            });
+            dots.forEach((d, i) => d.classList.toggle('active', i === closestIdx));
+          }, 100);
+        });
+      }
     } catch (e) {
-      console.error('Failed to load registering ticker:', e);
+      console.error('Failed to load registering carousel:', e);
       wrap.style.display = 'none';
       if (heading) heading.style.display = 'none';
     }
