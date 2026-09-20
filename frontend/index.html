@@ -1999,6 +1999,7 @@
         const slides = track.querySelectorAll('.reg-carousel-slide');
         const dots = dotsWrap.querySelectorAll('.reg-carousel-dot');
         let scrollTimeout;
+        let currentIdx = 0;
         track.addEventListener('scroll', () => {
           clearTimeout(scrollTimeout);
           scrollTimeout = setTimeout(() => {
@@ -2008,9 +2009,38 @@
               const dist = Math.abs((slide.offsetLeft + slide.offsetWidth / 2) - trackCenter);
               if (dist < closestDist) { closestDist = dist; closestIdx = i; }
             });
+            currentIdx = closestIdx;
             dots.forEach((d, i) => d.classList.toggle('active', i === closestIdx));
           }, 100);
         });
+
+        // Auto-advances every 2 seconds, same as any normal slideshow -
+        // but a real user swipe always takes priority: interacting with
+        // the carousel pauses the auto-advance, and it only picks back
+        // up again after a few seconds of the user actually leaving it
+        // alone, so it never fights a swipe in progress or immediately
+        // yanks the slide back after someone's just moved it themselves.
+        let autoAdvanceTimer = null;
+        function startAutoAdvance(){
+          if (slides.length <= 1) return;
+          stopAutoAdvance();
+          autoAdvanceTimer = setInterval(() => {
+            const nextIdx = (currentIdx + 1) % slides.length;
+            track.scrollTo({ left: slides[nextIdx].offsetLeft - (track.clientWidth - slides[nextIdx].offsetWidth) / 2, behavior: 'smooth' });
+          }, 2000);
+        }
+        function stopAutoAdvance(){
+          if (autoAdvanceTimer) { clearInterval(autoAdvanceTimer); autoAdvanceTimer = null; }
+        }
+        let resumeTimeout;
+        ['touchstart', 'mousedown', 'wheel'].forEach(evt => {
+          track.addEventListener(evt, () => {
+            stopAutoAdvance();
+            clearTimeout(resumeTimeout);
+            resumeTimeout = setTimeout(startAutoAdvance, 4000);
+          }, { passive: true });
+        });
+        startAutoAdvance();
       }
     } catch (e) {
       console.error('Failed to load registering carousel:', e);
