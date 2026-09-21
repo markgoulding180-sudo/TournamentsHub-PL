@@ -625,7 +625,14 @@
      image actually being visible properly. */
   @media (max-width:480px){
     .mini-card{ flex-direction:column; min-height:0; }
-    .mini-card .mini-thumb{ width:100%; height:130px; align-self:auto; }
+    /* object-fit:contain instead of cover - cover was scaling the image
+       up to fill a much wider/flatter container than the image's own
+       shape, cropping out roughly a third of its height in the process
+       (title text included). contain guarantees the whole image is
+       always visible, at the cost of a little empty space above/below
+       on sports whose image isn't exactly this shape - a trade worth
+       making since the actual ask was "stop cutting it off". */
+    .mini-card .mini-thumb{ width:100%; height:185px; align-self:auto; object-fit:contain; }
     .mini-card .mini-body{ padding:12px 14px 14px; justify-content:flex-start; }
     .mini-card .mini-countdown{
       position:absolute; top:10px; right:10px; margin-right:0; z-index:2;
