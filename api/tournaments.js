@@ -2222,7 +2222,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           : (schemaName === 'predictions' || schemaName === 'lms' || schemaName === 'fantasy')
           ? await (async () => {
               const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
-              return promoteIfGameweekReached(supabaseAdmin, schemaName, rawSingleTournament, clock ? clock.current_gameweek : null);
+              return promoteIfGameweekReached(supabaseAdmin, masterDb, schemaName, rawSingleTournament, clock ? clock.current_gameweek : null);
             })()
           : rawSingleTournament;
 
@@ -2275,7 +2275,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       } else if ((schemaName === 'predictions' || schemaName === 'lms' || schemaName === 'fantasy') && (rawData || []).length > 0) {
         const { data: clock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
         const currentGw = clock ? clock.current_gameweek : null;
-        data = await Promise.all(rawData.map(t => promoteIfGameweekReached(supabaseAdmin, schemaName, t, currentGw)));
+        data = await Promise.all(rawData.map(t => promoteIfGameweekReached(supabaseAdmin, masterDb, schemaName, t, currentGw)));
         if (status) data = data.filter(t => t.status === status);
       }
 
@@ -8344,14 +8344,30 @@ async function promoteIfDeadlinePassed(supabaseAdmin, schemaName, tournament) {
 
 // Same self-healing idea as promoteIfDeadlinePassed above, but for the
 // three football types that now get a genuine 'upcoming' phase when
-// created for a future gameweek (see the 'create' action) - promoted to
-// 'live' once the shared gameweek clock actually reaches their start
-// gameweek, rather than a closes_at timestamp. currentGw is passed in
-// rather than re-fetched per tournament, since callers already have it
-// or can fetch it once for a whole list.
-async function promoteIfGameweekReached(supabaseAdmin, schemaName, tournament, currentGw) {
+// created for a future gameweek (see the 'create' action). Real bug
+// fixed here, confirmed directly against the real calendar: this used
+// to promote to 'live' the moment the shared gameweek NUMBER reached
+// the tournament's start gameweek - but the clock correctly advances
+// to the next gameweek number as soon as the previous one's matches
+// finish, which can be nearly three weeks before that next gameweek's
+// own matches actually kick off (an international break, for
+// instance). A GW6 tournament doesn't genuinely start until GW6's real
+// first match does, not just when the clock's number reaches 6. Now
+// checks the real earliest kickoff time for that gameweek from the
+// matches table, the same real-deadline lookup already used for the
+// registering card's own "Starts" date, rather than trusting the
+// gameweek number alone.
+async function promoteIfGameweekReached(supabaseAdmin, masterDb, schemaName, tournament, currentGw) {
   if (!tournament || tournament.status !== 'upcoming' || currentGw === null || currentGw === undefined) return tournament;
   if (tournament.gameweek > currentGw) return tournament;
+  try {
+    const { data: gwMatches } = await masterDb.from('matches').select('kickoff_time').eq('gameweek', tournament.gameweek);
+    const kickoffs = (gwMatches || []).map(m => m.kickoff_time).filter(Boolean).sort();
+    if (kickoffs[0] && Date.now() < new Date(kickoffs[0]).getTime()) return tournament;
+  } catch (e) {
+    console.error(`promoteIfGameweekReached: failed to check real kickoff for GW${tournament.gameweek}, not promoting:`, e);
+    return tournament; // fail safe - don't promote if the real check itself couldn't run
+  }
   const { data: updated } = await supabaseAdmin
     .schema(schemaName).from('tournaments')
     .update({ status: 'live' })
