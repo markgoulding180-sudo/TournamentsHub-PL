@@ -531,6 +531,10 @@
   .t-card-bottom{ margin-top:auto; }
   .t-card:hover{border-color:var(--border-hover); transform:translateY(-5px); box-shadow:0 16px 36px -10px var(--accent-glow);}
   .t-card.t-card-live{ border-color:#15803d; }
+  .t-card.t-card-registering{ border-color:#a16207; }
+  .t-card.t-card-registering:hover{ border-color:#eab308; }
+  .t-card.t-card-finished{ border-color:#991b1b; }
+  .t-card.t-card-finished:hover{ border-color:#dc2626; }
   .t-card.t-card-live:hover{ border-color:#1eae52; }
   .mini-card.mini-coming-soon{ opacity:0.5; cursor:default; }
   .mini-card.mini-coming-soon .mini-sub{ color:var(--text-faint); }
@@ -1844,6 +1848,54 @@
       </a>`;
   }
 
+  // Real gap closed here, confirmed directly from a real screenshot: on
+  // desktop, Live tournaments get the big featured .t-card treatment,
+  // but Registering and Finished always fell back to the small
+  // horizontal mini-card regardless of screen size - so a page could
+  // show one full-size card next to two tiny ones. Same big .t-card
+  // shell as buildLiveCard, same real-deadline-lookup and entry-status
+  // logic already proven in buildRegisteringMini, just rendered into
+  // the bigger layout instead of the compact one.
+  async function buildRegisteringCard(type, t){
+    const info = TYPE_INFO[type];
+    let rawDate = t.opens_at || t.starts_at || t.closes_at || null;
+    if (t.gameweek && (type === 'predictions' || type === 'lms' || type === 'fantasy')) {
+      try {
+        const res = await fetch(`${PL_BASE}/predictions?gameweek=${t.gameweek}`);
+        const data = await res.json();
+        const kickoffs = (data.matches || []).map(m => m.kickoff_time).filter(Boolean).sort();
+        if (kickoffs[0]) rawDate = kickoffs[0];
+      } catch (e) {
+        console.error(`Failed to load real GW${t.gameweek} kickoff time for ${type}:`, e);
+      }
+    }
+    const dateLabel = rawDate ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
+    const feeLabel = typeof t.entry_fee === 'number' ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free') : '--';
+    const countdown = rawDate ? countdownLabel(rawDate) : null;
+    const status = await checkEntryAndPickStatus(type, t.id);
+    const ctaLine = (status && status.entered)
+      ? `<div class="card-status-line entered-line"><i class="fas fa-circle-check"></i> You're entered</div>`
+      : `<div class="card-status-line register-now-line"><i class="fas fa-arrow-right"></i> Register Now</div>`;
+    return `
+      <a class="t-card t-card-registering" href="${info.href}" style="text-decoration:none;">
+        <div class="t-card-media ${info.imgClass}" ${info.bgImage ? `style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"` : ''}>
+          ${info.bgImage ? '' : `<img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">`}
+        </div>
+        <div class="t-card-body" style="padding:16px 18px 18px;">
+          <h3>${info.title}</h3>
+          <div class="card-status-line" style="color:#eab308;"><i class="fas fa-circle" style="font-size:7px;"></i> Registration open${countdown ? ` — ${plEsc(countdown)} to go` : ''}</div>
+          ${ctaLine}
+          <div class="t-card-bottom">
+            <div class="t-card-stats">
+              <div><div class="stat-label">Entry Fee</div><div class="stat-value entries">${feeLabel}</div></div>
+              <div style="text-align:right"><div class="stat-label">Starts</div><div class="stat-value prize">${dateLabel}</div></div>
+            </div>
+            <span class="btn-enter" style="display:block; text-align:center;">View Tournament</span>
+          </div>
+        </div>
+      </a>`;
+  }
+
   // Note: finished tournaments show here with no time-based expiry for
   // now - there's genuinely no "finished_at" timestamp anywhere in the
   // database to base a fair "hide after N days" rule on, and using
@@ -1895,6 +1947,50 @@
           </div>
         </a>`;
     } catch (e) {
+      console.error(`Failed building finished mini for ${type}:`, e);
+      return '';
+    }
+  }
+
+  // Same big .t-card shell, desktop-only counterpart to
+  // buildFinishedMini - identical real winner/prize lookup, just
+  // rendered into the full-size layout instead of the compact one.
+  async function buildFinishedCard(type, t){
+    const info = TYPE_INFO[type];
+    try {
+      let subLine;
+      if (type === 'stockmarket') {
+        const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
+        const lbData = await lbRes.json();
+        const rows = (lbData.leaderboard || []).filter(r => !r.relegated).sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
+        const parts = rows.map(r => `${plEsc(r.player_name || 'Player')} ${qlbMoney(r.current_value || 0)}`);
+        subLine = parts.length > 0 ? parts.join(', ') : 'No survivors reached the final week';
+      } else {
+        const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${type}`);
+        const lbData = await lbRes.json();
+        const rows = lbData.leaderboard || [];
+        if (rows[0]) {
+          const winnerName = sportUserName(rows[0].users);
+          const prize = rows[0].prize_awarded || rows[0].prize_won || null;
+          subLine = plEsc(winnerName) + (prize ? ` — ${qlbMoney(prize)}` : '');
+        } else {
+          subLine = 'Player';
+        }
+      }
+      return `
+        <a class="t-card t-card-finished" href="${info.href}" style="text-decoration:none;">
+          <div class="t-card-media ${info.imgClass}" ${info.bgImage ? `style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"` : ''}>
+            ${info.bgImage ? '' : `<img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">`}
+          </div>
+          <div class="t-card-body" style="padding:16px 18px 18px;">
+            <h3><i class="fas fa-trophy" style="color:var(--gold); font-size:14px; margin-right:6px;"></i>${info.title}</h3>
+            <div class="card-status-line" style="color:var(--gold);">${subLine}</div>
+            <div class="t-card-bottom">
+              <span class="btn-enter" style="display:block; text-align:center;">View Results</span>
+            </div>
+          </div>
+        </a>`;
+    } catch (e) {
       console.error(`Failed building finished card for ${type}:`, e);
       return '';
     }
@@ -1917,6 +2013,13 @@
     // style for whatever device loaded the page).
     const isMobile = window.innerWidth <= 640;
     liveRow.className = isMobile ? 'card-row-compact' : 'card-row';
+    // Real gap closed here: these two rows were hardcoded to the
+    // compact class in the static HTML and never switched the way the
+    // Live row already did, so even once real big cards existed for
+    // them, they'd have been squeezed into the small-card container's
+    // layout instead of getting the grid the big cards are meant for.
+    if (regRow) regRow.className = isMobile ? 'card-row-compact' : 'card-row';
+    if (finRow) finRow.className = isMobile ? 'card-row-compact' : 'card-row';
 
     // Real fix for a genuine performance bug: this used to check each
     // type's live status, then (only if not live) its upcoming status,
@@ -1957,8 +2060,8 @@
 
     const [liveHtmlParts, finHtmlParts, regHtmlParts] = await Promise.all([
       Promise.all(liveResults.map(r => isMobile ? buildLiveMiniCard(r.type, r.t) : buildLiveCard(r.type, r.t))),
-      Promise.all(finResults.map(r => buildFinishedMini(r.type, r.t))),
-      Promise.all(regResults.map(r => buildRegisteringMini(r.type, r.t)))
+      Promise.all(finResults.map(r => isMobile ? buildFinishedMini(r.type, r.t) : buildFinishedCard(r.type, r.t))),
+      Promise.all(regResults.map(r => isMobile ? buildRegisteringMini(r.type, r.t) : buildRegisteringCard(r.type, r.t)))
     ]);
 
     const liveHtml = liveHtmlParts.join('');
