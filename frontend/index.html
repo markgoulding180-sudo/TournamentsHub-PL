@@ -632,7 +632,17 @@
        always visible, at the cost of a little empty space above/below
        on sports whose image isn't exactly this shape - a trade worth
        making since the actual ask was "stop cutting it off". */
-    .mini-card .mini-thumb{ width:100%; height:185px; align-self:auto; object-fit:contain; }
+    /* Real fix here: object-fit:contain inside a FIXED height meant an
+       image whose own shape was less wide relative to its height (like
+       Champions League, genuinely a different aspect ratio to the
+       others) rendered narrower than a full-width image, leaving empty
+       side gaps instead of filling the card. Switching to a natural
+       height instead of a fixed one guarantees every image fills the
+       full card width regardless of its own proportions - the only
+       trade-off is cards can be very slightly different heights from
+       each other depending on each image's real shape, which is a
+       fair trade for every one of them genuinely being full width. */
+    .mini-card .mini-thumb{ width:100%; height:auto; align-self:auto; object-fit:cover; }
     .mini-card .mini-body{ padding:12px 14px 14px; justify-content:flex-start; }
     .mini-card .mini-countdown{
       position:absolute; top:10px; right:10px; margin-right:0; z-index:2;
@@ -1547,12 +1557,12 @@
   };
 
   const TYPE_INFO = {
-    predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/card-predictions.jpg', imgClass:'media-shield large-image', carouselBg:'assets/registering-default-bg.jpg' },
-    lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/card-lms.jpg', imgClass:'media-fixture large-image', carouselBg:'assets/registering-default-bg.jpg' },
-    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/card-fantasy.jpg', imgClass:'media-podium large-image', carouselBg:'assets/registering-default-bg.jpg' },
-    stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/card-stockmarket.jpg', imgClass:'media-goal large-image', carouselBg:'assets/registering-default-bg.jpg' },
-    champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/card-champions-league.jpg', imgClass:'media-fixture', carouselBg:'assets/registering-default-bg.jpg' },
-    darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/card-darts.jpg', imgClass:'media-fixture', carouselBg:'assets/registering-default-bg.jpg' }
+    predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/card-predictions.jpg', imgClass:'media-shield large-image' },
+    lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/card-lms.jpg', imgClass:'media-fixture large-image' },
+    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/card-fantasy.jpg', imgClass:'media-podium large-image' },
+    stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/card-stockmarket.jpg', imgClass:'media-goal large-image' },
+    champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/card-champions-league.jpg', imgClass:'media-fixture' },
+    darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/card-darts.jpg', imgClass:'media-fixture' }
   };
 
   function sportUserName(userObj){
@@ -1998,7 +2008,7 @@
         } catch (e) { /* fall through with no date shown */ }
 
         return `
-          <a class="reg-carousel-slide" href="${info.href}" style="background-image:url('${info.carouselBg}');">
+          <a class="reg-carousel-slide" href="${info.href}" style="background-image:url('${info.img}');">
             <span class="reg-carousel-badge"><i class="fas fa-circle" style="font-size:6px;"></i> Registering</span>
             <div class="reg-carousel-slide-content">
               <div class="reg-carousel-sport">${plEsc(info.sport)}</div>
