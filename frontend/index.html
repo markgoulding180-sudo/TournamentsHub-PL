@@ -611,10 +611,27 @@
   .mini-card{
     background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
     padding:0; display:flex; align-items:stretch; gap:14px; text-decoration:none; color:inherit;
-    overflow:hidden; min-height:102px;
+    overflow:hidden; min-height:102px; position:relative;
   }
   .mini-card .mini-thumb{ width:82px; height:auto; border-radius:0; object-fit:cover; background:#0a1226; flex-shrink:0; align-self:stretch; }
   .mini-card .mini-body{ flex:1; min-width:0; padding:14px 14px 14px 0; display:flex; flex-direction:column; justify-content:center; }
+  /* Real fix here: the mobile thumbnail was a narrow 82px-wide crop of
+     a full landscape branded image, cutting off the tournament name and
+     most of the artwork - not just tight, genuinely squashed and
+     trimmed. On mobile specifically, the card now stacks: the full
+     image across the whole width up top, all the text below it,
+     instead of cramming a wide image into a slim strip beside the text.
+     Cards get taller as a direct result - that's the trade-off for the
+     image actually being visible properly. */
+  @media (max-width:480px){
+    .mini-card{ flex-direction:column; min-height:0; }
+    .mini-card .mini-thumb{ width:100%; height:130px; align-self:auto; }
+    .mini-card .mini-body{ padding:12px 14px 14px; justify-content:flex-start; }
+    .mini-card .mini-countdown{
+      position:absolute; top:10px; right:10px; margin-right:0; z-index:2;
+      background:rgba(4,8,18,0.85);
+    }
+  }
   .mini-card .mini-title{
     font-family:var(--font-head); font-weight:700; font-size:15.5px; margin-bottom:2px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
