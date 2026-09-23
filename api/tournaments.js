@@ -1794,19 +1794,30 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const { data: allUsers, error: usersError } = await supabaseAdmin
           .from('users')
-          .select('id, username, display_name, email')
+          .select('id, username, display_name, email, is_verified')
           .order('username', { ascending: true });
         if (usersError) return res.status(500).json({ error: 'Failed to load users', details: usersError.message });
 
         const { data: allTx, error: txError } = await supabaseAdmin
           .from('wallet_transactions')
-          .select('user_id, amount');
+          .select('user_id, amount, type');
         if (txError) return res.status(500).json({ error: 'Failed to load transactions', details: txError.message });
 
+        // owed = running ledger balance; paid = total of every payment
+        // recorded, so the panel can show both side by side.
         const owedByUser = {};
-        (allTx || []).forEach(t => { owedByUser[t.user_id] = (owedByUser[t.user_id] || 0) + t.amount; });
+        const paidByUser = {};
+        (allTx || []).forEach(t => {
+          owedByUser[t.user_id] = (owedByUser[t.user_id] || 0) + t.amount;
+          if (t.type === 'payment') paidByUser[t.user_id] = (paidByUser[t.user_id] || 0) + Math.abs(t.amount);
+        });
 
-        const list = (allUsers || []).map(u => ({ ...u, owed: owedByUser[u.id] || 0 }));
+        const list = (allUsers || []).map(u => ({
+          ...u,
+          is_verified: !!u.is_verified,
+          owed: owedByUser[u.id] || 0,
+          paid: paidByUser[u.id] || 0
+        }));
 
         return res.status(200).json({ users: list });
       }
@@ -1863,7 +1874,32 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           .order('created_at', { ascending: false });
         if (payErr) return res.status(500).json({ error: payErr.message });
 
-        const userIds = [...new Set((payments || []).map(p => p.user_id))];
+        // Owed lines: for every user + tournament pair, the ledger total
+        // (entry fees minus payments for that tournament). Anything still
+        // above zero is money outstanding, shown alongside the payments
+        // so the history reads as paid AND owed in one place.
+        const { data: tournamentTx, error: ttErr } = await supabaseAdmin
+          .from('wallet_transactions')
+          .select('user_id, amount, type, tournament_type, tournament_id, created_at')
+          .not('tournament_id', 'is', null);
+        if (ttErr) return res.status(500).json({ error: ttErr.message });
+
+        const owedGroups = {};
+        (tournamentTx || []).forEach(t => {
+          const key = `${t.user_id}:${t.tournament_type}:${t.tournament_id}`;
+          if (!owedGroups[key]) owedGroups[key] = { user_id: t.user_id, tournament_type: t.tournament_type, tournament_id: t.tournament_id, amount: 0, created_at: null };
+          owedGroups[key].amount += t.amount;
+          if (t.type === 'entry_fee' && (!owedGroups[key].created_at || t.created_at < owedGroups[key].created_at)) {
+            owedGroups[key].created_at = t.created_at;
+          }
+        });
+        const owedRows = Object.values(owedGroups)
+          .filter(g => g.amount > 0)
+          .map(g => ({ ...g, kind: 'owed', created_at: g.created_at || new Date(0).toISOString() }));
+
+        const allRows = [...(payments || []).map(p => ({ ...p, kind: 'paid' })), ...owedRows];
+
+        const userIds = [...new Set(allRows.map(p => p.user_id))];
         const { data: users } = await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds);
         const userMap = {};
         (users || []).forEach(u => { userMap[u.id] = u.display_name || u.username; });
@@ -1873,13 +1909,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         // accurate if a tournament gets renamed later.
         const namesByTypeAndId = {};
         for (const schema of PAYMENT_SCHEMAS) {
-          const ids = [...new Set((payments || []).filter(p => p.tournament_type === schema && p.tournament_id).map(p => p.tournament_id))];
+          const ids = [...new Set(allRows.filter(p => p.tournament_type === schema && p.tournament_id).map(p => p.tournament_id))];
           if (ids.length === 0) continue;
           const { data: tRows } = await supabaseAdmin.schema(schema).from('tournaments').select('id, name').in('id', ids);
           (tRows || []).forEach(t => { namesByTypeAndId[`${schema}:${t.id}`] = t.name; });
         }
 
-        const enriched = (payments || []).map(p => ({
+        const enriched = allRows.map(p => ({
           ...p,
           username: userMap[p.user_id] || 'Unknown user',
           tournament_name: p.tournament_id ? (namesByTypeAndId[`${p.tournament_type}:${p.tournament_id}`] || 'Unknown tournament') : null
@@ -2500,6 +2536,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // received from a user (cash, bank transfer, whatever — happens
       // entirely outside this app). Just writes a negative ledger entry
       // that reduces what they owe; never touches real money itself.
+      // Admin — Payments & Bookkeeping: tick/untick a user as verified,
+      // a manual trust flag (e.g. has paid on time before).
+      if (action === 'admin_set_verified') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+
+        const { user_id: targetUserId, verified } = req.body;
+        if (!targetUserId || typeof verified !== 'boolean') {
+          return res.status(400).json({ error: 'user_id and verified (true/false) are required' });
+        }
+
+        const { error: vErr } = await supabaseAdmin
+          .from('users')
+          .update({ is_verified: verified })
+          .eq('id', targetUserId);
+        if (vErr) return res.status(500).json({ error: 'Failed to update verified status', details: vErr.message });
+
+        return res.status(200).json({ success: true, user_id: targetUserId, is_verified: verified });
+      }
+
       if (action === 'admin_record_payment') {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });

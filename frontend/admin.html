@@ -80,6 +80,18 @@
       20%, 40%, 60%, 80% { transform: translateX(5px); }
     }
   </style>
+<style>
+  /* admin.js colours money with var(--green)/var(--red), but these were
+     never defined on this page, so every amount rendered plain white. */
+  :root{ --green:#22c55e; --red:#ef4444; }
+  .ledger-chip{ opacity:0.55; }
+  .ledger-chip.active{ opacity:1; outline:1px solid currentColor; }
+  .ledger-group-row td{ padding:0.6rem 0.5rem 0.3rem; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
+  .ledger-pill{ display:inline-block; padding:0.1rem 0.55rem; border-radius:2rem; font-size:0.72rem; font-weight:700; }
+  .ledger-pill.paid{ color:var(--green); background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); }
+  .ledger-pill.owed{ color:var(--red); background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); }
+  .verified-box{ width:18px; height:18px; accent-color:var(--green, #22c55e); cursor:pointer; }
+</style>
 </head>
 <body>
   <!-- Sidebar Navigation (Desktop) -->
@@ -868,23 +880,30 @@
     <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
       <h3><i class="fas fa-book"></i> Payments &amp; Bookkeeping</h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Every registered user and what they currently owe across all tournaments (entry fees charged automatically when they join, minus payments you've recorded here). Nothing here moves real money — it's a ledger.
+        Every registered user, what they've paid in total and what they still owe (entry fees charged when they join, minus payments you've recorded). Tick Verified for users you trust, e.g. they've paid on time before. Nothing here moves real money — it's a ledger.
       </p>
       <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
         <input type="text" id="walletSearchInput" class="form-input" placeholder="Search by username…" style="flex:1; min-width:200px;" oninput="renderWalletList()">
+        <div class="ledger-filter" data-target="wallet" style="display:flex; gap:0.4rem;">
+          <button class="btn btn-sm ledger-chip active" data-filter="all" onclick="setLedgerFilter('wallet','all')">All</button>
+          <button class="btn btn-sm ledger-chip" data-filter="paid" onclick="setLedgerFilter('wallet','paid')" style="color:var(--green);">Paid</button>
+          <button class="btn btn-sm ledger-chip" data-filter="owed" onclick="setLedgerFilter('wallet','owed')" style="color:var(--red);">Owed</button>
+        </div>
         <button class="btn btn-sm" onclick="loadWalletList()"><i class="fas fa-rotate"></i> Refresh</button>
       </div>
       <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
           <thead>
             <tr style="text-align:left; border-bottom:1px solid var(--border-color);">
+              <th style="padding:0.5rem; width:1%; white-space:nowrap;" title="Tick to mark a user as trusted, e.g. has paid on time before">Verified</th>
               <th style="padding:0.5rem;">User</th>
+              <th style="padding:0.5rem;">Paid</th>
               <th style="padding:0.5rem;">Owed</th>
-              <th colspan="2" style="padding:0.5rem;"></th>
+              <th style="padding:0.5rem;"></th>
             </tr>
           </thead>
           <tbody id="walletListBody">
-            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
+            <tr><td colspan="5" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -893,10 +912,15 @@
     <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
       <h3><i class="fas fa-receipt"></i> Payment History</h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Every payment ever recorded, across every tournament and every user — a full receipt trail rather than just a running total.
+        Every payment recorded and every entry fee still outstanding, tournament by tournament. Paid in green, owed in red.
       </p>
       <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
         <input type="text" id="paymentHistorySearch" class="form-input" placeholder="Search by username or tournament…" style="flex:1; min-width:200px;" oninput="renderPaymentHistory()">
+        <div class="ledger-filter" data-target="history" style="display:flex; gap:0.4rem;">
+          <button class="btn btn-sm ledger-chip active" data-filter="all" onclick="setLedgerFilter('history','all')">All</button>
+          <button class="btn btn-sm ledger-chip" data-filter="paid" onclick="setLedgerFilter('history','paid')" style="color:var(--green);">Paid</button>
+          <button class="btn btn-sm ledger-chip" data-filter="owed" onclick="setLedgerFilter('history','owed')" style="color:var(--red);">Owed</button>
+        </div>
         <button class="btn btn-sm" onclick="loadPaymentHistory()"><i class="fas fa-rotate"></i> Refresh</button>
       </div>
       <div style="overflow-x:auto; max-height:420px; overflow-y:auto;">
@@ -906,11 +930,12 @@
               <th style="padding:0.5rem;">Date</th>
               <th style="padding:0.5rem;">User</th>
               <th style="padding:0.5rem;">Tournament</th>
+              <th style="padding:0.5rem;">Status</th>
               <th style="padding:0.5rem;">Amount</th>
             </tr>
           </thead>
           <tbody id="paymentHistoryBody">
-            <tr><td colspan="4" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
+            <tr><td colspan="5" class="text-muted" style="padding:0.75rem;">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -1030,7 +1055,7 @@
 
   <script src="auth-gate.js"></script>
   <script src="live-poll.js"></script>
-  <script src="admin.js?v=3"></script>
+  <script src="admin.js?v=4"></script>
   <script>
     // Sidebar user info only - mobile menu handled by auth-gate.js
     document.addEventListener('DOMContentLoaded', function() {

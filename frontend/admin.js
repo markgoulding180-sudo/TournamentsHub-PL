@@ -349,6 +349,16 @@ async function loadPaymentHistory() {
   }
 }
 
+// Paid / Owed filter shared by the Bookkeeping list and Payment History.
+const ledgerFilters = { wallet: 'all', history: 'all' };
+function setLedgerFilter(target, filter) {
+  ledgerFilters[target] = filter;
+  document.querySelectorAll(`.ledger-filter[data-target="${target}"] .ledger-chip`).forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+  if (target === 'wallet') renderWalletList(); else renderPaymentHistory();
+}
+
 function renderPaymentHistory() {
   const body = document.getElementById('paymentHistoryBody');
   if (!body) return;
@@ -362,13 +372,22 @@ function renderPaymentHistory() {
       (p.tournament_name || '').toLowerCase().includes(search)
     );
   }
+  const filter = ledgerFilters.history;
+  if (filter !== 'all') list = list.filter(p => (p.kind || 'paid') === filter);
 
   if (list.length === 0) {
-    body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">No payments recorded yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" class="text-muted" style="padding:0.75rem;">Nothing to show.</td></tr>';
     return;
   }
 
-  body.innerHTML = list.map(p => {
+  // Paid first, then owed; newest first inside each group.
+  const byDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+  const paid = list.filter(p => (p.kind || 'paid') === 'paid').sort(byDate);
+  const owed = list.filter(p => p.kind === 'owed').sort(byDate);
+  const sum = arr => arr.reduce((s, p) => s + Math.abs(p.amount), 0);
+
+  const rowHtml = p => {
+    const isOwed = p.kind === 'owed';
     const dateStr = new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     const tournamentLabel = p.tournament_name
       ? `${escapeHtmlWallet(p.tournament_name)} <span class="text-muted">(${WALLET_GAME_LABELS[p.tournament_type] || p.tournament_type})</span>`
@@ -378,9 +397,38 @@ function renderPaymentHistory() {
         <td style="padding:0.4rem 0.5rem; white-space:nowrap;">${dateStr}</td>
         <td style="padding:0.4rem 0.5rem;">${escapeHtmlWallet(p.username)}</td>
         <td style="padding:0.4rem 0.5rem;">${tournamentLabel}</td>
-        <td style="padding:0.4rem 0.5rem; font-weight:700; color:var(--green);">${moneyWallet(Math.abs(p.amount))}</td>
+        <td style="padding:0.4rem 0.5rem;"><span class="ledger-pill ${isOwed ? 'owed' : 'paid'}">${isOwed ? 'Owed' : 'Paid'}</span></td>
+        <td style="padding:0.4rem 0.5rem; font-weight:700; color:${isOwed ? 'var(--red)' : 'var(--green)'};">${moneyWallet(Math.abs(p.amount))}</td>
       </tr>`;
-  }).join('');
+  };
+  const groupHeader = (label, arr, color) => `
+      <tr class="ledger-group-row"><td colspan="5" style="color:${color};">${label} — ${arr.length} ${arr.length === 1 ? 'line' : 'lines'}, ${moneyWallet(sum(arr))}</td></tr>`;
+
+  let html = '';
+  if (paid.length) html += groupHeader('Paid', paid, 'var(--green)') + paid.map(rowHtml).join('');
+  if (owed.length) html += groupHeader('Owed', owed, 'var(--red)') + owed.map(rowHtml).join('');
+  body.innerHTML = html;
+}
+
+async function setUserVerified(userId, verified, checkbox) {
+  try {
+    const token = localStorage.getItem('gbf_token');
+    const response = await fetch('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ action: 'admin_set_verified', user_id: userId, verified })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Request failed');
+    const u = walletListCache.find(x => x.id === userId);
+    if (u) u.is_verified = verified;
+    log(`${u ? (u.display_name || u.username) : 'User'} ${verified ? 'marked as verified' : 'no longer verified'}`, 'success');
+    renderWalletList();
+  } catch (error) {
+    console.error('setUserVerified error:', error);
+    if (checkbox) checkbox.checked = !verified;
+    log(`Failed to update verified status: ${error.message}`, 'error');
+  }
 }
 
 async function loadWalletList() {
@@ -417,24 +465,38 @@ function renderWalletList() {
       (u.display_name || '').toLowerCase().includes(search)
     );
   }
-  // Owing users first, highest owed at the top — the people you're
-  // actually waiting to hear from, not buried alphabetically.
-  list = [...list].sort((a, b) => (b.owed || 0) - (a.owed || 0));
+  // Status per user: 'paid' = has paid and owes nothing, 'owed' = has
+  // an outstanding balance, 'none' = no paid entries yet.
+  const statusOf = u => (u.owed || 0) > 0 ? 'owed' : ((u.paid || 0) > 0 ? 'paid' : 'none');
+  const filter = ledgerFilters.wallet;
+  if (filter !== 'all') list = list.filter(u => statusOf(u) === filter);
+
+  // Paid-up users first (most paid at the top), then owing users
+  // (highest owed at the top), then users with no activity yet.
+  const rank = { paid: 0, owed: 1, none: 2 };
+  list = [...list].sort((a, b) => {
+    const r = rank[statusOf(a)] - rank[statusOf(b)];
+    if (r !== 0) return r;
+    if (statusOf(a) === 'owed') return (b.owed || 0) - (a.owed || 0);
+    if (statusOf(a) === 'paid') return (b.paid || 0) - (a.paid || 0);
+    return (a.display_name || a.username || '').localeCompare(b.display_name || b.username || '');
+  });
 
   if (list.length === 0) {
-    body.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:0.75rem;">No users found.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" class="text-muted" style="padding:0.75rem;">No users found.</td></tr>';
     return;
   }
 
   body.innerHTML = list.map(u => {
     const owed = u.owed || 0;
+    const paid = u.paid || 0;
     const selectId = `walletAmount_${u.id}`;
     const detailRowId = `walletDetail_${u.id}`;
     const isExpanded = walletExpandedUserId === u.id;
     const optionsHtml = PAYMENT_AMOUNTS.map(p => `<option value="${p}">£${(p / 100).toFixed(0)}</option>`).join('');
     const detailRowHtml = isExpanded ? `
       <tr id="${detailRowId}" style="border-bottom:1px solid var(--border-color); background:var(--bg-hover);">
-        <td colspan="4" style="padding:0.75rem 0.5rem;">
+        <td colspan="5" style="padding:0.75rem 0.5rem;">
           <div id="walletDuesBody_${u.id}" style="font-size:0.85rem; margin-bottom:1rem;">Loading outstanding tournaments…</div>
           <details style="margin-bottom:0.5rem;">
             <summary style="cursor:pointer; font-size:0.78rem; color:var(--text-muted, #8a97b0);">Full transaction history</summary>
@@ -444,16 +506,23 @@ function renderWalletList() {
       </tr>` : '';
     return `
       <tr style="border-bottom:1px solid var(--border-color);">
+        <td style="padding:0.5rem; text-align:center;">
+          <input type="checkbox" class="verified-box" ${u.is_verified ? 'checked' : ''} onchange="setUserVerified('${u.id}', this.checked, this)" title="Verified user">
+        </td>
         <td style="padding:0.5rem;">
           <button onclick="toggleWalletDetail('${u.id}')" style="background:none; border:none; cursor:pointer; color:inherit; font:inherit; text-align:left; display:flex; align-items:center; gap:0.4rem;">
             <i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}" style="font-size:0.7rem; color:var(--text-muted, #8a97b0);"></i>
             ${escapeHtmlWallet(u.display_name || u.username || u.email || u.id)}
+            ${u.is_verified ? '<i class="fas fa-circle-check" title="Verified" style="color:var(--green); font-size:0.8rem;"></i>' : ''}
           </button>
+        </td>
+        <td style="padding:0.5rem; font-weight:700; color:${paid > 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">
+          ${moneyWallet(paid)}
         </td>
         <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : owed < 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">
           ${owed > 0 ? moneyWallet(owed) : owed < 0 ? `${moneyWallet(owed)} in credit` : '£0.00'}
         </td>
-        <td colspan="2" style="padding:0.5rem;">
+        <td style="padding:0.5rem;">
           <button class="btn btn-sm btn-green" onclick="toggleWalletDetail('${u.id}')">
             <i class="fas fa-list-check"></i> Record Payment
           </button>
@@ -581,6 +650,7 @@ async function submitTournamentPayment(userId) {
     loadWalletDues(userId);
     loadWalletDetail(userId);
     loadWalletList();
+    loadPaymentHistory();
   } catch (error) {
     console.error('submitTournamentPayment error:', error);
     log('Failed to record payment — check the console.', 'error');
