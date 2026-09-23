@@ -89,6 +89,9 @@
   .ledger-group-row td{ padding:0.6rem 0.5rem 0.3rem; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; }
   .ledger-pill{ display:inline-block; padding:0.1rem 0.55rem; border-radius:2rem; font-size:0.72rem; font-weight:700; }
   .ledger-pill.paid{ color:var(--green); background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); }
+  .ledger-pill.overdue{ color:#fff; background:var(--red); border:1px solid var(--red); }
+  .ledger-due{ display:block; font-size:0.72rem; color:var(--text-muted, #8a97b0); margin-top:0.15rem; }
+  .ledger-due.late{ color:var(--red); font-weight:700; }
   .ledger-pill.owed{ color:var(--red); background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); }
   .verified-box{ width:18px; height:18px; accent-color:var(--green, #22c55e); cursor:pointer; }
 </style>
@@ -491,6 +494,15 @@
           </div>
         </div>
 
+        <!-- Pay-by date: shared by every tournament type. After this
+             date, anyone who still owes the entry fee shows as Overdue
+             in Payments & Bookkeeping. -->
+        <div class="mb-2" style="max-width:320px;">
+          <label class="form-label">Payment Due Date (pay by)</label>
+          <input type="date" id="tournament-payment-due-input" class="form-input">
+          <div class="text-muted" style="font-size:0.78rem; margin-top:0.25rem;">Required for paid tournaments. Unpaid entries show as overdue the day after.</div>
+        </div>
+
         <button class="btn btn-green admin-btn btn-lg" id="launch-tournament-btn" onclick="launchTournamentUnified()">
           <i class="fas fa-play"></i> Launch Tournament
         </button>
@@ -888,6 +900,7 @@
           <button class="btn btn-sm ledger-chip active" data-filter="all" onclick="setLedgerFilter('wallet','all')">All</button>
           <button class="btn btn-sm ledger-chip" data-filter="paid" onclick="setLedgerFilter('wallet','paid')" style="color:var(--green);">Paid</button>
           <button class="btn btn-sm ledger-chip" data-filter="owed" onclick="setLedgerFilter('wallet','owed')" style="color:var(--red);">Owed</button>
+          <button class="btn btn-sm ledger-chip" data-filter="overdue" onclick="setLedgerFilter('wallet','overdue')" style="color:var(--red);"><i class="fas fa-triangle-exclamation"></i> Overdue</button>
         </div>
         <button class="btn btn-sm" onclick="loadWalletList()"><i class="fas fa-rotate"></i> Refresh</button>
       </div>
@@ -912,7 +925,7 @@
     <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
       <h3><i class="fas fa-receipt"></i> Payment History</h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
-        Every payment recorded and every entry fee still outstanding, tournament by tournament. Paid in green, owed in red.
+        Every payment recorded and every entry fee still outstanding, tournament by tournament. Paid in green, owed in red, and marked overdue once a tournament's payment due date has passed.
       </p>
       <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
         <input type="text" id="paymentHistorySearch" class="form-input" placeholder="Search by username or tournament…" style="flex:1; min-width:200px;" oninput="renderPaymentHistory()">
@@ -920,6 +933,7 @@
           <button class="btn btn-sm ledger-chip active" data-filter="all" onclick="setLedgerFilter('history','all')">All</button>
           <button class="btn btn-sm ledger-chip" data-filter="paid" onclick="setLedgerFilter('history','paid')" style="color:var(--green);">Paid</button>
           <button class="btn btn-sm ledger-chip" data-filter="owed" onclick="setLedgerFilter('history','owed')" style="color:var(--red);">Owed</button>
+          <button class="btn btn-sm ledger-chip" data-filter="overdue" onclick="setLedgerFilter('history','overdue')" style="color:var(--red);"><i class="fas fa-triangle-exclamation"></i> Overdue</button>
         </div>
         <button class="btn btn-sm" onclick="loadPaymentHistory()"><i class="fas fa-rotate"></i> Refresh</button>
       </div>
@@ -1055,7 +1069,7 @@
 
   <script src="auth-gate.js"></script>
   <script src="live-poll.js"></script>
-  <script src="admin.js?v=4"></script>
+  <script src="admin.js?v=5"></script>
   <script>
     // Sidebar user info only - mobile menu handled by auth-gate.js
     document.addEventListener('DOMContentLoaded', function() {

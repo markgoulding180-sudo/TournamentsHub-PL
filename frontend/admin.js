@@ -373,7 +373,8 @@ function renderPaymentHistory() {
     );
   }
   const filter = ledgerFilters.history;
-  if (filter !== 'all') list = list.filter(p => (p.kind || 'paid') === filter);
+  if (filter === 'overdue') list = list.filter(p => p.kind === 'owed' && p.overdue);
+  else if (filter !== 'all') list = list.filter(p => (p.kind || 'paid') === filter);
 
   if (list.length === 0) {
     body.innerHTML = '<tr><td colspan="5" class="text-muted" style="padding:0.75rem;">Nothing to show.</td></tr>';
@@ -383,7 +384,9 @@ function renderPaymentHistory() {
   // Paid first, then owed; newest first inside each group.
   const byDate = (a, b) => new Date(b.created_at) - new Date(a.created_at);
   const paid = list.filter(p => (p.kind || 'paid') === 'paid').sort(byDate);
-  const owed = list.filter(p => p.kind === 'owed').sort(byDate);
+  // Overdue sits between paid and owed: the lines that need chasing now.
+  const overdue = list.filter(p => p.kind === 'owed' && p.overdue).sort(byDate);
+  const owed = list.filter(p => p.kind === 'owed' && !p.overdue).sort(byDate);
   const sum = arr => arr.reduce((s, p) => s + Math.abs(p.amount), 0);
 
   const rowHtml = p => {
@@ -397,7 +400,12 @@ function renderPaymentHistory() {
         <td style="padding:0.4rem 0.5rem; white-space:nowrap;">${dateStr}</td>
         <td style="padding:0.4rem 0.5rem;">${escapeHtmlWallet(p.username)}</td>
         <td style="padding:0.4rem 0.5rem;">${tournamentLabel}</td>
-        <td style="padding:0.4rem 0.5rem;"><span class="ledger-pill ${isOwed ? 'owed' : 'paid'}">${isOwed ? 'Owed' : 'Paid'}</span></td>
+        <td style="padding:0.4rem 0.5rem;">
+          <span class="ledger-pill ${isOwed ? (p.overdue ? 'overdue' : 'owed') : 'paid'}">${isOwed ? (p.overdue ? 'Overdue' : 'Owed') : 'Paid'}</span>
+          ${isOwed ? (p.payment_due_date
+            ? `<span class="ledger-due ${p.overdue ? 'late' : ''}">${p.overdue ? 'Was due' : 'Due'} ${new Date(p.payment_due_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>`
+            : '<span class="ledger-due">No due date set</span>') : ''}
+        </td>
         <td style="padding:0.4rem 0.5rem; font-weight:700; color:${isOwed ? 'var(--red)' : 'var(--green)'};">${moneyWallet(Math.abs(p.amount))}</td>
       </tr>`;
   };
@@ -406,7 +414,8 @@ function renderPaymentHistory() {
 
   let html = '';
   if (paid.length) html += groupHeader('Paid', paid, 'var(--green)') + paid.map(rowHtml).join('');
-  if (owed.length) html += groupHeader('Owed', owed, 'var(--red)') + owed.map(rowHtml).join('');
+  if (overdue.length) html += groupHeader('Overdue', overdue, 'var(--red)') + overdue.map(rowHtml).join('');
+  if (owed.length) html += groupHeader('Owed — not yet due', owed, 'var(--red)') + owed.map(rowHtml).join('');
   body.innerHTML = html;
 }
 
@@ -469,7 +478,8 @@ function renderWalletList() {
   // an outstanding balance, 'none' = no paid entries yet.
   const statusOf = u => (u.owed || 0) > 0 ? 'owed' : ((u.paid || 0) > 0 ? 'paid' : 'none');
   const filter = ledgerFilters.wallet;
-  if (filter !== 'all') list = list.filter(u => statusOf(u) === filter);
+  if (filter === 'overdue') list = list.filter(u => (u.overdue || 0) > 0);
+  else if (filter !== 'all') list = list.filter(u => statusOf(u) === filter);
 
   // Paid-up users first (most paid at the top), then owing users
   // (highest owed at the top), then users with no activity yet.
@@ -477,7 +487,7 @@ function renderWalletList() {
   list = [...list].sort((a, b) => {
     const r = rank[statusOf(a)] - rank[statusOf(b)];
     if (r !== 0) return r;
-    if (statusOf(a) === 'owed') return (b.owed || 0) - (a.owed || 0);
+    if (statusOf(a) === 'owed') return ((b.overdue || 0) - (a.overdue || 0)) || ((b.owed || 0) - (a.owed || 0));
     if (statusOf(a) === 'paid') return (b.paid || 0) - (a.paid || 0);
     return (a.display_name || a.username || '').localeCompare(b.display_name || b.username || '');
   });
@@ -521,6 +531,7 @@ function renderWalletList() {
         </td>
         <td style="padding:0.5rem; font-weight:700; color:${owed > 0 ? 'var(--red)' : owed < 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">
           ${owed > 0 ? moneyWallet(owed) : owed < 0 ? `${moneyWallet(owed)} in credit` : '£0.00'}
+          ${(u.overdue || 0) > 0 ? `<span class="ledger-pill overdue" style="margin-left:0.4rem;">${moneyWallet(u.overdue)} overdue</span>` : ''}
         </td>
         <td style="padding:0.5rem;">
           <button class="btn btn-sm btn-green" onclick="toggleWalletDetail('${u.id}')">
@@ -2276,7 +2287,7 @@ async function createDartsTournament() {
     const response = await fetch('/api/tournaments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ action: 'darts_admin_create_tournament', name, description, entry_fee, closes_at: new Date(closes_at).toISOString() })
+      body: JSON.stringify({ action: 'darts_admin_create_tournament', name, description, entry_fee, closes_at: new Date(closes_at).toISOString(), payment_due_date: document.getElementById('tournament-payment-due-input')?.value || null })
     });
     const data = await response.json();
     if (!response.ok) { msgEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`; return; }
@@ -2906,6 +2917,15 @@ document.addEventListener('DOMContentLoaded', onLaunchSportChanged);
 
 async function launchTournamentUnified() {
   const sport = document.getElementById('launch-sport-input')?.value || 'football';
+  // Every paid tournament needs a pay-by date so late payers can be
+  // flagged as overdue in Payments & Bookkeeping.
+  const fee = parseFloat(document.getElementById(sport === 'darts' ? 'dartsFeeInput' : 'tournament-fee-input')?.value) || 0;
+  const due = document.getElementById('tournament-payment-due-input')?.value;
+  if (fee > 0 && !due) {
+    alert('Please set a Payment Due Date (pay by) for this paid tournament.');
+    document.getElementById('tournament-payment-due-input')?.focus();
+    return;
+  }
   if (sport === 'darts') {
     await createDartsTournament();
   } else {
@@ -2996,6 +3016,7 @@ async function launchTournament() {
         end_gameweek: endGameweek,
         max_entries: 100,
         is_test: isTest,
+        payment_due_date: document.getElementById('tournament-payment-due-input')?.value || null,
         closes_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
       })
     });

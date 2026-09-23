@@ -1800,8 +1800,26 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const { data: allTx, error: txError } = await supabaseAdmin
           .from('wallet_transactions')
-          .select('user_id, amount, type');
+          .select('user_id, amount, type, tournament_type, tournament_id');
         if (txError) return res.status(500).json({ error: 'Failed to load transactions', details: txError.message });
+
+        // Overdue = what's still owed on tournaments whose pay-by date
+        // has passed, worked out per tournament then totalled per user.
+        const dueDates = await loadPaymentDueDates(supabaseAdmin);
+        const today = ukToday();
+        const perTournament = {};
+        (allTx || []).forEach(t => {
+          if (!t.tournament_id) return;
+          const key = `${t.user_id}|${t.tournament_type}:${t.tournament_id}`;
+          perTournament[key] = (perTournament[key] || 0) + t.amount;
+        });
+        const overdueByUser = {};
+        Object.entries(perTournament).forEach(([key, bal]) => {
+          if (bal <= 0) return;
+          const [uid, tKey] = key.split('|');
+          const due = dueDates[tKey]?.due;
+          if (due && due < today) overdueByUser[uid] = (overdueByUser[uid] || 0) + bal;
+        });
 
         // owed = running ledger balance; paid = total of every payment
         // recorded, so the panel can show both side by side.
@@ -1816,7 +1834,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           ...u,
           is_verified: !!u.is_verified,
           owed: owedByUser[u.id] || 0,
-          paid: paidByUser[u.id] || 0
+          paid: paidByUser[u.id] || 0,
+          overdue: overdueByUser[u.id] || 0
         }));
 
         return res.status(200).json({ users: list });
@@ -1893,9 +1912,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             owedGroups[key].created_at = t.created_at;
           }
         });
+        const dueDates = await loadPaymentDueDates(supabaseAdmin);
+        const today = ukToday();
         const owedRows = Object.values(owedGroups)
           .filter(g => g.amount > 0)
-          .map(g => ({ ...g, kind: 'owed', created_at: g.created_at || new Date(0).toISOString() }));
+          .map(g => {
+            const due = dueDates[`${g.tournament_type}:${g.tournament_id}`]?.due || null;
+            return { ...g, kind: 'owed', payment_due_date: due, overdue: !!(due && due < today), created_at: g.created_at || new Date(0).toISOString() };
+          });
 
         const allRows = [...(payments || []).map(p => ({ ...p, kind: 'paid' })), ...owedRows];
 
@@ -2413,7 +2437,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       
       console.log('Tournaments API - User authenticated:', user.id);
 
-      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, squad_players, captain_id, tournament_type, team, pack_type, position, player_id, is_sub } = req.body;
+      const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, payment_due_date, squad_players, captain_id, tournament_type, team, pack_type, position, player_id, is_sub } = req.body;
       const schemaName = resolveSchema(tournament_type);
 
       // CREATE tournament (admin action)
@@ -2486,7 +2510,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           max_entries: max_entries || 100,
           current_entries: 0,
           status: initialStatus,
-          closes_at: effectiveClosesAt
+          closes_at: effectiveClosesAt,
+          payment_due_date: payment_due_date || null
         };
         if (schemaName !== 'stockmarket') {
           insertPayload.prize_pool = prizePoolPence;
@@ -3073,13 +3098,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
-        const { name, description, entry_fee, closes_at } = req.body;
+        const { name, description, entry_fee, closes_at, payment_due_date: dartsDue } = req.body;
         if (!name?.trim() || !closes_at) return res.status(400).json({ error: 'name and closes_at are required' });
 
         try {
           const { data: tournament, error: tourErr } = await supabaseAdmin
             .schema('darts').from('tournaments')
-            .insert({ name: name.trim(), description: description?.trim() || null, entry_fee: Math.round((entry_fee || 0) * 100), closes_at, status: 'upcoming' })
+            .insert({ name: name.trim(), description: description?.trim() || null, entry_fee: Math.round((entry_fee || 0) * 100), closes_at, payment_due_date: dartsDue || null, status: 'upcoming' })
             .select().single();
           if (tourErr) return res.status(500).json({ error: tourErr.message });
 
@@ -8435,6 +8460,23 @@ async function promoteIfGameweekReached(supabaseAdmin, masterDb, schemaName, tou
 }
 
 const PAYMENT_SCHEMAS = ['predictions', 'lms', 'fantasy', 'stockmarket', 'darts', 'champions_league'];
+
+// Payment due dates ("pay by") for every tournament across every schema,
+// keyed `${schema}:${id}`. Used to flag owed entry fees as overdue.
+async function loadPaymentDueDates(supabaseAdmin) {
+  const map = {};
+  for (const schema of PAYMENT_SCHEMAS) {
+    const { data } = await supabaseAdmin.schema(schema).from('tournaments').select('id, name, payment_due_date');
+    (data || []).forEach(t => { map[`${schema}:${t.id}`] = { name: t.name, due: t.payment_due_date || null }; });
+  }
+  return map;
+}
+
+// Today's date in UK time as YYYY-MM-DD. A fee is overdue the day
+// AFTER its due date, so "pay by 17 Oct" is fine all of the 17th.
+function ukToday() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+}
 
 async function computeUserTournamentDues(supabaseAdmin, userId) {
   let allEntries = [];
