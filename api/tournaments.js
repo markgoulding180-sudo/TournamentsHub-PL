@@ -1794,7 +1794,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return { ...g, name: info.name || 'Tournament', payment_due_date: due, status };
           });
 
-        return res.status(200).json({ owed, transactions: transactions || [], tournaments: tournamentSummary });
+        // Until per-user payment references are built, the username is
+        // the reference, so payments can be matched on the bank statement.
+        const { data: me } = await supabaseAdmin.from('users').select('username').eq('id', user.id).maybeSingle();
+
+        return res.status(200).json({
+          owed,
+          transactions: transactions || [],
+          tournaments: tournamentSummary,
+          bank_details: { ...PAYMENT_BANK_DETAILS, reference: me?.username || null }
+        });
       }
 
       // Fresh copy of the current user's own profile row - needed
@@ -8497,6 +8506,14 @@ async function promoteIfGameweekReached(supabaseAdmin, masterDb, schemaName, tou
 }
 
 const PAYMENT_SCHEMAS = ['predictions', 'lms', 'fantasy', 'stockmarket', 'darts', 'champions_league'];
+
+// Bank details users pay entry fees into. Only ever sent to logged-in
+// users via the wallet endpoint, never baked into public page HTML.
+const PAYMENT_BANK_DETAILS = {
+  account_name: 'Mr M A Goulding',
+  sort_code: '11-00-16',
+  account_number: '00377734'
+};
 
 // Payment due dates ("pay by") for every tournament across every schema,
 // keyed `${schema}:${id}`. Used to flag owed entry fees as overdue.
