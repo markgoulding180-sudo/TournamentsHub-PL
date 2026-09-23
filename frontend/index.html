@@ -703,6 +703,7 @@
      ticker did, no wiring needed per tournament. */
   .reg-carousel-wrap{ margin:0 0 24px; }
   .reg-carousel-track{
+    position:relative; /* makes slide offsetLeft measure from the track, so dots + auto-advance line up */
     display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory;
     -webkit-overflow-scrolling:touch; padding:4px 20px 10px; scrollbar-width:none;
     /* Real fix here: with only a couple of slides (not enough to fill
@@ -736,6 +737,23 @@
   .reg-carousel-dots{ display:flex; justify-content:center; gap:6px; margin-top:2px; }
   .reg-carousel-dot{ width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s, width .2s; }
   .reg-carousel-dot.active{ background:#eab308; width:18px; border-radius:4px; }
+  /* Mobile: exactly one full card on screen at a time. Before, slides
+     were 84vw wide, so the next card peeked in as a half card. Now each
+     slide is the full visible width of the track, and the 16px gap
+     pushes the next one just past the screen edge. snap-stop:always
+     means a fast flick moves one card, never skips past one.
+     justify-content switches to flex-start here because centred flex
+     content that overflows gets clipped on the left and the first
+     slide becomes unreachable. */
+  @media (max-width:640px){
+    .reg-carousel-track{
+      gap:16px; padding:4px 16px 10px; scroll-padding-inline:16px;
+      justify-content:flex-start;
+    }
+    .reg-carousel-slide{
+      flex:0 0 100%; scroll-snap-align:center; scroll-snap-stop:always;
+    }
+  }
 
   .mini-card.mini-registering{ border-color:#a16207; border-width:1.5px; }
   .mini-card.mini-live{ border-color:#15803d; border-width:1.5px; }
