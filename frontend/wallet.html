@@ -15,7 +15,7 @@
       --border:#131f35; --border-hover:#3b82f6;
       --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
       --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
-      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e; --amber:#eab308;
       --radius:14px;
       --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
     }
@@ -103,6 +103,44 @@
     .tx-amount.debit{ color:var(--red); }
     .tx-amount.credit{ color:var(--green); }
 
+    /* ============ SUMMARY + PER-TOURNAMENT LIST ============ */
+    .owe-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:22px 24px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+    .owe-label{ font-family:var(--font-head); font-size:12px; text-transform:uppercase; letter-spacing:1.6px; color:var(--text-faint); margin-bottom:6px; }
+    .owe-value{ font-family:var(--font-display); font-size:44px; line-height:1; }
+    .owe-value.owed{ color:var(--red); }
+    .owe-value.clear{ color:var(--green); }
+    .owe-overdue{ margin-top:8px; display:inline-block; background:var(--red); color:#fff; font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; }
+    .owe-next{ text-align:right; }
+    .owe-next .when{ font-family:var(--font-head); font-weight:700; font-size:17px; color:var(--amber); }
+    .owe-note:empty{ display:none; }
+    .owe-note{ flex-basis:100%; color:var(--text-dim); font-size:12.5px; line-height:1.5; border-top:1px solid var(--border); padding-top:12px; }
+
+    .tt-row{ display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--border); }
+    .tt-row:last-child{ border-bottom:none; }
+    .tt-icon{ flex-shrink:0; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; }
+    .tt-icon.paid{ background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); color:var(--green); }
+    .tt-icon.due{ background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); color:var(--amber); }
+    .tt-icon.overdue{ background:var(--red); border:1px solid var(--red); color:#fff; }
+    .tt-info{ flex:1; min-width:0; }
+    .tt-name{ font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .tt-sub{ font-size:12px; color:var(--text-faint); margin-top:2px; }
+    .tt-right{ text-align:right; flex-shrink:0; }
+    .tt-amt{ font-family:var(--font-head); font-weight:700; font-size:15.5px; }
+    .tt-amt.paid{ color:var(--green); } .tt-amt.owed{ color:var(--red); }
+    .chip{ display:inline-block; margin-top:4px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+    .chip.paid{ background:rgba(34,197,94,0.14); color:#4ade80; }
+    .chip.paid_late{ background:rgba(251,146,60,0.16); color:#fdba74; }
+    .chip.due{ background:rgba(234,179,8,0.16); color:#fde047; }
+    .chip.overdue{ background:var(--red); color:#fff; }
+    .legend{ display:flex; gap:6px; flex-wrap:wrap; margin-top:14px; }
+
+    details.history{ margin-top:18px; }
+    details.history summary{ cursor:pointer; list-style:none; text-align:center; color:var(--text-dim); font-size:13px; font-weight:600; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg-panel); }
+    details.history summary::-webkit-details-marker{ display:none; }
+    details.history[open] summary{ margin-bottom:14px; }
+    details.history summary i{ transition:transform .2s; margin-left:6px; }
+    details.history[open] summary i{ transform:rotate(180deg); }
+
     .empty{ text-align:center; color:var(--text-dim); padding:34px 20px; font-size:14px; }
     .empty i{ display:block; font-size:26px; color:var(--text-faint); margin-bottom:10px; }
     .loading{ text-align:center; color:var(--text-dim); padding:34px 20px; font-size:14px; }
@@ -132,10 +170,10 @@
       main{ padding:22px 14px 50px; }
       .wallet-hero{ padding:28px 22px; flex-direction:column; text-align:center; gap:18px; }
       .wallet-hero p{ max-width:100%; }
-      .balance-value{ font-size:44px; }
-      .wallet-stats{ grid-template-columns:1fr 1fr 1fr; gap:8px; }
-      .wallet-stat{ padding:12px 8px; }
-      .wallet-stat .value{ font-size:17px; }
+      .owe-card{ padding:18px 16px; }
+      .owe-value{ font-size:36px; }
+      .card{ padding:18px 14px; }
+      .tt-name{ white-space:normal; font-size:13.5px; }
     }
   </style>
 </head>
@@ -182,35 +220,32 @@
       <div class="wallet-hero-text">
         <div class="wallet-hero-eyebrow">Your Account</div>
         <h1>Wallet</h1>
-        <p>A running tab, not a live payment. Entry fees are added automatically when you join a tournament — pay the admin however you've arranged, and it's marked off here once received.</p>
+        <p>Entry fees are added when you join a tournament. Pay the admin by each tournament's due date and it's marked off here once received.</p>
       </div>
     </section>
 
-    <div class="balance-card">
-      <div class="balance-label">Current Balance</div>
-      <div class="balance-value" id="balanceValue">--</div>
-      <div class="balance-note" id="balanceNote"></div>
-    </div>
-
-    <div class="wallet-stats">
-      <div class="wallet-stat">
-        <div class="label">Total Charged</div>
-        <div class="value" id="statCharged" style="color:var(--red);">--</div>
+    <div class="owe-card" id="oweCard">
+      <div>
+        <div class="owe-label">You owe</div>
+        <div class="owe-value" id="oweValue">--</div>
+        <div id="oweOverdue"></div>
       </div>
-      <div class="wallet-stat">
-        <div class="label">Total Paid</div>
-        <div class="value" id="statPaid" style="color:var(--green);">--</div>
-      </div>
-      <div class="wallet-stat">
-        <div class="label">Transactions</div>
-        <div class="value" id="statCount" style="color:var(--accent-2);">--</div>
-      </div>
+      <div class="owe-next" id="oweNext"></div>
+      <div class="owe-note" id="oweNote"></div>
     </div>
 
     <div class="card">
-      <div class="card-title"><i class="fas fa-receipt"></i> Transaction History</div>
-      <div id="txList"><div class="loading">Loading…</div></div>
+      <div class="card-title"><i class="fas fa-trophy"></i> Your Tournaments</div>
+      <div id="ttList"><div class="loading">Loading…</div></div>
     </div>
+
+    <details class="history">
+      <summary>Show full transaction history <i class="fas fa-chevron-down"></i></summary>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-receipt"></i> Transaction History</div>
+        <div id="txList"><div class="loading">Loading…</div></div>
+      </div>
+    </details>
   </main>
 
   <script>
@@ -230,15 +265,89 @@
       } catch (e) { return ''; }
     }
 
+    function shortDate(dateStr, withYear) {
+      // dateStr may be YYYY-MM-DD (due dates) or a full ISO timestamp.
+      const d = dateStr.length === 10 ? new Date(dateStr + 'T12:00:00') : new Date(dateStr);
+      const opts = { day: 'numeric', month: 'short' };
+      if (withYear || d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+      return d.toLocaleDateString('en-GB', opts);
+    }
+
+    function renderTournaments(list) {
+      const el = document.getElementById('ttList');
+      if (!list.length) {
+        el.innerHTML = '<div class="empty"><i class="fas fa-trophy"></i>No paid tournaments yet — join one to get started.</div>';
+        return;
+      }
+      // Overdue first (oldest due date first), then still to pay (soonest
+      // due first), then paid (most recently paid first).
+      const rank = { overdue: 0, due: 1, paid_late: 2, paid: 2 };
+      const far = '9999-12-31';
+      list = [...list].sort((a, b) => {
+        const r = rank[a.status] - rank[b.status];
+        if (r) return r;
+        if (a.status === 'overdue' || a.status === 'due') return (a.payment_due_date || far).localeCompare(b.payment_due_date || far);
+        return (b.last_paid_at || '').localeCompare(a.last_paid_at || '');
+      });
+
+      el.innerHTML = list.map(t => {
+        const isPaid = t.status === 'paid' || t.status === 'paid_late';
+        const icon = isPaid ? 'fa-check' : t.status === 'overdue' ? 'fa-exclamation' : 'fa-clock';
+        const iconClass = isPaid ? 'paid' : t.status;
+        let chip;
+        if (t.status === 'paid') chip = `<span class="chip paid">Paid ${t.last_paid_at ? shortDate(t.last_paid_at) : ''}</span>`;
+        else if (t.status === 'paid_late') chip = `<span class="chip paid_late">Paid late ${t.last_paid_at ? shortDate(t.last_paid_at) : ''}</span>`;
+        else if (t.status === 'overdue') chip = `<span class="chip overdue">Overdue since ${shortDate(t.payment_due_date)}</span>`;
+        else chip = `<span class="chip due">${t.payment_due_date ? 'Due ' + shortDate(t.payment_due_date) : 'To pay'}</span>`;
+        const amount = isPaid ? t.fee : t.balance;
+        return `
+          <div class="tt-row">
+            <div class="tt-icon ${iconClass}"><i class="fas ${icon}"></i></div>
+            <div class="tt-info">
+              <div class="tt-name">${escapeHtml(t.name)}</div>
+              <div class="tt-sub">Entered ${t.entered_at ? shortDate(t.entered_at) : ''}${!isPaid && t.paid > 0 ? ` · ${money(t.paid)} paid so far` : ''}</div>
+            </div>
+            <div class="tt-right">
+              <div class="tt-amt ${isPaid ? 'paid' : 'owed'}">${money(amount)}</div>
+              ${chip}
+            </div>
+          </div>`;
+      }).join('') + `
+        <div class="legend">
+          <span class="chip paid">Paid</span><span class="chip paid_late">Paid late</span><span class="chip due">Due</span><span class="chip overdue">Overdue</span>
+        </div>`;
+    }
+
+    function renderSummary(owed, list) {
+      const valueEl = document.getElementById('oweValue');
+      const overdueEl = document.getElementById('oweOverdue');
+      const nextEl = document.getElementById('oweNext');
+      if (owed > 0) {
+        valueEl.textContent = money(owed);
+        valueEl.className = 'owe-value owed';
+      } else if (owed < 0) {
+        valueEl.textContent = `${money(owed)} credit`;
+        valueEl.className = 'owe-value clear';
+      } else {
+        valueEl.textContent = '£0.00';
+        valueEl.className = 'owe-value clear';
+      }
+      const overdueTotal = list.filter(t => t.status === 'overdue').reduce((s, t) => s + t.balance, 0);
+      overdueEl.innerHTML = overdueTotal > 0 ? `<span class="owe-overdue"><i class="fas fa-triangle-exclamation"></i> ${money(overdueTotal)} overdue</span>` : '';
+      const upcoming = list.filter(t => t.status === 'due' && t.payment_due_date)
+        .sort((a, b) => a.payment_due_date.localeCompare(b.payment_due_date))[0];
+      nextEl.innerHTML = upcoming
+        ? `<div class="owe-label">Next due</div><div class="when">${shortDate(upcoming.payment_due_date)} · ${money(upcoming.balance)}</div>`
+        : (owed <= 0 ? '<div class="owe-label">All paid up</div>' : '');
+    }
+
     async function loadWallet() {
       const token = localStorage.getItem('gbf_token');
       if (!token) {
-        document.getElementById('balanceValue').textContent = '--';
-        document.getElementById('balanceNote').textContent = 'Log in to see your wallet.';
-        document.getElementById('txList').innerHTML = '<div class="empty"><i class="fas fa-lock"></i>Log in to see your transaction history.</div>';
-        document.getElementById('statCharged').textContent = '--';
-        document.getElementById('statPaid').textContent = '--';
-        document.getElementById('statCount').textContent = '--';
+        document.getElementById('oweValue').textContent = '--';
+        document.getElementById('oweNote').textContent = 'Log in to see your wallet.';
+        document.getElementById('ttList').innerHTML = '<div class="empty"><i class="fas fa-lock"></i>Log in to see your tournaments.</div>';
+        document.getElementById('txList').innerHTML = '';
         return;
       }
       try {
@@ -246,35 +355,14 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load wallet');
 
-        const owed = data.owed || 0;
-        const balanceEl = document.getElementById('balanceValue');
-        const noteEl = document.getElementById('balanceNote');
-        if (owed > 0) {
-          balanceEl.textContent = money(owed);
-          balanceEl.className = 'balance-value owed';
-          noteEl.textContent = "Entry fees are added automatically when you join a tournament — nothing's charged until you actually pay the admin.";
-        } else if (owed < 0) {
-          balanceEl.textContent = `${money(owed)} in credit`;
-          balanceEl.className = 'balance-value clear';
-          noteEl.textContent = "You've paid more than you currently owe — this credit will count toward your next entry fee.";
-        } else {
-          balanceEl.textContent = '£0.00';
-          balanceEl.className = 'balance-value clear';
-          noteEl.textContent = "You're all square — nothing owed right now.";
-        }
+        const tournaments = data.tournaments || [];
+        renderSummary(data.owed || 0, tournaments);
+        renderTournaments(tournaments);
 
         const transactions = data.transactions || [];
-
-        // Quick stats — computed client-side from the same transaction list
-        const totalCharged = transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
-        const totalPaid = transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
-        document.getElementById('statCharged').textContent = money(totalCharged);
-        document.getElementById('statPaid').textContent = money(totalPaid);
-        document.getElementById('statCount').textContent = transactions.length;
-
         const txList = document.getElementById('txList');
         if (transactions.length === 0) {
-          txList.innerHTML = '<div class="empty"><i class="fas fa-receipt"></i>No transactions yet — join a tournament to get started.</div>';
+          txList.innerHTML = '<div class="empty"><i class="fas fa-receipt"></i>No transactions yet.</div>';
           return;
         }
         txList.innerHTML = transactions.map(t => {
@@ -292,7 +380,7 @@
         }).join('');
       } catch (e) {
         console.error('Failed to load wallet:', e);
-        document.getElementById('txList').innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load your wallet right now.</div>';
+        document.getElementById('ttList').innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load your wallet right now.</div>';
       }
     }
 

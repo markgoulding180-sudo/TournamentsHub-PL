@@ -1757,7 +1757,44 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (txError) return res.status(500).json({ error: 'Failed to load wallet', details: txError.message });
 
         const owed = (transactions || []).reduce((sum, t) => sum + t.amount, 0);
-        return res.status(200).json({ owed, transactions: transactions || [] });
+
+        // One summary per tournament the user was charged for: what it
+        // cost, what's been paid, when it's due, and its status - so the
+        // wallet can show a single line per tournament instead of making
+        // the user match entry fees to payments themselves.
+        const dueDates = await loadPaymentDueDates(supabaseAdmin);
+        const today = ukToday();
+        const ukDate = iso => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+        const groups = {};
+        (transactions || []).forEach(t => {
+          if (!t.tournament_id) return;
+          const key = `${t.tournament_type}:${t.tournament_id}`;
+          if (!groups[key]) groups[key] = { tournament_type: t.tournament_type, tournament_id: t.tournament_id, fee: 0, paid: 0, balance: 0, entered_at: null, last_paid_at: null };
+          const g = groups[key];
+          g.balance += t.amount;
+          if (t.type === 'entry_fee') {
+            g.fee += t.amount;
+            if (!g.entered_at || t.created_at < g.entered_at) g.entered_at = t.created_at;
+          } else if (t.type === 'payment') {
+            g.paid += Math.abs(t.amount);
+            if (!g.last_paid_at || t.created_at > g.last_paid_at) g.last_paid_at = t.created_at;
+          }
+        });
+        const tournamentSummary = Object.entries(groups)
+          .filter(([, g]) => g.fee > 0)
+          .map(([key, g]) => {
+            const info = dueDates[key] || {};
+            const due = info.due || null;
+            let status;
+            if (g.balance <= 0) {
+              status = (due && g.last_paid_at && ukDate(g.last_paid_at) > due) ? 'paid_late' : 'paid';
+            } else {
+              status = (due && due < today) ? 'overdue' : 'due';
+            }
+            return { ...g, name: info.name || 'Tournament', payment_due_date: due, status };
+          });
+
+        return res.status(200).json({ owed, transactions: transactions || [], tournaments: tournamentSummary });
       }
 
       // Fresh copy of the current user's own profile row - needed
