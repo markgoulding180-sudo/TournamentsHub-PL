@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="topfive-v9">
+<meta name="build" content="standings-v10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -312,7 +312,7 @@
   @media (min-width:900px){
     .hero{ display:flex; align-items:center; justify-content:space-between; gap:32px; }
     .mini-board{
-      display:block; width:300px; flex-shrink:0; margin:-18px 0;
+      display:block; width:300px; flex-shrink:0; margin:-20px 0;
       background:var(--bg-card); border:1px solid rgba(255,255,255,0.12); border-radius:10px;
       padding:5px 10px;
     }
@@ -330,6 +330,12 @@
   .mini-board-list .pos.bronze{ background:#d97757; color:#1f0d05; }
   .mini-board-list .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
   .mini-board-list .val{ font-family:var(--font-head); font-weight:700; font-size:12.5px; }
+
+  .mini-board-list li.gap{ height:9px; justify-content:center; color:var(--text-faint); font-size:10px; line-height:9px; letter-spacing:2px; }
+  .mini-board-list li.last-safe{ border-bottom:1.5px dashed rgba(239,68,68,0.7); border-radius:6px 6px 0 0; }
+  .mini-board-list .tag{ font-size:9.5px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:.4px; }
+  .drop-line{ font-size:10px; font-weight:700; color:var(--red); padding:2px 6px 0; letter-spacing:.2px; line-height:1.2; }
+  .drop-line i{ margin-right:4px; font-size:9px; }
 </style>
 </head>
 <body>
@@ -377,18 +383,20 @@
    </div>
 
     <!-- Top 5 league standings - desktop only (hidden under 900px). -->
-    <aside class="mini-board" aria-label="League top 5">
+    <!-- Top 3 plus the last safe place above the relegation zone - desktop only. -->
+    <aside class="mini-board" aria-label="League top 3 and relegation line">
       <div class="mini-board-head">
-        <span><i class="fa-solid fa-trophy"></i> League Top 5</span>
+        <span><i class="fa-solid fa-trophy"></i> League Standings</span>
         <span class="mini-board-sub">Squad value</span>
       </div>
       <ol class="mini-board-list">
         <li><span class="pos gold">1</span><span class="nm">GoalMachine99</span><span class="val">£52.40</span></li>
         <li><span class="pos silver">2</span><span class="nm">Spursbill3169</span><span class="val">£49.75</span></li>
         <li class="me"><span class="pos bronze">3</span><span class="nm">You</span><span class="val">£46.28</span></li>
-        <li><span class="pos">4</span><span class="nm">CAFCmike</span><span class="val">£44.10</span></li>
-        <li><span class="pos">5</span><span class="nm">PieFaceKev</span><span class="val">£41.90</span></li>
+        <li class="gap" aria-hidden="true"><span>&middot;&middot;&middot;</span></li>
+        <li class="last-safe"><span class="pos">9</span><span class="nm">Kenny78</span><span class="tag">Last safe</span><span class="val">£38.60</span></li>
       </ol>
+      <div class="drop-line"><i class="fa-solid fa-skull-crossbones"></i> Bottom 3 cut after GW 6</div>
     </aside>
   </div>
 
