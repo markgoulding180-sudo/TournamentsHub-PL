@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="fullwidth-v6">
+<meta name="build" content="hero-v7">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -259,6 +259,50 @@
     .numbers .delta{ font-size:11px; }
     .detail-inner{ padding-left:12px; }
   }
+
+  /* ---------- Stock Market hero (same as the real /stock-market page) ----------
+     Prefixed sm- because this page already uses .hero for the squad value block. */
+  .sm-hero{
+    position:relative; border-radius:20px; margin:16px 20px;
+    background:
+      linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)),
+      radial-gradient(ellipse 60% 100% at 100% 20%, rgba(34,197,94,0.18) 0%, transparent 60%),
+      linear-gradient(90deg, rgba(6,12,26,1) 0%, rgba(6,12,26,1) 30%, rgba(6,12,26,0.585) 55%, rgba(6,12,26,0.156) 75%, rgba(6,12,26,0.065) 100%),
+      url('assets/card-stockmarket.jpg');
+    background-size:cover; background-repeat:no-repeat; background-position:center;
+    border:1px solid var(--border); overflow:hidden;
+    padding:58px 50px; min-height:340px; display:flex; align-items:center;
+  }
+  .sm-hero-content{ position:relative; z-index:2; max-width:560px; }
+  .sm-hero-eyebrow{ display:inline-flex; align-items:center; gap:8px; color:var(--green); font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px; text-transform:uppercase; margin-bottom:18px; }
+  .sm-hero-eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 8px rgba(34,197,94,0.5); animation:smPulse 1.8s ease-in-out infinite; }
+  @keyframes smPulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .sm-hero h1{ font-family:var(--font-display); font-size:66px; font-weight:400; line-height:0.94; letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase; }
+  .sm-hero-sub{ font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--green); margin-bottom:12px; letter-spacing:0.3px; }
+  .sm-hero-desc{ font-size:15px; color:#fff; max-width:460px; line-height:1.55; }
+  .sm-hero-controls{ display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:20px; }
+  .sm-pill summary, .sm-pill-link{
+    list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+    font-family:var(--font-head); font-size:12.5px; font-weight:700; letter-spacing:.2px;
+    color:var(--accent-2); background:rgba(59,130,246,0.12); border:1px solid var(--accent-dim);
+    padding:9px 16px; border-radius:20px; transition:background .2s, border-color .2s; text-decoration:none;
+  }
+  .sm-pill summary::-webkit-details-marker{ display:none; }
+  .sm-pill summary:hover, .sm-pill-link:hover{ background:rgba(59,130,246,0.22); border-color:var(--accent-2); }
+  .sm-pill summary::after{ content:'\f078'; font-family:'Font Awesome 6 Free'; font-weight:900; font-size:9px; margin-left:2px; transition:transform .2s ease; }
+  .sm-pill[open] summary::after{ transform:rotate(180deg); }
+  .sm-how-list{ margin-top:12px; background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:16px; max-width:420px; display:flex; flex-direction:column; gap:14px; }
+  .sm-how-item{ display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.5; }
+  .sm-how-item strong{ color:var(--text); }
+  .sm-how-num{ flex:none; width:26px; height:26px; border-radius:50%; background:rgba(34,197,94,0.12); border:1px solid var(--green); color:var(--green); font-family:var(--font-head); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  @media (max-width:600px){
+    /* Full-bleed on phones, as on the real page */
+    .sm-hero{ margin:0 0 12px; border-radius:0; border-left:none; border-right:none; padding:28px 22px; min-height:auto; }
+    .sm-hero h1{ font-size:42px; }
+    .sm-hero-sub{ font-size:16px; }
+    .sm-hero-desc{ font-size:13.5px; }
+    .sm-how-list{ gap:10px; }
+  }
 </style>
 </head>
 <body>
@@ -268,6 +312,26 @@
     <div class="mark">GB <span>STOCKS</span></div>
     <button class="menu-btn"><i class="fa-solid fa-ellipsis"></i></button>
   </div>
+
+    <section class="sm-hero">
+    <div class="sm-hero-content">
+      <div class="sm-hero-eyebrow"><span class="dot"></span>Zero-Sum Market</div>
+      <h1>Stock Market</h1>
+      <div class="sm-hero-sub">Draft. Trade Nothing. Watch It Move.</div>
+      <p class="sm-hero-desc">Draft a 6-player squad. Every player is a shared stock — their value rises and falls with real match events. It's pure zero-sum: what one player gains, another loses. No trading, no captain, just the market.</p>
+      <div class="sm-hero-controls">
+        <details class="sm-pill">
+          <summary><i class="fas fa-circle-info"></i> How It Works</summary>
+          <div class="sm-how-list">
+            <div class="sm-how-item"><span class="sm-how-num">1</span><div><strong>Draft your 6.</strong> 1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 2 free picks either way.</div></div>
+            <div class="sm-how-item"><span class="sm-how-num">2</span><div><strong>Values move with real events.</strong> Goals, assists and saves push a player's value up. Yellow cards knock it down. A red card wipes it to zero.</div></div>
+            <div class="sm-how-item"><span class="sm-how-num">3</span><div><strong>Zero-sum, always — here's exactly how.</strong> Say your forward scores a goal — he's awarded £3.00. That £3.00 isn't created from nothing: it's paid directly by your opponent's 6 players <em>this week</em>, split evenly between them (50p each). The total pot never grows or shrinks, it only moves between players.</div></div>
+          </div>
+        </details>
+        <a href="/injuries" class="sm-pill-link"><i class="fas fa-kit-medical"></i> Injuries</a>
+      </div>
+    </div>
+  </section>
 
   <div class="hero">
     <div class="label">Your squad is worth</div>
