@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="hero-v7">
+<meta name="build" content="topfive-v8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -303,6 +303,31 @@
     .sm-hero-desc{ font-size:13.5px; }
     .sm-how-list{ gap:10px; }
   }
+
+  /* ---------- League top 5 beside the squad value (desktop only) ---------- */
+  .mini-board{ display:none; }
+  @media (min-width:900px){
+    .hero{ display:flex; align-items:center; justify-content:space-between; gap:32px; }
+    .mini-board{
+      display:block; width:340px; flex-shrink:0;
+      background:var(--bg-card); border:1px solid rgba(255,255,255,0.12); border-radius:12px;
+      padding:12px 14px;
+    }
+  }
+  .mini-board-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .mini-board-head span:first-child{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; }
+  .mini-board-head i{ color:var(--gold); margin-right:5px; }
+  .mini-board-sub{ font-size:11px; color:var(--text-faint); }
+  .mini-board-list{ list-style:none; margin:0; padding:0; }
+  .mini-board-list li{ display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:8px; font-size:13px; }
+  .mini-board-list li + li{ margin-top:2px; }
+  .mini-board-list li.me{ background:rgba(59,130,246,0.14); border:1px solid rgba(59,130,246,0.45); }
+  .mini-board-list .pos{ width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700; font-size:12px; background:var(--bg-panel); color:var(--text-dim); flex-shrink:0; }
+  .mini-board-list .pos.gold{ background:var(--gold); color:#1a1200; }
+  .mini-board-list .pos.silver{ background:#c0c8d6; color:#141a24; }
+  .mini-board-list .pos.bronze{ background:#d97757; color:#1f0d05; }
+  .mini-board-list .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .mini-board-list .val{ font-family:var(--font-head); font-weight:700; font-size:14px; }
 </style>
 </head>
 <body>
@@ -334,6 +359,7 @@
   </section>
 
   <div class="hero">
+   <div class="hero-main">
     <div class="label">Your squad is worth</div>
     <div class="value-row">
       <div class="value">£46.28</div>
@@ -346,6 +372,22 @@
       <div class="meta-item dot">·</div>
       <div class="meta-item">Locks in <b>2d 6h</b></div>
     </div>
+   </div>
+
+    <!-- Top 5 league standings - desktop only (hidden under 900px). -->
+    <aside class="mini-board" aria-label="League top 5">
+      <div class="mini-board-head">
+        <span><i class="fa-solid fa-trophy"></i> League Top 5</span>
+        <span class="mini-board-sub">Squad value</span>
+      </div>
+      <ol class="mini-board-list">
+        <li><span class="pos gold">1</span><span class="nm">GoalMachine99</span><span class="val">£52.40</span></li>
+        <li><span class="pos silver">2</span><span class="nm">Spursbill3169</span><span class="val">£49.75</span></li>
+        <li class="me"><span class="pos bronze">3</span><span class="nm">You</span><span class="val">£46.28</span></li>
+        <li><span class="pos">4</span><span class="nm">CAFCmike</span><span class="val">£44.10</span></li>
+        <li><span class="pos">5</span><span class="nm">PieFaceKev</span><span class="val">£41.90</span></li>
+      </ol>
+    </aside>
   </div>
 
   <div class="section-head">
