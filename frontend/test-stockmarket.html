@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="shirts-test-v14">
+<meta name="build" content="real-data-v15">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -383,6 +383,24 @@
   }
   .row.has-shirt .row-main{ background:transparent; }
   .row.has-shirt .row-main:active, .row.has-shirt.open .row-main{ background:rgba(16,26,56,0.45); }
+
+  /* ---------- Real-example bar with View as switch ---------- */
+  .demo-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:12px var(--gutter) 0; }
+  .demo-note{ font-size:12px; color:var(--text-dim); }
+  .demo-note i{ color:var(--green); margin-right:5px; }
+  .demo-note b{ color:var(--text); }
+  .demo-toggle{ display:inline-flex; align-items:center; gap:4px; background:var(--bg-card); border:1px solid rgba(255,255,255,0.12); border-radius:20px; padding:3px; }
+  .demo-toggle-lbl{ font-size:11px; color:var(--text-faint); padding:0 6px 0 8px; }
+  .demo-toggle button{ font-family:var(--font-head); font-size:12.5px; font-weight:700; color:var(--text-dim); padding:5px 12px; border-radius:16px; background:none; border:none; cursor:pointer; }
+  .demo-toggle button.active{ background:var(--accent); color:#fff; }
+  .hero-avatar-rank.r1{ background:var(--gold); color:#1a1200; }
+  .hero-avatar-rank.r2{ background:#c0c8d6; color:#141a24; }
+  .hero-avatar-rank.r3{ background:#d97757; color:#1f0d05; }
+  .hero-avatar-rank.r4{ background:#2c3d5c; color:var(--text); }
+  .safe-line .neg{ color:var(--red) !important; }
+  .vs-result{ font-size:11px; font-weight:700; margin-left:6px; padding:2px 7px; border-radius:10px; }
+  .vs-result.won{ color:var(--green); background:var(--green-dim); }
+  .vs-result.lost{ color:var(--red); background:var(--red-dim); }
 </style>
 </head>
 <body>
@@ -413,50 +431,48 @@
     </div>
   </section>
 
+  <!-- Real example: data from the GB test league, Gameweek 3 -->
+  <div class="demo-bar">
+    <div class="demo-note"><i class="fa-solid fa-circle-play"></i> Real example from our test league &middot; <b>Gameweek 3</b></div>
+    <div class="demo-toggle" role="tablist" aria-label="View as">
+      <span class="demo-toggle-lbl">View as</span>
+      <button type="button" data-view="mike" class="active" onclick="setView('mike')">McGuinness</button>
+      <button type="button" data-view="mark" onclick="setView('mark')">Mark G</button>
+    </div>
+  </div>
+
   <div class="hero">
    <div class="hero-main">
     <div class="hero-info">
     <div class="label">Your squad is worth</div>
     <div class="value-row">
-      <div class="value">£46.28</div>
-      <div class="delta up"><i class="fa-solid fa-caret-up"></i> £2.14 today</div>
+      <div class="value" id="heroValue">--</div>
+      <div class="delta" id="heroDelta"></div>
     </div>
     <div class="meta">
-      <div class="meta-item"><b>3rd</b> of 12</div>
+      <div class="meta-item" id="heroRank"></div>
       <div class="meta-item dot">·</div>
-      <div class="meta-item">Gameweek 4</div>
+      <div class="meta-item">Gameweek 3</div>
       <div class="meta-item dot">·</div>
-      <div class="meta-item">Locks in <b>2d 6h</b></div>
+      <div class="meta-item"><b>Settled</b></div>
     </div>
     <!-- Relegation line for phones; desktop shows it in the standings board. -->
-    <div class="safe-line">
-      <i class="fa-solid fa-shield-halved"></i>
-      <span>Last safe: <b>9th · Kenny78 · £38.60</b></span>
-      <span class="safe-gap">You're <b>£7.68</b> above the drop</span>
+    <div class="safe-line" id="safeLine"></div>
     </div>
-    </div>
-    <!-- User avatar: initials for now, as users don't have profile photos yet. -->
-    <div class="hero-avatar" id="heroAvatar" title="Your profile">
-      <span id="heroAvatarInitials">MG</span>
-      <span class="hero-avatar-rank">3rd</span>
+    <div class="hero-avatar" id="heroAvatar">
+      <span id="heroAvatarInitials">--</span>
+      <span class="hero-avatar-rank" id="heroAvatarRank"></span>
     </div>
    </div>
 
-    <!-- Top 5 league standings - desktop only (hidden under 900px). -->
     <!-- Top 3 plus the last safe place above the relegation zone - desktop only. -->
     <aside class="mini-board" aria-label="League top 3 and relegation line">
       <div class="mini-board-head">
         <span><i class="fa-solid fa-trophy"></i> League Standings</span>
         <span class="mini-board-sub">Squad value</span>
       </div>
-      <ol class="mini-board-list">
-        <li><span class="pos gold">1</span><span class="nm">GoalMachine99</span><span class="val">£52.40</span></li>
-        <li><span class="pos silver">2</span><span class="nm">Spursbill3169</span><span class="val">£49.75</span></li>
-        <li class="me"><span class="pos bronze">3</span><span class="nm">You</span><span class="val">£46.28</span></li>
-        <li class="gap" aria-hidden="true"><span>&middot;&middot;&middot;</span></li>
-        <li class="last-safe"><span class="pos">9</span><span class="nm">Kenny78</span><span class="tag">Last safe</span><span class="val">£38.60</span></li>
-      </ol>
-      <div class="drop-line"><i class="fa-solid fa-skull-crossbones"></i> Bottom 3 cut after GW 6</div>
+      <ol class="mini-board-list" id="miniBoard"></ol>
+      <div class="drop-line" id="dropLine"></div>
     </aside>
   </div>
 
@@ -471,8 +487,8 @@
     <span>Tap to see their breakdown</span>
   </div>
   <div class="vs-strip">
-    <div class="who">Facing <b>PieFaceKev</b></div>
-    <div class="who-value">£41.90</div>
+    <div class="who">Facing <b id="oppName">--</b> <span class="vs-result" id="vsResult"></span></div>
+    <div class="who-value" id="oppValue">--</div>
   </div>
   <div class="list" id="oppList"></div>
 
@@ -498,35 +514,52 @@ const TEAM_CODES = {
   'Aston Villa': 7, 'Newcastle': 4
 };
 
-const MY_PLAYERS = [
-  { id:1, name:'Raya', team:'Arsenal', pos:'GK', photo:'154561', value:612, delta:18, status:'played', own:0, share:18,
-    stats:[['SV','5',true],['GC','0',true],['CS','1',true]] },
-  { id:2, name:'Gabriel', team:'Arsenal', pos:'DEF', photo:'226597', value:845, delta:-22, status:'played', own:-22, share:0,
-    stats:[['CS','1',true],['YC','1',false],['GC','0',true]] },
-  { id:3, name:'Saka', team:'Arsenal', pos:'MID', photo:'223340', value:1204, delta:61, status:'played', own:40, share:21,
-    stats:[['GL','1',true],['AS','1',true],['YC','0',true]] },
-  { id:4, name:'Palmer', team:'Chelsea', pos:'MID', photo:'244851', value:968, delta:-8, status:'injured', own:0, share:-8,
-    stats:[['GL','0',true],['AS','0',true],['MIN','0',false]] },
-  { id:5, name:'Haaland', team:'Man City', pos:'FWD', photo:'223094', value:1690, delta:84, status:'played', own:60, share:24,
-    stats:[['GL','2',true],['AS','0',true],['YC','0',true]] },
-  { id:6, name:'Isak', team:'Liverpool', pos:'FWD', photo:'219168', value:908, delta:0, status:'benched', own:0, share:0,
-    stats:[['MIN','0',false],['GL','0',true]] }
+// ============================================================
+// REAL DATA - GB test league "Free EntryTesting Stoxk", Gameweek 3,
+// taken from stockmarket.player_gw_history. McGuinness and Mark G
+// played each other that week. Values are in pence.
+//   value = end of GW3, delta = change over GW3,
+//   own = the player's own events, share = zero-sum share,
+//   hist = value at each point from draft (500) to end of GW3.
+// ============================================================
+const STANDINGS_GW3 = [
+  { name:'McGuinness', value:5732 }, { name:'Sir Chris', value:3532 },
+  { name:'Pete T', value:3143 },     { name:'Kenny78', value:3089 },
+  { name:'Dean', value:2275 },       { name:'Mark G', value:2160 },
+  { name:'Billy H', value:1802 },    { name:'Matt B', value:1477 }
 ];
+const RELEGATE_COUNT = 2;   // stage 1: bottom 2 cut after Gameweek 3
 
-const OPP_PLAYERS = [
-  { id:101, name:'Sánchez', team:'Chelsea', pos:'GK', photo:'215059', value:520, delta:-14, status:'played', own:-14, share:0,
-    stats:[['SV','2',true],['GC','2',false],['CS','0',false]] },
-  { id:102, name:'Watkins', team:'Aston Villa', pos:'FWD', photo:'178301', value:730, delta:12, status:'played', own:12, share:0,
-    stats:[['GL','1',true],['AS','0',true],['YC','0',true]] },
-  { id:103, name:'Foden', team:'Man City', pos:'MID', photo:'209244', value:701, delta:-5, status:'played', own:-5, share:0,
-    stats:[['GL','0',true],['AS','0',true],['YC','1',false]] },
-  { id:104, name:'Isak', team:'Liverpool', pos:'FWD', photo:'219168', value:908, delta:0, status:'benched', own:0, share:0,
-    stats:[['MIN','0',false]] },
-  { id:105, name:'Hall', team:'Newcastle', pos:'DEF', photo:'487838', value:410, delta:22, status:'played', own:22, share:0,
-    stats:[['AS','1',true],['CS','1',true],['YC','0',true]] },
-  { id:106, name:'Barnes', team:'Newcastle', pos:'MID', photo:'201666', value:544, delta:-4.19, status:'played', own:0, share:-4.19,
-    stats:[['GL','0',true],['AS','0',true],['CS','1',true]] }
-];
+const SQUADS = {
+  mike: { name:'McGuinness', initials:'MC', avatar:null, value:5732, delta:1394, players:[
+    { id:1, name:'Martinez', team:'Aston Villa', pos:'GK', photo:'98980',  value:557,  delta:133,  own:0,    minutes:90, stats:{saves:8, goals_conceded:2, clean_sheets:0}, hist:[500,386,424,557] },
+    { id:2, name:'Khusanov', team:'Man City',    pos:'DEF', photo:'578153', value:317,  delta:-167, own:-300, minutes:90, stats:{clean_sheets:1, goals_conceded:0, yellow_cards:1}, hist:[500,446,484,317] },
+    { id:3, name:'Elanga',   team:'Newcastle',   pos:'MID', photo:'449434', value:764,  delta:-468, own:-600, minutes:76, stats:{goals:0, assists:0, yellow_cards:1}, hist:[500,1194,1232,764] },
+    { id:4, name:'Bruno G.', team:'Arsenal',     pos:'MID', photo:'208706', value:615,  delta:-18,  own:-150, minutes:0,  stats:{goals:0, assists:0, yellow_cards:0}, hist:[500,595,633,615] },
+    { id:5, name:'Havertz',  team:'Arsenal',     pos:'FWD', photo:'219847', value:1214, delta:582,  own:450,  minutes:77, stats:{goals:1, assists:0, yellow_cards:0}, hist:[500,594,632,1214] },
+    { id:6, name:'Isak',     team:'Liverpool',   pos:'FWD', photo:'219168', value:2265, delta:1332, own:1200, minutes:63, stats:{goals:2, assists:0, yellow_cards:0}, hist:[500,895,933,2265] }
+  ]},
+  mark: { name:'Mark G', initials:'MG', avatar:'https://liuuzvboeesimvovnooh.supabase.co/storage/v1/object/public/user-avatars/4d935300-c707-4e73-86a3-217d73e006a8.jpg?v=1790331134096', value:2160, delta:-1394, players:[
+    { id:1, name:'Martinez', team:'Aston Villa', pos:'GK', photo:'98980',  value:534, delta:-100, own:0,    minutes:90, stats:{saves:8, goals_conceded:2, clean_sheets:0}, hist:[500,605,634,534] },
+    { id:2, name:'Burn',     team:'Newcastle',   pos:'DEF', photo:'78916',  value:444, delta:-400, own:-300, minutes:0,  stats:{clean_sheets:0, goals_conceded:2, yellow_cards:0}, hist:[500,815,844,444] },
+    { id:3, name:'Tonali',   team:'Spurs',       pos:'MID', photo:'432422', value:44,  delta:-100, own:0,    minutes:90, stats:{goals:0, assists:0, yellow_cards:0}, hist:[144,44] },
+    { id:4, name:'Barco',    team:'Chelsea',     pos:'MID', photo:'543158', value:250, delta:-144, own:-44,  minutes:0,  stats:{goals:0, assists:0, yellow_cards:0}, hist:[500,365,394,250] },
+    { id:5, name:'Osula',    team:'Newcastle',   pos:'FWD', photo:'538207', value:444, delta:-400, own:-300, minutes:0,  stats:{goals:0, assists:0, yellow_cards:0}, hist:[500,815,844,444] },
+    { id:6, name:'Thiago',   team:'Brentford',   pos:'FWD', photo:'502500', value:444, delta:-250, own:-150, minutes:90, stats:{goals:0, assists:0, yellow_cards:0}, hist:[694,444] }
+  ]}
+};
+
+// Turn the raw stats into the three pills shown per position.
+function statPills(pos, s){
+  const keys = pos === 'GK' ? [['SV','saves',true],['GC','goals_conceded',false],['CS','clean_sheets',true]]
+             : pos === 'DEF' ? [['CS','clean_sheets',true],['GC','goals_conceded',false],['YC','yellow_cards',false]]
+             : [['GL','goals',true],['AS','assists',true],['YC','yellow_cards',false]];
+  return keys.map(([lbl,k,good]) => [lbl, String(s[k] || 0), good]);
+}
+function prepPlayers(list){
+  return list.map(p => ({ ...p, status: p.minutes > 0 ? 'played' : 'benched',
+    share: p.delta - p.own, statList: statPills(p.pos, p.stats) }));
+}
 
 function money(p){
   const sign = p < 0 ? '-' : '';
@@ -535,23 +568,18 @@ function money(p){
 function initials(name){
   return name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 }
-function statusMeta(status){
+function statusMeta(status, minutes){
   if (status === 'injured') return { cls:'injured', icon:'fa-user-injured', label:'Injured this week', shortLabel:'Injured' };
-  if (status === 'benched') return { cls:'benched', icon:'fa-chair', label:'Didn\u2019t play — benched', shortLabel:'Benched' };
-  return { cls:'played', icon:'fa-check', label:'Played 90 mins', shortLabel:'Played' };
+  if (status === 'benched') return { cls:'benched', icon:'fa-chair', label:'Didn\u2019t play this week', shortLabel:'Didn\u2019t play' };
+  return { cls:'played', icon:'fa-check', label:`Played ${minutes || 90} mins`, shortLabel:'Played' };
 }
-function sparkline(seed, delta){
-  let s = seed * 9301 + 49297;
-  const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
-  const points = [0];
-  for (let i = 1; i < 6; i++){
-    const bias = (delta / 100) * (i / 5);
-    points.push(points[i-1] + (rand() - 0.5) * 8 + bias * 2);
-  }
-  const min = Math.min(...points), max = Math.max(...points);
+// Sparkline drawn from the player's real value at each point this season.
+function sparkline(points, delta){
+  const pts = points.length > 1 ? points : [points[0], points[0]];
+  const min = Math.min(...pts), max = Math.max(...pts);
   const range = (max - min) || 1;
-  const norm = points.map(v => 22 - ((v - min) / range) * 20 - 1);
-  const path = norm.map((y, i) => `${i === 0 ? 'M' : 'L'}${(i * 40/5).toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const step = 40 / (pts.length - 1);
+  const path = pts.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(22 - ((v - min) / range) * 20 - 1).toFixed(1)}`).join(' ');
   const color = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--text-faint)';
   return `<svg class="spark" viewBox="0 0 40 24"><path d="${path}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
@@ -564,7 +592,7 @@ function renderList(containerId, players, prefix, showSell){
   list.innerHTML = players.map(p => {
     const dCls = p.delta > 0 ? 'up' : p.delta < 0 ? 'down' : 'flat';
     const dIcon = p.delta > 0 ? 'fa-caret-up' : p.delta < 0 ? 'fa-caret-down' : 'fa-minus';
-    const st = statusMeta(p.status);
+    const st = statusMeta(p.status, p.minutes);
     const photoUrl = `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo}.png`;
     const rowId = `${prefix}-${p.id}`;
 
@@ -574,7 +602,7 @@ function renderList(containerId, players, prefix, showSell){
     const shareLine = p.share === 0 ? '' :
       `<div class="breakdown-line"><span class="k">Share</span><span class="v ${p.share>0?'up':'down'}">${p.share>0?'+':''}${money(p.share)}</span></div>`;
 
-    const pills = p.stats.map(([label, val, good]) => {
+    const pills = p.statList.map(([label, val, good]) => {
       const cls = val === '0' ? '' : (good ? 'hot' : 'bad');
       return `<span class="pill ${cls}">${label} ${val}</span>`;
     }).join('');
@@ -604,13 +632,12 @@ function renderList(containerId, players, prefix, showSell){
               <div class="who">
                 <div class="sub">
                   <span class="pos-tag">${p.pos}</span>${p.team}
-                  <img class="team-badge" src="https://resources.premierleague.com/premierleague/badges/50/t${TEAM_CODES[p.team] || 0}.png" alt="${p.team} crest" onerror="this.style.display='none'">
                 </div>
                 <div class="status-text ${st.cls}">${st.shortLabel}</div>
               </div>
             </div>
           </div>
-          ${sparkline(p.id, p.delta)}
+          ${sparkline(p.hist, p.delta)}
           <div class="numbers">
             <div class="value">${money(p.value)}</div>
             <div class="delta ${dCls}"><i class="fa-solid ${dIcon}"></i> ${money(Math.abs(p.delta))}</div>
@@ -637,45 +664,67 @@ function toggleRow(rowId){
   });
 }
 
-renderList('myList', MY_PLAYERS, 'mine', true);
-renderList('oppList', OPP_PLAYERS, 'opp', false);
+function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+
+// Fill the whole page for one side of the real GW3 matchup.
+function setView(key){
+  const me = SQUADS[key], opp = SQUADS[key === 'mike' ? 'mark' : 'mike'];
+  document.querySelectorAll('.demo-toggle button').forEach(b => b.classList.toggle('active', b.dataset.view === key));
+
+  const rank = STANDINGS_GW3.findIndex(s => s.name === me.name) + 1;
+  const safeIdx = STANDINGS_GW3.length - RELEGATE_COUNT - 1;       // last safe place (0-based)
+  const lastSafe = STANDINGS_GW3[safeIdx], firstDown = STANDINGS_GW3[safeIdx + 1];
+
+  document.getElementById('heroValue').textContent = money(me.value);
+  const d = document.getElementById('heroDelta');
+  d.className = 'delta ' + (me.delta >= 0 ? 'up' : 'down');
+  d.innerHTML = `<i class="fa-solid ${me.delta >= 0 ? 'fa-caret-up' : 'fa-caret-down'}"></i> ${money(Math.abs(me.delta))} this week`;
+  document.getElementById('heroRank').innerHTML = `<b>${ordinal(rank)}</b> of ${STANDINGS_GW3.length}`;
+
+  const gap = me.value - firstDown.value;
+  document.getElementById('safeLine').innerHTML = `
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>${lastSafe.name === me.name ? `You're the <b>last safe place</b> (${ordinal(safeIdx + 1)})` : `Last safe: <b>${ordinal(safeIdx + 1)} · ${lastSafe.name} · ${money(lastSafe.value)}</b>`}</span>
+    <span class="safe-gap">${gap >= 0 ? `You're <b>${money(gap)}</b> above the drop` : `You're <b class="neg">${money(-gap)}</b> in the drop zone`}</span>`;
+
+  // Avatar: uploaded photo when there is one, otherwise initials.
+  const box = document.getElementById('heroAvatar');
+  const initialsEl = document.getElementById('heroAvatarInitials');
+  box.querySelectorAll('img.hero-avatar-img').forEach(i => i.remove());
+  initialsEl.textContent = me.initials; initialsEl.style.display = '';
+  if (me.avatar) {
+    const img = document.createElement('img');
+    img.className = 'hero-avatar-img'; img.alt = me.name; img.src = me.avatar;
+    img.onerror = () => { img.remove(); initialsEl.style.display = ''; };
+    box.insertBefore(img, box.firstChild); initialsEl.style.display = 'none';
+  }
+  const rb = document.getElementById('heroAvatarRank');
+  rb.textContent = ordinal(rank);
+  rb.className = 'hero-avatar-rank r' + Math.min(rank, 4);
+  box.title = me.name;
+
+  // Standings board: top 3, then the last safe place.
+  const medal = ['gold','silver','bronze'];
+  const li = (s, i, extra) => `<li class="${extra || ''}${s.name === me.name ? ' me' : ''}"><span class="pos ${medal[i] || ''}">${i + 1}</span><span class="nm">${s.name}</span>${extra && extra.includes('last-safe') ? '<span class="tag">Last safe</span>' : ''}<span class="val">${money(s.value)}</span></li>`;
+  document.getElementById('miniBoard').innerHTML =
+    STANDINGS_GW3.slice(0, 3).map((s, i) => li(s, i)).join('') +
+    `<li class="gap" aria-hidden="true"><span>&middot;&middot;&middot;</span></li>` +
+    li(lastSafe, safeIdx, 'last-safe');
+  document.getElementById('dropLine').innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> Bottom ${RELEGATE_COUNT} cut after GW 3`;
+
+  // Opponent strip + both squads.
+  document.getElementById('oppName').textContent = opp.name;
+  document.getElementById('oppValue').textContent = money(opp.value);
+  const res = document.getElementById('vsResult');
+  res.textContent = me.delta >= 0 ? `Won by ${money(Math.abs(me.delta))}` : `Lost by ${money(Math.abs(me.delta))}`;
+  res.className = 'vs-result ' + (me.delta >= 0 ? 'won' : 'lost');
+
+  renderList('myList', prepPlayers(me.players), 'mine', true);
+  renderList('oppList', prepPlayers(opp.players), 'opp', false);
+}
+setView('mike');
 </script>
 
-<script>
-  // Hero avatar: the user's uploaded profile photo when they have one
-  // (avatar_type 'upload'), otherwise their initials. Shows the cached
-  // login copy instantly, then refreshes from /api/tournaments?me=true
-  // so a photo uploaded since the last login still appears.
-  (function(){
-    const box = document.getElementById('heroAvatar');
-    const initialsEl = document.getElementById('heroAvatarInitials');
-    function apply(u){
-      if (!u) return;
-      const name = (u.display_name || u.username || '').trim();
-      if (name) initialsEl.textContent = name.substring(0,2).toUpperCase();
-      const old = box.querySelector('img.hero-avatar-img');
-      if (u.avatar_type === 'upload' && u.avatar_url) {
-        const img = old || document.createElement('img');
-        img.className = 'hero-avatar-img';
-        img.alt = name || 'Profile photo';
-        img.onerror = function(){ img.remove(); initialsEl.style.display = ''; };
-        img.src = u.avatar_url;
-        if (!old) box.insertBefore(img, box.firstChild);
-        initialsEl.style.display = 'none';
-      } else {
-        if (old) old.remove();
-        initialsEl.style.display = '';
-      }
-    }
-    try { apply(JSON.parse(localStorage.getItem('gbf_user') || 'null')); } catch (e) {}
-    const token = localStorage.getItem('gbf_token');
-    if (token) {
-      fetch('/api/tournaments?me=true', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d && d.user) apply(d.user); })
-        .catch(() => {});
-    }
-  })();
-</script>
+
 </body>
 </html>
