@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="align-v13">
+<meta name="build" content="shirts-test-v14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -371,6 +371,18 @@
     .hero-main{ gap:12px; align-items:flex-start; }
     .hero-avatar{ width:56px; height:56px; font-size:20px; margin-top:6px; }
   }
+
+  /* ---------- TEST: team shirt behind each player card ----------
+     The shirt sits large towards the right-middle of the card, faded
+     back by a dark overlay so the name, photo and price stay readable. */
+  .row.has-shirt{
+    background:
+      linear-gradient(90deg, rgba(13,23,48,0.96) 0%, rgba(13,23,48,0.80) 38%, rgba(13,23,48,0.55) 62%, rgba(13,23,48,0.88) 88%),
+      var(--shirt) no-repeat 64% 22% / auto 170%,
+      var(--bg-card);
+  }
+  .row.has-shirt .row-main{ background:transparent; }
+  .row.has-shirt .row-main:active, .row.has-shirt.open .row-main{ background:rgba(16,26,56,0.45); }
 </style>
 </head>
 <body>
@@ -469,6 +481,18 @@
 <script>
 // Real Premier League team codes, used to pull each club's actual crest
 // from the same photo CDN as the player headshots.
+// TEST: team shirt as each player card's background. Same file names
+// the draft page uses for its shirt images in /shirts.
+function shirtFile(team){
+  const map = {
+    'Arsenal':'arsenal','Aston Villa':'aston villa','Bournemouth':'bournmouth','Brentford':'brentford',
+    'Brighton':'brighton','Burnley':'burnley','Chelsea':'chelsea','Crystal Palace':'crystal',
+    'Everton':'everton','Fulham':'fullham','Leeds':'leeds','Liverpool':'liverpool','Man City':'man city',
+    'Man Utd':'man u','Man United':'man u','Newcastle':'new castle',"Nott'm Forest":'nots forest',
+    'Spurs':'spurs','Tottenham':'spurs','West Ham':'west ham','Wolves':'wovles temp','Sunderland':'sunderland'
+  };
+  return map[team] || String(team || '').toLowerCase();
+}
 const TEAM_CODES = {
   'Arsenal': 3, 'Chelsea': 8, 'Man City': 43, 'Liverpool': 14,
   'Aston Villa': 7, 'Newcastle': 4
@@ -565,7 +589,7 @@ function renderList(containerId, players, prefix, showSell){
          </div>`;
 
     return `
-      <div class="row" data-id="${rowId}">
+      <div class="row has-shirt" data-id="${rowId}" style="--shirt:url('shirts/${encodeURIComponent(shirtFile(p.team))}.webp')">
         <div class="row-main" onclick="toggleRow('${rowId}')">
           <div class="player-block">
             <div class="player-name">${p.name}</div>
