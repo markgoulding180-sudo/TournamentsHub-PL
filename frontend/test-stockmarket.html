@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="headshot-crop-v5">
+<meta name="build" content="fullwidth-v6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -224,8 +224,16 @@
 
   footer{ padding:26px 20px 10px; text-align:center; font-size:11px; color:var(--text-faint); }
 
-  @media (min-width:640px){
-    body{ max-width:520px; margin:0 auto; border-left:1px solid var(--border); border-right:1px solid var(--border); min-height:100vh; }
+  /* Full width: the page used to be capped at a 520px phone-style
+     column on bigger screens. It now fills the screen, and on wide
+     screens the player cards sit side by side in a grid so each row
+     doesn't stretch into one long empty bar. */
+  body{ min-height:100vh; }
+  @media (min-width:900px){
+    .list{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; padding:0 20px; }
+  }
+  @media (min-width:1400px){
+    .list{ grid-template-columns:repeat(3, minmax(0,1fr)); }
   }
 
   /* ---------- Mobile fix ---------- */
