@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="avatar-v11">
+<meta name="build" content="avatar-photo-v12">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -347,6 +347,8 @@
     border:2px solid var(--accent-2); box-shadow:0 0 18px var(--accent-glow);
     font-family:var(--font-head); font-weight:700; font-size:24px; color:var(--accent-2); letter-spacing:.5px;
   }
+  .hero-avatar{ overflow:visible; }
+  .hero-avatar-img{ width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; }
   .hero-avatar-rank{
     position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
     background:#d97757; color:#1f0d05; font-size:10.5px; font-weight:800; line-height:1;
@@ -613,13 +615,39 @@ renderList('oppList', OPP_PLAYERS, 'opp', false);
 </script>
 
 <script>
-  // Fill the avatar with the logged-in user's initials when available.
+  // Hero avatar: the user's uploaded profile photo when they have one
+  // (avatar_type 'upload'), otherwise their initials. Shows the cached
+  // login copy instantly, then refreshes from /api/tournaments?me=true
+  // so a photo uploaded since the last login still appears.
   (function(){
-    try {
-      const u = JSON.parse(localStorage.getItem('gbf_user') || 'null');
-      const name = u && (u.display_name || u.username);
-      if (name) document.getElementById('heroAvatarInitials').textContent = name.trim().substring(0,2).toUpperCase();
-    } catch (e) {}
+    const box = document.getElementById('heroAvatar');
+    const initialsEl = document.getElementById('heroAvatarInitials');
+    function apply(u){
+      if (!u) return;
+      const name = (u.display_name || u.username || '').trim();
+      if (name) initialsEl.textContent = name.substring(0,2).toUpperCase();
+      const old = box.querySelector('img.hero-avatar-img');
+      if (u.avatar_type === 'upload' && u.avatar_url) {
+        const img = old || document.createElement('img');
+        img.className = 'hero-avatar-img';
+        img.alt = name || 'Profile photo';
+        img.onerror = function(){ img.remove(); initialsEl.style.display = ''; };
+        img.src = u.avatar_url;
+        if (!old) box.insertBefore(img, box.firstChild);
+        initialsEl.style.display = 'none';
+      } else {
+        if (old) old.remove();
+        initialsEl.style.display = '';
+      }
+    }
+    try { apply(JSON.parse(localStorage.getItem('gbf_user') || 'null')); } catch (e) {}
+    const token = localStorage.getItem('gbf_token');
+    if (token) {
+      fetch('/api/tournaments?me=true', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d && d.user) apply(d.user); })
+        .catch(() => {});
+    }
   })();
 </script>
 </body>
