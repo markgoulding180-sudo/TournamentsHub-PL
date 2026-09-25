@@ -304,9 +304,9 @@ const OPP_PLAYERS = [
     stats:[['GL','0',true],['AS','0',true],['YC','1',false]] },
   { id:104, name:'Isak', team:'Liverpool', pos:'FWD', photo:'219168', value:908, delta:0, status:'benched', own:0, share:0,
     stats:[['MIN','0',false]] },
-  { id:105, name:'Trippier', team:'Newcastle', pos:'DEF', photo:'54694', value:410, delta:22, status:'played', own:22, share:0,
+  { id:105, name:'Hall', team:'Newcastle', pos:'DEF', photo:'487838', value:410, delta:22, status:'played', own:22, share:0,
     stats:[['AS','1',true],['CS','1',true],['YC','0',true]] },
-  { id:106, name:'Gordon', team:'Newcastle', pos:'MID', photo:'222731', value:544, delta:-4.19, status:'played', own:0, share:-4.19,
+  { id:106, name:'Barnes', team:'Newcastle', pos:'MID', photo:'201666', value:544, delta:-4.19, status:'played', own:0, share:-4.19,
     stats:[['GL','0',true],['AS','0',true],['CS','1',true]] }
 ];
 
@@ -347,7 +347,7 @@ function renderList(containerId, players, prefix, showSell){
     const dCls = p.delta > 0 ? 'up' : p.delta < 0 ? 'down' : 'flat';
     const dIcon = p.delta > 0 ? 'fa-caret-up' : p.delta < 0 ? 'fa-caret-down' : 'fa-minus';
     const st = statusMeta(p.status);
-    const photoUrl = `https://resources.premierleague.com/premierleague25/photos/players/250x250/p${p.photo}.png`;
+    const photoUrl = `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo}.png`;
     const rowId = `${prefix}-${p.id}`;
 
     const ownLine = p.own === 0
