@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="standings-v10">
+<meta name="build" content="avatar-v11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -336,6 +336,36 @@
   .mini-board-list .tag{ font-size:9.5px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:.4px; }
   .drop-line{ font-size:10px; font-weight:700; color:var(--red); padding:2px 6px 0; letter-spacing:.2px; line-height:1.2; }
   .drop-line i{ margin-right:4px; font-size:9px; }
+
+  /* ---------- User avatar beside the squad value ---------- */
+  .hero-main{ display:flex; align-items:center; gap:18px; }
+  .hero-info{ min-width:0; }
+  .hero-avatar{
+    position:relative; flex-shrink:0; width:68px; height:68px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(150deg,#2c3d5c,#161f33);
+    border:2px solid var(--accent-2); box-shadow:0 0 18px var(--accent-glow);
+    font-family:var(--font-head); font-weight:700; font-size:24px; color:var(--accent-2); letter-spacing:.5px;
+  }
+  .hero-avatar-rank{
+    position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
+    background:#d97757; color:#1f0d05; font-size:10.5px; font-weight:800; line-height:1;
+    padding:3px 7px; border-radius:10px; border:2px solid var(--bg); white-space:nowrap;
+  }
+  /* ---------- Last safe place line (phones and tablets) ---------- */
+  .safe-line{
+    margin-top:10px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px;
+    font-size:12px; color:var(--text-dim); line-height:1.3;
+    padding:6px 10px; border-radius:8px; border:1px dashed rgba(239,68,68,0.55); background:rgba(239,68,68,0.06);
+  }
+  .safe-line i{ color:var(--gold); font-size:11px; }
+  .safe-line b{ color:var(--text); }
+  .safe-line .safe-gap b{ color:var(--green); }
+  @media (min-width:900px){ .safe-line{ display:none; } }
+  @media (max-width:480px){
+    .hero-main{ gap:12px; align-items:flex-start; }
+    .hero-avatar{ width:56px; height:56px; font-size:20px; margin-top:6px; }
+  }
 </style>
 </head>
 <body>
@@ -368,6 +398,7 @@
 
   <div class="hero">
    <div class="hero-main">
+    <div class="hero-info">
     <div class="label">Your squad is worth</div>
     <div class="value-row">
       <div class="value">£46.28</div>
@@ -379,6 +410,18 @@
       <div class="meta-item">Gameweek 4</div>
       <div class="meta-item dot">·</div>
       <div class="meta-item">Locks in <b>2d 6h</b></div>
+    </div>
+    <!-- Relegation line for phones; desktop shows it in the standings board. -->
+    <div class="safe-line">
+      <i class="fa-solid fa-shield-halved"></i>
+      <span>Last safe: <b>9th · Kenny78 · £38.60</b></span>
+      <span class="safe-gap">You're <b>£7.68</b> above the drop</span>
+    </div>
+    </div>
+    <!-- User avatar: initials for now, as users don't have profile photos yet. -->
+    <div class="hero-avatar" id="heroAvatar" title="Your profile">
+      <span id="heroAvatarInitials">MG</span>
+      <span class="hero-avatar-rank">3rd</span>
     </div>
    </div>
 
@@ -569,5 +612,15 @@ renderList('myList', MY_PLAYERS, 'mine', true);
 renderList('oppList', OPP_PLAYERS, 'opp', false);
 </script>
 
+<script>
+  // Fill the avatar with the logged-in user's initials when available.
+  (function(){
+    try {
+      const u = JSON.parse(localStorage.getItem('gbf_user') || 'null');
+      const name = u && (u.display_name || u.username);
+      if (name) document.getElementById('heroAvatarInitials').textContent = name.trim().substring(0,2).toUpperCase();
+    } catch (e) {}
+  })();
+</script>
 </body>
 </html>
