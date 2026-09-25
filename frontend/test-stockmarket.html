@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="headshot-crop-v3">
+<meta name="build" content="headshot-crop-v4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -120,12 +120,16 @@
     border:2px solid var(--bg-card);
   }
   .photo-img{
-    position:absolute; left:0; top:0; width:100%; height:100%;
+    /* Headshot crop without transform: the image is drawn 145% of the
+       circle's size and shifted so the face fills the circle and the
+       shirt (bottom ~30% of every FPL photo) falls outside it.
+       Same framing as scale(1.45) anchored 6.5% from the top. */
+    position:absolute !important;
+    width:145% !important; height:145% !important;
+    max-width:none !important; max-height:none !important;
+    left:-22.5% !important; top:-3% !important;
     object-fit:cover; object-position:top;
-    /* Measured from real FPL photos: hair ~4%, chin ~65%, collar ~72%
-       of the image height. 1.45x zoom with the window starting 2% from
-       the top keeps the whole face in and the shirt out of frame. */
-    transform:scale(1.45) !important; transform-origin:50% 6.5% !important;
+    transform:none !important;
   }
   .photo-initials{
     width:100%; height:100%; display:flex; align-items:center; justify-content:center;
