@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
+<meta name="build" content="headshot-crop-v3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -121,7 +122,10 @@
   .photo-img{
     position:absolute; left:0; top:0; width:100%; height:100%;
     object-fit:cover; object-position:top;
-    transform:scale(1.6); transform-origin:50% 4%;
+    /* Measured from real FPL photos: hair ~4%, chin ~65%, collar ~72%
+       of the image height. 1.45x zoom with the window starting 2% from
+       the top keeps the whole face in and the shirt out of frame. */
+    transform:scale(1.45) !important; transform-origin:50% 6.5% !important;
   }
   .photo-initials{
     width:100%; height:100%; display:flex; align-items:center; justify-content:center;
