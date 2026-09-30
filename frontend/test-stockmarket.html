@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="real-data-v15">
+<meta name="build" content="live-wired-v16">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -401,12 +401,65 @@
   .vs-result{ font-size:11px; font-weight:700; margin-left:6px; padding:2px 7px; border-radius:10px; }
   .vs-result.won{ color:var(--green); background:var(--green-dim); }
   .vs-result.lost{ color:var(--red); background:var(--red-dim); }
+
+  /* ---------- Live build: states, empty slots, links ---------- */
+  .topbar .back{ text-decoration:none; }
+  .demo-cta{ font-family:var(--font-head); font-size:12.5px; font-weight:700; color:#fff; background:var(--accent); padding:7px 14px; border-radius:18px; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .state-card{ margin:12px var(--gutter) 0; background:var(--bg-card); border:1px solid rgba(255,255,255,0.14); border-radius:14px; padding:22px 20px; text-align:center; }
+  .state-icon{ font-size:26px; color:var(--accent-2); margin-bottom:10px; display:block; }
+  .state-title{ font-family:var(--font-head); font-size:19px; font-weight:700; margin-bottom:6px; }
+  .state-text{ font-size:13.5px; color:var(--text-dim); max-width:520px; margin:0 auto; line-height:1.55; }
+  .state-text b{ color:var(--text); }
+  .state-btn{ display:inline-flex; align-items:center; gap:7px; margin-top:14px; font-family:var(--font-head); font-weight:700; font-size:13.5px; color:#fff; background:var(--accent); padding:10px 18px; border-radius:10px; text-decoration:none; }
+  .results .results-list{ list-style:none; margin:14px auto 0; padding:0; max-width:420px; text-align:left; }
+  .results-list li{ display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:8px; font-size:13.5px; }
+  .results-list li + li{ border-top:1px solid var(--border); }
+  .results-list li.faded{ opacity:0.6; }
+  .results-list .pos{ width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700; font-size:12px; background:var(--bg-panel); color:var(--text-dim); flex-shrink:0; }
+  .results-list .pos.gold{ background:var(--gold); color:#1a1200; }
+  .results-list .pos.silver{ background:#c0c8d6; color:#141a24; }
+  .results-list .pos.bronze{ background:#d97757; color:#1f0d05; }
+  .results-list .nm{ flex:1; min-width:0; font-weight:600; }
+  .results-list .val{ font-family:var(--font-head); font-weight:700; }
+  .results-list .cut{ font-size:10.5px; color:var(--red); font-weight:700; margin-left:4px; }
+  .results-sub{ max-width:420px; margin:16px auto 0; text-align:left; font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--red); }
+
+  .row.empty-slot{ border-style:dashed; background:transparent; }
+  .row.empty-slot .row-main{ background:transparent; cursor:default; }
+  .row.empty-slot.left-league{ border-color:rgba(239,68,68,0.6); background:rgba(239,68,68,0.06); }
+  .empty-icon{ width:44px; height:44px; border-radius:50%; border:1.5px dashed var(--text-faint); display:flex; align-items:center; justify-content:center; color:var(--text-faint); flex-shrink:0; }
+  .empty-text{ flex:1; min-width:0; }
+  .empty-sub{ font-size:12px; color:var(--text-dim); margin-top:3px; }
+  .btn-link{ display:inline-flex; align-items:center; justify-content:center; gap:7px; text-decoration:none; border-color:var(--accent-dim); color:var(--accent-2); background:rgba(59,130,246,0.08); }
+  .btn-link:hover{ background:var(--accent); color:#fff; }
+  .btn-small{ flex:0 0 auto; padding:7px 12px; font-size:11px; }
+  .vs-right{ display:flex; align-items:center; gap:12px; }
+  .opp-history{ font-size:11.5px; font-weight:700; color:var(--text-dim); text-decoration:none; }
+  .opp-history:hover{ color:var(--accent-2); }
+  .vs-result.even{ color:var(--text-dim); background:rgba(148,163,184,0.12); }
+  .empty-note{ margin:0 var(--gutter); padding:16px; text-align:center; font-size:13px; color:var(--text-dim); background:var(--bg-card); border:1px dashed var(--border); border-radius:10px; }
+  .transfer-pill.open{ color:var(--accent-2); }
+  .transfer-pill.closed{ color:var(--red); border-color:var(--red); background:rgba(239,68,68,0.12); }
+  .transfer-pill.used{ color:var(--text-dim); border-color:var(--text-faint); background:rgba(148,163,184,0.12); }
+  .transfer-pill{ cursor:help; }
+  .rz-done{ color:var(--text-faint); } .rz-next{ color:var(--red); font-weight:700; } .rz-later{ color:var(--text-dim); }
+  .live-now{ color:var(--gold); }
+
+  /* Extra player states for live weeks */
+  .photo-wrap.status-live{ background:var(--gold); animation:livePulse 1.8s ease-in-out infinite; }
+  .photo-wrap.status-upcoming{ background:#2c3d5c; }
+  .status-dot.live{ background:var(--gold); color:#1a1200; font-size:5px; }
+  .status-dot.upcoming{ background:#2c3d5c; color:var(--text); }
+  .who .status-text.live{ color:var(--gold); }
+  .who .status-text.upcoming{ color:var(--text-dim); }
+  @keyframes livePulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(242,185,61,0.5); } 50%{ box-shadow:0 0 0 5px rgba(242,185,61,0); } }
+  @media (prefers-reduced-motion: reduce){ .photo-wrap.status-live{ animation:none; } }
 </style>
 </head>
 <body>
 
   <div class="topbar">
-    <div class="back"><i class="fa-solid fa-chevron-left"></i> Squad</div>
+    <a class="back" href="/"><i class="fa-solid fa-chevron-left"></i> Hub</a>
     <div class="mark">GB <span>STOCKS</span></div>
     <button class="menu-btn"><i class="fa-solid fa-ellipsis"></i></button>
   </div>
@@ -426,22 +479,32 @@
             <div class="sm-how-item"><span class="sm-how-num">3</span><div><strong>Zero-sum, always — here's exactly how.</strong> Say your forward scores a goal — he's awarded £3.00. That £3.00 isn't created from nothing: it's paid directly by your opponent's 6 players <em>this week</em>, split evenly between them (50p each). The total pot never grows or shrinks, it only moves between players.</div></div>
           </div>
         </details>
-        <a href="/injuries" class="sm-pill-link"><i class="fas fa-kit-medical"></i> Injuries</a>
+        <details class="sm-pill" id="relZones" style="display:none;">
+          <summary><i class="fas fa-skull-crossbones"></i> Relegation Zones</summary>
+          <div class="sm-how-list" id="relZonesList"></div>
+        </details>
+        <span class="sm-pill-link transfer-pill" id="transferPill" style="display:none;"></span>
+        <a href="/injuries" class="sm-pill-link" id="injuriesLink"><i class="fas fa-kit-medical"></i> Injuries</a>
       </div>
     </div>
   </section>
 
-  <!-- Real example: data from the GB test league, Gameweek 3 -->
-  <div class="demo-bar">
+  <!-- Enter / draft / relegated / final results / no tournament messages -->
+  <div id="stateCard" class="state-card" style="display:none;"></div>
+
+  <!-- Real example: data from the GB test league, Gameweek 3.
+       Shown to visitors with no live squad of their own. -->
+  <div class="demo-bar" id="demoBar">
     <div class="demo-note"><i class="fa-solid fa-circle-play"></i> Real example from our test league &middot; <b>Gameweek 3</b></div>
     <div class="demo-toggle" role="tablist" aria-label="View as">
       <span class="demo-toggle-lbl">View as</span>
       <button type="button" data-view="mike" class="active" onclick="setView('mike')">McGuinness</button>
       <button type="button" data-view="mark" onclick="setView('mark')">Mark G</button>
     </div>
+    <a class="demo-cta" id="demoCta" href="/login?redirect=%2Fstock-market-test" style="display:none;"><i class="fa-solid fa-right-to-bracket"></i> Log in to play</a>
   </div>
 
-  <div class="hero">
+  <div class="hero" id="heroBlock">
    <div class="hero-main">
     <div class="hero-info">
     <div class="label">Your squad is worth</div>
@@ -452,9 +515,9 @@
     <div class="meta">
       <div class="meta-item" id="heroRank"></div>
       <div class="meta-item dot">·</div>
-      <div class="meta-item">Gameweek 3</div>
+      <div class="meta-item" id="heroGw">Gameweek 3</div>
       <div class="meta-item dot">·</div>
-      <div class="meta-item"><b>Settled</b></div>
+      <div class="meta-item" id="heroStatus"><b>Settled</b></div>
     </div>
     <!-- Relegation line for phones; desktop shows it in the standings board. -->
     <div class="safe-line" id="safeLine"></div>
@@ -466,7 +529,7 @@
    </div>
 
     <!-- Top 3 plus the last safe place above the relegation zone - desktop only. -->
-    <aside class="mini-board" aria-label="League top 3 and relegation line">
+    <aside class="mini-board" id="miniBoardBox" aria-label="League top 3 and relegation line">
       <div class="mini-board-head">
         <span><i class="fa-solid fa-trophy"></i> League Standings</span>
         <span class="mini-board-sub">Squad value</span>
@@ -476,43 +539,95 @@
     </aside>
   </div>
 
+  <div id="squadSection">
   <div class="section-head">
     <h2><i class="fa-solid fa-users"></i>Your Squad</h2>
-    <span>Tap a player to expand</span>
+    <span id="squadHint">Tap a player to expand</span>
   </div>
   <div class="list" id="myList"></div>
+  </div>
 
+  <div id="oppSection">
   <div class="section-head">
     <h2><i class="fa-solid fa-shield-halved"></i>This Week's Opponent</h2>
     <span>Tap to see their breakdown</span>
   </div>
   <div class="vs-strip">
     <div class="who">Facing <b id="oppName">--</b> <span class="vs-result" id="vsResult"></span></div>
-    <div class="who-value" id="oppValue">--</div>
+    <div class="vs-right">
+      <a class="opp-history" id="oppHistory" href="#" style="display:none;"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
+      <div class="who-value" id="oppValue">--</div>
+    </div>
   </div>
   <div class="list" id="oppList"></div>
+  <div class="empty-note" id="oppEmpty" style="display:none;"></div>
+  </div>
 
   <footer>Values update after every match. Nothing here is investment advice — it's football.</footer>
 
 <script>
-// Real Premier League team codes, used to pull each club's actual crest
-// from the same photo CDN as the player headshots.
-// TEST: team shirt as each player card's background. Same file names
-// the draft page uses for its shirt images in /shirts.
+// =====================================================================
+// GB Stocks — migration build of the Stock Market page.
+//
+// Logged-out visitors (and anyone without a live squad) see the real
+// Gameweek 3 example from our test league. Logged-in players see their
+// own live tournament, read from the SAME API endpoints the current
+// /stock-market page uses:
+//   ?status=live|upcoming|finished&tournament_type=stockmarket
+//   ?stockmarket_lock_status   (also triggers the backend's own
+//                               draft-close / price / relegation checks)
+//   ?stockmarket_state         (drafting phase)
+//   ?stockmarket_matchup       (live squad + this week's opponent)
+//   ?stockmarket_leaderboard   (standings + relegation zone)
+//   ?stockmarket_history       (per-player value history, for sparklines)
+//   ?stockmarket_transfer_deadline
+//   ?stockmarket_results       (finished tournament)
+//   ?me                        (profile photo)
+// This step is view-only: selling, packs, entering and drafting link to
+// the existing Stock Market pages.
+// =====================================================================
+
+// ---------- small helpers ----------
 function shirtFile(team){
   const map = {
     'Arsenal':'arsenal','Aston Villa':'aston villa','Bournemouth':'bournmouth','Brentford':'brentford',
     'Brighton':'brighton','Burnley':'burnley','Chelsea':'chelsea','Crystal Palace':'crystal',
     'Everton':'everton','Fulham':'fullham','Leeds':'leeds','Liverpool':'liverpool','Man City':'man city',
     'Man Utd':'man u','Man United':'man u','Newcastle':'new castle',"Nott'm Forest":'nots forest',
-    'Spurs':'spurs','Tottenham':'spurs','West Ham':'west ham','Wolves':'wovles temp','Sunderland':'sunderland'
+    'Spurs':'spurs','Tottenham':'spurs','West Ham':'west ham','Wolves':'wovles temp','Sunderland':'sunderland',
+    'Coventry City':'coventry city','Hull City':'hull city','Ipswich Town':'ipswich town'
   };
   return map[team] || String(team || '').toLowerCase();
 }
-const TEAM_CODES = {
-  'Arsenal': 3, 'Chelsea': 8, 'Man City': 43, 'Liverpool': 14,
-  'Aston Villa': 7, 'Newcastle': 4
-};
+function money(p){
+  const sign = p < 0 ? '-' : '';
+  return `${sign}£${(Math.abs(p || 0)/100).toFixed(2)}`;
+}
+function initials(name){
+  return String(name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+}
+function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function authHeaders(){
+  const token = localStorage.getItem('gbf_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+function isLoggedIn(){ return !!localStorage.getItem('gbf_token'); }
+async function getJSON(url, auth){
+  try {
+    const res = await fetch(url, auth ? { headers: authHeaders() } : undefined);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) { return null; }
+}
+function show(id, on){ const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
+function shortDateTime(iso){
+  try {
+    return new Date(iso).toLocaleString('en-GB', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  } catch (e) { return ''; }
+}
 
 // ============================================================
 // REAL DATA - GB test league "Free EntryTesting Stoxk", Gameweek 3,
@@ -549,30 +664,122 @@ const SQUADS = {
   ]}
 };
 
-// Turn the raw stats into the three pills shown per position.
+
+// Three stat pills per position, same as the real page's cards.
 function statPills(pos, s){
+  s = s || {};
   const keys = pos === 'GK' ? [['SV','saves',true],['GC','goals_conceded',false],['CS','clean_sheets',true]]
              : pos === 'DEF' ? [['CS','clean_sheets',true],['GC','goals_conceded',false],['YC','yellow_cards',false]]
              : [['GL','goals',true],['AS','assists',true],['YC','yellow_cards',false]];
-  return keys.map(([lbl,k,good]) => [lbl, String(s[k] || 0), good]);
-}
-function prepPlayers(list){
-  return list.map(p => ({ ...p, status: p.minutes > 0 ? 'played' : 'benched',
-    share: p.delta - p.own, statList: statPills(p.pos, p.stats) }));
+  const pills = keys.map(([lbl,k,good]) => [lbl, String(s[k] || 0), good]);
+  if (s.red_cards > 0) pills.push(['RC', String(s.red_cards), false]);
+  return pills;
 }
 
-function money(p){
-  const sign = p < 0 ? '-' : '';
-  return `${sign}£${(Math.abs(p)/100).toFixed(2)}`;
+// ---------- one row shape for both the example and live data ----------
+// { key, name, team, pos, photoUrl, value, delta, own, share, earned, paid,
+//   status, statusLabel, statusLong, statList, hist, empty, reserved, position }
+
+function demoPlayers(list){
+  return list.map(p => {
+    const played = p.minutes > 0;
+    return {
+      key: p.id, name: p.name, team: p.team, pos: p.pos,
+      photoUrl: `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo}.png`,
+      value: p.value, delta: p.delta, own: p.own, share: p.delta - p.own,
+      earned: null, paid: null,
+      status: played ? 'played' : 'benched',
+      statusLabel: played ? 'Played' : 'Didn’t play',
+      statusLong: played ? `Played ${p.minutes} mins` : 'Didn’t play this week',
+      statList: statPills(p.pos, p.stats), hist: p.hist
+    };
+  });
 }
-function initials(name){
-  return name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+const INJURY_LABELS = { i:'Injured', d:'Doubtful', s:'Suspended', u:'Unavailable' };
+
+// Status for a real squad player, matching the real page's badges:
+// live / played / didn't play come from this gameweek's match status;
+// injury news shows until their match actually starts.
+function liveStatus(s, stats, weekIsLive){
+  const mins = (stats && stats.minutes) || 0;
+  if (s.is_sub) return { status:'benched', statusLabel:'On the bench', statusLong:'On the bench — excluded from scoring this week' };
+  if (s.match_status === 'live') return { status:'live', statusLabel: mins ? `Live · ${mins}'` : 'Live', statusLong: mins ? `Playing now — ${mins} mins so far` : 'Match in progress' };
+  if (s.match_status === 'finished' || (!weekIsLive && stats)) {
+    return mins > 0
+      ? { status:'played', statusLabel:'Played', statusLong:`Played ${mins} mins` }
+      : { status:'benched', statusLabel:'Didn’t play', statusLong:'Didn’t play this week' };
+  }
+  if (INJURY_LABELS[s.status]) return { status:'injured', statusLabel: INJURY_LABELS[s.status], statusLong: s.news || INJURY_LABELS[s.status] };
+  return { status:'upcoming', statusLabel:'Yet to play', statusLong:'Their match hasn’t started yet' };
 }
-function statusMeta(status, minutes){
-  if (status === 'injured') return { cls:'injured', icon:'fa-user-injured', label:'Injured this week', shortLabel:'Injured' };
-  if (status === 'benched') return { cls:'benched', icon:'fa-chair', label:'Didn\u2019t play this week', shortLabel:'Didn\u2019t play' };
-  return { cls:'played', icon:'fa-check', label:`Played ${minutes || 90} mins`, shortLabel:'Played' };
+
+// Build rows from a real squad (stockmarket_matchup), overlaying live
+// values while a gameweek is in progress, exactly as the real page does.
+function livePlayers(squad, liveList, histMap, weekIsLive){
+  const liveByPid = {};
+  (liveList || []).forEach(l => { liveByPid[l.player_id] = l; });
+  return (squad || []).map((s, i) => {
+    if (s.empty) {
+      const posU = normPos(s.position);
+      return { key:`empty-${i}`, empty:true, pos: posU, reserved: s.reserved_value || 0,
+        name: s.force_sold_player_name ? `${s.force_sold_player_name} (left the PL)` : `Empty ${posU} slot`,
+        leftLeague: s.force_sold_reason === 'left_premier_league' };
+    }
+    const lv = liveByPid[s.player_id];
+    const bd = s.last_gw_breakdown || null;
+    const pos = normPos(s.position);
+    let value = s.value, earned = null, paid = null, own = 0, stats = null;
+    if (lv) {
+      value = lv.liveValue; earned = lv.received || 0; paid = lv.paid || 0;
+      own = lv.ownEventNet || 0; stats = lv.liveStats || null;
+    } else if (bd) {
+      earned = bd.win_bonus || 0; paid = bd.penalty_paid || 0;
+      own = bd.own_event_net || 0; stats = bd.stats || null;
+    }
+    const delta = (earned || 0) - (paid || 0);
+    const hist = (histMap[s.player_id] || []).slice();
+    if (!hist.length) hist.push(s.value);
+    if (hist[hist.length - 1] !== value) hist.push(value);
+    return {
+      key: s.player_id, playerId: s.player_id, name: s.name, team: s.team, pos,
+      photoUrl: s.photo || null, value: Math.round(value), delta: Math.round(delta),
+      own: Math.round(own), share: Math.round(delta - own), earned, paid,
+      ...liveStatus(s, stats, weekIsLive),
+      statList: statPills(pos, stats), hist
+    };
+  });
 }
+
+function normPos(x){
+  const k = String(x ?? '').toLowerCase();
+  if (k === '1' || k.startsWith('g')) return 'GK';
+  if (k === '2' || k.startsWith('d')) return 'DEF';
+  if (k === '3' || k.startsWith('m')) return 'MID';
+  if (k === '4' || k.startsWith('f')) return 'FWD';
+  return String(x || '').toUpperCase();
+}
+
+// Drafting phase: the squad is picked but no matches have been played.
+// Shown at the flat per-slot value (entry fee / 6), like the real page.
+function draftPlayers(portfolio, flatValue){
+  return (portfolio || []).map((p, i) => {
+    const pos = normPos(p.position);
+    if (p.empty) return { key:`empty-${i}`, empty:true, pos, reserved: p.reserved_value || 0, name:`Empty ${p.position_label || pos} slot` };
+    return {
+      key: p.player_id, name: p.name, team: p.team, pos, photoUrl: p.photo || null,
+      value: flatValue, delta: 0, own: 0, share: 0, earned: null, paid: null,
+      status:'upcoming', statusLabel:'Drafted', statusLong:'Drafted — values start moving once the draft window closes',
+      statList: statPills(pos, null), hist: [flatValue, flatValue]
+    };
+  });
+}
+
+// ---------- rendering ----------
+function statusIcon(status){
+  return { played:'fa-check', benched:'fa-chair', injured:'fa-user-injured', live:'fa-circle', upcoming:'fa-clock' }[status] || 'fa-check';
+}
+
 // Sparkline drawn from the player's real value at each point this season.
 function sparkline(points, delta){
   const pts = points.length > 1 ? points : [points[0], points[0]];
@@ -584,56 +791,55 @@ function sparkline(points, delta){
   return `<svg class="spark" viewBox="0 0 40 24"><path d="${path}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
-// prefix keeps each list's row ids (and therefore toggle state) independent,
-// so opening a row in "Your Six" can never collide with or accidentally
-// close a row in the opponent's list
-function renderList(containerId, players, prefix, showSell){
+// opts: { actionHtml: row => html }  (view-only links for now)
+function renderList(containerId, players, prefix, opts){
+  opts = opts || {};
   const list = document.getElementById(containerId);
+  const openIds = [...list.querySelectorAll('.row.open')].map(r => r.dataset.id);
   list.innerHTML = players.map(p => {
+    const rowId = `${prefix}-${p.key}`;
+    if (p.empty) {
+      return `
+      <div class="row empty-slot${p.leftLeague ? ' left-league' : ''}" data-id="${rowId}">
+        <div class="row-main">
+          <div class="empty-icon"><i class="fa-solid ${p.leftLeague ? 'fa-plane-departure' : 'fa-plus'}"></i></div>
+          <div class="empty-text">
+            <div class="player-name">${escapeHtml(p.name)}</div>
+            <div class="empty-sub"><span class="pos-tag">${escapeHtml(p.pos)}</span> ${money(p.reserved)} held for a replacement</div>
+          </div>
+          ${opts.emptyActionHtml ? opts.emptyActionHtml(p) : ''}
+        </div>
+      </div>`;
+    }
     const dCls = p.delta > 0 ? 'up' : p.delta < 0 ? 'down' : 'flat';
     const dIcon = p.delta > 0 ? 'fa-caret-up' : p.delta < 0 ? 'fa-caret-down' : 'fa-minus';
-    const st = statusMeta(p.status, p.minutes);
-    const photoUrl = `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo}.png`;
-    const rowId = `${prefix}-${p.id}`;
-
-    const ownLine = p.own === 0
-      ? `<div class="breakdown-line"><span class="k">Own play</span><span class="v">£0.00</span></div>`
-      : `<div class="breakdown-line"><span class="k">Own play</span><span class="v ${p.own>0?'up':'down'}">${p.own>0?'+':''}${money(p.own)}</span></div>`;
-    const shareLine = p.share === 0 ? '' :
-      `<div class="breakdown-line"><span class="k">Share</span><span class="v ${p.share>0?'up':'down'}">${p.share>0?'+':''}${money(p.share)}</span></div>`;
-
+    const line = (k, v, signed) => {
+      if (v === null || v === undefined) return '';
+      const cls = !signed ? '' : v > 0 ? 'up' : v < 0 ? 'down' : '';
+      return `<div class="breakdown-line"><span class="k">${k}</span><span class="v ${cls}">${signed && v > 0 ? '+' : ''}${money(v)}</span></div>`;
+    };
+    const breakdown = line('Own play', p.own, true) + line('From the opponent (zero-sum share)', p.share, true)
+      + (p.earned !== null ? line('Earned this week', p.earned, false) + line('Paid out this week', p.paid !== null ? -p.paid : null, true) : '');
     const pills = p.statList.map(([label, val, good]) => {
       const cls = val === '0' ? '' : (good ? 'hot' : 'bad');
       return `<span class="pill ${cls}">${label} ${val}</span>`;
     }).join('');
-
-    const actionsHtml = showSell
-      ? `<div class="actions">
-           <button class="btn">Sell player</button>
-           <button class="btn btn-info"><i class="fa-solid fa-circle-info"></i></button>
-         </div>`
-      : `<div class="actions">
-           <button class="btn btn-info" style="flex:1;"><i class="fa-solid fa-circle-info"></i> Full breakdown</button>
-         </div>`;
-
+    const photo = p.photoUrl
+      ? `<img class="photo-img" src="${escapeHtml(p.photoUrl)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=&quot;photo-initials&quot;>${initials(p.name)}</div>'">`
+      : `<div class="photo-initials">${initials(p.name)}</div>`;
     return `
-      <div class="row has-shirt" data-id="${rowId}" style="--shirt:url('shirts/${encodeURIComponent(shirtFile(p.team))}.webp')">
+      <div class="row has-shirt${openIds.includes(rowId) ? ' open' : ''}" data-id="${rowId}" style="--shirt:url('shirts/${encodeURIComponent(shirtFile(p.team))}.webp')">
         <div class="row-main" onclick="toggleRow('${rowId}')">
           <div class="player-block">
-            <div class="player-name">${p.name}</div>
+            <div class="player-name">${escapeHtml(p.name)}</div>
             <div class="player-row">
               <div class="photo-wrap status-${p.status}">
-                <div class="photo">
-                  <img class="photo-img" src="${photoUrl}" alt="${p.name}"
-                       onerror="this.outerHTML='<div class=&quot;photo-initials&quot;>${initials(p.name)}</div>'">
-                </div>
-                <div class="status-dot ${st.cls}"><i class="fa-solid ${st.icon}"></i></div>
+                <div class="photo">${photo}</div>
+                <div class="status-dot ${p.status}"><i class="fa-solid ${statusIcon(p.status)}"></i></div>
               </div>
               <div class="who">
-                <div class="sub">
-                  <span class="pos-tag">${p.pos}</span>${p.team}
-                </div>
-                <div class="status-text ${st.cls}">${st.shortLabel}</div>
+                <div class="sub"><span class="pos-tag">${escapeHtml(p.pos)}</span>${escapeHtml(p.team)}</div>
+                <div class="status-text ${p.status}">${escapeHtml(p.statusLabel)}</div>
               </div>
             </div>
           </div>
@@ -646,10 +852,10 @@ function renderList(containerId, players, prefix, showSell){
         </div>
         <div class="detail">
           <div class="detail-inner">
-            <div class="status-line"><i class="fa-solid ${st.icon}" style="font-size:10px;"></i> ${st.label}</div>
-            <div class="breakdown">${ownLine}${shareLine}</div>
+            <div class="status-line"><i class="fa-solid ${statusIcon(p.status)}" style="font-size:10px;"></i> ${escapeHtml(p.statusLong)}</div>
+            <div class="breakdown">${breakdown}</div>
             <div class="stat-pills">${pills}</div>
-            ${actionsHtml}
+            ${opts.actionHtml ? opts.actionHtml(p) : ''}
           </div>
         </div>
       </div>`;
@@ -664,65 +870,415 @@ function toggleRow(rowId){
   });
 }
 
-function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+// ---------- hero, avatar, standings ----------
+// standings: [{ name, value, me, inZone }] best first.
+// zone: { relegateCount, triggerGw } or null when no stage is pending.
+function lastSafeIndex(standings, zone){
+  if (!zone) return -1;
+  const firstDown = standings.findIndex(s => s.inZone);
+  return firstDown > 0 ? firstDown - 1 : -1;
+}
 
-// Fill the whole page for one side of the real GW3 matchup.
-function setView(key){
-  const me = SQUADS[key], opp = SQUADS[key === 'mike' ? 'mark' : 'mike'];
-  document.querySelectorAll('.demo-toggle button').forEach(b => b.classList.toggle('active', b.dataset.view === key));
-
-  const rank = STANDINGS_GW3.findIndex(s => s.name === me.name) + 1;
-  const safeIdx = STANDINGS_GW3.length - RELEGATE_COUNT - 1;       // last safe place (0-based)
-  const lastSafe = STANDINGS_GW3[safeIdx], firstDown = STANDINGS_GW3[safeIdx + 1];
-
-  document.getElementById('heroValue').textContent = money(me.value);
-  const d = document.getElementById('heroDelta');
-  d.className = 'delta ' + (me.delta >= 0 ? 'up' : 'down');
-  d.innerHTML = `<i class="fa-solid ${me.delta >= 0 ? 'fa-caret-up' : 'fa-caret-down'}"></i> ${money(Math.abs(me.delta))} this week`;
-  document.getElementById('heroRank').innerHTML = `<b>${ordinal(rank)}</b> of ${STANDINGS_GW3.length}`;
-
-  const gap = me.value - firstDown.value;
-  document.getElementById('safeLine').innerHTML = `
-    <i class="fa-solid fa-shield-halved"></i>
-    <span>${lastSafe.name === me.name ? `You're the <b>last safe place</b> (${ordinal(safeIdx + 1)})` : `Last safe: <b>${ordinal(safeIdx + 1)} · ${lastSafe.name} · ${money(lastSafe.value)}</b>`}</span>
-    <span class="safe-gap">${gap >= 0 ? `You're <b>${money(gap)}</b> above the drop` : `You're <b class="neg">${money(-gap)}</b> in the drop zone`}</span>`;
-
-  // Avatar: uploaded photo when there is one, otherwise initials.
+function renderAvatar(me, rank){
   const box = document.getElementById('heroAvatar');
   const initialsEl = document.getElementById('heroAvatarInitials');
   box.querySelectorAll('img.hero-avatar-img').forEach(i => i.remove());
-  initialsEl.textContent = me.initials; initialsEl.style.display = '';
+  initialsEl.textContent = me.initials || initials(me.name);
+  initialsEl.style.display = '';
   if (me.avatar) {
     const img = document.createElement('img');
-    img.className = 'hero-avatar-img'; img.alt = me.name; img.src = me.avatar;
+    img.className = 'hero-avatar-img'; img.alt = me.name || ''; img.src = me.avatar;
     img.onerror = () => { img.remove(); initialsEl.style.display = ''; };
-    box.insertBefore(img, box.firstChild); initialsEl.style.display = 'none';
+    box.insertBefore(img, box.firstChild);
+    initialsEl.style.display = 'none';
   }
   const rb = document.getElementById('heroAvatarRank');
-  rb.textContent = ordinal(rank);
-  rb.className = 'hero-avatar-rank r' + Math.min(rank, 4);
-  box.title = me.name;
-
-  // Standings board: top 3, then the last safe place.
-  const medal = ['gold','silver','bronze'];
-  const li = (s, i, extra) => `<li class="${extra || ''}${s.name === me.name ? ' me' : ''}"><span class="pos ${medal[i] || ''}">${i + 1}</span><span class="nm">${s.name}</span>${extra && extra.includes('last-safe') ? '<span class="tag">Last safe</span>' : ''}<span class="val">${money(s.value)}</span></li>`;
-  document.getElementById('miniBoard').innerHTML =
-    STANDINGS_GW3.slice(0, 3).map((s, i) => li(s, i)).join('') +
-    `<li class="gap" aria-hidden="true"><span>&middot;&middot;&middot;</span></li>` +
-    li(lastSafe, safeIdx, 'last-safe');
-  document.getElementById('dropLine').innerHTML = `<i class="fa-solid fa-skull-crossbones"></i> Bottom ${RELEGATE_COUNT} cut after GW 3`;
-
-  // Opponent strip + both squads.
-  document.getElementById('oppName').textContent = opp.name;
-  document.getElementById('oppValue').textContent = money(opp.value);
-  const res = document.getElementById('vsResult');
-  res.textContent = me.delta >= 0 ? `Won by ${money(Math.abs(me.delta))}` : `Lost by ${money(Math.abs(me.delta))}`;
-  res.className = 'vs-result ' + (me.delta >= 0 ? 'won' : 'lost');
-
-  renderList('myList', prepPlayers(me.players), 'mine', true);
-  renderList('oppList', prepPlayers(opp.players), 'opp', false);
+  rb.style.display = rank ? '' : 'none';
+  rb.textContent = rank ? ordinal(rank) : '';
+  rb.className = 'hero-avatar-rank r' + Math.min(rank || 4, 4);
+  box.title = me.name || '';
 }
-setView('mike');
+
+function renderStandings(standings, zone){
+  const myIdx = standings.findIndex(s => s.me);
+  const safeIdx = lastSafeIndex(standings, zone);
+  const keep = new Set([0, 1, 2].filter(i => i < standings.length));
+  if (safeIdx >= 0) keep.add(safeIdx);
+  if (myIdx >= 0) keep.add(myIdx);
+  const idxs = [...keep].sort((a, b) => a - b);
+  const medal = ['gold', 'silver', 'bronze'];
+  let html = '', prev = -1;
+  idxs.forEach(i => {
+    if (prev >= 0 && i > prev + 1) html += `<li class="gap" aria-hidden="true"><span>&middot;&middot;&middot;</span></li>`;
+    const s = standings[i];
+    const isSafe = i === safeIdx;
+    html += `<li class="${isSafe ? 'last-safe' : ''}${s.me ? ' me' : ''}"><span class="pos ${medal[i] || ''}">${i + 1}</span><span class="nm">${escapeHtml(s.name)}</span>${isSafe ? '<span class="tag">Last safe</span>' : ''}<span class="val">${money(s.value)}</span></li>`;
+    prev = i;
+  });
+  document.getElementById('miniBoard').innerHTML = html;
+  document.getElementById('dropLine').innerHTML = zone && safeIdx >= 0
+    ? `<i class="fa-solid fa-skull-crossbones"></i> Bottom ${zone.relegateCount} cut after GW ${zone.triggerGw}` : '';
+  // The box stays hidden on phones via CSS; this only clears it when empty.
+  if (standings.length === 0) document.getElementById('miniBoardBox').style.display = 'none';
+  else document.getElementById('miniBoardBox').style.removeProperty('display');
+}
+
+function renderSafeLine(standings, zone){
+  const el = document.getElementById('safeLine');
+  const myIdx = standings.findIndex(s => s.me);
+  const safeIdx = lastSafeIndex(standings, zone);
+  if (safeIdx < 0 || myIdx < 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const me = standings[myIdx], lastSafe = standings[safeIdx], firstDown = standings[safeIdx + 1];
+  const gap = me.value - firstDown.value;
+  el.innerHTML = `
+    <i class="fa-solid fa-shield-halved"></i>
+    <span>${lastSafe.me ? `You're the <b>last safe place</b> (${ordinal(safeIdx + 1)})` : `Last safe: <b>${ordinal(safeIdx + 1)} · ${escapeHtml(lastSafe.name)} · ${money(lastSafe.value)}</b>`}</span>
+    <span class="safe-gap">${gap >= 0 ? `You're <b>${money(gap)}</b> above the drop` : `You're <b class="neg">${money(-gap)}</b> in the drop zone`}</span>`;
+  el.style.removeProperty('display');
+}
+
+// m: { me:{name,initials,avatar}, value, delta, deltaLabel, rank, total,
+//      gwText, statusHtml, standings, zone }
+function renderHero(m){
+  document.getElementById('heroValue').textContent = money(m.value);
+  const d = document.getElementById('heroDelta');
+  if (m.delta === null || m.delta === undefined) { d.innerHTML = ''; d.className = 'delta'; }
+  else {
+    d.className = 'delta ' + (m.delta > 0 ? 'up' : m.delta < 0 ? 'down' : 'flat');
+    d.innerHTML = `<i class="fa-solid ${m.delta > 0 ? 'fa-caret-up' : m.delta < 0 ? 'fa-caret-down' : 'fa-minus'}"></i> ${money(Math.abs(m.delta))} ${m.deltaLabel || ''}`;
+  }
+  document.getElementById('heroRank').innerHTML = m.rank ? `<b>${ordinal(m.rank)}</b> of ${m.total}` : (m.rankText || '');
+  document.getElementById('heroGw').textContent = m.gwText || '';
+  document.getElementById('heroStatus').innerHTML = m.statusHtml || '';
+  document.querySelectorAll('#heroBlock .meta .dot').forEach((dot, i) => {
+    dot.style.display = (i === 0 ? (document.getElementById('heroRank').innerHTML && m.gwText) : (m.gwText && m.statusHtml)) ? '' : 'none';
+  });
+  renderAvatar(m.me, m.rank);
+  renderStandings(m.standings || [], m.zone);
+  renderSafeLine(m.standings || [], m.zone);
+}
+
+function renderOpponent(o){
+  // o: { name, value, resultText, resultCls, historyUrl } or { bye:true } or { message }
+  show('oppSection', true);
+  const empty = document.getElementById('oppEmpty');
+  const strip = document.querySelector('#oppSection .vs-strip');
+  if (o.message || o.bye) {
+    strip.style.display = 'none';
+    document.getElementById('oppList').innerHTML = '';
+    empty.textContent = o.bye ? 'No matchup this week — you have a bye.' : o.message;
+    empty.style.display = '';
+    return;
+  }
+  strip.style.display = '';
+  empty.style.display = 'none';
+  document.getElementById('oppName').textContent = o.name;
+  document.getElementById('oppValue').textContent = money(o.value);
+  const res = document.getElementById('vsResult');
+  res.textContent = o.resultText || '';
+  res.className = 'vs-result ' + (o.resultCls || '');
+  res.style.display = o.resultText ? '' : 'none';
+  const h = document.getElementById('oppHistory');
+  if (o.historyUrl) { h.href = o.historyUrl; h.style.display = ''; } else h.style.display = 'none';
+}
+
+// ---------- page modes ----------
+let MODE = 'demo';           // 'demo' | 'live'
+let DEMO_VIEW = 'mike';
+
+function showState(html){
+  const el = document.getElementById('stateCard');
+  if (!html) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.innerHTML = html; el.style.display = '';
+}
+
+function showDemo(on, withCta){
+  show('demoBar', on);
+  const cta = document.getElementById('demoCta');
+  if (cta) cta.style.display = withCta ? '' : 'none';
+  if (on) { MODE = 'demo'; setView(DEMO_VIEW); }
+}
+
+// Real GW3 example — one side of McGuinness v Mark G.
+function setView(key){
+  DEMO_VIEW = key;
+  const me = SQUADS[key], opp = SQUADS[key === 'mike' ? 'mark' : 'mike'];
+  document.querySelectorAll('.demo-toggle button').forEach(b => b.classList.toggle('active', b.dataset.view === key));
+  const standings = STANDINGS_GW3.map((s, i) => ({ name: s.name, value: s.value, me: s.name === me.name, inZone: i >= STANDINGS_GW3.length - RELEGATE_COUNT }));
+  renderHero({
+    me: { name: me.name, initials: me.initials, avatar: me.avatar },
+    value: me.value, delta: me.delta, deltaLabel: 'this week',
+    rank: standings.findIndex(s => s.me) + 1, total: standings.length,
+    gwText: 'Gameweek 3', statusHtml: '<b>Settled</b>',
+    standings, zone: { relegateCount: RELEGATE_COUNT, triggerGw: 3 }
+  });
+  document.querySelector('#heroBlock .label').textContent = 'Your squad is worth';
+  show('heroBlock', true); show('squadSection', true);
+  renderList('myList', demoPlayers(me.players), 'mine');
+  renderOpponent({ name: opp.name, value: opp.value,
+    resultText: me.delta >= 0 ? `Won by ${money(Math.abs(me.delta))}` : `Lost by ${money(Math.abs(me.delta))}`,
+    resultCls: me.delta >= 0 ? 'won' : 'lost' });
+  renderList('oppList', demoPlayers(opp.players), 'opp');
+}
+
+// ---------- live data ----------
+let tournamentId = null;
+let pollTimer = null;
+
+async function findTournament(){
+  for (const status of ['live', 'upcoming', 'finished']) {
+    const d = await getJSON(`/api/tournaments?status=${status}&tournament_type=stockmarket`);
+    const t = d && (d.tournaments || [])[0];
+    if (t) return t;
+  }
+  return null;
+}
+
+async function loadMe(){
+  let u = null;
+  try { u = JSON.parse(localStorage.getItem('gbf_user') || 'null'); } catch (e) {}
+  const fresh = await getJSON('/api/tournaments?me=true', true);
+  if (fresh && fresh.user) u = fresh.user;
+  const name = (u && (u.display_name || u.username)) || 'You';
+  return { name, initials: initials(name), avatar: (u && u.avatar_type === 'upload' && u.avatar_url) || null };
+}
+
+function stateCardHtml(icon, title, text, button){
+  return `<div class="state-inner">
+    <i class="fa-solid ${icon} state-icon"></i>
+    <div class="state-title">${title}</div>
+    ${text ? `<p class="state-text">${text}</p>` : ''}
+    ${button || ''}
+  </div>`;
+}
+
+function renderTransferPill(td){
+  const el = document.getElementById('transferPill');
+  if (!td) { el.style.display = 'none'; return ''; }
+  let html, cls, title, meta;
+  if (!td.open) {
+    html = '<i class="fas fa-lock"></i> Transfers: Closed'; cls = 'closed';
+    title = `${td.reason || 'Transfer window closed'} — reopens once Gameweek ${td.current_gameweek} finishes`;
+    meta = 'Transfers closed';
+  } else if (td.already_transferred) {
+    html = '<i class="fas fa-check"></i> Transfer used'; cls = 'used';
+    title = `Transfer used for this gameweek — locks when Gameweek ${td.current_gameweek} kicks off`;
+    meta = 'Transfer used';
+  } else if (td.deadline_epoch) {
+    const when = shortDateTime(td.deadline_epoch * 1000);
+    html = '<i class="fas fa-clock"></i> Transfers: Open'; cls = 'open';
+    title = `Closes when Gameweek ${td.current_gameweek} kicks off: ${when}`;
+    meta = `Locks <b>${when}</b>`;
+  } else { el.style.display = 'none'; return ''; }
+  el.innerHTML = html; el.title = title; el.className = `sm-pill-link transfer-pill ${cls}`; el.style.display = '';
+  return meta;
+}
+
+function renderRelegationZones(stages, currentGw){
+  const box = document.getElementById('relZones');
+  if (!stages || !stages.length) { box.style.display = 'none'; return; }
+  const next = stages.find(s => !s.applied);
+  document.getElementById('relZonesList').innerHTML = stages.map(s => {
+    const isNext = next && s.stage_number === next.stage_number;
+    const away = s.trigger_gameweek - (currentGw || 0);
+    const st = s.applied ? '<span class="rz-done">Already applied</span>'
+      : isNext ? `<span class="rz-next">Next — ${away <= 0 ? 'due now' : `in ${away} gameweek${away === 1 ? '' : 's'}`}</span>`
+      : '<span class="rz-later">Upcoming</span>';
+    return `<div class="sm-how-item"><span class="sm-how-num">${s.stage_number}</span><div><strong>Gameweek ${s.trigger_gameweek}</strong> — bottom ${s.relegate_count} portfolio${s.relegate_count === 1 ? '' : 's'} cut. ${st}</div></div>`;
+  }).join('');
+  box.style.display = '';
+}
+
+function standingsFromLeaderboard(lb, myEntryId){
+  const rows = (lb && lb.leaderboard) || [];
+  const standings = rows.map(r => ({ name: r.player_name, value: r.current_value, me: r.entry_id === myEntryId, inZone: !!r.in_relegation_zone }));
+  const zone = lb && lb.next_stage ? { relegateCount: lb.next_stage.relegate_count, triggerGw: lb.next_stage.trigger_gameweek } : null;
+  return { standings, zone };
+}
+
+function historyMap(h){
+  const map = {};
+  ((h && h.weeks) || []).forEach(w => (w.players || []).forEach(r => {
+    if (!map[r.player_id]) map[r.player_id] = [r.starting_value];
+    map[r.player_id].push(r.ending_value);
+  }));
+  return map;
+}
+
+const MANAGE_URL = '/stock-market';
+const mineAction = () => `<div class="actions"><a class="btn btn-link" href="${MANAGE_URL}"><i class="fa-solid fa-arrow-right-arrow-left"></i> Sell or swap on the Stock Market page</a></div>`;
+const emptyAction = () => `<a class="btn btn-link btn-small" href="${MANAGE_URL}">Fill slot</a>`;
+
+async function renderFinished(t){
+  const d = await getJSON(`/api/tournaments?stockmarket_results=true&tournament_id=${t.id}`);
+  if (!d || !d.finished) return false;
+  const medal = ['gold', 'silver', 'bronze'];
+  const rows = (d.survivors || []).map((r, i) => `
+    <li><span class="pos ${medal[i] || ''}">${r.rank}</span><span class="nm">${escapeHtml(r.player_name)}</span><span class="val">${money(r.final_value)}</span></li>`).join('');
+  const rel = (d.relegated || []).map(r => `
+    <li class="faded"><span class="pos">&ndash;</span><span class="nm">${escapeHtml(r.player_name)} <span class="cut">Cut GW${r.relegated_at_gameweek || '?'}</span></span><span class="val">${money(r.final_value)}</span></li>`).join('');
+  showState(`<div class="state-inner results">
+    <i class="fa-solid fa-flag-checkered state-icon"></i>
+    <div class="state-title">${escapeHtml(d.tournament_name || 'Stock Market')} — Final Results</div>
+    <p class="state-text">Finished after Gameweek ${d.end_gameweek || '?'}. A new Stock Market will open here soon.</p>
+    <ol class="results-list">${rows}</ol>
+    ${rel ? `<div class="results-sub">Relegated</div><ol class="results-list">${rel}</ol>` : ''}
+  </div>`);
+  return true;
+}
+
+async function loadPage(){
+  if (!isLoggedIn()) { showState(''); showDemo(true, true); return; }
+
+  const t = await findTournament();
+  if (!t) {
+    showState(stateCardHtml('fa-hourglass-half', 'No Stock Market is open right now',
+      'A new tournament will appear here as soon as it opens. Below is a real week from our test league.'));
+    showDemo(true, false); return;
+  }
+  tournamentId = t.id;
+
+  if (t.status === 'finished') {
+    const ok = await renderFinished(t);
+    if (!ok) showState(stateCardHtml('fa-flag-checkered', 'The last Stock Market has finished', 'A new one will open here soon.'));
+    showDemo(true, false); return;
+  }
+
+  // Same call the real page makes first: it also lets the backend close
+  // the draft, process finished matches and apply any due relegation.
+  const lock = await getJSON(`/api/tournaments?stockmarket_lock_status=true&tournament_id=${t.id}`);
+  const fee = money(t.entry_fee || 0);
+
+  if (!lock || !lock.marketLive) {
+    const [state, me, td] = await Promise.all([
+      getJSON(`/api/tournaments?stockmarket_state=true&tournament_id=${t.id}`, true),
+      loadMe(),
+      getJSON(`/api/tournaments?stockmarket_transfer_deadline=true&tournament_id=${t.id}`, true)
+    ]);
+    if (!state || !state.entry) {
+      showState(stateCardHtml('fa-chart-line', `Enter ${escapeHtml(t.name || 'the Stock Market')}`,
+        `Entry fee ${fee} · ${t.current_entries || 0} entered so far.${t.closes_at ? ` Draft closes ${shortDateTime(t.closes_at)}.` : ''}`,
+        `<a class="state-btn" href="${MANAGE_URL}"><i class="fa-solid fa-right-to-bracket"></i> Enter on the Stock Market page</a>`));
+      showDemo(true, false); return;
+    }
+    MODE = 'live'; showDemo(false, false);
+    const portfolio = state.portfolio || [];
+    const hasSquad = portfolio.filter(p => !p.empty).length === 6;
+    const flat = Math.floor((t.entry_fee || 0) / 6);
+    showState(hasSquad ? '' : stateCardHtml('fa-list-check', 'Draft your squad',
+      `You're in — now pick your 6 before the draft window closes${t.closes_at ? ` (${shortDateTime(t.closes_at)})` : ''}.`,
+      `<a class="state-btn" href="/stock-market-draft"><i class="fa-solid fa-list-check"></i> Draft your squad</a>`));
+    renderTransferPill(td);
+    renderHero({
+      me, value: flat * portfolio.filter(p => !p.empty).length, delta: null,
+      rankText: hasSquad ? '<b>Squad locked in</b>' : '<b>Drafting</b>',
+      gwText: t.gameweek ? `Starts Gameweek ${t.gameweek}` : '',
+      statusHtml: t.closes_at ? `Draft closes <b>${shortDateTime(t.closes_at)}</b>` : '',
+      standings: [], zone: null
+    });
+    document.querySelector('#heroBlock .label').textContent = 'Your squad is worth (estimated)';
+    show('squadSection', portfolio.length > 0);
+    renderList('myList', draftPlayers(portfolio, flat), 'mine', { emptyActionHtml: () => `<a class="btn btn-link btn-small" href="/stock-market-draft">Draft</a>` });
+    renderOpponent({ message: 'Matchups start once the draft window closes.' });
+    return;
+  }
+
+  const [data, lb, me, td] = await Promise.all([
+    getJSON(`/api/tournaments?stockmarket_matchup=true&tournament_id=${t.id}`, true),
+    getJSON(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`, true),
+    loadMe(),
+    getJSON(`/api/tournaments?stockmarket_transfer_deadline=true&tournament_id=${t.id}`, true)
+  ]);
+
+  if (!data || !data.entry) {
+    showState(stateCardHtml('fa-chart-line', `${escapeHtml(t.name || 'The Stock Market')} is under way`,
+      `The draft has closed for this one, so new entries have to wait for the next tournament.`,
+      `<a class="state-btn" href="${MANAGE_URL}"><i class="fa-solid fa-arrow-right"></i> Go to the Stock Market page</a>`));
+    showDemo(true, false); return;
+  }
+  document.querySelector('#heroBlock .label').textContent = 'Your squad is worth';
+  MODE = 'live'; showDemo(false, false);
+  renderRelegationZones(data.relegation_stages, data.gameweek);
+  const { standings, zone } = standingsFromLeaderboard(lb, data.entry.id);
+
+  if (data.relegated) {
+    showState(stateCardHtml('fa-arrow-trend-down', 'You’ve been relegated',
+      `${data.relegated_at_gameweek ? `Cut at the Gameweek ${data.relegated_at_gameweek} relegation stage.` : 'Cut in an earlier relegation stage.'} Your squad's value was shared across the surviving players. No more weekly matchups this tournament — thanks for playing.`
+      + (data.cutoff_value !== null && data.cutoff_value !== undefined ? ` The cut-off line was <b>${money(data.cutoff_value)}</b>.` : '')));
+    renderTransferPill(null);
+    // Relegated entries drop out of the active standings, so nobody is
+    // marked as "you" and there's no above/below-the-drop line to show.
+    renderHero({ me, value: data.value_at_relegation || 0, delta: null, rankText: '<b>Relegated</b>',
+      gwText: data.relegated_at_gameweek ? `Cut after Gameweek ${data.relegated_at_gameweek}` : '', statusHtml: '',
+      standings: standings.map(s => ({ ...s, me: false })), zone });
+    document.querySelector('#heroBlock .label').textContent = 'Your squad was worth';
+    show('squadSection', false); show('oppSection', false);
+    return;
+  }
+  showState('');
+
+  const [myHist, oppHist] = await Promise.all([
+    getJSON(`/api/tournaments?stockmarket_history=true&tournament_id=${t.id}`, true),
+    data.opponent ? getJSON(`/api/tournaments?stockmarket_history=true&tournament_id=${t.id}&entry_id=${data.opponent.id}`) : null
+  ]);
+  const weekIsLive = !!data.live;
+  const mine = livePlayers(data.entry.squad_players, data.live && data.live.mine, historyMap(myHist), weekIsLive);
+  const reserved = (data.entry.squad_players || []).reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
+  const myValue = mine.filter(p => !p.empty).reduce((s, p) => s + p.value, 0) + reserved;
+  const myNet = mine.filter(p => !p.empty).reduce((s, p) => s + p.delta, 0);
+  const anyLive = (data.entry.squad_players || []).some(p => p.match_status === 'live');
+  const transferMeta = renderTransferPill(td);
+  const statusHtml = anyLive ? '<b class="live-now">Live now</b>'
+    : (data.matchup && data.matchup.settled) ? '<b>Settled</b>' : (transferMeta || '');
+
+  renderHero({
+    me, value: myValue, delta: myNet, deltaLabel: 'this week',
+    rank: (standings.findIndex(s => s.me) + 1) || null, total: standings.length,
+    gwText: data.gameweek ? `Gameweek ${data.gameweek}` : '', statusHtml, standings, zone
+  });
+  show('squadSection', true);
+  renderList('myList', mine, 'mine', { actionHtml: mineAction, emptyActionHtml: emptyAction });
+
+  if (!data.opponent) {
+    renderOpponent({ bye: true });
+    return;
+  }
+  const opp = livePlayers(data.opponent.squad_players, data.live && data.live.opponent, historyMap(oppHist), weekIsLive);
+  const oppReserved = (data.opponent.squad_players || []).reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
+  const oppValue = opp.filter(p => !p.empty).reduce((s, p) => s + p.value, 0) + oppReserved;
+  const historyUrl = `/stock-market-player?tournament_id=${t.id}&entry_id=${data.opponent.id}`;
+  let resultText = '', resultCls = '';
+  if (data.matchup && data.matchup.settled) {
+    const won = data.matchup.winner_entry_id === data.entry.id;
+    resultText = `${won ? 'Won' : 'Lost'} by ${money(Math.abs(data.matchup.gap || 0))}`; resultCls = won ? 'won' : 'lost';
+  } else if (myNet !== 0) {
+    resultText = `${myNet > 0 ? 'Leading' : 'Trailing'} by ${money(Math.abs(myNet))}`; resultCls = myNet > 0 ? 'won' : 'lost';
+  } else {
+    resultText = anyLive ? 'All square' : 'Not started'; resultCls = 'even';
+  }
+  renderOpponent({ name: data.opponent_name || 'Opponent', value: oppValue, resultText, resultCls, historyUrl });
+  renderList('oppList', opp, 'opp', { actionHtml: () => `<div class="actions"><a class="btn btn-link" href="${historyUrl}"><i class="fa-solid fa-clock-rotate-left"></i> Their full history</a></div>` });
+}
+
+// Refresh once a minute while the tab is visible, like the real page —
+// picks up live match values, settlement and relegation automatically.
+function startPolling(){
+  if (pollTimer) return;
+  pollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && MODE === 'live') loadPage();
+  }, 60000);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && MODE === 'live') loadPage();
+});
+
+setView('mike');           // instant first paint with the example
+loadPage().catch(err => {
+  console.error('Stock Market load failed:', err);
+  showState(stateCardHtml('fa-triangle-exclamation', 'Couldn’t load the Stock Market right now', 'Showing the example below instead. Try refreshing in a moment.'));
+  showDemo(true, false);
+});
+startPolling();
 </script>
 
 
