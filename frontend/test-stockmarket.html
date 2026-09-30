@@ -381,6 +381,17 @@
       var(--shirt) no-repeat 64% 22% / auto 170%,
       var(--bg-card);
   }
+  /* Mobile: shirt sits on the right-hand side of the card, behind the
+     price, with a slightly stronger fade there so the price stays clear. */
+  @media (max-width:600px){
+    .row.has-shirt{
+      background:
+        linear-gradient(90deg, rgba(13,23,48,0.97) 0%, rgba(13,23,48,0.93) 50%, rgba(13,23,48,0.70) 72%, rgba(13,23,48,0.78) 100%),
+        var(--shirt) no-repeat 106% 30% / auto 150%,
+        var(--bg-card);
+    }
+    .row.has-shirt .numbers{ text-shadow:0 1px 2px #000, 0 0 8px rgba(0,0,0,0.9); }
+  }
   .row.has-shirt .row-main{ background:transparent; }
   .row.has-shirt .row-main:active, .row.has-shirt.open .row-main{ background:rgba(16,26,56,0.45); }
 
