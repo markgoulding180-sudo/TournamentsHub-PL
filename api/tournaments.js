@@ -167,8 +167,116 @@ module.exports = async (req, res) => {
       // played and the result, for full week-by-week verification.
       // Leaderboard — every entrant in the tournament, ranked by current
       // portfolio value.
+      // Public, read-only: one manager's current squad, for the public
+      // league view on /stock-market-test (anyone can tap a manager in
+      // the standings to see their 6). No login needed, never writes
+      // anything. Same photos / match status / live-value maths as the
+      // private stockmarket_matchup endpoint, just for any active entry.
+      // Relegated entries aren't shown publicly.
+      // Short shared cache for anonymous callers, so hundreds of
+      // visitors cost roughly one computation per ~20 seconds.
+      const stockmarketPublicSquad = params.get('stockmarket_public_squad');
+      if (stockmarketPublicSquad === 'true' && tournamentId) {
+        const entryId = params.get('entry_id');
+        if (!entryId) return res.status(400).json({ error: 'entry_id is required' });
+        if (!req.headers.authorization) res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=40');
+
+        const { data: tRow } = await supabaseAdmin
+          .schema('stockmarket').from('tournaments')
+          .select('id, status, entry_fee, cost_multiplier').eq('id', tournamentId).maybeSingle();
+        if (!tRow) return res.status(404).json({ error: 'Tournament not found' });
+
+        const { data: pubEntry } = await supabaseAdmin
+          .schema('stockmarket').from('tournament_entries')
+          .select('id, user_id, squad_players, current_value, start_value, relegated')
+          .eq('id', entryId).eq('tournament_id', tournamentId).maybeSingle();
+        if (!pubEntry || pubEntry.relegated) return res.status(200).json({ entry: null });
+
+        const { data: pubUser } = await supabaseAdmin.from('users').select('username, display_name').eq('id', pubEntry.user_id).maybeSingle();
+        const squad = pubEntry.squad_players || [];
+
+        const pubIds = squad.filter(s => s && !s.empty && s.player_id).map(s => s.player_id);
+        const { data: pubPhotoRows } = pubIds.length > 0
+          ? await masterDb.from('players').select('id, photo, custom_photo_url, status, news, starts, rank_tier').in('id', pubIds)
+          : { data: [] };
+        const pubBio = {};
+        (pubPhotoRows || []).forEach(p => {
+          pubBio[p.id] = {
+            photo: p.custom_photo_url || (p.photo ? `https://resources.premierleague.com/premierleague/photos/players/250x250/p${p.photo.replace('.jpg', '')}.png` : null),
+            status: p.status || 'a', news: p.news || '', appearances: p.starts || 0, rank_tier: p.rank_tier || null
+          };
+        });
+
+        const { data: pubClock } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
+        const pubGw = pubClock ? pubClock.current_gameweek : null;
+        const { data: pubGwMatches } = pubGw
+          ? await masterDb.from('matches').select('home_team, away_team, status').eq('gameweek', pubGw)
+          : { data: [] };
+        const pubMatchStatus = {};
+        (pubGwMatches || []).forEach(m => { pubMatchStatus[m.home_team] = m.status; pubMatchStatus[m.away_team] = m.status; });
+
+        const pubSquad = squad.map(s => (!s || s.empty) ? s : {
+          ...s, ...(pubBio[s.player_id] || { photo: null, status: 'a', news: '', appearances: 0, rank_tier: null }),
+          match_status: pubMatchStatus[s.team] || null
+        });
+
+        // Live values while this gameweek's matchup is still unsettled —
+        // exactly the same calculation the leaderboard uses.
+        let pubLive = null;
+        if (tRow.status === 'live' && pubGw) {
+          try {
+            const { data: pubMatchup } = await supabaseAdmin
+              .schema('stockmarket').from('matchups')
+              .select('entry_id_1, entry_id_2, settled')
+              .eq('tournament_id', tournamentId).eq('gameweek', pubGw)
+              .or(`entry_id_1.eq.${pubEntry.id},entry_id_2.eq.${pubEntry.id}`)
+              .maybeSingle();
+            if (pubMatchup && !pubMatchup.settled) {
+              const oppId = pubMatchup.entry_id_1 === pubEntry.id ? pubMatchup.entry_id_2 : pubMatchup.entry_id_1;
+              const { data: oppRow } = oppId
+                ? await supabaseAdmin.schema('stockmarket').from('tournament_entries').select('squad_players').eq('id', oppId).maybeSingle()
+                : { data: null };
+              const oppSquad = (oppRow && oppRow.squad_players) || [];
+              const statIds = [...new Set([...pubIds, ...oppSquad.filter(s => s && !s.empty).map(s => s.player_id)])];
+              const startedTeams = new Set();
+              (pubGwMatches || []).forEach(m => { if (m.status === 'live' || m.status === 'finished') { startedTeams.add(m.home_team); startedTeams.add(m.away_team); } });
+              const { data: pubStatRows } = statIds.length > 0
+                ? await masterDb.from('player_gameweek_stats').select('*').eq('gameweek', pubGw).in('player_id', statIds)
+                : { data: [] };
+              const pubStats = {};
+              (pubStatRows || []).forEach(s => { if (startedTeams.has(s.team)) pubStats[s.player_id] = s; });
+              const pubConceded = await getTeamGoalsConcededMap(masterDb, pubGw);
+              const mult = tRow.cost_multiplier || 1;
+              const prov = oppRow
+                ? computeUnifiedSettlement(squad, oppSquad, pubStats, pubConceded, mult).provA
+                : prepSquadForSettlement(squad, pubStats, pubConceded, mult);
+              pubLive = prov.map(p => ({
+                player_id: p.player_id, liveValue: p.liveValue,
+                received: p.received || 0, paid: p.paid || 0,
+                ownEventNet: (p.ownEventReceived || 0) - (p.ownEventPaid || 0),
+                liveStats: p.gwStats
+              }));
+            }
+          } catch (pubLiveErr) {
+            console.error('stockmarket_public_squad live calc failed:', pubLiveErr);
+          }
+        }
+
+        return res.status(200).json({
+          entry: { id: pubEntry.id, name: pickDisplayName(pubUser), current_value: pubEntry.current_value, start_value: pubEntry.start_value },
+          squad: pubSquad,
+          live: pubLive,
+          gameweek: pubGw,
+          drafting: tRow.status === 'upcoming',
+          flat_value: Math.floor((tRow.entry_fee || 0) / 6)
+        });
+      }
+
       const stockmarketLeaderboard = params.get('stockmarket_leaderboard');
       if (stockmarketLeaderboard === 'true' && tournamentId) {
+        // Anonymous callers (the public league view) share a short CDN
+        // cache; logged-in requests carry Authorization and aren't cached.
+        if (!req.headers.authorization) res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=40');
         // Real gap fixed here: the query below only ever returns entries
         // with squad_locked = true, which during the drafting phase is
         // nobody at all - regardless of how many real people have

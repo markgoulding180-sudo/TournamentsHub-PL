@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="live-wired-v16">
+<meta name="build" content="public-league-v17">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -454,6 +454,41 @@
   .who .status-text.upcoming{ color:var(--text-dim); }
   @keyframes livePulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(242,185,61,0.5); } 50%{ box-shadow:0 0 0 5px rgba(242,185,61,0); } }
   @media (prefers-reduced-motion: reduce){ .photo-wrap.status-live{ animation:none; } }
+
+  /* ---------- Public league ---------- */
+  .league-tools{ padding:0 var(--gutter) 10px; }
+  .league-tools input{ width:100%; max-width:360px; background:var(--bg-card); border:1px solid rgba(255,255,255,0.14); color:var(--text); border-radius:10px; padding:9px 12px; font:inherit; font-size:13.5px; }
+  .league-tools input:focus{ outline:none; border-color:var(--accent-2); }
+  .league-list{ display:flex; flex-direction:column; gap:6px; padding:0 var(--gutter); }
+  .lg-row{ background:var(--bg-card); border:1px solid rgba(255,255,255,0.12); border-radius:10px; overflow:hidden; }
+  .lg-row.in-zone{ border-color:rgba(239,68,68,0.45); }
+  .lg-row.last-safe{ border-bottom:2px dashed rgba(239,68,68,0.7); }
+  .lg-main{ width:100%; display:flex; align-items:center; gap:10px; padding:11px 12px; background:none; border:none; color:inherit; font:inherit; cursor:pointer; text-align:left; }
+  .lg-main:hover{ background:var(--bg-card-2); }
+  .lg-main .pos{ width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700; font-size:12px; background:var(--bg-panel); color:var(--text-dim); flex-shrink:0; }
+  .lg-main .pos.gold{ background:var(--gold); color:#1a1200; }
+  .lg-main .pos.silver{ background:#c0c8d6; color:#141a24; }
+  .lg-main .pos.bronze{ background:#d97757; color:#1f0d05; }
+  .lg-main .nm{ flex:1; min-width:0; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lg-tag{ font-size:10px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:2px 7px; border-radius:10px; flex-shrink:0; }
+  .lg-tag.down{ color:var(--red); background:var(--red-dim); }
+  .lg-tag.safe{ color:var(--gold); background:rgba(242,185,61,0.12); }
+  .lg-gain{ font-size:11.5px; font-weight:700; flex-shrink:0; }
+  .lg-gain.up{ color:var(--green); } .lg-gain.down{ color:var(--red); } .lg-gain.flat{ color:var(--text-faint); }
+  .lg-val{ font-family:var(--font-head); font-weight:700; font-size:15px; min-width:62px; text-align:right; flex-shrink:0; }
+  .lg-val.muted{ color:var(--text-dim); font-size:12px; font-family:var(--font-body); }
+  .lg-chev{ color:var(--text-faint); font-size:11px; transition:transform .2s; flex-shrink:0; }
+  .lg-row.open .lg-chev{ transform:rotate(180deg); color:var(--accent-2); }
+  .lg-squad{ border-top:1px solid var(--border); padding:10px 10px 12px; background:rgba(6,11,30,0.35); }
+  .lg-squad-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:12.5px; color:var(--text-dim); margin:0 2px 8px; }
+  .lg-squad-head b{ color:var(--text); }
+  .lg-squad-head a{ color:var(--text-dim); text-decoration:none; font-weight:700; font-size:11.5px; }
+  .lg-squad-head a:hover{ color:var(--accent-2); }
+  .list.lg-players{ padding:0; margin:0; }
+  .lg-squad .empty-note{ margin:0; }
+  .lg-gap{ text-align:center; font-size:11px; color:var(--text-faint); padding:2px 0; letter-spacing:1px; }
+  .league-more{ display:block; margin:10px auto 0; font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--accent-2); background:rgba(59,130,246,0.1); border:1px solid var(--accent-dim); border-radius:18px; padding:8px 18px; cursor:pointer; }
+  @media (max-width:480px){ .lg-gain{ display:none; } }
 </style>
 </head>
 <body>
@@ -502,6 +537,13 @@
       <button type="button" data-view="mark" onclick="setView('mark')">Mark G</button>
     </div>
     <a class="demo-cta" id="demoCta" href="/login?redirect=%2Fstock-market-test" style="display:none;"><i class="fa-solid fa-right-to-bracket"></i> Log in to play</a>
+  </div>
+
+  <!-- Public league bar: shown to logged-out visitors when a real
+       tournament is running. -->
+  <div class="demo-bar" id="leagueBar" style="display:none;">
+    <div class="demo-note"><i class="fa-solid fa-signal"></i> <span id="leagueNote">Live league — real managers, real squads</span></div>
+    <a class="demo-cta" href="/login?redirect=%2Fstock-market-test"><i class="fa-solid fa-right-to-bracket"></i> Log in to play</a>
   </div>
 
   <div class="hero" id="heroBlock">
@@ -563,6 +605,20 @@
   <div class="empty-note" id="oppEmpty" style="display:none;"></div>
   </div>
 
+  <!-- The whole league: one call for the standings, each squad loads
+       only when its manager is tapped. -->
+  <div id="leagueSection" style="display:none;">
+  <div class="section-head">
+    <h2><i class="fa-solid fa-ranking-star"></i>The League</h2>
+    <span id="leagueHint">Tap a manager to see their squad</span>
+  </div>
+  <div class="league-tools">
+    <input type="search" id="leagueSearch" placeholder="Find a manager" oninput="renderLeague()" autocomplete="off">
+  </div>
+  <div class="league-list" id="leagueList"></div>
+  <button type="button" class="league-more" id="leagueMore" onclick="LEAGUE.showAll = !LEAGUE.showAll; renderLeague();" style="display:none;"></button>
+  </div>
+
   <footer>Values update after every match. Nothing here is investment advice — it's football.</footer>
 
 <script>
@@ -601,7 +657,7 @@ function shirtFile(team){
 }
 function money(p){
   const sign = p < 0 ? '-' : '';
-  return `${sign}£${(Math.abs(p || 0)/100).toFixed(2)}`;
+  return `${sign}£${(Math.abs(p || 0)/100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 function initials(name){
   return String(name || '?').trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
@@ -953,7 +1009,7 @@ function renderHero(m){
   document.querySelectorAll('#heroBlock .meta .dot').forEach((dot, i) => {
     dot.style.display = (i === 0 ? (document.getElementById('heroRank').innerHTML && m.gwText) : (m.gwText && m.statusHtml)) ? '' : 'none';
   });
-  renderAvatar(m.me, m.rank);
+  if (m.me) { show('heroAvatar', true); renderAvatar(m.me, m.rank); } else show('heroAvatar', false);
   renderStandings(m.standings || [], m.zone);
   renderSafeLine(m.standings || [], m.zone);
 }
@@ -983,7 +1039,7 @@ function renderOpponent(o){
 }
 
 // ---------- page modes ----------
-let MODE = 'demo';           // 'demo' | 'live'
+let MODE = 'demo';           // 'demo' | 'live' | 'league'
 let DEMO_VIEW = 'mike';
 
 function showState(html){
@@ -994,6 +1050,7 @@ function showState(html){
 
 function showDemo(on, withCta){
   show('demoBar', on);
+  if (on) { show('leagueBar', false); show('leagueSection', false); }
   const cta = document.getElementById('demoCta');
   if (cta) cta.style.display = withCta ? '' : 'none';
   if (on) { MODE = 'demo'; setView(DEMO_VIEW); }
@@ -1128,9 +1185,13 @@ async function renderFinished(t){
 }
 
 async function loadPage(){
-  if (!isLoggedIn()) { showState(''); showDemo(true, true); return; }
-
   const t = await findTournament();
+  if (!isLoggedIn()) {
+    showState('');
+    if (t && t.status !== 'finished') { await showPublicLeague(t, true); return; }
+    showDemo(true, true); return;
+  }
+
   if (!t) {
     showState(stateCardHtml('fa-hourglass-half', 'No Stock Market is open right now',
       'A new tournament will appear here as soon as it opens. Below is a real week from our test league.'));
@@ -1159,7 +1220,7 @@ async function loadPage(){
       showState(stateCardHtml('fa-chart-line', `Enter ${escapeHtml(t.name || 'the Stock Market')}`,
         `Entry fee ${fee} · ${t.current_entries || 0} entered so far.${t.closes_at ? ` Draft closes ${shortDateTime(t.closes_at)}.` : ''}`,
         `<a class="state-btn" href="${MANAGE_URL}"><i class="fa-solid fa-right-to-bracket"></i> Enter on the Stock Market page</a>`));
-      showDemo(true, false); return;
+      await showPublicLeague(t, false); return;
     }
     MODE = 'live'; showDemo(false, false);
     const portfolio = state.portfolio || [];
@@ -1180,6 +1241,8 @@ async function loadPage(){
     show('squadSection', portfolio.length > 0);
     renderList('myList', draftPlayers(portfolio, flat), 'mine', { emptyActionHtml: () => `<a class="btn btn-link btn-small" href="/stock-market-draft">Draft</a>` });
     renderOpponent({ message: 'Matchups start once the draft window closes.' });
+    show('leagueBar', false);
+    showLeagueSection(t, await getJSON(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`, true));
     return;
   }
 
@@ -1194,7 +1257,7 @@ async function loadPage(){
     showState(stateCardHtml('fa-chart-line', `${escapeHtml(t.name || 'The Stock Market')} is under way`,
       `The draft has closed for this one, so new entries have to wait for the next tournament.`,
       `<a class="state-btn" href="${MANAGE_URL}"><i class="fa-solid fa-arrow-right"></i> Go to the Stock Market page</a>`));
-    showDemo(true, false); return;
+    await showPublicLeague(t, false); return;
   }
   document.querySelector('#heroBlock .label').textContent = 'Your squad is worth';
   MODE = 'live'; showDemo(false, false);
@@ -1213,6 +1276,8 @@ async function loadPage(){
       standings: standings.map(s => ({ ...s, me: false })), zone });
     document.querySelector('#heroBlock .label').textContent = 'Your squad was worth';
     show('squadSection', false); show('oppSection', false);
+    show('leagueBar', false);
+    showLeagueSection(t, lb);
     return;
   }
   showState('');
@@ -1239,6 +1304,8 @@ async function loadPage(){
   show('squadSection', true);
   renderList('myList', mine, 'mine', { actionHtml: mineAction, emptyActionHtml: emptyAction });
 
+  show('leagueBar', false);
+  showLeagueSection(t, lb);
   if (!data.opponent) {
     renderOpponent({ bye: true });
     return;
@@ -1260,16 +1327,172 @@ async function loadPage(){
   renderList('oppList', opp, 'opp', { actionHtml: () => `<div class="actions"><a class="btn btn-link" href="${historyUrl}"><i class="fa-solid fa-clock-rotate-left"></i> Their full history</a></div>` });
 }
 
+// ---------- the public league ----------
+// One call for the standings (shared with the hero board), then each
+// manager's squad is fetched only when their row is opened. Long leagues
+// show the top 25 plus everyone from the last safe place down, with a
+// search box and "Show all".
+const LEAGUE = { t: null, rows: [], zone: null, drafting: false, showAll: false, open: new Set(), squads: {} };
+const LEAGUE_TOP = 25;
+
+function buildLeague(t, lb){
+  LEAGUE.t = t;
+  LEAGUE.drafting = !!(lb && lb.drafting);
+  if (LEAGUE.drafting) {
+    LEAGUE.rows = ((lb && lb.entrants) || []).map(e => ({ entryId: e.entry_id, name: e.player_name, value: null, gain: null, inZone: false }));
+    LEAGUE.zone = null;
+  } else {
+    LEAGUE.rows = ((lb && lb.leaderboard) || []).map(r => ({ entryId: r.entry_id, name: r.player_name, value: r.current_value, gain: r.gain_loss, inZone: !!r.in_relegation_zone }));
+    LEAGUE.zone = lb && lb.next_stage ? { relegateCount: lb.next_stage.relegate_count, triggerGw: lb.next_stage.trigger_gameweek } : null;
+  }
+}
+
+function leagueSafeIdx(){
+  if (!LEAGUE.zone) return -1;
+  const firstDown = LEAGUE.rows.findIndex(r => r.inZone);
+  return firstDown > 0 ? firstDown - 1 : -1;
+}
+
+function renderLeague(){
+  const listEl = document.getElementById('leagueList');
+  const q = (document.getElementById('leagueSearch').value || '').trim().toLowerCase();
+  const safeIdx = leagueSafeIdx();
+  const total = LEAGUE.rows.length;
+  let idxs = LEAGUE.rows.map((_, i) => i);
+  if (q) idxs = idxs.filter(i => LEAGUE.rows[i].name.toLowerCase().includes(q));
+  else if (!LEAGUE.showAll && total > LEAGUE_TOP) {
+    const tailFrom = safeIdx >= 0 ? safeIdx : total;
+    idxs = idxs.filter(i => i < LEAGUE_TOP || i >= tailFrom);
+  }
+  if (!total) {
+    listEl.innerHTML = `<div class="empty-note">${LEAGUE.drafting ? 'Nobody has entered yet — be the first.' : 'No managers yet.'}</div>`;
+    show('leagueMore', false); return;
+  }
+  if (!idxs.length) { listEl.innerHTML = '<div class="empty-note">No manager with that name.</div>'; show('leagueMore', false); return; }
+  const medal = ['gold', 'silver', 'bronze'];
+  let html = '', prev = -1;
+  idxs.forEach(i => {
+    const r = LEAGUE.rows[i];
+    if (prev >= 0 && i > prev + 1) html += `<div class="lg-gap">&middot;&middot;&middot; ${i - prev - 1} more &middot;&middot;&middot;</div>`;
+    const isOpen = LEAGUE.open.has(r.entryId);
+    const tag = r.inZone ? '<span class="lg-tag down">Drop zone</span>' : i === safeIdx ? '<span class="lg-tag safe">Last safe</span>' : '';
+    const gainCls = r.gain > 0 ? 'up' : r.gain < 0 ? 'down' : 'flat';
+    const numbers = r.value === null
+      ? '<span class="lg-val muted">Drafted</span>'
+      : `<span class="lg-gain ${gainCls}">${r.gain > 0 ? '+' : ''}${money(r.gain)}</span><span class="lg-val">${money(r.value)}</span>`;
+    html += `
+      <div class="lg-row${isOpen ? ' open' : ''}${r.inZone ? ' in-zone' : ''}${i === safeIdx ? ' last-safe' : ''}">
+        <button type="button" class="lg-main" onclick="toggleLeague('${r.entryId}')" aria-expanded="${isOpen}">
+          <span class="pos ${LEAGUE.drafting ? '' : (medal[i] || '')}">${i + 1}</span>
+          <span class="nm">${escapeHtml(r.name)}</span>${tag}
+          ${numbers}
+          <i class="fa-solid fa-chevron-down lg-chev"></i>
+        </button>
+        ${isOpen ? `<div class="lg-squad" id="lgs-${r.entryId}"><div class="empty-note">Loading squad…</div></div>` : ''}
+      </div>`;
+    prev = i;
+  });
+  listEl.innerHTML = html;
+  const more = document.getElementById('leagueMore');
+  if (!q && total > LEAGUE_TOP) {
+    more.textContent = LEAGUE.showAll ? 'Show top 25 only' : `Show all ${total} managers`;
+    more.style.display = '';
+  } else more.style.display = 'none';
+  LEAGUE.open.forEach(id => { if (LEAGUE.squads[id]) drawLeagueSquad(id); });
+}
+
+function drawLeagueSquad(entryId){
+  const box = document.getElementById(`lgs-${entryId}`);
+  const d = LEAGUE.squads[entryId];
+  if (!box || !d) return;
+  if (!d.entry) { box.innerHTML = '<div class="empty-note">This squad isn’t available right now.</div>'; return; }
+  const idx = LEAGUE.rows.findIndex(r => r.entryId === entryId);
+  const t = LEAGUE.t;
+  const players = d.drafting
+    ? draftPlayers((d.squad || []).map(s => s.empty ? s : { ...s, player_id: s.player_id }), d.flat_value || 0)
+    : livePlayers(d.squad, d.live, historyMap(d.hist), !!d.live);
+  const worth = players.filter(p => !p.empty).reduce((s, p) => s + (p.value || 0), 0)
+    + (d.squad || []).reduce((s, p) => s + (p && p.empty ? (p.reserved_value || 0) : 0), 0);
+  box.innerHTML = `
+    <div class="lg-squad-head">
+      <span>Squad worth <b>${money(worth)}</b>${d.drafting ? ' (estimated)' : ''}</span>
+      ${d.drafting ? '' : `<a href="/stock-market-player?tournament_id=${t.id}&entry_id=${entryId}"><i class="fa-solid fa-clock-rotate-left"></i> Full history</a>`}
+    </div>
+    <div class="list lg-players" id="lgp-${entryId}"></div>`;
+  renderList(`lgp-${entryId}`, players, `lg${idx}`);
+}
+
+async function loadLeagueSquad(entryId){
+  const t = LEAGUE.t;
+  const [sq, hist] = await Promise.all([
+    getJSON(`/api/tournaments?stockmarket_public_squad=true&tournament_id=${t.id}&entry_id=${entryId}`),
+    LEAGUE.drafting ? null : getJSON(`/api/tournaments?stockmarket_history=true&tournament_id=${t.id}&entry_id=${entryId}`)
+  ]);
+  LEAGUE.squads[entryId] = sq ? { ...sq, hist } : { entry: null };
+  drawLeagueSquad(entryId);
+}
+
+function toggleLeague(entryId){
+  if (LEAGUE.open.has(entryId)) LEAGUE.open.delete(entryId);
+  else LEAGUE.open.add(entryId);
+  renderLeague();
+  if (LEAGUE.open.has(entryId) && !LEAGUE.squads[entryId]) loadLeagueSquad(entryId);
+}
+
+// Shows the league section; `lb` is the leaderboard response already
+// fetched for this page load (so the standings cost a single call).
+function showLeagueSection(t, lb){
+  const firstTime = !LEAGUE.t || LEAGUE.t.id !== t.id;
+  if (firstTime) { LEAGUE.open.clear(); LEAGUE.squads = {}; LEAGUE.showAll = false; }
+  buildLeague(t, lb);
+  document.getElementById('leagueHint').textContent = LEAGUE.drafting
+    ? 'Drafting now — tap a manager to see their starter squad'
+    : 'Tap a manager to see their squad';
+  show('leagueSection', true);
+  renderLeague();
+  // On a refresh, reload any squads that are open so their values stay live.
+  if (!firstTime) LEAGUE.open.forEach(id => loadLeagueSquad(id));
+}
+
+// Logged-out visitors (and logged-in players who haven't entered) see
+// the real, running league instead of the example.
+async function showPublicLeague(t, loggedOut){
+  const [lb, td] = await Promise.all([
+    getJSON(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`),
+    getJSON(`/api/tournaments?stockmarket_transfer_deadline=true&tournament_id=${t.id}`)
+  ]);
+  MODE = 'league';
+  show('demoBar', false); show('leagueBar', loggedOut);
+  show('squadSection', false); show('oppSection', false);
+  buildLeague(t, lb);
+  const managers = LEAGUE.rows.length;
+  const pot = LEAGUE.drafting ? (t.entry_fee || 0) * managers : LEAGUE.rows.reduce((s, r) => s + (r.value || 0), 0);
+  const meta = renderTransferPill(td);
+  document.getElementById('leagueNote').textContent = LEAGUE.drafting
+    ? 'Drafting now — see every starter squad'
+    : 'Live league — real managers, real squads';
+  renderHero({
+    me: null, value: pot, delta: null,
+    rankText: `<b>${managers}</b> manager${managers === 1 ? '' : 's'}`,
+    gwText: LEAGUE.drafting ? (t.gameweek ? `Starts Gameweek ${t.gameweek}` : 'Drafting') : (td && td.current_gameweek ? `Gameweek ${td.current_gameweek}` : ''),
+    statusHtml: LEAGUE.drafting ? (t.closes_at ? `Draft closes <b>${shortDateTime(t.closes_at)}</b>` : '') : (meta || ''),
+    standings: LEAGUE.drafting ? [] : LEAGUE.rows.map(r => ({ name: r.name, value: r.value, me: false, inZone: r.inZone })),
+    zone: LEAGUE.zone
+  });
+  document.querySelector('#heroBlock .label').textContent = LEAGUE.drafting ? 'In the pot so far' : 'Total in the market';
+  showLeagueSection(t, lb);
+}
+
 // Refresh once a minute while the tab is visible, like the real page —
 // picks up live match values, settlement and relegation automatically.
 function startPolling(){
   if (pollTimer) return;
   pollTimer = setInterval(() => {
-    if (document.visibilityState === 'visible' && MODE === 'live') loadPage();
+    if (document.visibilityState === 'visible' && MODE !== 'demo') loadPage();
   }, 60000);
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && MODE === 'live') loadPage();
+  if (document.visibilityState === 'visible' && MODE !== 'demo') loadPage();
 });
 
 setView('mike');           // instant first paint with the example
