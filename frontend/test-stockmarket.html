@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="breakdown-v18">
+<meta name="build" content="locked-v19">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -562,7 +562,7 @@
           <div class="sm-how-list">
             <div class="sm-how-item"><span class="sm-how-num">1</span><div><strong>Draft your 6.</strong> 1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 2 free picks either way.</div></div>
             <div class="sm-how-item"><span class="sm-how-num">2</span><div><strong>Values move with real events.</strong> Goals, assists and saves push a player's value up. Yellow cards knock it down. A red card wipes it to zero.</div></div>
-            <div class="sm-how-item"><span class="sm-how-num">3</span><div><strong>Zero-sum, always — here's exactly how.</strong> Say your forward scores a goal — he's awarded £3.00. That £3.00 isn't created from nothing: it's paid directly by your opponent's 6 players <em>this week</em>, split evenly between them (50p each). The total pot never grows or shrinks, it only moves between players.</div></div>
+            <div class="sm-how-item"><span class="sm-how-num">3</span><div><strong>Zero-sum, always — here's exactly how.</strong> Say your forward scores a goal — he's awarded £3.00. That £3.00 isn't created from nothing: it's paid directly by your opponent's players who played <em>this week</em>, split evenly between them (50p each if all 6 played). A player who doesn't get on the pitch has his value locked for the week — he doesn't earn, pay or lose anything. The total pot never grows or shrinks, it only moves between players.</div></div>
           </div>
         </details>
         <details class="sm-pill" id="relZones" style="display:none;">
@@ -836,8 +836,8 @@ function actionLines(pos, stats, mult){
 
 function breakdownHtml(p){
   if (p.benchedOut) {
-    return `<div class="bd-note">On the bench this week, so nothing this player did counted — their value only moved with the squad share below.</div>
-      ${shareSection(p)}${totalRow(p)}`;
+    return `<div class="bd-note"><i class="fa-solid fa-lock"></i> ${p.status === 'benched' && p.statusLabel === 'On the bench' ? 'On the bench this week' : 'Didn’t play this week'}, so this player’s value was locked: nothing he or his team did counted, and he didn’t pay or receive any squad share.</div>
+      ${totalRow(p)}`;
   }
   const { plus, minus } = actionLines(p.pos, p.stats, p.mult);
   const sum = arr => arr.reduce((t, l) => t + l.amount, 0);
@@ -866,7 +866,7 @@ function breakdownHtml(p){
     ${shareSection(p)}
     ${totalRow(p)}
     <div class="bd-why"><i class="fa-solid fa-circle-info"></i>
-      Every positive action is paid for by the opposing squad: the cost is split evenly across all 6 of their players. Every negative action works the other way, paid out to the opposing squad. Nothing is created or lost, it only moves between the two squads${p.mult > 1 ? `, and this week every amount is ×${p.mult} (relegation stage multiplier)` : ''}.
+      Every positive action is paid for by the opposing squad: the cost is split evenly across their players who played. Every negative action works the other way, paid out to the opposing squad. A player who doesn’t play has his value locked for the week. Nothing is created or lost, it only moves between the two squads${p.mult > 1 ? `, and this week every amount is ×${p.mult} (relegation stage multiplier)` : ''}.
     </div>`;
 }
 
@@ -917,12 +917,12 @@ const INJURY_LABELS = { i:'Injured', d:'Doubtful', s:'Suspended', u:'Unavailable
 // injury news shows until their match actually starts.
 function liveStatus(s, stats, weekIsLive){
   const mins = (stats && stats.minutes) || 0;
-  if (s.is_sub) return { status:'benched', statusLabel:'On the bench', statusLong:'On the bench — excluded from scoring this week' };
+  if (s.is_sub) return { status:'benched', statusLabel:'On the bench', statusLong:'On the bench — value locked this week' };
   if (s.match_status === 'live') return { status:'live', statusLabel: mins ? `Live · ${mins}'` : 'Live', statusLong: mins ? `Playing now — ${mins} mins so far` : 'Match in progress' };
   if (s.match_status === 'finished' || (!weekIsLive && stats)) {
     return mins > 0
       ? { status:'played', statusLabel:`Played ${mins} mins`, statusLong:`Played ${mins} mins` }
-      : { status:'benched', statusLabel:'Didn’t play', statusLong:'Didn’t play this week' };
+      : { status:'benched', statusLabel:'Didn’t play · locked', statusLong:'Didn’t play — value locked this week' };
   }
   if (INJURY_LABELS[s.status]) return { status:'injured', statusLabel: INJURY_LABELS[s.status], statusLong: s.news || INJURY_LABELS[s.status] };
   return { status:'upcoming', statusLabel:'Yet to play', statusLong:'Their match hasn’t started yet' };
@@ -960,7 +960,7 @@ function livePlayers(squad, liveList, histMap, weekIsLive, mult){
       photoUrl: s.photo || null, value: Math.round(value), delta: Math.round(delta),
       own: Math.round(own), share: Math.round(delta - own), earned, paid,
       ...liveStatus(s, stats, weekIsLive),
-      stats, mult: mult || 1, benchedOut: !!s.is_sub,
+      stats, mult: mult || 1, benchedOut: !!s.is_sub || !!(stats && stats.frozen),
       statList: statPills(pos, stats), hist
     };
   });

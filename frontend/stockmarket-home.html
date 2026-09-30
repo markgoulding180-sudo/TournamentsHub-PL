@@ -629,7 +629,7 @@
             <div class="how-list">
               <div class="how-item"><span class="how-num">1</span><div><strong>Draft your 6.</strong> 1 goalkeeper, plus at least 1 defender, 1 midfielder and 1 forward. 2 free picks either way.</div></div>
               <div class="how-item"><span class="how-num">2</span><div><strong>Values move with real events.</strong> Goals, assists and saves push a player's value up. Yellow cards knock it down. A red card wipes it to zero.</div></div>
-              <div class="how-item"><span class="how-num">3</span><div><strong>Zero-sum, always — here's exactly how.</strong> Say your forward scores a goal — he's awarded £3.00. That £3.00 isn't created from nothing: it's paid directly by your opponent's 6 players <em>this week</em>, split evenly between them (50p each). The total pot never grows or shrinks, it only moves between players. Tap the "?" on any player's card to see exactly where their value came from.</div></div>
+              <div class="how-item"><span class="how-num">3</span><div><strong>Zero-sum, always — here's exactly how.</strong> Say your forward scores a goal — he's awarded £3.00. That £3.00 isn't created from nothing: it's paid directly by your opponent's players who played <em>this week</em>, split evenly between them (50p each if all 6 played). A player who doesn't get on the pitch has his value locked for the week — he doesn't earn, pay or lose anything. The total pot never grows or shrinks, it only moves between players. Tap the "?" on any player's card to see exactly where their value came from.</div></div>
             </div>
           </details>
           <details class="hero-how-it-works" id="relegationZonesDetails" style="display:none;">
@@ -1210,9 +1210,9 @@
             </div>`;
 
           const lines = [];
-          if (bd.benched) {
-            lines.push({ text: 'Benched this gameweek — excluded from scoring entirely.', tone: 'flat' });
-            totalHtml = `<span class="p-total-inline flat">Frozen (benched)</span>`;
+          if (bd.benched || bd.frozen || (bd.stats && bd.stats.frozen)) {
+            lines.push({ text: 'Didn\'t play this gameweek, so this player\'s value was locked — no earnings, no payments, no squad share.', tone: 'flat' });
+            totalHtml = `<span class="p-total-inline flat">Locked (didn't play)</span>`;
           } else {
             const st = bd.stats || {};
             const mult = costMultiplier || 1;
@@ -1265,11 +1265,11 @@
             // one of your opponent's 6 players individually (not one lump
             // sum from their overall performance), and vice versa.
             if (fromOpponentActivity > 0) {
-              lines.push({ text: `+${money(fromOpponentActivity)} — your share of your opponent's positive actions this week, taken evenly from all 6 of their players, one 6th each.`, tone: 'up' });
+              lines.push({ text: `+${money(fromOpponentActivity)} — your share of your opponent's positive actions this week, taken evenly from their players who played this week.`, tone: 'up' });
             } else if (fromOpponentActivity < 0) {
-              lines.push({ text: `-${money(Math.abs(fromOpponentActivity))} taken — when your opponent's players scored/performed well, this player paid their 6th of the cost, same as their other 5.`, tone: 'down' });
+              lines.push({ text: `-${money(Math.abs(fromOpponentActivity))} taken — when your opponent's players scored/performed well, this player paid an even share of the cost with the rest of your squad who played.`, tone: 'down' });
             }
-            lines.push({ text: `How this works: every positive event (goals, assists, clean sheets, saves) is funded by splitting the cost evenly across all 6 of the opposing squad's players — not from one player's own value, and not as a lump "team" bonus.`, tone: 'flat' });
+            lines.push({ text: `How this works: every positive event (goals, assists, clean sheets, saves) is funded by splitting the cost evenly across the opposing squad's players who played that week (anyone who didn't play has their value locked) — not from one player's own value, and not as a lump "team" bonus.`, tone: 'flat' });
             if (bd.short_by > 0) {
               lines.push({ text: `⚠ This player was short ${money(bd.short_by)} — the other team didn't have enough left to pay it all.`, tone: 'flat' });
             }

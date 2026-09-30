@@ -1547,14 +1547,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const buildProvFromHistory = (rows, mult) => rows.map(r => {
           const st = r.stats || {};
-          const events = r.benched
+          const frozen = !!r.benched || !!st.frozen;
+          const events = frozen
             ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
             : computePlayerEventBreakdown(r.position, {
                 goals_scored: st.goals || 0, assists: st.assists || 0, yellow_cards: st.yellow_cards || 0,
                 red_cards: st.red_cards || 0, clean_sheets: st.clean_sheets || 0, saves: st.saves || 0,
                 goals_conceded: st.goals_conceded || 0, team_goals_conceded: st.goals_conceded || 0
               }, mult);
-          return { player_id: r.player_id, name: r.name, liveValue: Math.round(r.starting_value || 0), events, received: 0, paid: 0, shortBy: 0 };
+          return { player_id: r.player_id, name: r.name, liveValue: Math.round(r.starting_value || 0), events, received: 0, paid: 0, shortBy: 0, frozen: !!st.frozen };
         });
 
         const mismatches = [];
@@ -7676,15 +7677,34 @@ function computePlayerEventBreakdown(position, stats, costMultiplier, rewardsOve
 // conceded) apply directly too, floored at the player's own value, and
 // credit the other squad. Provably zero-sum for the pair, event by
 // event, by construction.
-function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier, rewardsOverride) {
+//
+// "Didn't play = value locked": a player who doesn't get on the pitch
+// (0 minutes), or is benched in the squad (is_sub), is FROZEN for the
+// gameweek. They have no events of their own (not even team goals
+// conceded), and they're left out of the funding pool entirely — they
+// neither pay a share of the opponent's positive actions nor receive a
+// share of the opponent's negative ones. The squad's players who did play
+// cover it between them instead.
+//
+// When is "0 minutes" known? In the final settlement (opts.final) every
+// match is finished, so no minutes means didn't play. In the live,
+// provisional view a player only counts as not playing once his team's
+// match has started and he still has 0 minutes (e.g. an unused sub) —
+// before kickoff he's assumed to be playing. Live is provisional anyway;
+// the final settlement is what's saved.
+function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier, rewardsOverride, opts) {
+  const finalMode = !!(opts && opts.final);
   return squad.filter(s => !s.empty).map(s => {
+    const hasStatsRow = !!statsByPid[s.player_id];
     const stats = statsByPid[s.player_id] || {};
+    const didNotPlay = (hasStatsRow || finalMode) && !((stats.minutes || 0) > 0);
+    const frozen = !!s.is_sub || didNotPlay;
     // Prefer the team snapshotted at the moment these stats were synced
     // (immune to any later transfer) — fall back to the squad's own
     // stored team only for older rows synced before this snapshot existed.
     const effectiveTeam = stats.team || s.team;
     const teamConceded = concededByTeam[effectiveTeam] || 0;
-    const events = s.is_sub
+    const events = frozen
       ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
       : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded }, costMultiplier, rewardsOverride);
     return {
@@ -7693,9 +7713,12 @@ function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplie
         goals: stats.goals_scored || 0, assists: stats.assists || 0, yellow_cards: stats.yellow_cards || 0,
         red_cards: stats.red_cards || 0, clean_sheets: stats.clean_sheets || 0,
         goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded, saves: stats.saves || 0,
-        minutes: stats.minutes || 0
+        minutes: stats.minutes || 0,
+        // Saved with the week's stats so history, audits and the page all
+        // know this player's value was locked this gameweek.
+        frozen
       },
-      received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub,
+      received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub, frozen,
       ownEventReceived: 0, ownEventPaid: 0 // this player's OWN events only — not funding credits from the opponent
     };
   });
@@ -7721,8 +7744,12 @@ function settleUnified(provA, provB) {
     });
   };
 
-  let capacityA = provA.reduce((s, p) => s + p.liveValue, 0);
-  let capacityB = provB.reduce((s, p) => s + p.liveValue, 0);
+  // Only players who actually played take part in funding — a frozen
+  // (didn't play / benched) player's value is locked for the week.
+  const poolA = provA.filter(p => !p.frozen);
+  const poolB = provB.filter(p => !p.frozen);
+  let capacityA = poolA.reduce((s, p) => s + p.liveValue, 0);
+  let capacityB = poolB.reduce((s, p) => s + p.liveValue, 0);
 
   const fundEvent = (p, amt, opponentPool, getOppCapacity, setOppCapacity) => {
     const actual = Math.min(amt, Math.max(0, getOppCapacity()));
@@ -7741,16 +7768,19 @@ function settleUnified(provA, provB) {
     provA.forEach(p => {
       const amt = p.events[key];
       if (!amt || amt <= 0) return;
-      fundEvent(p, amt, provB, () => capacityB, (v) => { capacityB = v; });
+      fundEvent(p, amt, poolB, () => capacityB, (v) => { capacityB = v; });
     });
     provB.forEach(p => {
       const amt = p.events[key];
       if (!amt || amt <= 0) return;
-      fundEvent(p, amt, provA, () => capacityA, (v) => { capacityA = v; });
+      fundEvent(p, amt, poolA, () => capacityA, (v) => { capacityA = v; });
     });
   }
 
-  const applyNegative = (mySide, otherSide) => {
+  const applyNegative = (mySide, otherPool) => {
+    // Zero-sum guard: if nobody on the other side played, there's no one
+    // to pay the loss to, so it isn't taken at all (money never vanishes).
+    if (otherPool.length === 0) return;
     mySide.forEach(p => {
       const negTotal = (p.events.yellowAmt || 0) + (p.events.redAmt || 0) + (p.events.concededAmt || 0);
       if (negTotal >= 0) return;
@@ -7758,11 +7788,11 @@ function settleUnified(provA, provB) {
       p.liveValue = Math.round(p.liveValue - actualLoss);
       p.paid = (p.paid || 0) + actualLoss;
       p.ownEventPaid = (p.ownEventPaid || 0) + actualLoss; // this IS this player's own event
-      distributeExact(otherSide, -actualLoss);
+      distributeExact(otherPool, -actualLoss);
     });
   };
-  applyNegative(provA, provB);
-  applyNegative(provB, provA);
+  applyNegative(provA, poolB);
+  applyNegative(provB, poolA);
 }
 
 // Convenience wrapper for the LIVE view (just the two matched squads).
@@ -8010,7 +8040,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
   // separate matchup against someone else.
   const preppedByEntry = {};
   entries.forEach(e => {
-    preppedByEntry[e.id] = prepSquadForSettlement(e.squad_players || [], statsByPid, concededByTeam, costMultiplier);
+    preppedByEntry[e.id] = prepSquadForSettlement(e.squad_players || [], statsByPid, concededByTeam, costMultiplier, undefined, { final: true });
   });
 
   // Settle each already-paired, not-yet-settled matchup using the exact
@@ -8085,6 +8115,7 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
           gameweek,
           stats: updated.gwStats,
           benched: updated.benched,
+          frozen: !!updated.frozen,
           raw_change: ownEventNet,
           own_event_net: ownEventNet,
           win_bonus: updated.received || 0,
