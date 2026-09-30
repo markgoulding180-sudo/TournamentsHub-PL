@@ -390,7 +390,12 @@
         var(--shirt) no-repeat 106% 30% / auto 150%,
         var(--bg-card);
     }
-    .row.has-shirt .numbers{ text-shadow:0 1px 2px #000, 0 0 8px rgba(0,0,0,0.9); }
+    .row.has-shirt .numbers{ text-shadow:0 1px 2px #000, 0 0 8px rgba(0,0,0,0.9); text-align:center; min-width:78px; }
+    .row.has-shirt .numbers .delta{ display:flex; align-items:center; justify-content:center; gap:3px; }
+    /* chevron tucks into the bottom-right corner so the price can sit
+       right over the middle of the shirt */
+    .row.has-shirt .row-main{ position:relative; }
+    .row.has-shirt .chevron{ position:absolute; right:8px; bottom:7px; width:auto; font-size:10px; }
   }
   .row.has-shirt .row-main{ background:transparent; }
   .row.has-shirt .row-main:active, .row.has-shirt.open .row-main{ background:rgba(16,26,56,0.45); }
