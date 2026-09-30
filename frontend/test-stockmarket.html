@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="locked-v19">
+<meta name="build" content="locked-v20">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -836,7 +836,12 @@ function actionLines(pos, stats, mult){
 
 function breakdownHtml(p){
   if (p.benchedOut) {
-    return `<div class="bd-note"><i class="fa-solid fa-lock"></i> ${p.status === 'benched' && p.statusLabel === 'On the bench' ? 'On the bench this week' : 'Didn’t play this week'}, so this player’s value was locked: nothing he or his team did counted, and he didn’t pay or receive any squad share.</div>
+    const msg = (p.status === 'upcoming' || p.status === 'injured')
+      ? 'Hasn’t played yet this week, so his value is locked until he gets on the pitch. If he doesn’t play, it stays exactly where it is.'
+      : p.status === 'live'
+        ? 'Not on the pitch yet, so his value is locked until he comes on.'
+        : `${p.statusLabel === 'On the bench' ? 'On the bench this week' : 'Didn’t play this week'}, so this player’s value was locked: nothing he or his team did counted, and he didn’t pay or receive any squad share.`;
+    return `<div class="bd-note"><i class="fa-solid fa-lock"></i> ${msg}</div>
       ${totalRow(p)}`;
   }
   const { plus, minus } = actionLines(p.pos, p.stats, p.mult);

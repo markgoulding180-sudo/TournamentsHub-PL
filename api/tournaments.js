@@ -7686,18 +7686,16 @@ function computePlayerEventBreakdown(position, stats, costMultiplier, rewardsOve
 // share of the opponent's negative ones. The squad's players who did play
 // cover it between them instead.
 //
-// When is "0 minutes" known? In the final settlement (opts.final) every
-// match is finished, so no minutes means didn't play. In the live,
-// provisional view a player only counts as not playing once his team's
-// match has started and he still has 0 minutes (e.g. an unused sub) —
-// before kickoff he's assumed to be playing. Live is provisional anyway;
-// the final settlement is what's saved.
+// A player stays locked until he actually gets on the pitch (minutes > 0),
+// in the live view as well as the final settlement — so someone who
+// doesn't play never shows any movement at any point in the week. A
+// player whose match hasn't kicked off yet is locked for now and joins
+// in the moment he plays. (opts is still accepted for callers that pass
+// { final: true }; the rule is the same either way.)
 function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier, rewardsOverride, opts) {
-  const finalMode = !!(opts && opts.final);
   return squad.filter(s => !s.empty).map(s => {
-    const hasStatsRow = !!statsByPid[s.player_id];
     const stats = statsByPid[s.player_id] || {};
-    const didNotPlay = (hasStatsRow || finalMode) && !((stats.minutes || 0) > 0);
+    const didNotPlay = !((stats.minutes || 0) > 0);
     const frozen = !!s.is_sub || didNotPlay;
     // Prefer the team snapshotted at the moment these stats were synced
     // (immune to any later transfer) — fall back to the squad's own
@@ -7732,6 +7730,49 @@ function settleUnified(provA, provB) {
   const distributeExact = (funders, amount) => {
     const n = funders.length;
     if (n === 0 || amount === 0) return;
+    if (amount > 0) {
+      // Paying out: nobody can be charged more than he's worth. The first
+      // pass is the exact same even split as always (so when everyone can
+      // afford their share, the result is identical to before); anything a
+      // player couldn't cover is then shared by his teammates who still
+      // have value left, round after round, until it's all paid.
+      // (funders is always the "played" pool — locked players are never in it.)
+      const debit = new Map(funders.map(o => [o, 0]));
+      let remaining = amount;
+      let active = funders.slice();
+      while (remaining > 0 && active.length > 0) {
+        const m = active.length;
+        const base = Math.floor(remaining / m);
+        const rem = remaining - base * m;
+        const next = [];
+        let taken = 0;
+        active.forEach((o, i) => {
+          const want = base + (i < rem ? 1 : 0);
+          const left = Math.max(0, Math.round(o.liveValue) - debit.get(o));
+          const d = Math.min(want, left);
+          debit.set(o, debit.get(o) + d);
+          taken += d;
+          if (left - d > 0) next.push(o);
+        });
+        remaining -= taken;
+        active = next;
+        if (taken === 0) break;
+      }
+      // Safety net only: the caller never asks for more than the pool
+      // holds, but if it ever did, the rest is split evenly (as before)
+      // so the matchup always stays zero-sum.
+      if (remaining > 0) {
+        const b = Math.trunc(remaining / n), r = remaining - b * n;
+        funders.forEach((o, i) => debit.set(o, debit.get(o) + b + (i < r ? 1 : 0)));
+      }
+      funders.forEach(o => {
+        const d = debit.get(o);
+        o.liveValue = Math.round(o.liveValue - d);
+        if (d > 0) o.paid = (o.paid || 0) + d;
+        else o.received = (o.received || 0);
+      });
+      return;
+    }
     const base = Math.trunc(amount / n);
     const remainder = amount - base * n;
     const sign = remainder > 0 ? 1 : (remainder < 0 ? -1 : 0);
