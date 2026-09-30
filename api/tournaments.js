@@ -268,7 +268,8 @@ module.exports = async (req, res) => {
           live: pubLive,
           gameweek: pubGw,
           drafting: tRow.status === 'upcoming',
-          flat_value: Math.floor((tRow.entry_fee || 0) / 6)
+          flat_value: Math.floor((tRow.entry_fee || 0) / 6),
+          cost_multiplier: tRow.cost_multiplier || 1
         });
       }
 

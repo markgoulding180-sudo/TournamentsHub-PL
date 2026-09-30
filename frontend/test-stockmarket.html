@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Your Squad — Player Stock Market</title>
-<meta name="build" content="public-league-v17">
+<meta name="build" content="breakdown-v18">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -489,6 +489,57 @@
   .lg-gap{ text-align:center; font-size:11px; color:var(--text-faint); padding:2px 0; letter-spacing:1px; }
   .league-more{ display:block; margin:10px auto 0; font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--accent-2); background:rgba(59,130,246,0.1); border:1px solid var(--accent-dim); border-radius:18px; padding:8px 18px; cursor:pointer; }
   @media (max-width:480px){ .lg-gain{ display:none; } }
+
+  /* ---------- Card pills with hover explanations ---------- */
+  .card-pills{ display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+  .card-pills .pill{ font-size:10px; padding:2px 6px; border-radius:5px; position:relative; cursor:help; }
+  .pill[data-tip]:hover::after, .pill[data-tip]:focus::after{
+    content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 7px); transform:translateX(-50%);
+    background:#0b1224; color:var(--text); border:1px solid rgba(255,255,255,0.18); border-radius:7px;
+    padding:6px 9px; font-size:11px; font-weight:600; white-space:nowrap; z-index:30; box-shadow:0 6px 18px rgba(0,0,0,0.45);
+    pointer-events:none;
+  }
+  .pill[data-tip]:hover::before, .pill[data-tip]:focus::before{
+    content:''; position:absolute; left:50%; bottom:calc(100% + 2px); transform:translateX(-50%);
+    border:5px solid transparent; border-top-color:rgba(255,255,255,0.18); z-index:30;
+  }
+  .row, .row-main{ overflow:visible; }
+  .row{ overflow:hidden; }
+  .row:hover, .row:focus-within{ overflow:visible; position:relative; z-index:5; }
+
+  /* ---------- Expanded breakdown ---------- */
+  .row.open .detail{ max-height:900px; }
+  .detail-inner{ padding:4px 14px 16px 14px; }
+  .bd-section{ border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px; background:rgba(6,11,30,0.35); }
+  .bd-section.plus{ border-color:rgba(34,197,94,0.3); }
+  .bd-section.minus{ border-color:rgba(239,68,68,0.3); }
+  .bd-section.share{ border-color:rgba(96,165,250,0.3); }
+  .bd-head{ display:flex; justify-content:space-between; align-items:center; font-family:var(--font-head); font-weight:700; font-size:13px; margin-bottom:6px; }
+  .bd-head i{ margin-right:5px; }
+  .bd-section.plus .bd-head i{ color:var(--green); }
+  .bd-section.minus .bd-head i{ color:var(--red); }
+  .bd-section.share .bd-head i{ color:var(--accent-2); }
+  .bd-head .up, .bd-amt.up, .bd-total .up{ color:var(--green); }
+  .bd-head .down, .bd-amt.down, .bd-total .down{ color:var(--red); }
+  .bd-line{ display:flex; align-items:center; gap:9px; padding:4px 0; font-size:12.5px; }
+  .bd-line + .bd-line{ border-top:1px solid rgba(255,255,255,0.05); }
+  .ev-icons{ display:inline-flex; gap:2px; min-width:54px; align-items:center; flex-shrink:0; }
+  .ev-ic{ font-size:12px; }
+  .ev-ic.goal{ color:#f1f5fc; } .ev-ic.assist{ color:var(--accent-2); } .ev-ic.save{ color:var(--gold); }
+  .ev-ic.cs{ color:var(--green); } .ev-ic.conceded{ color:var(--red); }
+  .ev-card{ display:inline-block; width:8px; height:11px; border-radius:2px; }
+  .ev-card.yellow{ background:#facc15; } .ev-card.red{ background:var(--red); }
+  .ev-more{ font-size:10px; color:var(--text-dim); font-weight:700; margin-left:2px; }
+  .bd-label{ flex:1; min-width:0; color:var(--text); }
+  .bd-x{ color:var(--text-dim); font-size:11.5px; margin-left:4px; }
+  .bd-sub{ display:block; color:var(--text-faint); font-size:11px; }
+  .bd-amt{ font-weight:700; font-family:var(--font-head); font-size:13.5px; }
+  .bd-empty{ font-size:12px; color:var(--text-faint); }
+  .bd-text{ font-size:12px; color:var(--text-dim); line-height:1.5; }
+  .bd-note{ font-size:12px; color:var(--text-dim); background:rgba(242,185,61,0.07); border:1px solid rgba(242,185,61,0.25); border-radius:8px; padding:8px 10px; margin-bottom:8px; line-height:1.5; }
+  .bd-total{ display:flex; justify-content:space-between; align-items:center; font-family:var(--font-head); font-weight:700; font-size:14.5px; padding:8px 12px; border-radius:10px; background:var(--bg-panel); margin-bottom:8px; }
+  .bd-why{ font-size:11.5px; color:var(--text-faint); line-height:1.55; margin-bottom:12px; }
+  .bd-why i{ color:var(--accent-2); margin-right:4px; }
 </style>
 </head>
 <body>
@@ -700,23 +751,24 @@ const STANDINGS_GW3 = [
   { name:'Billy H', value:1802 },    { name:'Matt B', value:1477 }
 ];
 const RELEGATE_COUNT = 2;   // stage 1: bottom 2 cut after Gameweek 3
+const DEMO_MULTIPLIER = 2;  // every amount was x2 in Gameweek 3
 
 const SQUADS = {
   mike: { name:'McGuinness', initials:'MC', avatar:null, value:5732, delta:1394, players:[
     { id:1, name:'Martinez', team:'Aston Villa', pos:'GK', photo:'98980',  value:557,  delta:133,  own:0,    minutes:90, stats:{saves:8, goals_conceded:2, clean_sheets:0}, hist:[500,386,424,557] },
     { id:2, name:'Khusanov', team:'Man City',    pos:'DEF', photo:'578153', value:317,  delta:-167, own:-300, minutes:90, stats:{clean_sheets:1, goals_conceded:0, yellow_cards:1}, hist:[500,446,484,317] },
-    { id:3, name:'Elanga',   team:'Newcastle',   pos:'MID', photo:'449434', value:764,  delta:-468, own:-600, minutes:76, stats:{goals:0, assists:0, yellow_cards:1}, hist:[500,1194,1232,764] },
-    { id:4, name:'Bruno G.', team:'Arsenal',     pos:'MID', photo:'208706', value:615,  delta:-18,  own:-150, minutes:0,  stats:{goals:0, assists:0, yellow_cards:0}, hist:[500,595,633,615] },
-    { id:5, name:'Havertz',  team:'Arsenal',     pos:'FWD', photo:'219847', value:1214, delta:582,  own:450,  minutes:77, stats:{goals:1, assists:0, yellow_cards:0}, hist:[500,594,632,1214] },
-    { id:6, name:'Isak',     team:'Liverpool',   pos:'FWD', photo:'219168', value:2265, delta:1332, own:1200, minutes:63, stats:{goals:2, assists:0, yellow_cards:0}, hist:[500,895,933,2265] }
+    { id:3, name:'Elanga',   team:'Newcastle',   pos:'MID', photo:'449434', value:764,  delta:-468, own:-600, minutes:76, stats:{goals:0, assists:0, yellow_cards:1, goals_conceded:2}, hist:[500,1194,1232,764] },
+    { id:4, name:'Bruno G.', team:'Arsenal',     pos:'MID', photo:'208706', value:615,  delta:-18,  own:-150, minutes:0,  stats:{goals:0, assists:0, goals_conceded:1}, hist:[500,595,633,615] },
+    { id:5, name:'Havertz',  team:'Arsenal',     pos:'FWD', photo:'219847', value:1214, delta:582,  own:450,  minutes:77, stats:{goals:1, assists:0, goals_conceded:1}, hist:[500,594,632,1214] },
+    { id:6, name:'Isak',     team:'Liverpool',   pos:'FWD', photo:'219168', value:2265, delta:1332, own:1200, minutes:63, stats:{goals:2, assists:0, clean_sheets:1, goals_conceded:0}, hist:[500,895,933,2265] }
   ]},
   mark: { name:'Mark G', initials:'MG', avatar:'https://liuuzvboeesimvovnooh.supabase.co/storage/v1/object/public/user-avatars/4d935300-c707-4e73-86a3-217d73e006a8.jpg?v=1790331134096', value:2160, delta:-1394, players:[
     { id:1, name:'Martinez', team:'Aston Villa', pos:'GK', photo:'98980',  value:534, delta:-100, own:0,    minutes:90, stats:{saves:8, goals_conceded:2, clean_sheets:0}, hist:[500,605,634,534] },
-    { id:2, name:'Burn',     team:'Newcastle',   pos:'DEF', photo:'78916',  value:444, delta:-400, own:-300, minutes:0,  stats:{clean_sheets:0, goals_conceded:2, yellow_cards:0}, hist:[500,815,844,444] },
-    { id:3, name:'Tonali',   team:'Spurs',       pos:'MID', photo:'432422', value:44,  delta:-100, own:0,    minutes:90, stats:{goals:0, assists:0, yellow_cards:0}, hist:[144,44] },
-    { id:4, name:'Barco',    team:'Chelsea',     pos:'MID', photo:'543158', value:250, delta:-144, own:-44,  minutes:0,  stats:{goals:0, assists:0, yellow_cards:0}, hist:[500,365,394,250] },
-    { id:5, name:'Osula',    team:'Newcastle',   pos:'FWD', photo:'538207', value:444, delta:-400, own:-300, minutes:0,  stats:{goals:0, assists:0, yellow_cards:0}, hist:[500,815,844,444] },
-    { id:6, name:'Thiago',   team:'Brentford',   pos:'FWD', photo:'502500', value:444, delta:-250, own:-150, minutes:90, stats:{goals:0, assists:0, yellow_cards:0}, hist:[694,444] }
+    { id:2, name:'Burn',     team:'Newcastle',   pos:'DEF', photo:'78916',  value:444, delta:-400, own:-300, minutes:0,  stats:{clean_sheets:0, goals_conceded:2}, hist:[500,815,844,444] },
+    { id:3, name:'Tonali',   team:'Spurs',       pos:'MID', photo:'432422', value:44,  delta:-100, own:0,    minutes:90, stats:{goals:0, assists:0, clean_sheets:1, goals_conceded:0}, hist:[144,44] },
+    { id:4, name:'Barco',    team:'Chelsea',     pos:'MID', photo:'543158', value:250, delta:-144, own:-44,  minutes:0,  stats:{goals:0, assists:0, goals_conceded:2}, hist:[500,365,394,250] },
+    { id:5, name:'Osula',    team:'Newcastle',   pos:'FWD', photo:'538207', value:444, delta:-400, own:-300, minutes:0,  stats:{goals:0, assists:0, goals_conceded:2}, hist:[500,815,844,444] },
+    { id:6, name:'Thiago',   team:'Brentford',   pos:'FWD', photo:'502500', value:444, delta:-250, own:-150, minutes:90, stats:{goals:0, assists:0, goals_conceded:1}, hist:[694,444] }
   ]}
 };
 
@@ -732,6 +784,111 @@ function statPills(pos, s){
   return pills;
 }
 
+// Same flat rates the server settles with (FLAT_REWARDS in
+// api/tournaments.js), in pence, before the stage multiplier.
+const RATES = {
+  goal: 300, assist: 150, save: 30, save_cap: 5, clean_sheet: 125,
+  yellow: 150, red: 300, conceded: 75, conceded_cap: 4
+};
+const STAT_TIPS = {
+  GL: 'Goals scored', AS: 'Assists', SV: 'Saves (goalkeepers, up to 5 count)',
+  CS: 'Clean sheet (goalkeepers earn for this)', GC: 'Goals conceded by their team (up to 4 count)',
+  YC: 'Yellow cards', RC: 'Red card'
+};
+
+// Icons repeated once per event, so "2 goals" shows two balls.
+function eventIcons(kind, n){
+  const icon = {
+    goal: '<i class="fa-solid fa-futbol ev-ic goal"></i>',
+    assist: '<i class="fa-solid fa-shoe-prints ev-ic assist"></i>',
+    save: '<i class="fa-solid fa-hand ev-ic save"></i>',
+    cs: '<i class="fa-solid fa-shield-halved ev-ic cs"></i>',
+    yellow: '<span class="ev-card yellow"></span>',
+    red: '<span class="ev-card red"></span>',
+    conceded: '<i class="fa-solid fa-futbol ev-ic conceded"></i>'
+  }[kind];
+  const shown = Math.min(n, 5);
+  return `<span class="ev-icons">${icon.repeat(shown)}${n > shown ? `<span class="ev-more">+${n - shown}</span>` : ''}</span>`;
+}
+
+// Works out each of the player's own actions and what it was worth,
+// exactly as the server does, so the numbers always add up.
+function actionLines(pos, stats, mult){
+  const s = stats || {}; const m = mult || 1;
+  const plus = [], minus = [];
+  const add = (arr, kind, n, label, rate, note) => {
+    if (n > 0) arr.push({ kind, n, label, rate: Math.round(rate * m), amount: Math.round(n * rate * m), note });
+  };
+  add(plus, 'goal', s.goals || 0, (s.goals || 0) === 1 ? 'Goal scored' : 'Goals scored', RATES.goal);
+  add(plus, 'assist', s.assists || 0, (s.assists || 0) === 1 ? 'Assist' : 'Assists', RATES.assist);
+  if (pos === 'GK') {
+    const saves = s.saves || 0;
+    add(plus, 'save', Math.min(saves, RATES.save_cap), 'Saves', RATES.save, saves > RATES.save_cap ? `${saves} made, first ${RATES.save_cap} count` : '');
+    if ((s.clean_sheets || 0) > 0) add(plus, 'cs', 1, 'Clean sheet', RATES.clean_sheet);
+  }
+  add(minus, 'yellow', s.yellow_cards || 0, (s.yellow_cards || 0) === 1 ? 'Yellow card' : 'Yellow cards', RATES.yellow);
+  add(minus, 'red', s.red_cards || 0, 'Red card', RATES.red);
+  const gc = s.goals_conceded || 0;
+  add(minus, 'conceded', Math.min(gc, RATES.conceded_cap), pos === 'GK' ? 'Goals conceded' : 'Team conceded', RATES.conceded,
+      gc > RATES.conceded_cap ? `${gc} conceded, first ${RATES.conceded_cap} count` : '');
+  return { plus, minus };
+}
+
+function breakdownHtml(p){
+  if (p.benchedOut) {
+    return `<div class="bd-note">On the bench this week, so nothing this player did counted — their value only moved with the squad share below.</div>
+      ${shareSection(p)}${totalRow(p)}`;
+  }
+  const { plus, minus } = actionLines(p.pos, p.stats, p.mult);
+  const sum = arr => arr.reduce((t, l) => t + l.amount, 0);
+  const plusTotal = sum(plus), minusTotal = sum(minus);
+  const line = (l, sign) => `
+    <div class="bd-line">
+      ${eventIcons(l.kind, l.n)}
+      <span class="bd-label">${l.label} <span class="bd-x">${l.n} × ${money(l.rate)}</span>${l.note ? `<span class="bd-sub">${l.note}</span>` : ''}</span>
+      <span class="bd-amt ${sign > 0 ? 'up' : 'down'}">${sign > 0 ? '+' : '−'}${money(l.amount)}</span>
+    </div>`;
+  const calcOwn = plusTotal - minusTotal;
+  const shortNote = Math.abs((p.own || 0) - calcOwn) > 1
+    ? `<div class="bd-note">${calcOwn < 0
+        ? `The final settlement took ${money(Math.abs(p.own))} for these, not the full ${money(minusTotal)}.`
+        : `The other squad didn’t have enough left to pay all of it, so ${money(p.own)} came in rather than ${money(plusTotal)}.`}</div>` : '';
+  return `
+    <div class="bd-section plus">
+      <div class="bd-head"><span><i class="fa-solid fa-circle-plus"></i> Positive actions</span><span class="${plusTotal ? 'up' : ''}">${plusTotal ? '+' : ''}${money(plusTotal)}</span></div>
+      ${plus.length ? plus.map(l => line(l, 1)).join('') : '<div class="bd-empty">None this week</div>'}
+    </div>
+    <div class="bd-section minus">
+      <div class="bd-head"><span><i class="fa-solid fa-circle-minus"></i> Negative actions</span><span class="${minusTotal ? 'down' : ''}">${minusTotal ? '−' : ''}${money(minusTotal)}</span></div>
+      ${minus.length ? minus.map(l => line(l, -1)).join('') : '<div class="bd-empty">None this week</div>'}
+    </div>
+    ${shortNote}
+    ${shareSection(p)}
+    ${totalRow(p)}
+    <div class="bd-why"><i class="fa-solid fa-circle-info"></i>
+      Every positive action is paid for by the opposing squad: the cost is split evenly across all 6 of their players. Every negative action works the other way, paid out to the opposing squad. Nothing is created or lost, it only moves between the two squads${p.mult > 1 ? `, and this week every amount is ×${p.mult} (relegation stage multiplier)` : ''}.
+    </div>`;
+}
+
+function shareSection(p){
+  const v = p.share || 0;
+  const text = v < 0
+    ? 'This player’s 1/6 share of paying for the opponent’s goals, assists, saves and clean sheets.'
+    : v > 0
+      ? 'This player’s 1/6 share of what the opponent’s squad paid out for their own cards and goals conceded.'
+      : 'Nothing moved between the squads for this player this week.';
+  return `
+    <div class="bd-section share">
+      <div class="bd-head"><span><i class="fa-solid fa-right-left"></i> Squad share (zero-sum)</span><span class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '+' : v < 0 ? '−' : ''}${money(Math.abs(v))}</span></div>
+      <div class="bd-text">${text}</div>
+    </div>`;
+}
+
+function totalRow(p){
+  const v = p.delta || 0;
+  return `<div class="bd-total"><span>Change this week</span><span class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '+' : v < 0 ? '−' : ''}${money(Math.abs(v))}</span></div>`;
+}
+
 // ---------- one row shape for both the example and live data ----------
 // { key, name, team, pos, photoUrl, value, delta, own, share, earned, paid,
 //   status, statusLabel, statusLong, statList, hist, empty, reserved, position }
@@ -745,8 +902,9 @@ function demoPlayers(list){
       value: p.value, delta: p.delta, own: p.own, share: p.delta - p.own,
       earned: null, paid: null,
       status: played ? 'played' : 'benched',
-      statusLabel: played ? 'Played' : 'Didn’t play',
+      statusLabel: played ? `Played ${p.minutes} mins` : 'Didn’t play',
       statusLong: played ? `Played ${p.minutes} mins` : 'Didn’t play this week',
+      stats: p.stats, mult: DEMO_MULTIPLIER,
       statList: statPills(p.pos, p.stats), hist: p.hist
     };
   });
@@ -763,7 +921,7 @@ function liveStatus(s, stats, weekIsLive){
   if (s.match_status === 'live') return { status:'live', statusLabel: mins ? `Live · ${mins}'` : 'Live', statusLong: mins ? `Playing now — ${mins} mins so far` : 'Match in progress' };
   if (s.match_status === 'finished' || (!weekIsLive && stats)) {
     return mins > 0
-      ? { status:'played', statusLabel:'Played', statusLong:`Played ${mins} mins` }
+      ? { status:'played', statusLabel:`Played ${mins} mins`, statusLong:`Played ${mins} mins` }
       : { status:'benched', statusLabel:'Didn’t play', statusLong:'Didn’t play this week' };
   }
   if (INJURY_LABELS[s.status]) return { status:'injured', statusLabel: INJURY_LABELS[s.status], statusLong: s.news || INJURY_LABELS[s.status] };
@@ -772,7 +930,7 @@ function liveStatus(s, stats, weekIsLive){
 
 // Build rows from a real squad (stockmarket_matchup), overlaying live
 // values while a gameweek is in progress, exactly as the real page does.
-function livePlayers(squad, liveList, histMap, weekIsLive){
+function livePlayers(squad, liveList, histMap, weekIsLive, mult){
   const liveByPid = {};
   (liveList || []).forEach(l => { liveByPid[l.player_id] = l; });
   return (squad || []).map((s, i) => {
@@ -802,6 +960,7 @@ function livePlayers(squad, liveList, histMap, weekIsLive){
       photoUrl: s.photo || null, value: Math.round(value), delta: Math.round(delta),
       own: Math.round(own), share: Math.round(delta - own), earned, paid,
       ...liveStatus(s, stats, weekIsLive),
+      stats, mult: mult || 1, benchedOut: !!s.is_sub,
       statList: statPills(pos, stats), hist
     };
   });
@@ -826,6 +985,7 @@ function draftPlayers(portfolio, flatValue){
       key: p.player_id, name: p.name, team: p.team, pos, photoUrl: p.photo || null,
       value: flatValue, delta: 0, own: 0, share: 0, earned: null, paid: null,
       status:'upcoming', statusLabel:'Drafted', statusLong:'Drafted — values start moving once the draft window closes',
+      stats: null, mult: 1, drafted: true,
       statList: statPills(pos, null), hist: [flatValue, flatValue]
     };
   });
@@ -869,16 +1029,10 @@ function renderList(containerId, players, prefix, opts){
     }
     const dCls = p.delta > 0 ? 'up' : p.delta < 0 ? 'down' : 'flat';
     const dIcon = p.delta > 0 ? 'fa-caret-up' : p.delta < 0 ? 'fa-caret-down' : 'fa-minus';
-    const line = (k, v, signed) => {
-      if (v === null || v === undefined) return '';
-      const cls = !signed ? '' : v > 0 ? 'up' : v < 0 ? 'down' : '';
-      return `<div class="breakdown-line"><span class="k">${k}</span><span class="v ${cls}">${signed && v > 0 ? '+' : ''}${money(v)}</span></div>`;
-    };
-    const breakdown = line('Own play', p.own, true) + line('From the opponent (zero-sum share)', p.share, true)
-      + (p.earned !== null ? line('Earned this week', p.earned, false) + line('Paid out this week', p.paid !== null ? -p.paid : null, true) : '');
     const pills = p.statList.map(([label, val, good]) => {
       const cls = val === '0' ? '' : (good ? 'hot' : 'bad');
-      return `<span class="pill ${cls}">${label} ${val}</span>`;
+      const tip = STAT_TIPS[label] || label;
+      return `<span class="pill ${cls}" data-tip="${escapeHtml(tip)}" title="${escapeHtml(tip)}" tabindex="0">${label} ${val}</span>`;
     }).join('');
     const photo = p.photoUrl
       ? `<img class="photo-img" src="${escapeHtml(p.photoUrl)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=&quot;photo-initials&quot;>${initials(p.name)}</div>'">`
@@ -896,6 +1050,7 @@ function renderList(containerId, players, prefix, opts){
               <div class="who">
                 <div class="sub"><span class="pos-tag">${escapeHtml(p.pos)}</span>${escapeHtml(p.team)}</div>
                 <div class="status-text ${p.status}">${escapeHtml(p.statusLabel)}</div>
+                ${p.drafted ? '' : `<div class="card-pills">${pills}</div>`}
               </div>
             </div>
           </div>
@@ -908,9 +1063,7 @@ function renderList(containerId, players, prefix, opts){
         </div>
         <div class="detail">
           <div class="detail-inner">
-            <div class="status-line"><i class="fa-solid ${statusIcon(p.status)}" style="font-size:10px;"></i> ${escapeHtml(p.statusLong)}</div>
-            <div class="breakdown">${breakdown}</div>
-            <div class="stat-pills">${pills}</div>
+            ${p.drafted ? `<div class="bd-note">${escapeHtml(p.statusLong)}</div>` : breakdownHtml(p)}
             ${opts.actionHtml ? opts.actionHtml(p) : ''}
           </div>
         </div>
@@ -1287,7 +1440,7 @@ async function loadPage(){
     data.opponent ? getJSON(`/api/tournaments?stockmarket_history=true&tournament_id=${t.id}&entry_id=${data.opponent.id}`) : null
   ]);
   const weekIsLive = !!data.live;
-  const mine = livePlayers(data.entry.squad_players, data.live && data.live.mine, historyMap(myHist), weekIsLive);
+  const mine = livePlayers(data.entry.squad_players, data.live && data.live.mine, historyMap(myHist), weekIsLive, data.cost_multiplier);
   const reserved = (data.entry.squad_players || []).reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
   const myValue = mine.filter(p => !p.empty).reduce((s, p) => s + p.value, 0) + reserved;
   const myNet = mine.filter(p => !p.empty).reduce((s, p) => s + p.delta, 0);
@@ -1310,7 +1463,7 @@ async function loadPage(){
     renderOpponent({ bye: true });
     return;
   }
-  const opp = livePlayers(data.opponent.squad_players, data.live && data.live.opponent, historyMap(oppHist), weekIsLive);
+  const opp = livePlayers(data.opponent.squad_players, data.live && data.live.opponent, historyMap(oppHist), weekIsLive, data.cost_multiplier);
   const oppReserved = (data.opponent.squad_players || []).reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : 0), 0);
   const oppValue = opp.filter(p => !p.empty).reduce((s, p) => s + p.value, 0) + oppReserved;
   const historyUrl = `/stock-market-player?tournament_id=${t.id}&entry_id=${data.opponent.id}`;
@@ -1410,7 +1563,7 @@ function drawLeagueSquad(entryId){
   const t = LEAGUE.t;
   const players = d.drafting
     ? draftPlayers((d.squad || []).map(s => s.empty ? s : { ...s, player_id: s.player_id }), d.flat_value || 0)
-    : livePlayers(d.squad, d.live, historyMap(d.hist), !!d.live);
+    : livePlayers(d.squad, d.live, historyMap(d.hist), !!d.live, d.cost_multiplier);
   const worth = players.filter(p => !p.empty).reduce((s, p) => s + (p.value || 0), 0)
     + (d.squad || []).reduce((s, p) => s + (p && p.empty ? (p.reserved_value || 0) : 0), 0);
   box.innerHTML = `
