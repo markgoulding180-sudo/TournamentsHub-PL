@@ -99,46 +99,43 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .btn-ghost{ border:1px solid var(--border-2); color:var(--text); background:rgba(13,23,48,0.65); }
 .btn-ghost:hover{ border-color:var(--accent); }
 
-/* ---------- Hero: slides on the left, "Right now" on the right ---------- */
-.hero-panel{ padding:0; overflow:hidden; position:relative; min-height:540px; background:var(--navy-1); }
-.slides{ position:relative; min-height:540px; }
-.slide{ position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:48px 52px 70px; padding-right:calc(min(44%, 680px) + 80px); background-size:cover; background-position:center right; opacity:0; transition:opacity .8s ease; pointer-events:none; }
-.slide.active{ opacity:1; pointer-events:auto; }
-.slide::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(8,15,38,0.97) 0%, rgba(8,15,38,0.82) 34%, rgba(8,15,38,0.45) 52%, rgba(8,15,38,0.62) 68%, rgba(8,15,38,0.82) 100%); }
-.slide > *{ position:relative; }
+/* ---------- Hero slider ----------
+   One slide per live or registering tournament, built automatically
+   from the live data (slide-1 layout: same headline + Create account,
+   with that tournament's artwork on the right), then the two other
+   hub slides. Add a tournament and its slide appears on next load. */
+.hero-panel{ padding:0; overflow:hidden; position:relative; background:var(--navy-1); }
+.slides{ position:relative; display:grid; min-height:540px; }
+.slide{ grid-area:1 / 1; position:relative; display:grid; grid-template-columns:minmax(0,1fr); align-items:center; gap:56px; padding:52px 56px 84px; background-size:cover; background-position:center right; opacity:0; visibility:hidden; transition:opacity .8s ease, visibility 0s linear .8s; }
+.slide.active{ opacity:1; visibility:visible; transition:opacity .8s ease; }
+.slide.has-art{ grid-template-columns:minmax(0,1fr) minmax(0, min(46%, 760px)); }
+.slide::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(8,15,38,0.97) 0%, rgba(8,15,38,0.84) 36%, rgba(8,15,38,0.5) 60%, rgba(8,15,38,0.7) 100%); }
+.slide > *{ position:relative; z-index:1; min-width:0; }
 .slide.s-a{ background-image:url('assets/haaland-hero.jpg?v=2'); }
 .slide.s-b{ background-image:url('assets/new-predictions.jpg'); }
 .slide.s-c{ background-image:url('assets/Mobile-Background.png'); }
-.eyebrow{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:3px; color:var(--accent-2); text-transform:uppercase; display:flex; align-items:center; }
-.slide h1{ font-family:var(--font-display); font-weight:400; font-size:clamp(46px, 4.6vw, 84px); line-height:.95; letter-spacing:1px; margin:16px 0 14px; text-transform:uppercase; max-width:900px; }
+.eyebrow{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:3px; color:var(--accent-2); text-transform:uppercase; display:flex; align-items:center; flex-wrap:wrap; }
+.eyebrow.reg{ color:#fcd34d; }
+.slide h1{ font-family:var(--font-display); font-weight:400; font-size:clamp(46px, 4.4vw, 84px); line-height:.95; letter-spacing:1px; margin:16px 0 14px; text-transform:uppercase; }
 .slide h1 span{ color:var(--accent-2); text-shadow:0 0 30px var(--accent-glow); }
-.slide p{ color:#b9c6dc; font-size:16.5px; max-width:540px; }
+.slide p{ color:#b9c6dc; font-size:16.5px; max-width:560px; }
 .hero-cta{ display:flex; gap:12px; margin-top:26px; flex-wrap:wrap; }
-.slide-dots{ position:absolute; left:52px; bottom:26px; display:flex; gap:8px; z-index:3; }
+/* tournament artwork on the right — whole image, no box */
+.slide-art{ display:block; transition:transform .2s; }
+.slide-art:hover{ transform:translateY(-3px); }
+.slide-art img{ width:auto; max-width:100%; height:auto; max-height:430px; margin-left:auto; border-radius:16px; box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(96,165,250,0.18); }
+.slide-art:hover img{ box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 2px var(--accent); }
+.slide-art{ display:flex; flex-direction:column; align-items:flex-end; }
+.slide-cap{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; align-self:stretch; }
+.slide-cap b{ display:block; font-family:var(--font-head); font-weight:700; font-size:22px; line-height:1.1; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
+.slide-cap span.m{ font-size:13.5px; color:#c3cee2; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
+.slide-dots{ position:absolute; left:56px; bottom:30px; display:flex; gap:8px; z-index:3; }
 .slide-dots button{ width:10px; height:10px; border-radius:10px; background:rgba(255,255,255,0.25); transition:width .25s, background .25s; }
 .slide-dots button.on{ width:28px; background:var(--accent); }
-.hero-stats{ position:absolute; left:150px; bottom:16px; z-index:3; display:flex; gap:26px; }
-.hero-stat{ text-align:left !important; }
+.hero-stats{ position:absolute; right:56px; bottom:22px; z-index:3; display:flex; gap:28px; }
 .hero-stat{ text-align:right; }
-.hero-stat b{ display:block; font-family:var(--font-display); font-weight:400; font-size:30px; line-height:1; }
+.hero-stat b{ display:block; font-family:var(--font-display); font-weight:400; font-size:28px; line-height:1; }
 .hero-stat span{ font-size:11px; color:var(--text-dim); letter-spacing:.6px; text-transform:uppercase; }
-
-/* "Right now" sits straight on the hero picture — no box, no card:
-   just the tournament artwork with its name underneath. */
-.now-side{ position:absolute; z-index:4; top:0; bottom:0; right:44px; width:min(44%, 680px); display:flex; flex-direction:column; justify-content:center; padding:30px 0; pointer-events:none; }
-.now-side > *{ pointer-events:auto; }
-.now-side h3{ font-family:var(--font-head); font-weight:700; font-size:16px; letter-spacing:2px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
-.now-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 300px)); gap:18px 22px; align-content:start; justify-content:end; }
-.now-grid.many{ grid-template-columns:repeat(3, minmax(0, 220px)); gap:14px 16px; }
-.now-side h3{ justify-content:flex-end; }
-.now-card{ display:block; transition:transform .18s; }
-.now-card:hover{ transform:translateY(-3px); }
-.now-card img{ width:100%; height:auto; border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,0.55); transition:box-shadow .2s; }   /* whole image */
-.now-card:hover img{ box-shadow:0 14px 34px rgba(0,0,0,0.6), 0 0 0 2px var(--accent); }
-.now-card .nb{ padding:8px 2px 0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.now-card b{ display:block; font-family:var(--font-head); font-weight:700; font-size:16px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 6px rgba(0,0,0,0.85); }
-.now-card span{ font-size:12px; color:#c3cee2; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
-.now-empty{ color:var(--text-dim); font-size:13.5px; padding:6px 2px; }
 
 /* ---------- Sport/status banners ---------- */
 .banners{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
@@ -208,10 +205,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
 /* ---------- Tablet ---------- */
 @media (max-width:1180px){
-  .slide{ padding-right:52px; }
-  .now-side{ position:static; width:auto; padding:22px 28px 26px; background:var(--navy-1); }
-  .now-grid, .now-grid.many{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); justify-content:stretch; }
-  .now-side h3{ justify-content:flex-start; }
+  .slide.has-art{ grid-template-columns:minmax(0,1fr) minmax(0, 42%); gap:32px; }
   .banners{ grid-template-columns:repeat(2,1fr); }
 }
 
@@ -236,20 +230,22 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .live-dot, .reg-dot{ width:8px; height:8px; margin-right:8px; }
 
   /* Hero */
-  .hero-panel{ display:block; min-height:0; }
-  .slides{ min-height:330px; }
-  .slide{ padding:22px 18px 46px; justify-content:flex-end; background-position:center; }
-  .slide::before{ background:linear-gradient(180deg, rgba(8,15,38,0.45) 0%, rgba(8,15,38,0.93) 70%); }
-  .eyebrow{ font-size:10.5px; letter-spacing:2.2px; }
-  .slide h1{ font-size:38px; margin:10px 0 8px; }
+  .slides{ min-height:0; }
+  .slide, .slide.has-art{ grid-template-columns:1fr; gap:14px; padding:16px 16px 44px; align-content:start; background-position:center; }
+  .slide::before{ background:linear-gradient(180deg, rgba(8,15,38,0.55) 0%, rgba(8,15,38,0.93) 60%); }
+  .slide .slide-art{ order:-1; }
+  .slide-art img{ border-radius:12px; width:100%; max-height:none; margin:0; }
+  .slide-cap{ margin-top:8px; }
+  .slide-cap b{ font-size:16px; }
+  .slide-cap span.m{ font-size:12px; }
+  .eyebrow{ font-size:10.5px; letter-spacing:2px; }
+  .slide h1{ font-size:34px; margin:8px 0 6px; }
   .slide p{ font-size:13px; }
-  .hero-cta{ margin-top:14px; gap:8px; }
+  .hero-cta{ margin-top:12px; gap:8px; flex-wrap:nowrap; }
   .hero-cta .btn{ padding:11px 12px; font-size:12.5px; letter-spacing:.6px; flex:1; justify-content:center; }
   .hero-cta .btn .icon{ display:none; }
-  .slide-dots{ left:18px; bottom:18px; }
+  .slide-dots{ left:16px; bottom:16px; }
   .hero-stats{ display:none; }
-  .hero-cta{ flex-wrap:nowrap; }
-  .now-side{ display:none; }
 
   /* Banners: 2 x 2 */
   .banners{ grid-template-columns:1fr 1fr; gap:8px; }
@@ -366,34 +362,41 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
 <main id="top">
 
-  <!-- ===== HERO: hub slides + Right now ===== -->
+  <!-- ===== HERO: one slide per live/registering tournament + hub slides ===== -->
   <section class="panel hero-panel">
     <div class="slides" id="slides">
-      <div class="slide s-a active">
-        <div class="eyebrow"><span class="live-dot"></span><span class="gwLabel">GB Tournaments</span></div>
-        <h1>Compete. Predict. <span>Win.</span></h1>
-        <p>Choose your arena and prove you're the best. Football, darts, stocks and more — enter, predict and climb the leaderboard.</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-ghost" href="#all">View tournaments</a>
+      <!-- Shown until the tournaments load (and if nothing is running) -->
+      <div class="slide s-a active" id="slideIntro">
+        <div>
+          <div class="eyebrow"><span class="live-dot"></span><span class="gwLabel">GB Tournaments</span></div>
+          <h1>Compete. Predict. <span>Win.</span></h1>
+          <p>Choose your arena and prove you're the best. Football, darts, stocks and more — enter, predict and climb the leaderboard.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
+            <a class="btn btn-ghost" href="#all">View tournaments</a>
+          </div>
         </div>
       </div>
       <div class="slide s-b">
-        <div class="eyebrow"><span class="live-dot"></span>Premier League Predictions</div>
-        <h1>Predict team wins <span>&amp; scores</span></h1>
-        <p>Earn points every gameweek. Compete against other players and win cash prizes.</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-ghost" href="/predictions">Predictions</a>
+        <div>
+          <div class="eyebrow"><span class="live-dot"></span>Premier League Predictions</div>
+          <h1>Predict team wins <span>&amp; scores</span></h1>
+          <p>Earn points every gameweek. Compete against other players and win cash prizes.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
+            <a class="btn btn-ghost" href="/predictions">Predictions</a>
+          </div>
         </div>
       </div>
       <div class="slide s-c">
-        <div class="eyebrow"><span class="live-dot"></span>Anywhere, anytime</div>
-        <h1>Play on mobile <span>or desktop</span></h1>
-        <p>Use any device to enter and make your picks. Challenge your friends.</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-ghost" href="/how-it-works">How it works</a>
+        <div>
+          <div class="eyebrow"><span class="live-dot"></span>Anywhere, anytime</div>
+          <h1>Play on mobile <span>or desktop</span></h1>
+          <p>Use any device to enter and make your picks. Challenge your friends.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
+            <a class="btn btn-ghost" href="/how-it-works">How it works</a>
+          </div>
         </div>
       </div>
       <div class="slide-dots" id="slideDots"></div>
@@ -403,10 +406,6 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
         <div class="hero-stat"><b id="statPlayers">–</b><span>Entries</span></div>
       </div>
     </div>
-    <aside class="now-side">
-      <h3><span class="live-dot"></span>Right now</h3>
-      <div class="now-grid" id="nowGrid"><div class="now-empty">Loading…</div></div>
-    </aside>
   </section>
 
   <!-- ===== LIVE / REGISTERING by sport ===== -->
@@ -633,14 +632,7 @@ function render(){
   document.getElementById('statOpen').textContent = open.length;
   document.getElementById('statPlayers').textContent = [...live, ...open].reduce((s, r) => s + (r.t.current_entries || 0), 0);
 
-  // Right now (desktop): full artwork cards
-  const now = [...live, ...open];
-  document.getElementById('nowGrid').classList.toggle('many', now.length > 4);
-  document.getElementById('nowGrid').innerHTML = now.length ? now.map(r => {
-    const info = TYPES[r.type];
-    return `<a class="now-card" href="${info.href}"><img src="${info.img}" alt="${esc(info.title)}">
-      <div class="nb"><div style="min-width:0"><b>${esc(info.title)}</b><span>${r.t.current_entries || 0} entries · ${r.t.entry_fee ? money(r.t.entry_fee) : 'Free'}</span></div>${zonePill(r.zone)}</div></a>`;
-  }).join('') : '<div class="now-empty">Nothing running right now — check back soon.</div>';
+  buildTournamentSlides(live, open);
 
   // Banners: Live / Registering × Football / Darts
   [['football','live'],['darts','live'],['football','open'],['darts','open']].forEach(([s, z]) => {
@@ -712,16 +704,62 @@ document.getElementById('banners').addEventListener('click', e => {
   document.getElementById('all').scrollIntoView({ behavior:'smooth' });
 });
 
-// ---------- hero slides (same three as the hub, every 6s) ----------
-(function(){
-  const slides = [...document.querySelectorAll('.slide')], dotsEl = document.getElementById('slideDots');
-  let i = 0, timer;
-  dotsEl.innerHTML = slides.map((_, k) => `<button aria-label="Slide ${k + 1}" class="${k ? '' : 'on'}"></button>`).join('');
-  const go = k => { slides[i].classList.remove('active'); dotsEl.children[i].classList.remove('on'); i = k; slides[i].classList.add('active'); dotsEl.children[i].classList.add('on'); };
-  const start = () => { clearInterval(timer); timer = setInterval(() => go((i + 1) % slides.length), 6000); };
+// ---------- hero slides ----------
+// Slide 1 is the template: same headline, text and Create account
+// button, plus one tournament's artwork on the right. One slide is made
+// for every live tournament, then every registering one, straight from
+// the live data — set a new tournament live/upcoming in admin and its
+// slide is there on the next page load. The two other hub slides follow.
+let slidesBuilt = false, slideTimer = null, slideIndex = 0;
+function slideHtml(r, first){
+  const info = TYPES[r.type], t = r.t;
+  const live = r.zone === 'live';
+  const closes = !live && untilText(t.closes_at) ? ` · Closes in ${untilText(t.closes_at)}` : '';
+  const eyebrow = live
+    ? `<div class="eyebrow"><span class="live-dot"></span>Live now · ${esc(info.sportLabel)}${STATE.gw && info.league === 'pl' ? ' · Gameweek ' + STATE.gw : ''}</div>`
+    : `<div class="eyebrow reg"><span class="reg-dot"></span>Registering now · ${esc(info.sportLabel)}${closes}</div>`;
+  const meta = [`${t.current_entries || 0} ${t.current_entries === 1 ? 'entry' : 'entries'}`, t.entry_fee ? `${money(t.entry_fee)} entry` : 'Free entry'];
+  if (t.entry_fee && t.current_entries) meta.push(`${money(t.entry_fee * t.current_entries)} pot`);
+  return `<div class="slide s-a has-art${first ? ' active' : ''}">
+      <div>
+        ${eyebrow}
+        <h1>Compete. Predict. <span>Win.</span></h1>
+        <p>Choose your arena and prove you're the best. Football, darts, stocks and more — enter, predict and climb the leaderboard.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="/register">Create account <svg class="icon"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-ghost" href="${info.href}">${live ? 'View tournament' : 'Join in'}</a>
+        </div>
+      </div>
+      <a class="slide-art" href="${info.href}">
+        <img src="${info.img}" alt="${esc(info.title)}">
+        <div class="slide-cap"><div><b>${esc(t.name || info.title)}</b><span class="m">${meta.join(' · ')}</span></div>${zonePill(r.zone)}</div>
+      </a>
+    </div>`;
+}
+function buildTournamentSlides(live, open){
+  if (slidesBuilt) return;          // build once, so the slider doesn't jump
+  const list = [...live, ...open];
+  if (!list.length) return;         // nothing running: keep the intro slide
+  slidesBuilt = true;
+  const intro = document.getElementById('slideIntro');
+  intro.insertAdjacentHTML('beforebegin', list.map((r, k) => slideHtml(r, k === 0)).join(''));
+  intro.remove();
+  initSlider();
+}
+function initSlider(){
+  const slides = [...document.querySelectorAll('#slides .slide')], dotsEl = document.getElementById('slideDots');
+  slideIndex = Math.max(0, slides.findIndex(s => s.classList.contains('active')));
+  dotsEl.innerHTML = slides.map((_, k) => `<button aria-label="Slide ${k + 1}" class="${k === slideIndex ? 'on' : ''}"></button>`).join('');
+  const go = k => {
+    slides[slideIndex].classList.remove('active'); dotsEl.children[slideIndex].classList.remove('on');
+    slideIndex = k;
+    slides[slideIndex].classList.add('active'); dotsEl.children[slideIndex].classList.add('on');
+  };
+  const start = () => { clearInterval(slideTimer); slideTimer = setInterval(() => go((slideIndex + 1) % slides.length), 6000); };
   [...dotsEl.children].forEach((d, k) => d.onclick = () => { go(k); start(); });
   start();
-})();
+}
+initSlider();
 
 // ---------- drawer, sheet, tabs ----------
 function openDrawer(on){ document.getElementById('drawer').classList.toggle('open', on); document.getElementById('scrim').classList.toggle('open', on); }
