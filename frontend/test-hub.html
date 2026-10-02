@@ -635,6 +635,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   <a class="tab" href="/login?redirect=%2Fhub-test" id="tabMe"><div class="avatar" id="tabAvatar"><svg class="icon" style="width:13px;height:13px"><use href="#i-user"/></svg></div>Me</a>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ===================================================================
 // Same public endpoints and the same tournament artwork as the hub.
@@ -654,7 +655,14 @@ function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&
 function money(p){ const v = (p || 0) / 100; return '£' + (v % 1 ? v.toFixed(2) : v.toFixed(0)); }
 function token(){ try { return localStorage.getItem('gbf_token'); } catch(e){ return null; } }
 async function getJSON(url, auth){
-  try { const r = await fetch(url, auth && token() ? { headers:{ Authorization:'Bearer ' + token() } } : undefined); return r.ok ? await r.json() : null; }
+  try {
+    let r = await fetch(url, auth && token() ? { headers:{ Authorization:'Bearer ' + token() } } : undefined);
+    // expired login: renew it once and try again
+    if (auth && r.status === 401 && typeof refreshLogin === 'function' && await refreshLogin()) {
+      r = await fetch(url, { headers:{ Authorization:'Bearer ' + token() } });
+    }
+    return r.ok ? await r.json() : null;
+  }
   catch(e){ return null; }
 }
 function untilText(iso){
@@ -899,8 +907,32 @@ window.addEventListener('scroll', () => {
   document.getElementById('tabHome').classList.toggle('active', !inAll);
 }, { passive:true });
 
-initMe();
-loadAll();
+// ---------- keep the login fresh (same as the main hub's live-poll.js) ----------
+// Supabase logins expire after ~1 hour. Without renewing, "which tournaments
+// am I in" gets rejected and the page wrongly shows you haven't entered any.
+const HUB_SUPABASE_URL = 'https://liuuzvboeesimvovnooh.supabase.co';
+const HUB_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdXV6dmJvZWVzaW12b3Zub29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTA1MjYsImV4cCI6MjA5ODc2NjUyNn0.rfV-5DZ-06GIQ5vJcT0rCzmruSjXdCOP__XhhPv7jDs';
+let hubSb = null;
+async function refreshLogin(){
+  let rt = null;
+  try { rt = localStorage.getItem('gbf_refresh'); } catch(e){}
+  if (!rt || !window.supabase) return false;
+  try {
+    hubSb = hubSb || window.supabase.createClient(HUB_SUPABASE_URL, HUB_SUPABASE_KEY);
+    const { data, error } = await hubSb.auth.refreshSession({ refresh_token: rt });
+    if (error || !data || !data.session) return false;
+    localStorage.setItem('gbf_token', data.session.access_token);
+    localStorage.setItem('gbf_refresh', data.session.refresh_token);
+    return true;
+  } catch(e){ return false; }
+}
+
+(async function start(){
+  if (token()) await refreshLogin();          // fresh token before asking "which am I in"
+  initMe();
+  loadAll();
+  setInterval(refreshLogin, 10 * 60 * 1000);  // keep it fresh while the page is open
+})();
 </script>
 </body>
 </html>
