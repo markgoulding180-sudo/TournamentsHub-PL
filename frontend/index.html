@@ -1469,6 +1469,31 @@
         label.style.display = 'inline';
         avatar.textContent = name.substring(0, 2).toUpperCase();
         avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+
+        // Profile photo (same rule as the profile page): shown over the
+        // initials; if it can't load it removes itself and initials stay.
+        const setNavPhoto = (u) => {
+          avatar.querySelectorAll('img.nav-avatar-img').forEach(i => i.remove());
+          const url = u && u.avatar_type === 'upload' && typeof u.avatar_url === 'string' && /^https:\/\//i.test(u.avatar_url) ? u.avatar_url : '';
+          if (!url) return;
+          avatar.style.position = 'relative';
+          avatar.style.overflow = 'hidden';
+          const img = document.createElement('img');
+          img.className = 'nav-avatar-img';
+          img.alt = '';
+          img.src = url;
+          img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;';
+          img.onerror = () => img.remove();
+          avatar.appendChild(img);
+        };
+        setNavPhoto(user);
+        // The saved login copy can be out of date if the photo was changed
+        // since logging in, so quietly fetch the current one.
+        fetch('/api/tournaments?me=true', { headers: { 'Authorization': `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d && d.user) setNavPhoto(d.user); })
+          .catch(() => {});
+
         btn.classList.add('logged-in');
         btn.href = '/profile';
         btn.title = 'View profile';

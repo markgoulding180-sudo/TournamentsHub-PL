@@ -819,13 +819,16 @@ function updateTopPlayers(leaderboard) {
     const displayName = entry.user?.display_name || 'Unknown';
     const username = entry.user?.username || 'unknown';
     const avatarColor = avatarColors[index % avatarColors.length];
+    // Profile photo over the initials (removes itself if it can't load)
+    const photoUrl = (typeof entry.user?.avatar_url === 'string' && /^https:\/\//i.test(entry.user.avatar_url)) ? entry.user.avatar_url.replace(/["'<>]/g, '') : '';
+    const photoImg = photoUrl ? `<img src="${photoUrl}" alt="" loading="lazy" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '';
     
     return `
       <tr>
         <td><span class="rank ${rankClass}">${entry.rank}</span></td>
         <td>
           <div class="player-info">
-            <div class="player-avatar" style="background-color: ${avatarColor};">${initials}</div>
+            <div class="player-avatar" style="background-color: ${avatarColor}; position:relative; overflow:hidden;">${initials}${photoImg}</div>
             <div>
               <div style="font-weight: 600;">${displayName}</div>
               <div class="text-muted" style="font-size: 0.875rem;">@${username}</div>

@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
     let usersById = {};
     if (userIds.length > 0) {
       const { data: usersData } = await supabase
-        .from('users').select('id, username, display_name').in('id', userIds);
+        .from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIds);
       (usersData || []).forEach(u => { usersById[u.id] = u; });
     }
 
@@ -142,7 +142,9 @@ module.exports = async (req, res) => {
           id: entry.user_id,
           username: (realUser && realUser.username) || entry.username,
           display_name: displayName,
-          avatar_initials: displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+          avatar_initials: displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+          // Profile photo (only when the user uploaded one), else null -> initials
+          avatar_url: (realUser && realUser.avatar_type === 'upload' && realUser.avatar_url) || null
         },
         total_points: entry.entry_points || 0,
         gw_points: gwPointsMap[entry.user_id] || 0,

@@ -331,6 +331,8 @@
   .mini-board-list .pos.gold{ background:var(--gold); color:#1a1200; }
   .mini-board-list .pos.silver{ background:#c0c8d6; color:#141a24; }
   .mini-board-list .pos.bronze{ background:#d97757; color:#1f0d05; }
+  .mini-board-list .mb-av{ width:17px; height:17px; font-size:7.5px; }
+  .lg-main .lg-av{ width:28px; height:28px; font-size:10.5px; }
   .mini-board-list .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
   .mini-board-list .val{ font-family:var(--font-head); font-weight:700; font-size:12.5px; }
 
@@ -556,7 +558,25 @@
   .bd-total{ display:flex; justify-content:space-between; align-items:center; font-family:var(--font-head); font-weight:700; font-size:14.5px; padding:8px 12px; border-radius:10px; background:var(--bg-panel); margin-bottom:8px; }
   .bd-why{ font-size:11.5px; color:var(--text-faint); line-height:1.55; margin-bottom:12px; }
   .bd-why i{ color:var(--accent-2); margin-right:4px; }
+
+  /* ---- Profile photos on leaderboards (photo over initials; if the
+     photo can't load it removes itself and the initials show) ---- */
+  .gb-av{ position:relative; overflow:hidden; }
+  .gb-av-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
+  .gb-av-sm{ flex-shrink:0; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); font-size:10px; font-weight:700; color:#9fb3d9; line-height:1; vertical-align:middle; }
 </style>
+<script>
+/* Profile photo helper for leaderboards. url = uploaded photo (or null),
+   text = the initials this page already shows, cls = the circle's class. */
+function gbAvatar(url, text, cls){
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ok = typeof url === 'string' && /^https:\/\//i.test(url);
+  return '<div class="' + esc(cls || 'gb-av-sm') + ' gb-av">' + esc(text) +
+    (ok ? '<img class="gb-av-img" src="' + esc(url) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '</div>';
+}
+function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toUpperCase(); }
+</script>
 </head>
 <body>
 
@@ -763,7 +783,7 @@ function shortDateTime(iso){
 const STANDINGS_GW3 = [
   { name:'McGuinness', value:5732 }, { name:'Sir Chris', value:3532 },
   { name:'Pete T', value:3143 },     { name:'Kenny78', value:3089 },
-  { name:'Dean', value:2275 },       { name:'Mark G', value:2160 },
+  { name:'Dean', value:2275 },       { name:'Mark G', value:2160, avatar:'https://liuuzvboeesimvovnooh.supabase.co/storage/v1/object/public/user-avatars/4d935300-c707-4e73-86a3-217d73e006a8.jpg?v=1790331134096' },
   { name:'Billy H', value:1802 },    { name:'Matt B', value:1477 }
 ];
 const RELEGATE_COUNT = 2;   // stage 1: bottom 2 cut after Gameweek 3
@@ -1142,7 +1162,7 @@ function renderStandings(standings, zone){
     if (prev >= 0 && i > prev + 1) html += `<li class="gap" aria-hidden="true"><span>&middot;&middot;&middot;</span></li>`;
     const s = standings[i];
     const isSafe = i === safeIdx;
-    html += `<li class="${isSafe ? 'last-safe' : ''}${s.me ? ' me' : ''}"><span class="pos ${medal[i] || ''}">${i + 1}</span><span class="nm">${escapeHtml(s.name)}</span>${isSafe ? '<span class="tag">Last safe</span>' : ''}<span class="val">${money(s.value)}</span></li>`;
+    html += `<li class="${isSafe ? 'last-safe' : ''}${s.me ? ' me' : ''}"><span class="pos ${medal[i] || ''}">${i + 1}</span>${gbAvatar(s.avatar, initials(s.name), 'gb-av-sm mb-av')}<span class="nm">${escapeHtml(s.name)}</span>${isSafe ? '<span class="tag">Last safe</span>' : ''}<span class="val">${money(s.value)}</span></li>`;
     prev = i;
   });
   document.getElementById('miniBoard').innerHTML = html;
@@ -1235,7 +1255,7 @@ function setView(key){
   DEMO_VIEW = key;
   const me = SQUADS[key], opp = SQUADS[key === 'mike' ? 'mark' : 'mike'];
   document.querySelectorAll('.demo-toggle button').forEach(b => b.classList.toggle('active', b.dataset.view === key));
-  const standings = STANDINGS_GW3.map((s, i) => ({ name: s.name, value: s.value, me: s.name === me.name, inZone: i >= STANDINGS_GW3.length - RELEGATE_COUNT }));
+  const standings = STANDINGS_GW3.map((s, i) => ({ name: s.name, value: s.value, avatar: s.avatar || null, me: s.name === me.name, inZone: i >= STANDINGS_GW3.length - RELEGATE_COUNT }));
   renderHero({
     me: { name: me.name, initials: me.initials, avatar: me.avatar },
     value: me.value, delta: me.delta, deltaLabel: 'this week',
@@ -1322,7 +1342,7 @@ function renderRelegationZones(stages, currentGw){
 
 function standingsFromLeaderboard(lb, myEntryId){
   const rows = (lb && lb.leaderboard) || [];
-  const standings = rows.map(r => ({ name: r.player_name, value: r.current_value, me: r.entry_id === myEntryId, inZone: !!r.in_relegation_zone }));
+  const standings = rows.map(r => ({ name: r.player_name, value: r.current_value, avatar: r.avatar_url || null, me: r.entry_id === myEntryId, inZone: !!r.in_relegation_zone }));
   const zone = lb && lb.next_stage ? { relegateCount: lb.next_stage.relegate_count, triggerGw: lb.next_stage.trigger_gameweek } : null;
   return { standings, zone };
 }
@@ -1345,9 +1365,9 @@ async function renderFinished(t){
   if (!d || !d.finished) return false;
   const medal = ['gold', 'silver', 'bronze'];
   const rows = (d.survivors || []).map((r, i) => `
-    <li><span class="pos ${medal[i] || ''}">${r.rank}</span><span class="nm">${escapeHtml(r.player_name)}</span><span class="val">${money(r.final_value)}</span></li>`).join('');
+    <li><span class="pos ${medal[i] || ''}">${r.rank}</span>${gbAvatar(r.avatar_url, initials(r.player_name))}<span class="nm">${escapeHtml(r.player_name)}</span><span class="val">${money(r.final_value)}</span></li>`).join('');
   const rel = (d.relegated || []).map(r => `
-    <li class="faded"><span class="pos">&ndash;</span><span class="nm">${escapeHtml(r.player_name)} <span class="cut">Cut GW${r.relegated_at_gameweek || '?'}</span></span><span class="val">${money(r.final_value)}</span></li>`).join('');
+    <li class="faded"><span class="pos">&ndash;</span>${gbAvatar(r.avatar_url, initials(r.player_name))}<span class="nm">${escapeHtml(r.player_name)} <span class="cut">Cut GW${r.relegated_at_gameweek || '?'}</span></span><span class="val">${money(r.final_value)}</span></li>`).join('');
   showState(`<div class="state-inner results">
     <i class="fa-solid fa-flag-checkered state-icon"></i>
     <div class="state-title">${escapeHtml(d.tournament_name || 'Stock Market')} — Final Results</div>
@@ -1513,10 +1533,10 @@ function buildLeague(t, lb){
   LEAGUE.t = t;
   LEAGUE.drafting = !!(lb && lb.drafting);
   if (LEAGUE.drafting) {
-    LEAGUE.rows = ((lb && lb.entrants) || []).map(e => ({ entryId: e.entry_id, name: e.player_name, value: null, gain: null, inZone: false }));
+    LEAGUE.rows = ((lb && lb.entrants) || []).map(e => ({ entryId: e.entry_id, name: e.player_name, avatar: e.avatar_url || null, value: null, gain: null, inZone: false }));
     LEAGUE.zone = null;
   } else {
-    LEAGUE.rows = ((lb && lb.leaderboard) || []).map(r => ({ entryId: r.entry_id, name: r.player_name, value: r.current_value, gain: r.gain_loss, inZone: !!r.in_relegation_zone }));
+    LEAGUE.rows = ((lb && lb.leaderboard) || []).map(r => ({ entryId: r.entry_id, name: r.player_name, avatar: r.avatar_url || null, value: r.current_value, gain: r.gain_loss, inZone: !!r.in_relegation_zone }));
     LEAGUE.zone = lb && lb.next_stage ? { relegateCount: lb.next_stage.relegate_count, triggerGw: lb.next_stage.trigger_gameweek } : null;
   }
 }
@@ -1558,7 +1578,7 @@ function renderLeague(){
       <div class="lg-row${isOpen ? ' open' : ''}${r.inZone ? ' in-zone' : ''}${i === safeIdx ? ' last-safe' : ''}">
         <button type="button" class="lg-main" onclick="toggleLeague('${r.entryId}')" aria-expanded="${isOpen}">
           <span class="pos ${LEAGUE.drafting ? '' : (medal[i] || '')}">${i + 1}</span>
-          <span class="nm">${escapeHtml(r.name)}</span>${tag}
+          ${gbAvatar(r.avatar, initials(r.name), 'gb-av-sm lg-av')}<span class="nm">${escapeHtml(r.name)}</span>${tag}
           ${numbers}
           <i class="fa-solid fa-chevron-down lg-chev"></i>
         </button>

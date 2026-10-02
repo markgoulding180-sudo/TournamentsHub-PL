@@ -269,6 +269,10 @@
       .survivor-row{ display:grid; grid-template-columns:1fr 112px 82px; align-items:center; column-gap:6px; padding:9px 4px; }
       #survivorsSection{ padding-left:8px; padding-right:8px; }
       .survivor-row .s-avatar{ display:none; }
+      /* mobile: a small photo sits inside the name cell instead */
+      .survivor-row .s-name{ display:flex; align-items:center; gap:6px; min-width:0; }
+      .survivor-row .s-name .s-av-m{ display:inline-flex; width:22px; height:22px; font-size:9px; }
+      .survivor-row .s-name-t{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
       .survivor-row .s-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .survivor-row .s-pick{ overflow:hidden; }
       .survivor-row .s-pick span:last-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -288,7 +292,26 @@
       .hero-desc{ font-size:13.5px; }
       .hero-graphic{ display:none; }
     }
-  </style>
+  
+  /* ---- Profile photos on leaderboards (photo over initials; if the
+     photo can't load it removes itself and the initials show) ---- */
+  .gb-av{ position:relative; overflow:hidden; }
+  .gb-av-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
+  .s-name .s-av-m{ display:none; }
+  .gb-av-sm{ flex-shrink:0; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); font-size:10px; font-weight:700; color:#9fb3d9; line-height:1; vertical-align:middle; }
+</style>
+<script>
+/* Profile photo helper for leaderboards. url = uploaded photo (or null),
+   text = the initials this page already shows, cls = the circle's class. */
+function gbAvatar(url, text, cls){
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ok = typeof url === 'string' && /^https:\/\//i.test(url);
+  return '<div class="' + esc(cls || 'gb-av-sm') + ' gb-av">' + esc(text) +
+    (ok ? '<img class="gb-av-img" src="' + esc(url) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '</div>';
+}
+function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toUpperCase(); }
+</script>
 </head>
 <body>
   <svg style="display:none">
@@ -1060,6 +1083,7 @@
               return `
                 <div class="lb-row ${won ? '' : 'faded'}">
                   <div class="lb-rank">${won ? medal(i + 1) : ''}</div>
+                  ${gbAvatar(r.users?.avatar_url, gbInitials(name))}
                   <div class="lb-name">${escapeHtml(name)}</div>
                   <div class="lb-value">${won ? `£${(r.prize_awarded/100).toFixed(2)}` : '—'}</div>
                   <div class="lb-gain" style="${won ? 'color:var(--green);' : ''}">${result}</div>
@@ -1095,8 +1119,8 @@
             : '<span class="s-pick" style="flex:none;"></span>';
           return `
             <div class="survivor-row ${won ? 'alive' : (alive ? 'alive' : 'out')}">
-              <div class="s-avatar">${escapeHtml(initials)}</div>
-              <div class="s-name">${escapeHtml(name)}</div>
+              ${gbAvatar(r.users?.avatar_url, initials, 's-avatar')}
+              <div class="s-name">${gbAvatar(r.users?.avatar_url, initials, 'gb-av-sm s-av-m')}<span class="s-name-t">${escapeHtml(name)}</span></div>
               ${currentPickShirt}
               <div class="s-status" style="${won ? 'color:var(--gold);' : ''}">${(alive && !won) ? '<i class="fas fa-shield-halved"></i> ' : ''}${status}</div>
             </div>`;

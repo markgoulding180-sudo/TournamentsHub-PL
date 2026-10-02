@@ -298,14 +298,15 @@ module.exports = async (req, res) => {
 
           const draftingUserIds = (draftingEntries || []).map(e => e.user_id);
           const { data: draftingUsers } = draftingUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', draftingUserIds)
+            ? await supabaseAdmin.from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', draftingUserIds)
             : { data: [] };
           const draftingNameByUserId = {};
-          (draftingUsers || []).forEach(u => { draftingNameByUserId[u.id] = pickDisplayName(u); });
+          const draftingAvatarByUserId = {};
+          (draftingUsers || []).forEach(u => { draftingNameByUserId[u.id] = pickDisplayName(u); draftingAvatarByUserId[u.id] = pickAvatarUrl(u); });
 
           const entrants = (draftingEntries || [])
             .sort((a, b) => new Date(a.entered_at) - new Date(b.entered_at))
-            .map((e, i) => ({ rank: i + 1, entry_id: e.id, player_name: draftingNameByUserId[e.user_id] || 'Player' }));
+            .map((e, i) => ({ rank: i + 1, entry_id: e.id, player_name: draftingNameByUserId[e.user_id] || 'Player', avatar_url: draftingAvatarByUserId[e.user_id] || null }));
 
           return res.status(200).json({ drafting: true, entrants });
         }
@@ -395,10 +396,11 @@ module.exports = async (req, res) => {
 
         const userIds = (allEntries || []).map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds)
+          ? await supabaseAdmin.from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIds)
           : { data: [] };
         const nameByUserId = {};
-        (users || []).forEach(u => { nameByUserId[u.id] = pickDisplayName(u); });
+        const avatarByUserId = {};
+        (users || []).forEach(u => { nameByUserId[u.id] = pickDisplayName(u); avatarByUserId[u.id] = pickAvatarUrl(u); });
 
         // Next unapplied stage tells us how many of the currently-active
         // bottom entries are in the relegation zone right now.
@@ -452,6 +454,7 @@ module.exports = async (req, res) => {
           rank: i + 1,
           entry_id: e.id,
           player_name: nameByUserId[e.user_id] || 'Player',
+          avatar_url: avatarByUserId[e.user_id] || null,
           current_value: liveValue(e),
           gain_loss: liveValue(e) - (e.start_value || 0),
           in_relegation_zone: zoneIds.has(e.id)
@@ -462,6 +465,7 @@ module.exports = async (req, res) => {
           return {
             entry_id: e.id,
             player_name: nameByUserId[e.user_id] || 'Player',
+            avatar_url: avatarByUserId[e.user_id] || null,
             current_value: finalValue,
             gain_loss: finalValue - (e.start_value || 0),
             relegated_at_gameweek: e.relegated_at_gameweek || null
@@ -689,10 +693,11 @@ module.exports = async (req, res) => {
 
         const userIdsFinal = (allEntriesFinal || []).map(e => e.user_id);
         const { data: usersFinal } = userIdsFinal.length > 0
-          ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIdsFinal)
+          ? await supabaseAdmin.from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIdsFinal)
           : { data: [] };
         const nameByUserIdFinal = {};
-        (usersFinal || []).forEach(u => { nameByUserIdFinal[u.id] = pickDisplayName(u); });
+        const avatarByUserIdFinal = {};
+        (usersFinal || []).forEach(u => { nameByUserIdFinal[u.id] = pickDisplayName(u); avatarByUserIdFinal[u.id] = pickAvatarUrl(u); });
 
         const survivorsFinal = (allEntriesFinal || [])
           .filter(e => !e.relegated)
@@ -700,6 +705,7 @@ module.exports = async (req, res) => {
           .map((e, i) => ({
             rank: i + 1,
             player_name: nameByUserIdFinal[e.user_id] || 'Player',
+            avatar_url: avatarByUserIdFinal[e.user_id] || null,
             final_value: e.final_value,
             gain_loss: (e.final_value || 0) - (e.start_value || 0)
           }));
@@ -709,6 +715,7 @@ module.exports = async (req, res) => {
           .sort((a, b) => (b.relegated_at_gameweek || 0) - (a.relegated_at_gameweek || 0) || (b.final_value || 0) - (a.final_value || 0))
           .map(e => ({
             player_name: nameByUserIdFinal[e.user_id] || 'Player',
+            avatar_url: avatarByUserIdFinal[e.user_id] || null,
             final_value: e.final_value,
             gain_loss: (e.final_value || 0) - (e.start_value || 0),
             relegated_at_gameweek: e.relegated_at_gameweek || null
@@ -2334,9 +2341,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (userIds.length > 0) {
           const { data: usersData } = await supabaseAdmin
             .from('users')
-            .select('id, username, display_name')
+            .select('id, username, display_name, avatar_type, avatar_url')
             .in('id', userIds);
-          (usersData || []).forEach(u => { usersById[u.id] = u; });
+          (usersData || []).forEach(u => { usersById[u.id] = { ...u, avatar_url: pickAvatarUrl(u) }; });
         }
 
         let scoredEntries = (entries || []).map(e => ({
@@ -3631,13 +3638,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = entries.map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds)
+          ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_type, avatar_url').in('id', userIds)
           : { data: [] };
         const byId = {};
-        (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; });
+        const avatarById = {};
+        (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; avatarById[u.id] = pickAvatarUrl(u); });
 
         return res.status(200).json({
-          leaderboard: entries.map((e, i) => ({ rank: i + 1, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', entry_points: e.entry_points }))
+          leaderboard: entries.map((e, i) => ({ rank: i + 1, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points }))
         });
       }
 
@@ -3874,13 +3882,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = entries.map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds)
+          ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_type, avatar_url').in('id', userIds)
           : { data: [] };
         const byId = {};
-        (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; });
+        const avatarById = {};
+        (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; avatarById[u.id] = pickAvatarUrl(u); });
 
         return res.status(200).json({
-          leaderboard: entries.map((e, i) => ({ rank: i + 1, display_name: byId[e.user_id] || 'Unknown', entry_points: e.entry_points }))
+          leaderboard: entries.map((e, i) => ({ rank: i + 1, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points }))
         });
       }
 
@@ -7515,6 +7524,12 @@ const STARTER_PACK_MATRIX = {
 function pickDisplayName(u) {
   if (!u) return 'Player';
   return u.display_name || u.username || 'Player';
+}
+
+// A user's profile photo for leaderboards: only when they've uploaded one
+// (same rule as the profile page), otherwise null so pages show initials.
+function pickAvatarUrl(u) {
+  return (u && u.avatar_type === 'upload' && u.avatar_url) ? u.avatar_url : null;
 }
 
 const POSITION_KEY = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
