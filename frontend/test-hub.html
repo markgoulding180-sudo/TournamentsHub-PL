@@ -172,7 +172,8 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .hero .slide-dots{ left:50px; }
 
 /* ---------- Sport/status banners ---------- */
-.banners{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; }
+.banners{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+.mine-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--accent-2); margin-right:10px; flex-shrink:0; box-shadow:0 0 10px var(--accent-glow); }
 .banner{ position:relative; height:150px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border-2); display:flex; flex-direction:column; justify-content:flex-end; padding:16px 18px; background-size:cover; background-position:center; text-align:left; transition:border-color .2s, transform .15s; }
 .banner::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(6,11,30,0.1), rgba(6,11,30,0.9)); }
 .banner:hover{ border-color:var(--accent); transform:translateY(-2px); }
@@ -248,7 +249,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 /* ---------- Tablet ---------- */
 @media (max-width:1180px){
   .slide.has-art{ grid-template-columns:minmax(0,1fr) minmax(0, 42%); gap:32px; }
-  .banners{ grid-template-columns:repeat(2,1fr); }
+  .banners{ grid-template-columns:repeat(3,1fr); }
 }
 
 
@@ -372,13 +373,17 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .slide-1 .hero-desc, .slide-2 .hero-desc{ color:#fff; }
   .hero .slide-dots{ left:16px; bottom:12px; }
 
-  /* Banners: 2 x 2 */
-  .banners{ grid-template-columns:1fr 1fr; gap:8px; }
-  .banner{ height:92px; padding:10px 11px; border-radius:12px; }
-  .banner .bt{ font-size:15px; line-height:1.05; align-items:flex-start; }
-  .banner .bt .live-dot, .banner .bt .reg-dot{ margin-top:3px; }
-  .banner{ height:100px; }
-  .banner .bs{ font-size:11px; margin-top:3px; }
+  /* Banners on phones: a nav strip (no container), 3 across, a third shorter */
+  .banner-panel{ background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; border-radius:0 !important; }
+  .banners{ grid-template-columns:repeat(3, 1fr); gap:6px; }
+  .banner{ height:66px; padding:7px 8px; border-radius:10px; }
+  .banner .bt{ font-size:12.5px; line-height:1.05; align-items:flex-start; letter-spacing:.3px; }
+  .banner .bt .live-dot, .banner .bt .reg-dot, .banner .bt .mine-dot{ width:6px; height:6px; margin:3px 5px 0 0; }
+  .banner .bs{ font-size:10px; margin-top:2px; }
+  .banner .bt .sep{ display:none; }
+  .banner .bt .t2{ display:block; }
+  .banner .bt{ font-size:clamp(9.5px, 2.85vw, 12px); letter-spacing:0; }
+  .banner{ padding:7px 6px 7px 7px; }
   .banner .bs .long{ display:none; }
   .banner .bs .short{ display:inline; }
   .banner:hover{ transform:none; }
@@ -564,10 +569,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   </section>
 
   <!-- ===== LIVE / REGISTERING by sport ===== -->
-  <section class="panel s2">
+  <section class="panel s2 banner-panel">
     <div class="banners" id="banners">
-      <button class="banner" data-zone="live" style="background-image:url('assets/section-bg-football.jpg')"><div class="bt"><span class="live-dot"></span>Live · In-Play</div><div class="bs" id="bn-live">–</div></button>
-      <button class="banner" data-zone="open" style="background-image:url('images/football-banner.webp')"><div class="bt"><span class="reg-dot"></span>Registering · Join Now</div><div class="bs" id="bn-open">–</div></button>
+      <button class="banner" data-zone="live" style="background-image:url('assets/section-bg-football.jpg')"><div class="bt"><span class="live-dot"></span><span>Live<span class="sep"> · </span><span class="t2">In-Play</span></span></div><div class="bs" id="bn-live">–</div></button>
+      <button class="banner" data-zone="open" style="background-image:url('images/football-banner.webp')"><div class="bt"><span class="reg-dot"></span><span>Registering<span class="sep"> · </span><span class="t2">Join Now</span></span></div><div class="bs" id="bn-open">–</div></button>
+      <button class="banner" data-zone="mine" style="background-image:url('assets/champions-league-hero.jpg')"><div class="bt"><span class="mine-dot"></span><span>My<span class="sep"> </span><span class="t2">Tournaments</span></span></div><div class="bs" id="bn-mine">–</div></button>
     </div>
   </section>
 
@@ -796,6 +802,12 @@ function render(){
       : `<span class="long">Nothing ${word} right now</span><span class="short">None right now</span>`;
     el.closest('.banner').classList.toggle('is-empty', !list.length);
   });
+  const mineEl = document.getElementById('bn-mine');
+  if (!token()) mineEl.innerHTML = '<span class="long">Log in to see your tournaments</span><span class="short">Log in</span>';
+  else mineEl.innerHTML = STATE.mine.length
+    ? `<span class="long">${STATE.mine.map(r => esc(TYPES[r.type].title)).join(' · ')}</span><span class="short">${STATE.mine.length} entered</span>`
+    : '<span class="long">You haven\'t entered anything running yet</span><span class="short">None yet</span>';
+  mineEl.closest('.banner').classList.toggle('is-empty', !!token() && !STATE.mine.length);
 
   // Your tournaments
   document.getElementById('mineSection').style.display = STATE.mine.length ? '' : 'none';
@@ -851,6 +863,12 @@ document.getElementById('chips').addEventListener('click', e => {
 });
 document.getElementById('banners').addEventListener('click', e => {
   const b = e.target.closest('.banner'); if (!b) return;
+  if (b.dataset.zone === 'mine') {
+    const sec = document.getElementById('mineSection');
+    if (sec && sec.style.display !== 'none') sec.scrollIntoView({ behavior:'smooth' });
+    else location.href = token() ? '/my-tournaments' : '/login?redirect=%2Fmy-tournaments';
+    return;
+  }
   STATE.filter = { kind:'chip', v:b.dataset.zone };
   applyFilter();
   document.getElementById('all').scrollIntoView({ behavior:'smooth' });
