@@ -172,7 +172,7 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .hero .slide-dots{ left:50px; }
 
 /* ---------- Sport/status banners ---------- */
-.banners{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+.banners{ display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; }
 .banner{ position:relative; height:150px; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border-2); display:flex; flex-direction:column; justify-content:flex-end; padding:16px 18px; background-size:cover; background-position:center; text-align:left; transition:border-color .2s, transform .15s; }
 .banner::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(6,11,30,0.1), rgba(6,11,30,0.9)); }
 .banner:hover{ border-color:var(--accent); transform:translateY(-2px); }
@@ -566,10 +566,8 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   <!-- ===== LIVE / REGISTERING by sport ===== -->
   <section class="panel s2">
     <div class="banners" id="banners">
-      <button class="banner" data-sport="football" data-zone="live" style="background-image:url('assets/section-bg-football.jpg')"><div class="bt"><span class="live-dot"></span>Live Football</div><div class="bs" id="bn-football-live">–</div></button>
-      <button class="banner" data-sport="darts" data-zone="live" style="background-image:url('assets/darts-background-hero.jpg')"><div class="bt"><span class="live-dot"></span>Live Darts</div><div class="bs" id="bn-darts-live">–</div></button>
-      <button class="banner" data-sport="football" data-zone="open" style="background-image:url('images/football-banner.webp')"><div class="bt"><span class="reg-dot"></span>Registering Football</div><div class="bs" id="bn-football-open">–</div></button>
-      <button class="banner" data-sport="darts" data-zone="open" style="background-image:url('assets/card-darts.jpg')"><div class="bt"><span class="reg-dot"></span>Registering Darts</div><div class="bs" id="bn-darts-open">–</div></button>
+      <button class="banner" data-zone="live" style="background-image:url('assets/section-bg-football.jpg')"><div class="bt"><span class="live-dot"></span>Live · In-Play</div><div class="bs" id="bn-live">–</div></button>
+      <button class="banner" data-zone="open" style="background-image:url('images/football-banner.webp')"><div class="bt"><span class="reg-dot"></span>Registering · Join Now</div><div class="bs" id="bn-open">–</div></button>
     </div>
   </section>
 
@@ -788,10 +786,10 @@ function render(){
   document.getElementById('statPlayers').textContent = [...live, ...open].reduce((s, r) => s + (r.t.current_entries || 0), 0);
 
 
-  // Banners: Live / Registering × Football / Darts
-  [['football','live'],['darts','live'],['football','open'],['darts','open']].forEach(([s, z]) => {
-    const list = all.filter(r => TYPES[r.type].sport === s && r.zone === z);
-    const el = document.getElementById(`bn-${s}-${z}`);
+  // Banners: Live · In-Play and Registering · Join Now (every sport)
+  ['live','open'].forEach(z => {
+    const list = all.filter(r => r.zone === z);
+    const el = document.getElementById(`bn-${z}`);
     const word = z === 'live' ? 'live' : 'registering';
     el.innerHTML = list.length
       ? `<span class="long">${list.map(r => esc(TYPES[r.type].title)).join(' · ')}</span><span class="short">${list.length} ${word}</span>`
@@ -853,7 +851,7 @@ document.getElementById('chips').addEventListener('click', e => {
 });
 document.getElementById('banners').addEventListener('click', e => {
   const b = e.target.closest('.banner'); if (!b) return;
-  STATE.filter = { kind:'combo', sport:b.dataset.sport, zone:b.dataset.zone };
+  STATE.filter = { kind:'chip', v:b.dataset.zone };
   applyFilter();
   document.getElementById('all').scrollIntoView({ behavior:'smooth' });
 });
