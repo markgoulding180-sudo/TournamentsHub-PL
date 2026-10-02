@@ -123,8 +123,10 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 /* tournament artwork on the right — whole image, no box */
 .slide-art{ display:block; transition:transform .2s; }
 .slide-art:hover{ transform:translateY(-3px); }
-.slide-art img{ width:auto; max-width:100%; height:auto; max-height:430px; margin-left:auto; border-radius:16px; box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(96,165,250,0.18); }
-.slide-art:hover img{ box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 2px var(--accent); }
+.slide{ --art-h:430px; }
+.slide-art{ width:min(100%, calc(var(--art-h) * 16 / 9)) !important; }
+.art-box{ width:100%; height:auto; border-radius:16px; box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(96,165,250,0.18); }
+.slide-art:hover .art-box{ box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 2px var(--accent); }
 .slide-art{ display:flex; flex-direction:column; align-items:stretch; justify-self:end; width:fit-content; max-width:100%; }
 .slide-cap{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; align-self:stretch; }
 .slide-cap b{ display:block; font-family:var(--font-head); font-weight:700; font-size:22px; line-height:1.1; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
@@ -149,18 +151,26 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .banner .bs .short{ display:none; }
 
 /* ---------- Tournament cards: full artwork, never cropped ---------- */
-.cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); gap:20px; align-items:start; }
+
+/* Every tournament picture sits in the same 16:9 frame, so all cards
+   are the same shape and size. Pictures are never cropped: one that
+   isn't exactly 16:9 (e.g. Champions League) shows whole, and a soft
+   blurred copy of itself fills the thin strips either side. */
+.frame{ position:relative; aspect-ratio:16/9; overflow:hidden; background:#081022; }
+.frame::before{ content:''; position:absolute; inset:-24px; background:var(--img) center / cover no-repeat; filter:blur(18px) brightness(.55) saturate(1.2); }
+.frame > img{ position:relative; width:100%; height:100%; object-fit:contain; }
+.cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); gap:20px; align-items:stretch; }
 .t-card{ position:relative; display:flex; flex-direction:column; border-radius:var(--radius); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-2); transition:transform .18s, border-color .2s, box-shadow .2s; }
 .t-card:hover{ transform:translateY(-3px); border-color:var(--accent); box-shadow:0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(59,130,246,0.25); }
 .t-card .media{ position:relative; background:#081022; }
-.t-card .media img{ width:100%; height:auto; }   /* natural shape — the whole image */
+
 .t-card .badges{ position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; gap:8px; z-index:2; }
-.t-card .body{ padding:14px 18px 16px; display:flex; flex-direction:column; gap:6px; }
+.t-card .body{ padding:14px 18px 16px; display:flex; flex-direction:column; gap:6px; flex:1; }
 .t-card .sport{ font-family:var(--font-head); font-weight:700; font-size:11.5px; letter-spacing:1.6px; color:var(--accent-2); text-transform:uppercase; }
 .t-card h3{ font-family:var(--font-head); font-weight:700; font-size:21px; line-height:1.12; }
 .t-card .meta{ display:flex; flex-wrap:wrap; gap:6px 16px; color:var(--text-dim); font-size:13px; }
 .t-card .meta b{ color:var(--text); font-weight:700; }
-.t-card .foot{ padding-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--border); margin-top:4px; }
+.t-card .foot{ margin-top:auto !important; padding-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--border); margin-top:4px; }
 .t-card .cta{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:1px; text-transform:uppercase; color:var(--accent-2); display:flex; align-items:center; gap:6px; }
 .t-card .closes{ font-size:12.5px; color:var(--amber); font-weight:600; }
 .t-card.soon{ opacity:.6; }
@@ -232,7 +242,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-cta{ margin-top:clamp(12px, 2.4vh, 26px); }
   .hero-cta .btn{ padding:clamp(9px, 1.4vh, 13px) clamp(14px, 1.4vw, 22px); font-size:clamp(12.5px, 1.6vh, 14.5px); }
   /* artwork: whole image, as big as the hero allows (leaves room for its caption) */
-  .slide-art img{ max-height:calc(var(--hero-h) - clamp(18px, 4vh, 44px) - 46px - 58px); }
+  .slide{ --art-h:calc(var(--hero-h) - clamp(18px, 4vh, 44px) - 46px - 58px); }
   .slide-cap{ margin-top:10px; }
   .slide-cap b{ font-size:clamp(16px, 2.2vh, 22px); }
   .slide-cap span.m{ font-size:clamp(12px, 1.6vh, 13.5px); }
@@ -277,7 +287,8 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .slide, .slide.has-art{ grid-template-columns:1fr; gap:14px; padding:16px 16px 44px; align-content:start; background-position:center; }
   .slide::before{ background:linear-gradient(180deg, rgba(8,15,38,0.55) 0%, rgba(8,15,38,0.93) 60%); }
   .slide .slide-art{ order:-1; }
-  .slide-art img{ border-radius:12px; width:100%; max-height:none; margin:0; }
+  .art-box{ border-radius:12px; }
+  .slide-art{ width:100% !important; }
   .slide-art{ justify-self:stretch; width:auto; }
   .slide-cap{ margin-top:8px; }
   .slide-cap b{ font-size:16px; }
@@ -303,7 +314,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .banner:hover{ transform:none; }
 
   /* Card rows swipe sideways */
-  .cards, .cards.small{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0 14px; scrollbar-width:none; margin:0 -14px; padding:0 14px 4px; align-items:flex-start; }
+  .cards, .cards.small{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0 14px; scrollbar-width:none; margin:0 -14px; padding:0 14px 4px; align-items:stretch; }
   .cards::-webkit-scrollbar{ display:none; }
   .t-card{ flex:0 0 86%; scroll-snap-align:start; }
   .cards.small .t-card{ flex:0 0 66%; }
@@ -645,7 +656,7 @@ function cardHtml(r){
   const cta = r.zone === 'soon' ? 'Coming soon' : mine ? 'Play' : r.zone === 'open' ? 'Join in' : r.zone === 'done' ? 'Results' : 'View';
   const tag = r.zone === 'soon' ? 'div' : 'a';
   return `<${tag} class="t-card${r.zone === 'soon' ? ' soon' : ''}" ${tag === 'a' ? `href="${info.href}"` : ''} data-sport="${info.sport}" data-league="${info.league}" data-zone="${r.zone}">
-      <div class="media"><img src="${info.img}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${mine ? '<span class="pill in">You\'re in</span>' : '<span></span>'}</div></div>
+      <div class="media frame" style="--img:url('${info.img}')"><img src="${info.img}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${mine ? '<span class="pill in">You\'re in</span>' : '<span></span>'}</div></div>
       <div class="body">
         <div class="sport">${esc(info.sportLabel)}</div>
         <h3>${esc((t && t.name) || info.title)}</h3>
@@ -775,7 +786,7 @@ function slideHtml(r, first){
         </div>
       </div>
       <a class="slide-art" href="${info.href}">
-        <img src="${info.img}" alt="${esc(info.title)}">
+        <div class="frame art-box" style="--img:url('${info.img}')"><img src="${info.img}" alt="${esc(info.title)}"></div>
         <div class="slide-cap"><div><b>${esc(t.name || info.title)}</b><span class="m">${meta.join(' · ')}</span></div>${zonePill(r.zone)}</div>
       </a>
     </div>`;
