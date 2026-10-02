@@ -100,11 +100,11 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .btn-ghost:hover{ border-color:var(--accent); }
 
 /* ---------- Hero: slides on the left, "Right now" on the right ---------- */
-.hero-panel{ padding:0; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr) minmax(420px, 36%); min-height:520px; background:var(--navy-1); }
-.slides{ position:relative; min-height:520px; }
-.slide{ position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:48px 52px 70px; background-size:cover; background-position:center right; opacity:0; transition:opacity .8s ease; pointer-events:none; }
+.hero-panel{ padding:0; overflow:hidden; position:relative; min-height:540px; background:var(--navy-1); }
+.slides{ position:relative; min-height:540px; }
+.slide{ position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:48px 52px 70px; padding-right:calc(min(44%, 680px) + 80px); background-size:cover; background-position:center right; opacity:0; transition:opacity .8s ease; pointer-events:none; }
 .slide.active{ opacity:1; pointer-events:auto; }
-.slide::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(8,15,38,0.97) 0%, rgba(8,15,38,0.86) 38%, rgba(8,15,38,0.35) 72%, rgba(8,15,38,0.55) 100%); }
+.slide::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(8,15,38,0.97) 0%, rgba(8,15,38,0.82) 34%, rgba(8,15,38,0.45) 52%, rgba(8,15,38,0.62) 68%, rgba(8,15,38,0.82) 100%); }
 .slide > *{ position:relative; }
 .slide.s-a{ background-image:url('assets/haaland-hero.jpg?v=2'); }
 .slide.s-b{ background-image:url('assets/new-predictions.jpg'); }
@@ -117,20 +117,27 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .slide-dots{ position:absolute; left:52px; bottom:26px; display:flex; gap:8px; z-index:3; }
 .slide-dots button{ width:10px; height:10px; border-radius:10px; background:rgba(255,255,255,0.25); transition:width .25s, background .25s; }
 .slide-dots button.on{ width:28px; background:var(--accent); }
-.hero-stats{ position:absolute; right:28px; bottom:22px; z-index:3; display:flex; gap:26px; }
+.hero-stats{ position:absolute; left:150px; bottom:16px; z-index:3; display:flex; gap:26px; }
+.hero-stat{ text-align:left !important; }
 .hero-stat{ text-align:right; }
 .hero-stat b{ display:block; font-family:var(--font-display); font-weight:400; font-size:30px; line-height:1; }
 .hero-stat span{ font-size:11px; color:var(--text-dim); letter-spacing:.6px; text-transform:uppercase; }
 
-.now-side{ background:linear-gradient(180deg, #0c1940, #0a1534); border-left:1px solid var(--border); padding:24px 24px 26px; display:flex; flex-direction:column; }
-.now-side h3{ font-family:var(--font-head); font-weight:700; font-size:16px; letter-spacing:1.8px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; }
-.now-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-content:start; }
-.now-card{ border-radius:12px; overflow:hidden; background:var(--bg-card); border:1px solid var(--border-2); transition:border-color .2s, transform .15s; }
-.now-card:hover{ border-color:var(--accent); transform:translateY(-2px); }
-.now-card img{ width:100%; height:auto; }   /* whole image, natural shape */
-.now-card .nb{ padding:9px 11px 11px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.now-card b{ display:block; font-family:var(--font-head); font-weight:700; font-size:15px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.now-card span{ font-size:11.5px; color:var(--text-dim); }
+/* "Right now" sits straight on the hero picture — no box, no card:
+   just the tournament artwork with its name underneath. */
+.now-side{ position:absolute; z-index:4; top:0; bottom:0; right:44px; width:min(44%, 680px); display:flex; flex-direction:column; justify-content:center; padding:30px 0; pointer-events:none; }
+.now-side > *{ pointer-events:auto; }
+.now-side h3{ font-family:var(--font-head); font-weight:700; font-size:16px; letter-spacing:2px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
+.now-grid{ display:grid; grid-template-columns:repeat(2, minmax(0, 300px)); gap:18px 22px; align-content:start; justify-content:end; }
+.now-grid.many{ grid-template-columns:repeat(3, minmax(0, 220px)); gap:14px 16px; }
+.now-side h3{ justify-content:flex-end; }
+.now-card{ display:block; transition:transform .18s; }
+.now-card:hover{ transform:translateY(-3px); }
+.now-card img{ width:100%; height:auto; border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,0.55); transition:box-shadow .2s; }   /* whole image */
+.now-card:hover img{ box-shadow:0 14px 34px rgba(0,0,0,0.6), 0 0 0 2px var(--accent); }
+.now-card .nb{ padding:8px 2px 0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.now-card b{ display:block; font-family:var(--font-head); font-weight:700; font-size:16px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 2px 6px rgba(0,0,0,0.85); }
+.now-card span{ font-size:12px; color:#c3cee2; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
 .now-empty{ color:var(--text-dim); font-size:13.5px; padding:6px 2px; }
 
 /* ---------- Sport/status banners ---------- */
@@ -201,9 +208,10 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
 /* ---------- Tablet ---------- */
 @media (max-width:1180px){
-  .hero-panel{ grid-template-columns:1fr; }
-  .now-side{ border-left:none; border-top:1px solid var(--border); }
-  .now-grid{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+  .slide{ padding-right:52px; }
+  .now-side{ position:static; width:auto; padding:22px 28px 26px; background:var(--navy-1); }
+  .now-grid, .now-grid.many{ grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); justify-content:stretch; }
+  .now-side h3{ justify-content:flex-start; }
   .banners{ grid-template-columns:repeat(2,1fr); }
 }
 
@@ -627,6 +635,7 @@ function render(){
 
   // Right now (desktop): full artwork cards
   const now = [...live, ...open];
+  document.getElementById('nowGrid').classList.toggle('many', now.length > 4);
   document.getElementById('nowGrid').innerHTML = now.length ? now.map(r => {
     const info = TYPES[r.type];
     return `<a class="now-card" href="${info.href}"><img src="${info.img}" alt="${esc(info.title)}">
