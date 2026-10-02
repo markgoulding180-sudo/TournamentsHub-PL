@@ -354,16 +354,23 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-stats{ display:none; }
 
   /* hub slides on phones (same as the hub's own phone rules) */
+  .hero-panel{ padding:0 !important; border:none !important; border-radius:16px; box-shadow:none !important; }
   .slides.hero{ display:grid; height:auto; min-height:0; }
-  .hero-slide{ position:relative; inset:auto; grid-area:1 / 1; padding:20px 20px 46px; align-items:flex-start; }
-  .hero-desc{ margin-bottom:14px; }
+  .hero-slide{ position:relative; inset:auto; grid-area:1 / 1; padding:16px 16px 34px; align-items:flex-start; }
+  /* half-height hero on phones too: no paragraph, buttons side by side */
+  .hero-slide .hero-desc{ display:none; }
+  .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
+  .hero-sub{ font-size:15px; margin-bottom:10px; }
+  .hero-btn-row{ flex-wrap:nowrap !important; gap:8px !important; }
+  .hero-btn-row .btn-hero-sm{ flex:1; justify-content:center; padding:9px 8px; font-size:11px; letter-spacing:.6px; white-space:nowrap; }
+  .hero-btn-row .btn-hero-sm .icon{ display:none; }
   .hero-slide::before{ content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(180deg, rgba(4,8,18,0.35) 0%, rgba(4,8,18,0.75) 60%, rgba(4,8,18,0.9) 100%); }
   .hero-slide .hero-brand-heading{ margin-top:0; }
-  .hero-brand-heading.size-md{ font-size:32px; }
+  .hero-brand-heading.size-md{ font-size:28px; margin-bottom:6px; }
   .btn-hero-sm{ padding:8px 14px; }
   .hero-graphic{ display:none; }
   .slide-1 .hero-desc, .slide-2 .hero-desc{ color:#fff; }
-  .hero .slide-dots{ left:20px; bottom:14px; }
+  .hero .slide-dots{ left:16px; bottom:12px; }
 
   /* Banners: 2 x 2 */
   .banners{ grid-template-columns:1fr 1fr; gap:8px; }
