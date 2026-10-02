@@ -578,24 +578,10 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   </section>
 
   <!-- ===== YOUR TOURNAMENTS ===== -->
-  <section class="panel s3" id="mineSection" style="display:none">
-    <div class="sec-head"><div><div class="sec-title">Your tournaments</div><div class="sec-sub">Jump straight back in</div></div><a class="sec-link" href="/my-tournaments">All yours <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
+  <section class="panel s3" id="mineSection">
+    <div class="sec-head"><div><div class="sec-title">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div></div><a class="sec-link" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
     <div class="cards small" id="mineCards"></div>
     <div class="swipe-dots" id="mineDots"></div>
-  </section>
-
-  <!-- ===== LIVE NOW ===== -->
-  <section class="panel s4" id="liveSection">
-    <div class="sec-head"><div><div class="sec-title"><span class="live-dot"></span>Live now</div><div class="sec-sub">Tournaments being played right now</div></div></div>
-    <div class="cards" id="liveCards"><div class="empty-card">Loading tournaments…</div></div>
-    <div class="swipe-dots" id="liveDots"></div>
-  </section>
-
-  <!-- ===== REGISTERING NOW ===== -->
-  <section class="panel s5" id="openSection" style="display:none">
-    <div class="sec-head"><div><div class="sec-title"><span class="reg-dot"></span>Registering now</div><div class="sec-sub">Join in before entries close</div></div></div>
-    <div class="cards" id="openCards"></div>
-    <div class="swipe-dots" id="openDots"></div>
   </section>
 
   <!-- ===== ALL TOURNAMENTS ===== -->
@@ -809,17 +795,19 @@ function render(){
     : '<span class="long">You haven\'t entered anything running yet</span><span class="short">None yet</span>';
   mineEl.closest('.banner').classList.toggle('is-empty', !!token() && !STATE.mine.length);
 
-  // Your tournaments
-  document.getElementById('mineSection').style.display = STATE.mine.length ? '' : 'none';
-  document.getElementById('mineCards').innerHTML = STATE.mine.map(cardHtml).join('');
+  // My tournaments (always shown, right under the nav strip)
+  const mineCards = document.getElementById('mineCards');
+  if (!token()) {
+    document.getElementById('mineSub').textContent = 'Log in to see the tournaments you\'ve entered';
+    mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in</a> &nbsp; <a class="btn btn-ghost" href="/register">Create account</a></div>';
+  } else if (STATE.mine.length) {
+    document.getElementById('mineSub').textContent = 'Jump straight back in';
+    mineCards.innerHTML = STATE.mine.map(cardHtml).join('');
+  } else {
+    document.getElementById('mineSub').textContent = 'You haven\'t entered anything that\'s running yet';
+    mineCards.innerHTML = '<div class="empty-card">Pick a tournament below and join in.</div>';
+  }
   dots('mineCards', 'mineDots');
-
-  // Live + registering
-  document.getElementById('liveCards').innerHTML = live.length ? live.map(cardHtml).join('') : '<div class="empty-card">No tournaments are live right now.</div>';
-  dots('liveCards', 'liveDots');
-  document.getElementById('openSection').style.display = open.length ? '' : 'none';
-  document.getElementById('openCards').innerHTML = open.map(cardHtml).join('');
-  dots('openCards', 'openDots');
 
   // All tournaments
   const order = { live:0, open:1, done:2, soon:3 };
@@ -865,8 +853,7 @@ document.getElementById('banners').addEventListener('click', e => {
   const b = e.target.closest('.banner'); if (!b) return;
   if (b.dataset.zone === 'mine') {
     const sec = document.getElementById('mineSection');
-    if (sec && sec.style.display !== 'none') sec.scrollIntoView({ behavior:'smooth' });
-    else location.href = token() ? '/my-tournaments' : '/login?redirect=%2Fmy-tournaments';
+    if (sec) sec.scrollIntoView({ behavior:'smooth' });
     return;
   }
   STATE.filter = { kind:'chip', v:b.dataset.zone };
@@ -900,8 +887,7 @@ initSlider();
 document.getElementById('slideMineBtn').addEventListener('click', e => {
   e.preventDefault();
   const sec = document.getElementById('mineSection');
-  if (sec && sec.style.display !== 'none') sec.scrollIntoView({ behavior:'smooth' });
-  else location.href = token() ? '/my-tournaments' : '/login?redirect=%2Fmy-tournaments';
+  if (sec) sec.scrollIntoView({ behavior:'smooth' });
 });
 
 // ---------- drawer, sheet, tabs ----------
