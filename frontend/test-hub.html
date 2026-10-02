@@ -125,7 +125,7 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .slide-art:hover{ transform:translateY(-3px); }
 .slide-art img{ width:auto; max-width:100%; height:auto; max-height:430px; margin-left:auto; border-radius:16px; box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(96,165,250,0.18); }
 .slide-art:hover img{ box-shadow:0 22px 50px rgba(0,0,0,0.6), 0 0 0 2px var(--accent); }
-.slide-art{ display:flex; flex-direction:column; align-items:flex-end; }
+.slide-art{ display:flex; flex-direction:column; align-items:stretch; justify-self:end; width:fit-content; max-width:100%; }
 .slide-cap{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; align-self:stretch; }
 .slide-cap b{ display:block; font-family:var(--font-head); font-weight:700; font-size:22px; line-height:1.1; text-shadow:0 2px 8px rgba(0,0,0,0.8); }
 .slide-cap span.m{ font-size:13.5px; color:#c3cee2; text-shadow:0 1px 4px rgba(0,0,0,0.85); }
@@ -209,6 +209,49 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .banners{ grid-template-columns:repeat(2,1fr); }
 }
 
+
+/* =====================================================================
+   DESKTOP "ABOVE THE FOLD": the hero sizes itself to the screen so the
+   page opens showing the hero AND the Live / Registering Football &
+   Darts banners with no scrolling — at any screen size or Windows
+   display scaling (100%, 125%, 150%...).
+   Space used outside the hero: top bar 60 + gaps 3x14 + banners ~130.
+   ===================================================================== */
+@media (min-width:900px){
+  :root{ --hero-h:clamp(300px, calc(100vh - 236px), 660px); }
+  .topbar{ height:60px; }
+  .logo-mark{ width:36px; height:36px; }
+  .icon-btn{ width:38px; height:38px; }
+  main{ padding-top:14px; gap:14px; }
+  .slides{ min-height:0; height:var(--hero-h); }
+  .slide{ padding:clamp(18px, 4vh, 44px) 48px 46px; gap:clamp(24px, 3vw, 56px); overflow:hidden; }
+  .slide.has-art{ grid-template-columns:minmax(0,1fr) minmax(0, min(46%, 760px)); }
+  .eyebrow{ font-size:12px; letter-spacing:2.4px; }
+  .slide h1{ font-size:clamp(34px, min(4.2vw, calc(var(--hero-h) * 0.15)), 84px); margin:clamp(8px, 1.4vh, 16px) 0 clamp(6px, 1.2vh, 14px); }
+  .slide p{ font-size:clamp(13.5px, 1.9vh, 16.5px); }
+  .hero-cta{ margin-top:clamp(12px, 2.4vh, 26px); }
+  .hero-cta .btn{ padding:clamp(9px, 1.4vh, 13px) clamp(14px, 1.4vw, 22px); font-size:clamp(12.5px, 1.6vh, 14.5px); }
+  /* artwork: whole image, as big as the hero allows (leaves room for its caption) */
+  .slide-art img{ max-height:calc(var(--hero-h) - clamp(18px, 4vh, 44px) - 46px - 58px); }
+  .slide-cap{ margin-top:10px; }
+  .slide-cap b{ font-size:clamp(16px, 2.2vh, 22px); }
+  .slide-cap span.m{ font-size:clamp(12px, 1.6vh, 13.5px); }
+  .slide-dots{ left:48px; bottom:18px; }
+  .hero-stats{ right:48px; bottom:12px; }
+  .hero-stat b{ font-size:22px; }
+  .hero-stat span{ font-size:10px; }
+  /* compact banners panel */
+  .panel.s2:has(.banners){ padding:12px; }
+  .banner{ height:104px; padding:12px 16px; }
+  .banner .bt{ font-size:clamp(18px, 1.6vw, 24px); }
+  .banner .bs{ margin-top:4px; font-size:12px; }
+}
+/* short screens: drop the paragraph and the counters so nothing crowds */
+@media (min-width:900px) and (max-height:760px){
+  .slide p{ display:none; }
+  .hero-stats{ display:none; }
+}
+
 /* =====================================================================
    PHONE — app layout
    ===================================================================== */
@@ -235,6 +278,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .slide::before{ background:linear-gradient(180deg, rgba(8,15,38,0.55) 0%, rgba(8,15,38,0.93) 60%); }
   .slide .slide-art{ order:-1; }
   .slide-art img{ border-radius:12px; width:100%; max-height:none; margin:0; }
+  .slide-art{ justify-self:stretch; width:auto; }
   .slide-cap{ margin-top:8px; }
   .slide-cap b{ font-size:16px; }
   .slide-cap span.m{ font-size:12px; }
