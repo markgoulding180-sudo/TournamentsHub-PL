@@ -3285,9 +3285,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const seedById = {}; seedPlayers.forEach(p => { seedById[p.seed] = p.id; });
           const qualByIndex = qualPlayers.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-          const round1Rows = Array.from({ length: 16 }, (_, i) => ({
+          // Round 1 is laid out in real bracket order, not seed order:
+          // winners of matches 1+2 meet in round 2 match 1, 3+4 in match 2,
+          // and so on, so seeds 1 and 2 can only meet in the final (this
+          // year's Grand Prix had to be renumbered by hand because round 1
+          // was numbered 1,2,3... by seed). Seed N always plays Qualifier N.
+          const BRACKET_SEED_ORDER = [1, 16, 8, 9, 4, 13, 5, 12, 2, 15, 7, 10, 3, 14, 6, 11];
+          const round1Rows = BRACKET_SEED_ORDER.map((seed, i) => ({
             tournament_id: tournament.id, round: 1, match_number: i + 1,
-            player1_id: seedById[i + 1], player2_id: qualByIndex[i].id
+            player1_id: seedById[seed], player2_id: qualByIndex[seed - 1].id
           }));
           const laterRows = [
             ...Array.from({ length: 8 }, (_, i) => ({ tournament_id: tournament.id, round: 2, match_number: i + 1 })),
