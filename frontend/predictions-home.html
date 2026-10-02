@@ -344,6 +344,16 @@
   .gb-av-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
   .gb-av-sm{ flex-shrink:0; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); font-size:10px; font-weight:700; color:#9fb3d9; line-height:1; vertical-align:middle; }
+
+  /* ===== Top bar — the same on every screen size =====
+     Desktop shows exactly what phones show: GB Hub logo, profile photo
+     and name, wallet, notifications and the menu button. All the page
+     links live in the menu. */
+  .navbar .nav-links, .hub-navbar .hub-nav-links,
+  .navbar .my-tournaments-btn, .navbar #logoutBtn{ display:none !important; }
+  .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
+  @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
+  .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -391,9 +401,6 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         <div class="avatar" id="navAvatar"><svg class="icon" style="width:14px; height:14px; color:var(--text-dim);"><use href="#i-user"/></svg></div>
         <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
-      <a class="my-tournaments-btn" href="/my-tournaments" title="My Tournaments">
-        <svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span>
-      </a>
     </div>
     <div class="navbar-row-break"></div>
   </header>
@@ -402,6 +409,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
   <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <a href="/">GB Hub</a>
+    <a href="/my-tournaments">My Tournaments</a>
     <a href="/fixtures">Prem Fixtures</a>
     <a href="/wallet">Wallet</a>
     <a href="#">Rewards</a>

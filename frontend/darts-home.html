@@ -301,7 +301,17 @@
          consolidated main{padding:0 0 60px} rule above. */
       #root{ border-radius:0; }
     }
-  </style>
+  
+  /* ===== Top bar — the same on every screen size =====
+     Desktop shows exactly what phones show: GB Hub logo, profile photo
+     and name, wallet, notifications and the menu button. All the page
+     links live in the menu. */
+  .navbar .nav-links, .hub-navbar .hub-nav-links,
+  .navbar .my-tournaments-btn, .navbar #logoutBtn{ display:none !important; }
+  .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
+  @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
+  .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+</style>
 </head>
 <body>
   <!-- Real fix here: this page (like almost every page except the hub)

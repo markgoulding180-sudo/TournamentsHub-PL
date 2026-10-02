@@ -205,6 +205,19 @@
     a.sport-item.sidebar-menu-mobile{display:flex;}
     .sidebar-divider.sidebar-menu-mobile{display:block;}
   }
+  /* Desktop: the menu button opens the same menu as phones, as a panel
+     on the right under the button (the side panel is hidden on desktop). */
+  @media (min-width:861px){
+    .sidebar.menu-open{
+      display:block; position:fixed; top:69px; right:0; left:auto; z-index:96;
+      width:280px; min-width:280px; height:calc(100vh - 69px); overflow-y:auto;
+      border-right:none; border-left:1px solid var(--border); box-shadow:-12px 0 30px rgba(0,0,0,0.45);
+    }
+    .sidebar.menu-open .sidebar-toggle{display:none;}
+    .sidebar.menu-open .sidebar-section-label.sidebar-menu-mobile{display:block;}
+    .sidebar.menu-open a.sport-item.sidebar-menu-mobile{display:flex;}
+    .sidebar.menu-open .sidebar-divider.sidebar-menu-mobile{display:block;}
+  }
 
   .mobile-cat-strip{
     display:none; position:static; z-index:95;
@@ -934,6 +947,16 @@
     .sidebar{ top:66px; height:calc(100vh - 66px); }
     .mobile-cat-strip{ top:66px; }
   }
+
+  /* ===== Top bar — the same on every screen size =====
+     Desktop shows exactly what phones show: GB Hub logo, profile photo
+     and name, wallet, notifications and the menu button. All the page
+     links live in the menu. */
+  .navbar .nav-links, .hub-navbar .hub-nav-links,
+  .navbar .my-tournaments-btn, .navbar #logoutBtn{ display:none !important; }
+  .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
+  @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
+  .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
 </style>
 </head>
 <body>
@@ -1026,6 +1049,7 @@
     </button>
     <div class="sidebar-section-label sidebar-menu-mobile">Menu</div>
     <a class="sport-item sidebar-menu-mobile" href="/"><svg class="icon"><use href="#i-home"/></svg><span class="sport-label">GB Hub</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/my-tournaments"><svg class="icon"><use href="#i-trophy"/></svg><span class="sport-label">My Tournaments</span></a>
     <a class="sport-item sidebar-menu-mobile" href="/fixtures"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Prem Fixtures</span></a>
     <a class="sport-item sidebar-menu-mobile" href="/wallet"><svg class="icon"><use href="#i-wallet"/></svg><span class="sport-label">Wallet</span></a>
     <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-gift"/></svg><span class="sport-label">Rewards</span></a>
@@ -1315,7 +1339,19 @@
   });
 
   mobileMenuBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('mobile-open');
+    if (window.innerWidth <= 860) {
+      sidebar.classList.toggle('mobile-open');
+    } else {
+      // Desktop: open the side panel (if collapsed) and show the menu in it
+      sidebar.classList.remove('collapsed');
+      sidebar.classList.toggle('menu-open');
+    }
+  });
+  // Desktop menu: close when clicking anywhere outside it
+  document.addEventListener('click', (e) => {
+    if (!sidebar.classList.contains('menu-open')) return;
+    if (sidebar.contains(e.target) || mobileMenuBtn.contains(e.target)) return;
+    sidebar.classList.remove('menu-open');
   });
 
   document.querySelectorAll('.sport-item, .mobile-cat-item').forEach(item => {
@@ -1325,6 +1361,7 @@
         i.classList.toggle('active', i.getAttribute('href') === href);
       });
       if (window.innerWidth <= 860) sidebar.classList.remove('mobile-open');
+      sidebar.classList.remove('menu-open');
     });
   });
 
@@ -1500,7 +1537,7 @@
 
         const logoutLink = document.getElementById('logoutLink');
         if (logoutLink) {
-          logoutLink.style.display = 'flex';
+          logoutLink.style.display = ''; // shown inside the menu (phone + desktop)
           logoutLink.addEventListener('click', (e) => {
             e.preventDefault();
             localStorage.removeItem('gbf_token');
@@ -1523,7 +1560,7 @@
 
         if (user.is_admin) {
           const adminSidebarLink = document.getElementById('adminSidebarLink');
-          if (adminSidebarLink) adminSidebarLink.style.display = 'flex';
+          if (adminSidebarLink) adminSidebarLink.style.display = ''; // shown inside the menu
         }
       } catch (e) {
         // corrupted user JSON — fall through to logged-out state below
