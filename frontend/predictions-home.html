@@ -43,7 +43,16 @@
     .avatar-btn{ order:1; }
     .wallet-icon-link{ order:2; }
     .navbar .icon-btn[title="Notifications"]{ order:3; }
-    #mobileMenuBtn{ order:4; }
+    .my-tournaments-btn{ order:4; }
+    #mobileMenuBtn{ order:5; }
+    /* "My Tournaments" button — same as the hub's top bar */
+    .my-tournaments-btn{
+      display:flex; align-items:center; gap:7px; padding:8px 14px;
+      border-radius:20px; background:rgba(59,130,246,0.1); border:1px solid var(--accent);
+      color:var(--accent-2); font-family:var(--font-head); font-size:13px; font-weight:600; white-space:nowrap; text-decoration:none;
+    }
+    .my-tournaments-btn:hover{background:rgba(59,130,246,0.18);}
+    .my-tournaments-btn .icon{width:15px;height:15px;flex-shrink:0;color:var(--accent-2);}
     .icon-btn{ width:38px;height:38px;border-radius:50%; display:flex;align-items:center;justify-content:center; background:var(--bg-card); border:1px solid var(--border); }
     /* Matches the hub's SVG icon styling exactly - stroke-based line
        icons, not filled shapes, so they render identically everywhere. */
@@ -232,6 +241,7 @@
       .avatar-btn .avatar{ width:34px; height:34px; }
       .navbar .icon-btn[title="Notifications"]{ }
       #mobileMenuBtn{ margin-left:auto; }
+      .my-tournaments-btn{ display:none !important; }
       .navbar-row-break{ display:none; }
 
       main{ padding:0 14px 60px; }
@@ -366,10 +376,11 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       </a>
       <nav class="nav-links">
         <a href="/">GB Hub</a>
-        <a href="/leaderboard">Leaderboard</a>
-        <a href="/table">PL Table</a>
+        <a href="/fixtures">Prem Fixtures</a>
+        <a href="/forum">Forum</a>
+        <a href="#">My Leagues</a>
         <a href="/wallet">Wallet</a>
-        <a href="/injuries">Injuries</a>
+        <a href="#">Rewards</a>
       </nav>
     </div>
     <div class="nav-right">
@@ -380,6 +391,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         <div class="avatar" id="navAvatar"><svg class="icon" style="width:14px; height:14px; color:var(--text-dim);"><use href="#i-user"/></svg></div>
         <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
       </a>
+      <a class="my-tournaments-btn" href="/my-tournaments" title="My Tournaments">
+        <svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span>
+      </a>
     </div>
     <div class="navbar-row-break"></div>
   </header>
@@ -388,11 +402,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
   <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
   <div class="mobile-nav-drawer" id="mobileNavDrawer">
     <a href="/">GB Hub</a>
-    <a href="/predict" class="predict-now-link">Predict Now</a>
-    <a href="/leaderboard">Leaderboard</a>
-    <a href="/table">PL Table</a>
-    <a href="/injuries">Injuries</a>
+    <a href="/fixtures">Prem Fixtures</a>
     <a href="/wallet">Wallet</a>
+    <a href="#">Rewards</a>
   </div>
 
   <!-- Notification panel — toggled by the bell button -->
