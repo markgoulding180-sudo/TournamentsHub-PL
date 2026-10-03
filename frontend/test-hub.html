@@ -403,10 +403,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .banner[data-zone="live"] .bs::before{ background:#22c55e; box-shadow:0 0 6px #22c55e; }
   .banner[data-zone="open"] .bs::before{ background:var(--amber, #f5b83d); }
 
-  /* My tournaments on phones: edge to edge, square corners, one full-width card per swipe */
+  /* My tournaments on phones: section edge to edge with square corners; cards stay
+     their original size, and one swipe moves exactly one card (no flying past) */
   #mineSection{ margin:0 calc(-1 * var(--gutter)); border-radius:0; border-left:none; border-right:none; }
-  #mineCards{ gap:0; margin:0 -14px; padding:0; scroll-padding:0; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; }
-  #mineCards .t-card{ flex:0 0 100%; border-radius:0; border-left:none; border-right:none; scroll-snap-align:center; scroll-snap-stop:always; }
+  #mineCards{ overscroll-behavior-x:contain; }
+  #mineCards .t-card{ scroll-snap-stop:always; }
 
   /* Card rows swipe sideways */
   .cards, .cards.small{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0 14px; scrollbar-width:none; margin:0 -14px; padding:0 14px 4px; align-items:stretch; }
