@@ -268,6 +268,13 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 /* How it works */
 .how-grid{ display:grid; grid-template-columns:repeat(3,1fr); border-radius:var(--radius); overflow:hidden; border:1px solid var(--border-2); position:relative; background:#071027 url('assets/section-bg-football.jpg') center / cover no-repeat; }
 .how-grid::before{ content:''; position:absolute; inset:0; background:rgba(8,16,40,0.86); }
+/* How it works: same sports artwork as All tournaments behind the section; the step
+   boxes become see-through so the picture runs behind them too */
+#howSection{ background:
+    linear-gradient(180deg, rgba(4,9,30,0.84) 0%, rgba(4,9,30,0.78) 40%, rgba(4,9,30,0.92) 100%),
+    url('assets/card-bg-sports.jpg') center 45% / cover no-repeat, #081028; }
+#howSection .how-grid{ background:rgba(6,12,32,0.35); backdrop-filter:blur(2px); }
+#howSection .how-grid::before{ background:rgba(8,16,40,0.35); }
 .step{ position:relative; padding:30px 30px; border-left:1px solid var(--border); }
 .step:first-child{ border-left:none; }
 .step .num{ font-family:var(--font-display); font-weight:400; font-size:46px; line-height:1; color:var(--accent-2); text-shadow:0 0 24px var(--accent-glow); }
@@ -673,7 +680,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   </section>
 
   <!-- ===== HOW IT WORKS ===== -->
-  <section class="panel s2">
+  <section class="panel s2" id="howSection">
     <div class="sec-head"><div><div class="sec-title">How it works</div><div class="sec-sub">Three steps to your first tournament</div></div><a class="sec-link" href="/how-it-works">More <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
     <div class="how-grid">
       <div class="step"><div class="num">01</div><h4>Join</h4><p>Create your free account and enter any tournament that's registering.</p></div>
