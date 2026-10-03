@@ -310,6 +310,52 @@
   .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
   @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
   .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+
+  /* ================= Hub look (same as the new GB Hub page) =================
+     Look only: washed-out sports backdrop + the Last Man Standing picture on the
+     right in a hero the same height as the hub's; sports artwork behind the
+     cards. Nothing here touches how the game works. */
+  .hero{ background:#01061a !important; border:none; }
+  .hero::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, rgba(1,6,26,0.82) 0%, rgba(1,6,26,0.62) 45%, rgba(1,6,26,0.4) 100%), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat; }
+  .hero::after{ content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    --art-w:calc(var(--hero-h, 340px) * 1.77 * 1.06);
+    background:url('assets/card-lms.jpg') right 50% / auto 106% no-repeat;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px));
+            mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px)); }
+  .hero .hero-graphic{ display:none; }
+  .hero .hero-content{ z-index:2; }
+  @media (min-width:641px){
+    :root{ --hero-h:clamp(220px, calc((100vh - 236px) * 0.5), 340px); }
+    .hero{ min-height:var(--hero-h); padding:clamp(18px, 3.2vh, 34px) 50px; border-radius:22px; }
+    .hero h1{ font-size:clamp(30px, calc(var(--hero-h) * 0.13), 46px); margin-bottom:clamp(4px, 1vh, 10px); line-height:1; }
+    .hero-eyebrow{ margin-bottom:clamp(6px, 1.2vh, 12px); }
+    .hero-sub{ font-size:clamp(15px, calc(var(--hero-h) * 0.06), 20px); margin-bottom:0; }
+    .hero-desc{ display:none; }
+    #heroStatRow{ margin-top:clamp(10px, 1.8vh, 16px) !important; gap:10px !important; }
+    #heroStatRow .stat{ min-width:110px; padding:8px 14px; background:rgba(4,9,30,0.7); }
+    #heroStatRow .stat .value{ font-size:18px; }
+  }
+  @media (max-width:640px){
+    .hero{ padding:16px 16px 18px; min-height:211px; }
+    .hero::before{ background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.7) 55%, rgba(1,6,26,0.45) 100%), linear-gradient(180deg, rgba(1,6,26,0.2) 0%, rgba(1,6,26,0.55) 70%, rgba(1,6,26,0.85) 100%), url('assets/card-lms.jpg') 75% center / cover no-repeat; }
+    .hero::after{ display:none; }
+    .hero h1{ font-size:28px; margin-bottom:6px; }
+    .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
+    .hero-sub{ font-size:15px; margin-bottom:0; }
+    .hero-desc{ display:none; }
+    #heroStatRow{ gap:8px !important; margin-top:12px !important; flex-wrap:nowrap !important; }
+    #heroStatRow .stat{ min-width:0; padding:7px 10px; background:rgba(4,9,30,0.72); }
+    #heroStatRow .stat .label{ font-size:9.5px; }
+    #heroStatRow .stat .value{ font-size:15px; }
+  }
+  /* sections: dark navy with the sports artwork behind, like the hub's sections */
+  main > .card, main > section.card, #mainContent .card, #lmsFinalResultsCard .card{
+    background:linear-gradient(180deg, rgba(4,9,30,0.86) 0%, rgba(4,9,30,0.8) 40%, rgba(4,9,30,0.93) 100%), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028;
+    border-color:var(--border); }
+  /* this gameweek's pick: the GB Tournaments app artwork behind it, like My Tournaments on the hub */
+  #mainContent .pick-card{
+    background:linear-gradient(180deg, rgba(6,12,32,0.82) 0%, rgba(6,12,32,0.74) 45%, rgba(6,12,32,0.92) 100%), url('assets/hero-gb-app.jpg') center 30% / cover no-repeat, #0b1838; }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
