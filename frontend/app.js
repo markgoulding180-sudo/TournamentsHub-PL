@@ -43,14 +43,27 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initApp() {
   // Refresh token client-side using Supabase - no API endpoint needed
   const refreshToken = localStorage.getItem('gbf_refresh');
-  if (refreshToken && supabase && supabase.auth) {
+  // The old setup let Supabase keep its own copy of the login (and renew it by
+  // itself), so the newest working refresh token can be sitting in this key.
+  const OLD_SB_KEY = 'sb-liuuzvboeesimvovnooh-auth-token';
+  let spare = null;
+  try {
+    const v = JSON.parse(localStorage.getItem(OLD_SB_KEY) || 'null');
+    spare = v && (v.refresh_token || v.currentSession?.refresh_token || v.session?.refresh_token);
+    if (spare === refreshToken) spare = null;
+  } catch (e) {}
+  if ((refreshToken || spare) && supabase && supabase.auth) {
     try {
-      const { data, error } = await supabase.auth.refreshSession({ 
-        refresh_token: refreshToken 
-      });
+      let data = null;
+      for (const rt of [refreshToken, spare]) {
+        if (!rt) continue;
+        ({ data } = await supabase.auth.refreshSession({ refresh_token: rt }));
+        if (data?.session) break;
+      }
       if (data?.session) {
         localStorage.setItem('gbf_token', data.session.access_token);
         localStorage.setItem('gbf_refresh', data.session.refresh_token);
+        try { localStorage.removeItem(OLD_SB_KEY); } catch (e) {}
         authToken = data.session.access_token;
         console.log('Token refreshed successfully');
       } else {

@@ -55,9 +55,21 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     return supabaseClient;
   }
 
+  // The old setup let Supabase keep its own copy of the login under this key and
+  // renew it by itself, so the newest working refresh token can be sitting here.
+  const OLD_SB_KEY = 'sb-liuuzvboeesimvovnooh-auth-token';
+  function oldSavedRefresh() {
+    try {
+      const v = JSON.parse(localStorage.getItem(OLD_SB_KEY) || 'null');
+      const t = v && (v.refresh_token || v.currentSession?.refresh_token || v.session?.refresh_token);
+      return t && t !== localStorage.getItem('gbf_refresh') ? t : null;
+    } catch (e) { return null; }
+  }
+
   async function refreshSessionToken() {
-    const refreshToken = localStorage.getItem('gbf_refresh');
-    if (!refreshToken) return;
+    const saved = localStorage.getItem('gbf_refresh');
+    const spare = oldSavedRefresh();
+    if (!saved && !spare) return;
 
     const client = getClient();
     if (!client) {
@@ -66,13 +78,21 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
 
     try {
-      const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
+      // Try the saved refresh token, then the spare copy the old background
+      // renewal left behind (often the only one that still works).
+      let data = null, error = null;
+      for (const rt of [saved, spare]) {
+        if (!rt) continue;
+        ({ data, error } = await client.auth.refreshSession({ refresh_token: rt }));
+        if (!error && data?.session) break;
+      }
       if (error || !data?.session) {
         console.warn('[live-poll] Session refresh failed:', error?.message);
         return;
       }
       localStorage.setItem('gbf_token', data.session.access_token);
       localStorage.setItem('gbf_refresh', data.session.refresh_token);
+      try { localStorage.removeItem(OLD_SB_KEY); } catch (e) {}
       console.log('[live-poll] Session token refreshed');
     } catch (e) {
       console.error('[live-poll] Session refresh error:', e);
