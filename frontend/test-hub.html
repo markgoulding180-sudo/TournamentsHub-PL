@@ -166,10 +166,12 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
     url('assets/hero-gb-app.jpg'); }
 /* slide 3: "Want to join a tournament" artwork — the picture carries the words,
    so the slide only adds the Registering · Join Now button */
-.hero-slide.slide-join{ background:#01061a url('assets/hero-join-tournament.jpg') left center / cover no-repeat; }
+.hero-slide.slide-join{ background:linear-gradient(rgba(1,6,26,0.42), rgba(1,6,26,0.42)), url('assets/hero-join-tournament.jpg') left center / cover no-repeat, #01061a; }
 .slide-join .join-cap{ font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:1.4px; text-transform:uppercase; color:#fff; margin-bottom:12px; text-shadow:0 2px 10px rgba(0,0,0,.7); }
 .slide-join .join-cap b{ color:var(--accent-2); font-weight:700; }
-.slide-join .join-btn{ cursor:pointer; font:inherit; }
+.slide-join .join-btn{ cursor:pointer; font:inherit; background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); text-decoration:underline; text-decoration-color:var(--accent-2); text-underline-offset:5px; text-decoration-thickness:2px; }
+.slide-join .join-btn::after{ content:'→'; display:inline-block; margin-left:8px; color:var(--accent-2); text-decoration:none; }
+.slide-join .join-btn .icon{ display:none; }
 .hero:has(.slide-join.active) .hero-stats{ opacity:0; pointer-events:none; }
 /* the new slide-1 artwork carries its own visuals: no extra rings/bolts or counters on top of it */
 .hero-slide.slide-1 .hero-graphic{ display:none; }
@@ -334,14 +336,15 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
       url('assets/hero-gb-tournaments.jpg'); }
   /* slide 3 on desktop: whole picture on the left at the hero's height, faded into the dark;
      the button sits in the space to its right */
-  .hero-slide.slide-join{ background-color:#01061a; background-repeat:no-repeat; background-size:auto 100%, cover, cover, cover; background-position:left center, center, center, right 30%; background-image:
+  .hero-slide.slide-join{ background-color:#01061a; background-repeat:no-repeat; background-size:cover, auto 100%, cover, cover, cover; background-position:center, left center, center, center, right 30%; background-image:
+      linear-gradient(rgba(1,6,26,0.38), rgba(1,6,26,0.38)),
       url('assets/hero-join-tournament.jpg'),
       linear-gradient(90deg, #01061a 0%, rgba(1,6,26,0.94) 50%, rgba(1,6,26,0.8) 100%),
       linear-gradient(90deg, rgba(1,6,26,0) 0%, rgba(1,6,26,0) 30%, rgba(1,6,26,0.4) 100%),
       url('assets/hero-join-tournament.jpg'); }
   /* soft edge where the full picture meets the dimmed backdrop */
   .hero-slide.slide-join::after{ content:''; position:absolute; top:0; bottom:0; left:calc(var(--hero-h) * 1.83 - 120px); width:120px; background:linear-gradient(90deg, rgba(1,6,26,0), #01061a 95%); pointer-events:none; }
-  .slide-join .hero-content{ margin-left:calc(var(--hero-h) * 1.83 + 40px); z-index:2; }
+  .slide-join .hero-content{ margin-left:calc(var(--hero-h) * 1.83 - 40px); z-index:2; }
   .slide-join .join-cap{ font-size:clamp(16px, 2.2vh, 22px); }
   /* slide 2 on desktop: same treatment — whole picture at the hero's height on the right */
   .hero-slide.slide-2{ background-size:cover, auto 112%; background-position:center, right 45%; background-image:
@@ -431,8 +434,8 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .slide-join .join-cap{ display:none; }
   /* button tucked into the bottom-right corner so it doesn't cover the picture's words */
   .slide-join .hero-content{ position:static; }
-  .slide-join .hero-btn-row{ position:absolute; right:12px; bottom:10px; width:auto; max-width:none; margin:0; padding:0; }
-  .slide-join .hero-btn-row .btn-hero-sm{ flex:none !important; padding:8px 12px; font-size:10.5px; box-shadow:0 4px 14px rgba(0,0,0,.6); }
+  .slide-join .hero-btn-row{ position:absolute; left:16px; bottom:32px; width:auto; max-width:none; margin:0; padding:0; z-index:2; }
+  .slide-join .hero-btn-row .btn-hero-sm{ flex:none !important; font-size:12px; letter-spacing:.8px; justify-content:flex-start; }
   .hero-slide.slide-join::before{ display:none; }
   .banner{ height:66px; padding:7px 8px; border-radius:10px; }
   .banner .bt{ font-size:12.5px; line-height:1.05; align-items:flex-start; letter-spacing:.3px; }
@@ -623,7 +626,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
         <div class="hero-content">
           <div class="join-cap">See what tournament is <b>up next</b></div>
           <div class="hero-btn-row" style="display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px;">
-            <button type="button" class="btn-outline-lg btn-hero-sm join-btn" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Registering · Join Now</button>
+            <button type="button" class="btn-outline-lg btn-hero-sm join-btn"><svg class="icon"><use href="#i-play"/></svg>Registering · Join Now</button>
           </div>
         </div>
       </div>
