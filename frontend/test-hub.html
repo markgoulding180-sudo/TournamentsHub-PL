@@ -253,6 +253,18 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .t-card .closes{ font-size:12.5px; color:var(--amber); font-weight:600; }
 .t-card.soon{ opacity:.6; }
 .t-card.soon:hover{ transform:none; }
+.welcome-card{ grid-column:1/-1; flex:1 0 100%; padding:22px 24px; border:1px solid var(--border-2); border-radius:var(--radius); background:rgba(4,9,30,0.72); }
+.welcome-card .wc-lead{ color:#fff; font-size:15px; line-height:1.5; margin:0 0 12px; max-width:760px; }
+.welcome-card .wc-list{ list-style:none; margin:0 0 16px; padding:0; max-width:760px; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px 24px; color:var(--text-dim); font-size:13.5px; }
+.welcome-card .wc-list li::before{ content:'✓'; color:var(--accent-2); font-weight:800; margin-right:8px; }
+.welcome-card .wc-list b{ color:#fff; }
+.welcome-card .wc-btns{ display:flex; gap:10px; flex-wrap:wrap; }
+@media (max-width:899px){
+  .welcome-card{ padding:16px; }
+  .welcome-card .wc-lead{ font-size:14px; }
+  .welcome-card .wc-list{ grid-template-columns:1fr; font-size:13px; }
+  .welcome-card .wc-btns .btn{ flex:1; justify-content:center; padding:12px 10px; font-size:13px; }
+}
 .empty-card{ grid-column:1/-1; padding:26px; border:1px dashed var(--border-2); border-radius:var(--radius); color:var(--text-dim); text-align:center; }
 
 /* Your tournaments: smaller cards, same full artwork */
@@ -664,7 +676,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
   <!-- ===== YOUR TOURNAMENTS ===== -->
   <section class="panel s3" id="mineSection">
-    <div class="sec-head"><div><div class="sec-title">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div><a class="sec-link" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
+    <div class="sec-head"><div><div class="sec-title" id="mineTitle">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div><a class="sec-link" id="mineSeeAll" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
     <div class="cards small" id="mineCards"></div>
     <div class="swipe-dots" id="mineDots"></div>
   </section>
@@ -1020,12 +1032,24 @@ function render(){
 
   // My tournaments (always shown, right under the nav strip)
   const mineCards = document.getElementById('mineCards');
+  document.getElementById('mineTitle').textContent = token() ? 'My tournaments' : 'Welcome To GB Tournaments';
+  document.getElementById('mineSeeAll').style.display = token() ? '' : 'none';
   if (token() && STATE.loginExpired && !STATE.mine.length) {
     document.getElementById('mineSub').textContent = 'Your login has expired — log in again to see your tournaments';
     mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in again</a></div>';
   } else if (!token()) {
-    document.getElementById('mineSub').textContent = 'Log in to see the tournaments you\'ve entered';
-    mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in</a> &nbsp; <a class="btn btn-ghost" href="/register">Create account</a></div>';
+    // Not logged in (or never had an account): a welcome card instead of "log in to see…"
+    document.getElementById('mineSub').textContent = 'Free to join · Football, darts and more';
+    mineCards.innerHTML = `<div class="welcome-card">
+        <p class="wc-lead">Enter tournaments, make your picks each week and climb the leaderboards against other players to win the prize pot.</p>
+        <ul class="wc-list">
+          <li><b>Predict</b> Premier League scores</li>
+          <li><b>Survive</b> Last Man Standing</li>
+          <li><b>Build</b> a Fantasy squad or trade players on the Stock Market</li>
+          <li><b>Pick</b> winners in the Champions League and darts</li>
+        </ul>
+        <div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2Fhub-test">Log in</a></div>
+      </div>`;
   } else if (STATE.mine.length) {
     const n = STATE.mine.length;
     document.getElementById('mineSub').textContent = innerWidth < 900 && n > 1 ? `You're in ${n} tournaments · swipe to see them all` : 'Jump straight back in';
