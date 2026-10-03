@@ -76,6 +76,10 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .panel.s1{ background:linear-gradient(180deg, var(--navy-1), #08112a); }
 .panel.s2{ background:linear-gradient(180deg, var(--navy-2), #0a1532); }
 .panel.s3{ background:linear-gradient(180deg, var(--navy-3), #0b1838); }
+/* My tournaments: the slide-2 artwork behind the section, darkened so the cards stand out */
+#mineSection{ background:
+    linear-gradient(180deg, rgba(6,12,32,0.80) 0%, rgba(6,12,32,0.72) 45%, rgba(6,12,32,0.92) 100%),
+    url('assets/hero-gb-app.jpg') center 30% / cover no-repeat, #0b1838; }
 .panel.s4{ background:linear-gradient(180deg, var(--navy-4), #09142f); }
 .panel.s5{ background:linear-gradient(180deg, var(--navy-5), #0b193d); }
 .panel.s6{ background:linear-gradient(180deg, var(--navy-6), #081028); }
@@ -382,6 +386,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-btn-row{ flex-wrap:nowrap !important; gap:8px !important; }
   .hero-btn-row .btn-hero-sm{ flex:1; justify-content:center; padding:9px 8px; font-size:11px; letter-spacing:.6px; white-space:nowrap; }
   .hero-btn-row .btn-hero-sm .icon{ display:none; }
+  /* every slide's buttons: same size as slide 1's and in the same spot (bottom of the slide) */
+  .hero-slide{ align-items:stretch; }
+  .hero-slide .hero-content{ display:flex; flex-direction:column; width:100%; }
+  .hero-btn-row{ margin-top:auto; padding-top:10px; width:100%; max-width:294px; }
+  .hero-btn-row .btn-hero-sm{ flex:0 0 calc(50% - 4px) !important; }
   .hero-slide::before{ content:''; position:absolute; inset:0; z-index:0; background:linear-gradient(180deg, rgba(4,8,18,0.35) 0%, rgba(4,8,18,0.75) 60%, rgba(4,8,18,0.9) 100%); }
   .hero-slide .hero-brand-heading{ margin-top:0; }
   .hero-brand-heading.size-md{ font-size:28px; margin-bottom:6px; }
@@ -575,7 +584,6 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
           <p class="hero-desc">Compete against other players. Win cash prizes.</p>
           <div class="hero-btn-row" style="display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px;">
             <a href="/register" class="btn-outline-lg btn-hero-sm" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Create Account</a>
-            <a href="#mineSection" class="btn-outline-lg btn-hero-sm" id="slideMineBtn"><svg class="icon"><use href="#i-play"/></svg>My Tournaments</a>
           </div>
         </div>
       </div>
@@ -1012,13 +1020,6 @@ function initSlider(){
   start();
 }
 initSlider();
-// "My Tournaments" on slide 2: jump to Your tournaments if it's showing,
-// otherwise open the My Tournaments page (or log in first).
-document.getElementById('slideMineBtn').addEventListener('click', e => {
-  e.preventDefault();
-  const sec = document.getElementById('mineSection');
-  if (sec) sec.scrollIntoView({ behavior:'smooth' });
-});
 
 // ---------- drawer, sheet, tabs ----------
 function openDrawer(on){ document.getElementById('drawer').classList.toggle('open', on); document.getElementById('scrim').classList.toggle('open', on); }
@@ -1097,7 +1098,7 @@ window.addEventListener('pageshow', () => window.scrollTo(0, 0));
 // In-page links (#top, #all, #mineSection…) scroll smoothly without changing the address
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]');
-  if (!a || a.id === 'slideMineBtn') return;
+  if (!a) return;
   const id = a.getAttribute('href').slice(1);
   e.preventDefault();
   if (!id || id === 'top') { window.scrollTo({ top:0, behavior:'smooth' }); return; }
