@@ -150,15 +150,17 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .hero-slide.slide-1{ background-color:#01061a; background-size:cover, cover; background-repeat:no-repeat, no-repeat; background-position:center, var(--s1-pos, 72% 42%); background-image:
     linear-gradient(90deg, rgba(1,6,26,0.92) 0%, rgba(1,6,26,0.7) 28%, rgba(1,6,26,0.2) 50%, rgba(1,6,26,0) 62%),
     url('assets/hero-gb-tournaments.jpg'); }
-.hero-slide.slide-2{ background-size:cover, cover; background-position:center, center; background-image:
-    linear-gradient(90deg, rgba(6,12,26,0.94) 0%, rgba(6,12,26,0.8) 35%, rgba(6,12,26,0.35) 65%, rgba(6,12,26,0.12) 100%),
-    url('assets/new-predictions.jpg'); }
+/* slide 2: GB Tournaments app artwork (players + phone). The picture is busy
+   all the way across, so the left side is darkened more for the text. */
+.hero-slide.slide-2{ background-color:#01061a; background-size:cover, cover; background-repeat:no-repeat, no-repeat; background-position:center, 70% 40%; background-image:
+    linear-gradient(90deg, rgba(1,6,26,0.95) 0%, rgba(1,6,26,0.82) 30%, rgba(1,6,26,0.35) 55%, rgba(1,6,26,0.05) 75%),
+    url('assets/hero-gb-app.jpg'); }
 .hero-slide.slide-3{ background-size:cover, cover; background-position:center, center; background-image:
     linear-gradient(90deg, rgba(6,12,26,0.94) 0%, rgba(6,12,26,0.8) 35%, rgba(6,12,26,0.35) 65%, rgba(6,12,26,0.12) 100%),
     url('assets/Mobile-Background.png'); }
 /* the new slide-1 artwork carries its own visuals: no extra rings/bolts or counters on top of it */
 .hero-slide.slide-1 .hero-graphic{ display:none; }
-.hero:has(.slide-1.active) .hero-stats{ opacity:0; pointer-events:none; }
+.hero:has(.slide-1.active) .hero-stats, .hero:has(.slide-2.active) .hero-stats{ opacity:0; pointer-events:none; }
 .hero-stats{ transition:opacity .6s; }
 .hero-graphic{ position:absolute; right:-40px; top:0; bottom:0; width:52%; display:flex; align-items:center; justify-content:center; opacity:0.95; pointer-events:none; }
 .hero-content{ position:relative; z-index:2; max-width:540px; margin-top:10px; }
@@ -312,6 +314,10 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-slide.slide-1{ background-size:cover, auto 118%; background-position:center, right 58%; background-image:
       linear-gradient(90deg, #01061a 0%, #01061a calc(100% - var(--hero-h) * 2.16), rgba(1,6,26,0.55) calc(100% - var(--hero-h) * 2.16 + 160px), rgba(1,6,26,0) calc(100% - var(--hero-h) * 1.25)),
       url('assets/hero-gb-tournaments.jpg'); }
+  /* slide 2 on desktop: same treatment — whole picture at the hero's height on the right */
+  .hero-slide.slide-2{ background-size:cover, auto 112%; background-position:center, right 45%; background-image:
+      linear-gradient(90deg, #01061a 0%, #01061a calc(100% - var(--hero-h) * 2.05), rgba(1,6,26,0.55) calc(100% - var(--hero-h) * 2.05 + 160px), rgba(1,6,26,0) calc(100% - var(--hero-h) * 1.3)),
+      url('assets/hero-gb-app.jpg'); }
   /* compact banners panel */
   .panel.s2:has(.banners){ padding:12px; }
   .banner{ height:104px; padding:12px 16px; }
