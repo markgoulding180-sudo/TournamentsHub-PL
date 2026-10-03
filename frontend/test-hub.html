@@ -784,9 +784,19 @@ function logout(e){
 async function loadMine(){
   if (!token()) return;
   const running = Object.values(STATE.results).filter(r => r.t && (r.zone === 'live' || r.zone === 'open'));
+  // A failed check (slow server, dropped connection on mobile data) used to
+  // count as "not entered" and the tournament silently vanished. Now each
+  // check is retried, and a tournament only drops off when the server
+  // actually answers "no entry".
   const checks = await Promise.all(running.map(async r => {
-    const d = await getJSON(`/api/tournaments?tournament_id=${r.t.id}&my_entry=true&tournament_type=${r.type}`, true);
-    return d && d.entry ? r : null;
+    const url = `/api/tournaments?tournament_id=${r.t.id}&my_entry=true&tournament_type=${r.type}`;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const d = await getJSON(url, true);
+      if (d) return d.entry ? r : null;
+      if (STATE.loginExpired) break;
+      await new Promise(res => setTimeout(res, 600 * (attempt + 1)));
+    }
+    return STATE.mine.some(m => m.type === r.type) ? r : null;   // unknown: keep what we had
   }));
   STATE.mine = checks.filter(Boolean);
   render();
@@ -883,7 +893,8 @@ function render(){
     document.getElementById('mineSub').textContent = 'Log in to see the tournaments you\'ve entered';
     mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in</a> &nbsp; <a class="btn btn-ghost" href="/register">Create account</a></div>';
   } else if (STATE.mine.length) {
-    document.getElementById('mineSub').textContent = 'Jump straight back in';
+    const n = STATE.mine.length;
+    document.getElementById('mineSub').textContent = innerWidth < 900 && n > 1 ? `You're in ${n} tournaments · swipe to see them all` : 'Jump straight back in';
     mineCards.innerHTML = STATE.mine.map(cardHtml).join('');
   } else {
     document.getElementById('mineSub').textContent = 'You haven\'t entered anything that\'s running yet';
