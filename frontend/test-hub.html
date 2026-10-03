@@ -658,9 +658,10 @@ async function getJSON(url, auth){
   try {
     let r = await fetch(url, auth && token() ? { headers:{ Authorization:'Bearer ' + token() } } : undefined);
     // expired login: renew it once and try again
-    if (auth && r.status === 401 && typeof refreshLogin === 'function' && await refreshLogin()) {
+    if (auth && r.status === 401 && !STATE.loginExpired && typeof refreshLogin === 'function' && await refreshLogin(true)) {
       r = await fetch(url, { headers:{ Authorization:'Bearer ' + token() } });
     }
+    if (auth && r.status === 401) STATE.loginExpired = true;   // genuinely logged out
     return r.ok ? await r.json() : null;
   }
   catch(e){ return null; }
@@ -798,6 +799,7 @@ function render(){
   });
   const mineEl = document.getElementById('bn-mine');
   if (!token()) mineEl.innerHTML = '<span class="long">Log in to see your tournaments</span><span class="short">Log in</span>';
+  else if (STATE.loginExpired && !STATE.mine.length) mineEl.innerHTML = '<span class="long">Login expired — log in again</span><span class="short">Log in again</span>';
   else mineEl.innerHTML = STATE.mine.length
     ? `<span class="long">${STATE.mine.map(r => esc(TYPES[r.type].title)).join(' · ')}</span><span class="short">${STATE.mine.length} entered</span>`
     : '<span class="long">You haven\'t entered anything running yet</span><span class="short">None yet</span>';
@@ -805,7 +807,10 @@ function render(){
 
   // My tournaments (always shown, right under the nav strip)
   const mineCards = document.getElementById('mineCards');
-  if (!token()) {
+  if (token() && STATE.loginExpired && !STATE.mine.length) {
+    document.getElementById('mineSub').textContent = 'Your login has expired — log in again to see your tournaments';
+    mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in again</a></div>';
+  } else if (!token()) {
     document.getElementById('mineSub').textContent = 'Log in to see the tournaments you\'ve entered';
     mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in</a> &nbsp; <a class="btn btn-ghost" href="/register">Create account</a></div>';
   } else if (STATE.mine.length) {
@@ -912,26 +917,65 @@ window.addEventListener('scroll', () => {
 // am I in" gets rejected and the page wrongly shows you haven't entered any.
 const HUB_SUPABASE_URL = 'https://liuuzvboeesimvovnooh.supabase.co';
 const HUB_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdXV6dmJvZWVzaW12b3Zub29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTA1MjYsImV4cCI6MjA5ODc2NjUyNn0.rfV-5DZ-06GIQ5vJcT0rCzmruSjXdCOP__XhhPv7jDs';
-let hubSb = null;
-async function refreshLogin(){
-  let rt = null;
-  try { rt = localStorage.getItem('gbf_refresh'); } catch(e){}
-  if (!rt || !window.supabase) return false;
-  try {
-    hubSb = hubSb || window.supabase.createClient(HUB_SUPABASE_URL, HUB_SUPABASE_KEY);
-    const { data, error } = await hubSb.auth.refreshSession({ refresh_token: rt });
-    if (error || !data || !data.session) return false;
-    localStorage.setItem('gbf_token', data.session.access_token);
-    localStorage.setItem('gbf_refresh', data.session.refresh_token);
-    return true;
-  } catch(e){ return false; }
+let hubSb = null, refreshing = null;
+// Seconds until the saved login token expires (from the token itself).
+function tokenSecondsLeft(){
+  try { const p = JSON.parse(atob(token().split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); return p.exp - Date.now() / 1000; }
+  catch(e){ return -1; }
+}
+// Renew the login. Only one renewal at a time (several at once would each
+// use up the same one-time refresh token), and only when it's actually
+// needed. The Supabase client is told NOT to store its own copy or renew
+// by itself in the background — that hidden extra renewal is what made the
+// site's saved refresh token go stale ("Refresh Token Not Found").
+function refreshLogin(force){
+  if (refreshing) return refreshing;
+  if (!force && token() && tokenSecondsLeft() > 300) return Promise.resolve(true);
+  refreshing = (async () => {
+    let rt = null;
+    try { rt = localStorage.getItem('gbf_refresh'); } catch(e){}
+    if (!rt || !window.supabase) return false;
+    try {
+      hubSb = hubSb || window.supabase.createClient(HUB_SUPABASE_URL, HUB_SUPABASE_KEY, {
+        auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false }
+      });
+      const { data, error } = await hubSb.auth.refreshSession({ refresh_token: rt });
+      if (error || !data || !data.session) return false;
+      localStorage.setItem('gbf_token', data.session.access_token);
+      localStorage.setItem('gbf_refresh', data.session.refresh_token);
+      STATE.loginExpired = false;
+      return true;
+    } catch(e){ return false; }
+  })().finally(() => { setTimeout(() => { refreshing = null; }, 0); });
+  return refreshing;
 }
 
+// ---------- always open at the top ----------
+// Phones reopen pages where you left them, and in-page links used to leave
+// "#all" in the address — both made the page load half way down.
+try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch(e){}
+if (location.hash) { try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
+window.scrollTo(0, 0);
+window.addEventListener('pageshow', () => window.scrollTo(0, 0));
+// In-page links (#top, #all, #mineSection…) scroll smoothly without changing the address
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a || a.id === 'slideMineBtn') return;
+  const id = a.getAttribute('href').slice(1);
+  e.preventDefault();
+  if (!id || id === 'top') { window.scrollTo({ top:0, behavior:'smooth' }); return; }
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior:'smooth' });
+});
+
 (async function start(){
-  if (token()) await refreshLogin();          // fresh token before asking "which am I in"
+  if (token()) {
+    const ok = await refreshLogin();             // fresh token before asking "which am I in"
+    if (!ok) STATE.loginExpired = true;          // couldn't renew: they need to log in again
+  }
   initMe();
   loadAll();
-  setInterval(refreshLogin, 10 * 60 * 1000);  // keep it fresh while the page is open
+  setInterval(() => refreshLogin(), 5 * 60 * 1000);  // renews only when close to expiring
 })();
 </script>
 </body>

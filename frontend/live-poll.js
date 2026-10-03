@@ -46,7 +46,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   function getClient() {
     if (supabaseClient) return supabaseClient;
     if (typeof window !== 'undefined' && window.supabase) {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      // Only used to renew the login we keep in gbf_token / gbf_refresh. It must NOT keep
+      // its own copy or renew by itself in the background — that hidden extra renewal
+      // used up the saved refresh token, so the next renewal failed ("Refresh Token Not
+      // Found") and pages acted as if the user had no entries.
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
     }
     return supabaseClient;
   }
