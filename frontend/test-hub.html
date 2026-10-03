@@ -210,6 +210,11 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 
 .t-card .badges{ position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; gap:8px; z-index:2; }
 .t-card .body{ padding:14px 18px 16px; display:flex; flex-direction:column; gap:6px; flex:1; }
+/* TEST: dark navy card info area with the sports artwork faintly behind it */
+.t-card{ background:#050b22; }
+.t-card .body{ background:
+    linear-gradient(180deg, rgba(4,9,30,0.90) 0%, rgba(4,9,30,0.78) 55%, rgba(4,9,30,0.88) 100%),
+    url('assets/card-bg-sports.jpg') center 62% / cover no-repeat, #050b22; }
 .t-card .sport{ font-family:var(--font-head); font-weight:700; font-size:11.5px; letter-spacing:1.6px; color:var(--accent-2); text-transform:uppercase; }
 .t-card h3{ font-family:var(--font-head); font-weight:700; font-size:21px; line-height:1.12; }
 .t-card .meta{ display:flex; flex-wrap:wrap; gap:6px 16px; color:var(--text-dim); font-size:13px; }
