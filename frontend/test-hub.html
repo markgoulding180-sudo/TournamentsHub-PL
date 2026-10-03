@@ -166,7 +166,7 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
     url('assets/hero-gb-app.jpg'); }
 /* slide 3: "Want to join a tournament" artwork — the picture carries the words,
    so the slide only adds the Registering · Join Now button */
-.hero-slide.slide-join{ background:linear-gradient(rgba(1,6,26,0.42), rgba(1,6,26,0.42)), url('assets/hero-join-tournament.jpg') left center / cover no-repeat, #01061a; }
+.hero-slide.slide-join{ background:linear-gradient(rgba(1,6,26,0.42), rgba(1,6,26,0.42)), url('assets/hero-join-tournament.jpg') 10% 88% / auto 118% no-repeat, #01061a; }
 .slide-join .join-cap{ font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:1.4px; text-transform:uppercase; color:#fff; margin-bottom:12px; text-shadow:0 2px 10px rgba(0,0,0,.7); }
 .slide-join .join-cap b{ color:var(--accent-2); font-weight:700; }
 .slide-join .join-btn{ cursor:pointer; font:inherit; background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); text-decoration:underline; text-decoration-color:var(--accent-2); text-underline-offset:5px; text-decoration-thickness:2px; }
@@ -334,17 +334,12 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-slide.slide-1{ background-size:cover, auto 118%; background-position:center, right 58%; background-image:
       linear-gradient(90deg, #01061a 0%, #01061a calc(100% - var(--hero-h) * 2.16), rgba(1,6,26,0.55) calc(100% - var(--hero-h) * 2.16 + 160px), rgba(1,6,26,0) calc(100% - var(--hero-h) * 1.25)),
       url('assets/hero-gb-tournaments.jpg'); }
-  /* slide 3 on desktop: whole picture on the left at the hero's height, faded into the dark;
-     the button sits in the space to its right */
-  .hero-slide.slide-join{ background-color:#01061a; background-repeat:no-repeat; background-size:cover, auto 100%, cover, cover, cover; background-position:center, left center, center, center, right 30%; background-image:
-      linear-gradient(rgba(1,6,26,0.38), rgba(1,6,26,0.38)),
-      url('assets/hero-join-tournament.jpg'),
-      linear-gradient(90deg, #01061a 0%, rgba(1,6,26,0.94) 50%, rgba(1,6,26,0.8) 100%),
-      linear-gradient(90deg, rgba(1,6,26,0) 0%, rgba(1,6,26,0) 30%, rgba(1,6,26,0.4) 100%),
+  /* slide 3 on desktop: same as slides 1 and 2 — picture on the right at the hero's
+     height (darkened a touch), faded into the dark on its left edge; text on the left */
+  .hero-slide.slide-join{ background-color:#01061a; background-repeat:no-repeat; background-size:cover, cover, auto 104%; background-position:center, center, right 50%; background-image:
+      linear-gradient(90deg, #01061a 0%, #01061a calc(100% - var(--hero-h) * 1.9), rgba(1,6,26,0.5) calc(100% - var(--hero-h) * 1.9 + 90px), rgba(1,6,26,0) calc(100% - var(--hero-h) * 1.9 + 180px)),
+      linear-gradient(rgba(1,6,26,0.35), rgba(1,6,26,0.35)),
       url('assets/hero-join-tournament.jpg'); }
-  /* soft edge where the full picture meets the dimmed backdrop */
-  .hero-slide.slide-join::after{ content:''; position:absolute; top:0; bottom:0; left:calc(var(--hero-h) * 1.83 - 120px); width:120px; background:linear-gradient(90deg, rgba(1,6,26,0), #01061a 95%); pointer-events:none; }
-  .slide-join .hero-content{ margin-left:calc(var(--hero-h) * 1.83 - 40px); z-index:2; }
   .slide-join .join-cap{ font-size:clamp(16px, 2.2vh, 22px); }
   /* slide 2 on desktop: same treatment — whole picture at the hero's height on the right */
   .hero-slide.slide-2{ background-size:cover, auto 112%; background-position:center, right 45%; background-image:
