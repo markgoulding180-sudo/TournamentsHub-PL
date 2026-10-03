@@ -205,6 +205,13 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .t-card .meta b{ color:var(--text); font-weight:700; }
 .t-card .foot{ margin-top:auto !important; padding-top:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--border); margin-top:4px; }
 .t-card .cta{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:1px; text-transform:uppercase; color:var(--accent-2); display:flex; align-items:center; gap:6px; }
+.t-card .pickline{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; }
+.t-card .pickline.ok{ color:#4ade80; }
+.t-card .pickline.need{ color:#f87171; }
+.t-card .pickline i{ font-style:normal; display:inline-grid; place-items:center; width:16px; height:16px; border-radius:50%; font-size:10px; line-height:1; }
+.t-card .pickline.ok i{ background:rgba(34,197,94,.18); border:1px solid rgba(34,197,94,.6); }
+.t-card .pickline.need i{ background:rgba(239,68,68,.18); border:1px solid rgba(239,68,68,.6); }
+.pill.need{ background:rgba(60,10,10,0.92); color:#fca5a5; border:1px solid rgba(239,68,68,0.6); }
 .t-card .closes{ font-size:12.5px; color:var(--amber); font-weight:600; }
 .t-card.soon{ opacity:.6; }
 .t-card.soon:hover{ transform:none; }
@@ -387,6 +394,19 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .banner .bs .long{ display:none; }
   .banner .bs .short{ display:inline; }
   .banner:hover{ transform:none; }
+  /* titles fill the card width (sized by fitBannerText); the dot moves down to the count line */
+  .banner{ height:auto; min-height:66px; padding:8px 8px 8px 9px; }
+  .banner .bt{ display:block; line-height:1.02; white-space:nowrap; font-size:var(--bn-fs, 16px); }
+  .banner .bt > .live-dot, .banner .bt > .reg-dot, .banner .bt > .mine-dot{ display:none; }
+  .banner .bs{ font-size:11px; margin-top:4px; display:flex; align-items:center; gap:5px; }
+  .banner .bs::before{ content:''; width:6px; height:6px; border-radius:50%; flex-shrink:0; background:var(--accent-2); }
+  .banner[data-zone="live"] .bs::before{ background:#22c55e; box-shadow:0 0 6px #22c55e; }
+  .banner[data-zone="open"] .bs::before{ background:var(--amber, #f5b83d); }
+
+  /* My tournaments on phones: edge to edge, square corners, one full-width card per swipe */
+  #mineSection{ margin:0 calc(-1 * var(--gutter)); border-radius:0; border-left:none; border-right:none; }
+  #mineCards{ gap:0; margin:0 -14px; padding:0; scroll-padding:0; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; }
+  #mineCards .t-card{ flex:0 0 100%; border-radius:0; border-left:none; border-right:none; scroll-snap-align:center; scroll-snap-stop:always; }
 
   /* Card rows swipe sideways */
   .cards, .cards.small{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0 14px; scrollbar-width:none; margin:0 -14px; padding:0 14px 4px; align-items:stretch; }
@@ -649,7 +669,7 @@ const TYPES = {
   darts:            { sport:'darts',    league:'darts', sportLabel:'Darts',         title:'World Grand Prix',    href:'/darts',             board:'/darts-leaderboard',            img:'assets/card-darts.jpg' }
 };
 const DARTS_SOON = ['Premier League Darts', 'Grand Slam of Darts', 'World Cup of Darts', 'UK Open', 'World Championship'];
-const STATE = { results:{}, gw:null, mine:[], filter:{ kind:'all' } };
+const STATE = { results:{}, gw:null, mine:[], picks:{}, filter:{ kind:'all' } };
 
 function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function money(p){ const v = (p || 0) / 100; return '£' + (v % 1 ? v.toFixed(2) : v.toFixed(0)); }
@@ -665,6 +685,45 @@ async function getJSON(url, auth){
     return r.ok ? await r.json() : null;
   }
   catch(e){ return null; }
+}
+async function postJSON(body){
+  const go = () => fetch('/api/tournaments', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer ' + token() }, body:JSON.stringify(body) });
+  try {
+    let r = await go();
+    if (r.status === 401 && typeof refreshLogin === 'function' && await refreshLogin(true)) r = await go();
+    return r.ok ? await r.json() : null;
+  } catch(e){ return null; }
+}
+// Picks made / picks needed this week — the same checks the main hub does.
+async function pickStatus(type, id){
+  if (type === 'darts') {
+    const d = await postJSON({ action:'darts_get_bracket', tournament_id:id }); if (!d) return null;
+    const matches = d.matches || [];
+    const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
+    for (const round of rounds) {
+      const pickable = matches.filter(m => m.round === round && m.player1_id && m.player2_id && m.status !== 'finished');
+      if (!pickable.length) continue;
+      const picked = (d.my_predictions || []).filter(p => p.round === round).length;
+      return { hasPicked: picked >= pickable.length, label:`Round ${round}` };
+    }
+    return null;
+  }
+  if (type === 'champions_league') {
+    const d = await postJSON({ action:'cl_get_tournament', tournament_id:id }); if (!d) return null;
+    const matches = d.matches || [];
+    const mds = [...new Set(matches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
+    for (const md of mds) {
+      if (matches.filter(m => m.matchday === md).some(m => new Date(m.kickoff_time) <= new Date())) continue;
+      const picked = (d.my_picks || []).filter(p => p.matchday === md).length;
+      return { hasPicked: picked >= 3, label:`Matchday ${md}` };
+    }
+    return null;
+  }
+  if ((type === 'lms' || type === 'predictions') && STATE.gw) {
+    const d = await postJSON({ action:'check_gameweek_pick_status', tournament_type:type, tournament_id:id, gameweek:STATE.gw });
+    return d && d.pickApplicable ? { hasPicked: !!d.hasPicked, label:`Gameweek ${STATE.gw}` } : null;
+  }
+  return null;   // Fantasy / Stock Market: no weekly pick to report
 }
 function untilText(iso){
   const ms = new Date(iso) - Date.now();
@@ -731,6 +790,9 @@ async function loadMine(){
   }));
   STATE.mine = checks.filter(Boolean);
   render();
+  const picks = await Promise.all(STATE.mine.map(async r => [r.type, await pickStatus(r.type, r.t.id)]));
+  picks.forEach(([type, st]) => { if (st) STATE.picks[type] = st; });
+  if (picks.some(([, st]) => st)) render();
 }
 
 // ---------- cards ----------
@@ -752,14 +814,20 @@ function cardHtml(r){
   if (r.zone === 'open') foot = `<span class="closes">${untilText(t && t.closes_at) ? 'Closes in ' + untilText(t.closes_at) : 'Entries open'}</span>`;
   else if (r.zone === 'live' && STATE.gw && info.league === 'pl') foot = `<span class="closes" style="color:var(--text-dim)">Gameweek ${STATE.gw}</span>`;
   else if (r.zone === 'done') foot = '<span class="closes" style="color:var(--gold)">Final results</span>';
-  const cta = r.zone === 'soon' ? 'Coming soon' : mine ? 'Play' : r.zone === 'open' ? 'Join in' : r.zone === 'done' ? 'Results' : 'View';
+  const cta = r.zone === 'soon' ? 'Coming soon' : mine ? ((STATE.picks[r.type] && !STATE.picks[r.type].hasPicked) ? 'Make picks' : 'Play') : r.zone === 'open' ? 'Join in' : r.zone === 'done' ? 'Results' : 'View';
   const tag = r.zone === 'soon' ? 'div' : 'a';
+  const pk = mine && STATE.picks[r.type];
+  const pickLine = pk ? (pk.hasPicked
+      ? `<div class="pickline ok"><i>✓</i>Picks made · ${esc(pk.label)}</div>`
+      : `<div class="pickline need"><i>✕</i>Picks needed · ${esc(pk.label)}</div>`) : '';
+  const inPill = mine ? (pk && !pk.hasPicked ? '<span class="pill need">Pick now</span>' : '<span class="pill in">You\'re in</span>') : '<span></span>';
   return `<${tag} class="t-card${r.zone === 'soon' ? ' soon' : ''}" ${tag === 'a' ? `href="${info.href}"` : ''} data-sport="${info.sport}" data-league="${info.league}" data-zone="${r.zone}">
-      <div class="media frame" style="--img:url('${info.img}')"><img src="${info.img}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${mine ? '<span class="pill in">You\'re in</span>' : '<span></span>'}</div></div>
+      <div class="media frame" style="--img:url('${info.img}')"><img src="${info.img}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${inPill}</div></div>
       <div class="body">
         <div class="sport">${esc(info.sportLabel)}</div>
         <h3>${esc((t && t.name) || info.title)}</h3>
         ${t ? `<div class="meta">${metaLine(t)}</div>` : '<div class="meta"><span>Not running right now</span></div>'}
+        ${pickLine}
         <div class="foot">${foot}<span class="cta">${cta} ${r.zone === 'soon' ? '' : '<svg class="icon" style="width:15px;height:15px"><use href="#i-arrow"/></svg>'}</span></div>
       </div></${tag}>`;
 }
@@ -770,7 +838,8 @@ function dots(gridId, dotsId){
   wrap.innerHTML = n > 1 ? Array.from({ length:n }, (_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('') : '';
   grid.onscroll = () => {
     const cards = grid.querySelectorAll('.t-card'); if (!cards.length) return;
-    const i = Math.round(grid.scrollLeft / (cards[0].offsetWidth + 12));
+    const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const i = Math.round(grid.scrollLeft / (cards[0].offsetWidth + gap));
     wrap.querySelectorAll('i').forEach((d, k) => d.classList.toggle('on', k === i));
   };
 }
@@ -837,6 +906,32 @@ function render(){
     return `<a href="${i.board}"><img src="${i.img}" alt=""><div><b>${esc(i.title)}</b><span>${st}${r.t && r.t.current_entries ? ' · ' + r.t.current_entries + ' players' : ''}</span></div></a>`;
   }).join('') || '<div class="now-empty">No leaderboards yet.</div>';
 }
+
+// ---------- phone nav strip: make the titles fill the card width ----------
+// One size for all three (set by the widest word), so they match and the
+// longest title runs the full width of its card.
+function fitBannerText(){
+  const strip = document.getElementById('banners');
+  if (!strip || innerWidth >= 900) { strip && strip.style.removeProperty('--bn-fs'); return; }
+  strip.style.setProperty('--bn-fs', '20px');
+  let scale = Infinity;
+  strip.querySelectorAll('.banner').forEach(b => {
+    const bt = b.querySelector('.bt'); if (!bt) return;
+    const cs = getComputedStyle(b);
+    const room = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 1;
+    let widest = 0;
+    // each title is two lines: the first word, then the .t2 part
+    const r = document.createRange();
+    bt.querySelectorAll(':scope > span:not(.live-dot):not(.reg-dot):not(.mine-dot)').forEach(sp => {
+      sp.childNodes.forEach(n => { if (n.nodeType === 3 || n.classList && n.classList.contains('t2')) { r.selectNodeContents(n); widest = Math.max(widest, r.getBoundingClientRect().width); } });
+    });
+    if (widest) scale = Math.min(scale, room / widest);
+  });
+  if (isFinite(scale)) strip.style.setProperty('--bn-fs', Math.min(26, Math.max(12, 20 * scale)).toFixed(1) + 'px');
+}
+window.addEventListener('resize', fitBannerText);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitBannerText);
+fitBannerText();
 
 // ---------- filters ----------
 const LABEL = { football:'Football', darts:'Darts', live:'Live', open:'Registering' };
