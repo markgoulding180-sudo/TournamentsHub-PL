@@ -76,6 +76,11 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .panel.s1{ background:linear-gradient(180deg, var(--navy-1), #08112a); }
 .panel.s2{ background:linear-gradient(180deg, var(--navy-2), #0a1532); }
 .panel.s3{ background:linear-gradient(180deg, var(--navy-3), #0b1838); }
+#mineSub{ color:#fff; }
+/* All tournaments: same sports artwork as the cards, darkened */
+#all{ background:
+    linear-gradient(180deg, rgba(4,9,30,0.84) 0%, rgba(4,9,30,0.78) 40%, rgba(4,9,30,0.92) 100%),
+    url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028; }
 /* My tournaments: the slide-2 artwork behind the section, darkened so the cards stand out */
 #mineSection{ background:
     linear-gradient(180deg, rgba(6,12,32,0.80) 0%, rgba(6,12,32,0.72) 45%, rgba(6,12,32,0.92) 100%),
@@ -159,9 +164,13 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .hero-slide.slide-2{ background-color:#01061a; background-size:cover, cover; background-repeat:no-repeat, no-repeat; background-position:center, 70% 40%; background-image:
     linear-gradient(90deg, rgba(1,6,26,0.95) 0%, rgba(1,6,26,0.82) 30%, rgba(1,6,26,0.35) 55%, rgba(1,6,26,0.05) 75%),
     url('assets/hero-gb-app.jpg'); }
-.hero-slide.slide-3{ background-size:cover, cover; background-position:center, center; background-image:
-    linear-gradient(90deg, rgba(6,12,26,0.94) 0%, rgba(6,12,26,0.8) 35%, rgba(6,12,26,0.35) 65%, rgba(6,12,26,0.12) 100%),
-    url('assets/Mobile-Background.png'); }
+/* slide 3: "Want to join a tournament" artwork — the picture carries the words,
+   so the slide only adds the Registering · Join Now button */
+.hero-slide.slide-join{ background:#01061a url('assets/hero-join-tournament.jpg') left center / cover no-repeat; }
+.slide-join .join-cap{ font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:1.4px; text-transform:uppercase; color:#fff; margin-bottom:12px; text-shadow:0 2px 10px rgba(0,0,0,.7); }
+.slide-join .join-cap b{ color:var(--accent-2); font-weight:700; }
+.slide-join .join-btn{ cursor:pointer; font:inherit; }
+.hero:has(.slide-join.active) .hero-stats{ opacity:0; pointer-events:none; }
 /* the new slide-1 artwork carries its own visuals: no extra rings/bolts or counters on top of it */
 .hero-slide.slide-1 .hero-graphic{ display:none; }
 .hero:has(.slide-1.active) .hero-stats, .hero:has(.slide-2.active) .hero-stats{ opacity:0; pointer-events:none; }
@@ -323,6 +332,17 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-slide.slide-1{ background-size:cover, auto 118%; background-position:center, right 58%; background-image:
       linear-gradient(90deg, #01061a 0%, #01061a calc(100% - var(--hero-h) * 2.16), rgba(1,6,26,0.55) calc(100% - var(--hero-h) * 2.16 + 160px), rgba(1,6,26,0) calc(100% - var(--hero-h) * 1.25)),
       url('assets/hero-gb-tournaments.jpg'); }
+  /* slide 3 on desktop: whole picture on the left at the hero's height, faded into the dark;
+     the button sits in the space to its right */
+  .hero-slide.slide-join{ background-color:#01061a; background-repeat:no-repeat; background-size:auto 100%, cover, cover, cover; background-position:left center, center, center, right 30%; background-image:
+      url('assets/hero-join-tournament.jpg'),
+      linear-gradient(90deg, #01061a 0%, rgba(1,6,26,0.94) 50%, rgba(1,6,26,0.8) 100%),
+      linear-gradient(90deg, rgba(1,6,26,0) 0%, rgba(1,6,26,0) 30%, rgba(1,6,26,0.4) 100%),
+      url('assets/hero-join-tournament.jpg'); }
+  /* soft edge where the full picture meets the dimmed backdrop */
+  .hero-slide.slide-join::after{ content:''; position:absolute; top:0; bottom:0; left:calc(var(--hero-h) * 1.83 - 120px); width:120px; background:linear-gradient(90deg, rgba(1,6,26,0), #01061a 95%); pointer-events:none; }
+  .slide-join .hero-content{ margin-left:calc(var(--hero-h) * 1.83 + 40px); z-index:2; }
+  .slide-join .join-cap{ font-size:clamp(16px, 2.2vh, 22px); }
   /* slide 2 on desktop: same treatment — whole picture at the hero's height on the right */
   .hero-slide.slide-2{ background-size:cover, auto 112%; background-position:center, right 45%; background-image:
       linear-gradient(90deg, #01061a 0%, #01061a calc(100% - var(--hero-h) * 2.05), rgba(1,6,26,0.55) calc(100% - var(--hero-h) * 2.05 + 160px), rgba(1,6,26,0) calc(100% - var(--hero-h) * 1.3)),
@@ -406,7 +426,14 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
   /* Banners on phones: a nav strip (no container), 3 across, a third shorter */
   .banner-panel{ background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; border-radius:0 !important; }
-  .banners{ grid-template-columns:repeat(3, 1fr); gap:6px; }
+  .banners{ grid-template-columns:repeat(2, 1fr); gap:6px; }
+  .banner[data-zone="mine"]{ display:none; }   /* phones: My Tournaments is right below anyway */
+  .slide-join .join-cap{ display:none; }
+  /* button tucked into the bottom-right corner so it doesn't cover the picture's words */
+  .slide-join .hero-content{ position:static; }
+  .slide-join .hero-btn-row{ position:absolute; right:12px; bottom:10px; width:auto; max-width:none; margin:0; padding:0; }
+  .slide-join .hero-btn-row .btn-hero-sm{ flex:none !important; padding:8px 12px; font-size:10.5px; box-shadow:0 4px 14px rgba(0,0,0,.6); }
+  .hero-slide.slide-join::before{ display:none; }
   .banner{ height:66px; padding:7px 8px; border-radius:10px; }
   .banner .bt{ font-size:12.5px; line-height:1.05; align-items:flex-start; letter-spacing:.3px; }
   .banner .bt .live-dot, .banner .bt .reg-dot, .banner .bt .mine-dot{ width:6px; height:6px; margin:3px 5px 0 0; }
@@ -592,14 +619,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
           </div>
         </div>
       </div>
-      <div class="hero-slide slide-3">
+      <div class="hero-slide slide-join">
         <div class="hero-content">
-          <div class="hero-brand-heading size-md">Play on Mobile Or Desktop</div>
-          <div class="hero-eyebrow"><span class="dot"></span>Anywhere, Anytime</div>
-          <div class="hero-sub">Use Your Device to Enter and Predict Events</div>
-          <p class="hero-desc">Challenge your friends.</p>
+          <div class="join-cap">See what tournament is <b>up next</b></div>
           <div class="hero-btn-row" style="display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px;">
-            <a href="/register" class="btn-outline-lg btn-hero-sm" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Create Account</a>
+            <button type="button" class="btn-outline-lg btn-hero-sm join-btn" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Registering · Join Now</button>
           </div>
         </div>
       </div>
@@ -951,7 +975,7 @@ function fitBannerText(){
   strip.style.setProperty('--bn-fs', '20px');
   let scale = Infinity;
   strip.querySelectorAll('.banner').forEach(b => {
-    const bt = b.querySelector('.bt'); if (!bt) return;
+    const bt = b.querySelector('.bt'); if (!bt || !b.offsetWidth) return;
     const cs = getComputedStyle(b);
     const room = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 1;
     let widest = 0;
@@ -1025,6 +1049,13 @@ function initSlider(){
   start();
 }
 initSlider();
+
+// Slide 3 button: show the tournaments taking entries now
+document.querySelector('.slide-join .join-btn').addEventListener('click', () => {
+  STATE.filter = { kind:'chip', v:'open' };
+  applyFilter();
+  document.getElementById('all').scrollIntoView({ behavior:'smooth' });
+});
 
 // ---------- drawer, sheet, tabs ----------
 function openDrawer(on){ document.getElementById('drawer').classList.toggle('open', on); document.getElementById('scrim').classList.toggle('open', on); }
