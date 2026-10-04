@@ -332,9 +332,6 @@
     .hero-eyebrow{ margin-bottom:clamp(6px, 1.2vh, 12px); }
     .hero-sub{ font-size:clamp(15px, calc(var(--hero-h) * 0.06), 20px); margin-bottom:0; }
     .hero-desc{ display:none; }
-    #heroStatRow{ margin-top:clamp(10px, 1.8vh, 16px) !important; gap:10px !important; }
-    #heroStatRow .stat{ min-width:110px; padding:8px 14px; background:rgba(4,9,30,0.7); }
-    #heroStatRow .stat .value{ font-size:18px; }
   }
   @media (max-width:640px){
     .hero{ padding:16px 16px 18px; min-height:211px; }
@@ -344,10 +341,6 @@
     .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
     .hero-sub{ font-size:15px; margin-bottom:0; }
     .hero-desc{ display:none; }
-    #heroStatRow{ gap:8px !important; margin-top:12px !important; flex-wrap:nowrap !important; }
-    #heroStatRow .stat{ min-width:0; padding:7px 10px; background:rgba(4,9,30,0.72); }
-    #heroStatRow .stat .label{ font-size:9.5px; }
-    #heroStatRow .stat .value{ font-size:15px; }
   }
   /* sections: dark navy with the sports artwork behind, like the hub's sections */
   main > .card, main > section.card, #mainContent .card, #lmsFinalResultsCard .card{
@@ -356,6 +349,58 @@
   /* this gameweek's pick: the GB Tournaments app artwork behind it, like My Tournaments on the hub */
   #mainContent .pick-card{
     background:linear-gradient(180deg, rgba(6,12,32,0.82) 0%, rgba(6,12,32,0.74) 45%, rgba(6,12,32,0.92) 100%), url('assets/hero-gb-app.jpg') center 30% / cover no-repeat, #0b1838; }
+
+  /* ===== Redesign: stat bar under the hero, slim gameweek bar, full-width teams ===== */
+  .hero{ margin-bottom:0 !important; border-bottom-left-radius:0 !important; border-bottom-right-radius:0 !important; }
+  .lms-statbar{ display:flex; align-items:stretch; margin-bottom:16px; border:1px solid var(--border); border-top:none;
+    border-radius:0 0 22px 22px; overflow:hidden; background:linear-gradient(180deg, rgba(10,18,40,0.96), rgba(6,12,30,0.96)); }
+  .lms-statbar .sb-stats{ display:flex; flex:1; min-width:0; }
+  .lms-statbar .stat{ flex:1; min-width:0; background:none; border:none; border-right:1px solid var(--border); border-radius:0; padding:12px 22px; }
+  .lms-statbar .stat .label{ font-size:11px; }
+  .lms-statbar .stat .value{ font-size:20px; }
+  .lms-statbar .sb-how{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 26px; font-family:var(--font-head); font-size:14px; font-weight:700; color:var(--text); background:rgba(59,130,246,0.1); white-space:nowrap; }
+  .lms-statbar .sb-how i{ color:var(--accent-2); }
+  .lms-statbar .sb-how:hover{ background:rgba(59,130,246,0.2); }
+  .how-collapsible{ margin-bottom:16px; }
+  .how-collapsible:not(.open){ display:none; }
+  .how-collapsible.open .how-body{ padding:16px; }
+  @media (min-width:801px){ .how-collapsible .how-body{ flex-direction:row !important; } .how-collapsible .how-step{ flex:1; } }
+
+  .lms-gwbar{ padding:14px 22px !important; margin-bottom:16px !important; background:linear-gradient(90deg, rgba(14,26,58,0.97), rgba(8,16,40,0.97)) !important; }
+  .lms-gwbar .pick-header{ margin-bottom:0; gap:10px 18px; justify-content:flex-start; }
+  .lms-gwbar .gw-deadline{ margin-left:auto; }
+  .lms-gwbar .gw-deadline:empty + .status-badge, .lms-gwbar .status-badge{ margin-left:auto; }
+  .lms-gwbar .gw-deadline:not(:empty) + .status-badge{ margin-left:0; }
+  .lms-gwbar .pick-gw{ margin:0; color:#fff; font-family:var(--font-head); font-size:15px; font-weight:700; }
+  .lms-gwbar .gw-deadline{ color:var(--gold); font-size:13px; font-weight:700; }
+  .lms-gwbar .gw-deadline:empty{ display:none; }
+  .lms-gwbar .status-badge{ margin-left:auto; }
+  /* "You're Entered" isn't needed; only show the badge when it says something (eliminated / winner) */
+  #entryStatusBadge.entered:not(:has(.fa-trophy)){ display:none; }
+
+  .lms-teams{ margin-bottom:16px; }
+  .lms-teams .pick-cta{ margin-bottom:14px; }
+  .lms-lower{ grid-template-columns:1fr 1fr; }
+  @media (max-width:900px){ .lms-lower{ grid-template-columns:1fr; } }
+  @media (min-width:481px){
+    .lms-teams .teams-grid{ grid-template-columns:repeat(5, 1fr); gap:12px; }
+    .lms-teams .team-tile{ padding:18px 10px 16px; }
+    .lms-teams .team-tile img{ width:56px; height:56px; margin-bottom:8px; }
+    .lms-teams .team-tile .name{ font-size:14px; }
+    .lms-teams .team-tile .gw-tag, .lms-teams .team-tile .pick-tag{ font-size:11px; }
+  }
+  @media (max-width:640px){
+    .lms-statbar{ margin-left:-14px; margin-right:-14px; border-radius:0; border-left:none; border-right:none; }
+    .lms-statbar .stat{ padding:9px 10px; }
+    .lms-statbar .stat .label{ font-size:9.5px; }
+    .lms-statbar .stat .value{ font-size:15px; }
+    .lms-statbar .sb-how{ padding:0 12px; font-size:12px; gap:5px; }
+    .lms-gwbar{ padding:12px 14px !important; }
+    .lms-gwbar .card-title{ display:none; }   /* phones: just "Gameweek 6" and the countdown on one line */
+    .lms-gwbar .pick-header{ flex-wrap:nowrap; }
+    .lms-gwbar .pick-gw{ font-size:15px; white-space:nowrap; }
+    .lms-gwbar .gw-deadline{ font-size:12.5px; white-space:nowrap; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -443,11 +488,15 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         <h1>Last Man Standing</h1>
         <div class="hero-sub">Pick One. Survive. Repeat.</div>
         <p class="hero-desc">Pick a Premier League team to win every gameweek. Get it wrong and you're out — and you can never use the same team twice. Last manager standing takes the pot.</p>
-        <div id="heroStatRow" style="display:flex; flex-wrap:wrap; gap:16px; margin-top:18px;"></div>
-        <button type="button" onclick="document.getElementById('howCollapsible').classList.toggle('open');" style="margin-top:18px; display:inline-flex; align-items:center; gap:8px; background:none; border:1px solid var(--border); color:var(--text); font-family:var(--font-head); font-size:13.5px; font-weight:700; padding:10px 18px; border-radius:8px; cursor:pointer;">
-          <i class="fas fa-circle-info" style="color:var(--accent-2);"></i> How It Works
-        </button>
-        <div class="how-collapsible" id="howCollapsible" style="margin-top:12px;">
+      </div>
+    </section>
+
+    <!-- Bar under the hero: entries, prize pool, gameweek + How It Works -->
+    <div class="lms-statbar" id="lmsStatBar">
+      <div class="sb-stats" id="heroStatRow"></div>
+      <button type="button" class="sb-how" onclick="document.getElementById('howCollapsible').classList.toggle('open');"><i class="fas fa-circle-info"></i> How It Works</button>
+    </div>
+        <div class="how-collapsible" id="howCollapsible">
           <div class="how-body" id="howBody" style="display:flex; flex-direction:column; gap:14px;">
             <div class="how-step">
               <div class="num">1</div>
@@ -466,8 +515,6 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             </div>
           </div>
         </div>
-      </div>
-    </section>
 
     <div id="lmsFinalResultsCard" style="display:none;">
       <div class="card" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
@@ -509,36 +556,37 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
     <div id="mainContent" style="display:none;">
 
-      <!-- This gameweek's pick -->
-      <section class="card pick-card">
+      <!-- This gameweek: just the gameweek details -->
+      <section class="card pick-card lms-gwbar">
         <div class="pick-header">
-          <div class="card-title" style="margin-bottom:0;"><i class="fas fa-futbol"></i> <span id="pickTitle">This Gameweek's Pick</span></div>
+          <div class="card-title" style="margin-bottom:0;"><i class="fas fa-futbol"></i> <span id="pickTitle">This Gameweek</span></div>
+          <div class="pick-gw" id="pickGwLabel"></div>
+          <span class="gw-deadline" id="pickDeadline"></span>
           <span class="status-badge" id="entryStatusBadge"><i class="fas fa-circle-check"></i> You're Entered</span>
         </div>
-        <div class="pick-gw" id="pickGwLabel"></div>
-        <div class="pick-cta" id="pickCta"><div class="loading">Loading…</div></div>
       </section>
 
-      <!-- All results for this gameweek -->
-      <section class="card results-card" id="resultsCardSection">
+      <!-- Your teams: this week's pick on top, then every team -->
+      <section class="card lms-teams">
         <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
-          <span><i class="fas fa-list-ol" style="color:var(--accent-2);"></i> <span id="resultsTitle">Gameweek Results</span></span>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <button id="resultsPrevGw" class="btn-icon" title="Previous gameweek" aria-label="Previous gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-left"></i></button>
-            <button id="resultsNextGw" class="btn-icon" title="Next gameweek" aria-label="Next gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-right"></i></button>
-          </div>
+          <span><i class="fas fa-shirt" style="color:var(--accent-2);"></i> Your Teams</span>
+          <button class="btn-primary" id="confirmPickBtn" style="display:none; font-size:13px; padding:8px 14px;" disabled><i class="fas fa-check"></i> Confirm Team</button>
         </div>
-        <div class="results-grid" id="resultsGrid"><div class="loading">Loading…</div></div>
+        <div class="pick-cta" id="pickCta"><div class="loading">Loading…</div></div>
+        <div class="teams-grid" id="teamsGrid"><div class="loading">Loading…</div></div>
       </section>
 
-      <div class="cards-grid">
-        <!-- Teams used -->
-        <section class="card">
+      <div class="cards-grid lms-lower">
+        <!-- All results for this gameweek -->
+        <section class="card results-card" id="resultsCardSection">
           <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
-            <span><i class="fas fa-shirt" style="color:var(--accent-2);"></i> Your Teams</span>
-            <button class="btn-primary" id="confirmPickBtn" style="display:none; font-size:13px; padding:8px 14px;" disabled><i class="fas fa-check"></i> Confirm Team</button>
+            <span><i class="fas fa-list-ol" style="color:var(--accent-2);"></i> <span id="resultsTitle">Gameweek Results</span></span>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button id="resultsPrevGw" class="btn-icon" title="Previous gameweek" aria-label="Previous gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-left"></i></button>
+              <button id="resultsNextGw" class="btn-icon" title="Next gameweek" aria-label="Next gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-right"></i></button>
+            </div>
           </div>
-          <div class="teams-grid" id="teamsGrid"><div class="loading">Loading…</div></div>
+          <div class="results-grid" id="resultsGrid"><div class="loading">Loading…</div></div>
         </section>
 
         <!-- Survivors -->
@@ -669,6 +717,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           return;
         }
         tournamentId = t.id;
+        renderStatBar(t, gwData0 && gwData0.current_gameweek, gwData0 && gwData0.deadline);
         // Speed: start "am I entered?" and the pick-lock check now, side by
         // side, instead of one waiting for the other.
         const entryP = isLoggedIn() ? fetchMyEntry(t.id) : null;
@@ -730,6 +779,23 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         await refreshEntryState(t, entryP, lockP);
       } catch (e) {
         console.error('Failed to load tournament:', e);
+      }
+    }
+
+    // Bar under the hero (entries, prize pool, gameweek) and the deadline in the gameweek bar.
+    function renderStatBar(t, gw, deadline){
+      const row = document.getElementById('heroStatRow');
+      if (row) row.innerHTML = `
+        <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries||0}</div></div>
+        <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
+        <div class="stat"><div class="label">Gameweek</div><div class="value">${gw ?? '--'}</div></div>`;
+      const dl = document.getElementById('pickDeadline');
+      const ms = deadline ? new Date(deadline) - Date.now() : 0;
+      if (dl) {
+        if (ms > 0) {
+          const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+          dl.innerHTML = `<i class="fas fa-clock"></i> Picks close in ${d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm'}`;
+        } else dl.innerHTML = '';
       }
     }
 
