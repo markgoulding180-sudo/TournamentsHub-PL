@@ -354,6 +354,63 @@
   .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
   @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
   .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+
+  /* ================= Hub look (same as the new GB Hub / LMS / Champions League pages) =================
+     Look only - nothing here changes how predictions work. */
+  body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+  :root{ --hero-h:clamp(220px, calc((100vh - 236px) * 0.5), 340px); }
+  .hero{ background:#01061a !important; border:none !important; margin-bottom:0 !important; border-radius:22px 22px 0 0 !important;
+    min-height:var(--hero-h) !important; padding:clamp(16px, 3vh, 30px) 50px !important; }
+  .hero::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, rgba(1,6,26,0.82) 0%, rgba(1,6,26,0.62) 45%, rgba(1,6,26,0.4) 100%), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat; }
+  .hero::after{ content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    --art-w:calc(var(--hero-h) * 1.78 * 1.06);
+    background:url('assets/card-predictions.jpg') right 50% / auto 106% no-repeat;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px));
+            mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px)); }
+  .hero .hero-content{ z-index:2; }
+  .hero h1{ font-size:clamp(30px, calc(var(--hero-h) * 0.13), 46px) !important; margin-bottom:clamp(4px, 1vh, 10px); line-height:1; }
+  .hero-eyebrow{ margin-bottom:clamp(6px, 1.2vh, 12px); }
+  .hero-sub{ font-size:clamp(15px, calc(var(--hero-h) * 0.06), 20px) !important; margin-bottom:0; }
+  .hero-desc{ display:none; }
+  @media (min-width:900px){ main{ max-width:none !important; padding:12px 32px 60px !important; } }
+
+  /* the bar under the hero */
+  .pr-statbar{ display:flex; align-items:stretch; margin-bottom:20px; border:1px solid var(--border); border-top:none; border-radius:0 0 22px 22px;
+    overflow:hidden; background:linear-gradient(180deg, rgba(10,18,40,0.97), rgba(6,12,30,0.97)); }
+  .pr-statbar .hero-cta-row{ margin:0; gap:0; flex-wrap:nowrap; align-items:stretch; }
+  .pr-statbar .hero-cta-row > .loading{ padding:14px 22px; }
+  .pr-statbar .hero-enter-btn{ border-radius:0; margin:0; padding:0 26px; min-height:56px; font-size:15px; }
+  .pr-statbar .hero-enter-btn.entered{ border:none; border-right:1px solid var(--border); background:rgba(34,197,94,0.12); color:#4ade80; }
+  .pr-statbar .hero-timer{ justify-content:center; padding:8px 22px; border-right:1px solid var(--border); }
+  .pr-statbar .hero-meta-row{ display:flex; flex:1; margin:0; gap:0; flex-wrap:nowrap; }
+  .pr-statbar .hero-meta-item{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:8px 22px; border-right:1px solid var(--border);
+    font-size:11px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); }
+  .pr-statbar .hero-meta-item:last-child{ border-right:none; }
+  .pr-statbar .hero-meta-item b{ font-size:20px; text-transform:none; letter-spacing:0; color:var(--text); }
+
+  /* Your Predictions This Week: the My Tournaments picture from the hub behind it */
+  #yourPredictionsCard{ background:linear-gradient(180deg, rgba(6,12,32,0.80) 0%, rgba(6,12,32,0.72) 45%, rgba(6,12,32,0.90) 100%), url('assets/hero-gb-app.jpg') center 30% / cover no-repeat, #0b1838 !important; }
+  /* Leaderboard: the default background at 30% transparent */
+  #leaderboardCard{ background:linear-gradient(rgba(4,9,30,0.30), rgba(4,9,30,0.30)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028 !important; }
+  #leaderboardCard, #leaderboardCard *{ text-shadow:0 1px 4px rgba(0,0,0,.85); }
+
+  @media (max-width:640px){
+    main{ padding-left:12px !important; padding-right:12px !important; }
+    .hero{ margin-left:0 !important; margin-right:0 !important; border-radius:16px 16px 0 0 !important; min-height:211px !important; padding:16px 16px 18px !important; }
+    .hero::before{ background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.65) 60%, rgba(1,6,26,0.4) 100%), url('assets/card-predictions.jpg') 70% center / cover no-repeat !important; }
+    .hero::after{ display:none; }
+    .hero h1{ font-size:28px !important; }
+    .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
+    .hero-sub{ font-size:15px !important; }
+    /* bar: entry status + timer on the first line, the numbers on the second */
+    .pr-statbar{ flex-direction:column; border-radius:0 0 16px 16px; }
+    .pr-statbar .hero-cta-row{ border-bottom:1px solid var(--border); }
+    .pr-statbar .hero-enter-btn{ flex:1; justify-content:center; min-height:46px; padding:0 12px; font-size:14px; }
+    .pr-statbar .hero-timer{ padding:6px 14px; }
+    .pr-statbar .hero-meta-item{ padding:8px 10px; font-size:9.5px; }
+    .pr-statbar .hero-meta-item b{ font-size:15px; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -435,12 +492,16 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         <div class="hero-sub">Predict. Score. Win.</div>
         <p class="hero-desc">Predict every result and score. Climb the leaderboard. Win cash prizes.</p>
 
-        <div class="hero-cta-row" id="heroCtaRow">
-          <div class="loading" style="color:var(--text-dim); font-size:13px;">Loading tournament…</div>
-        </div>
-        <div class="hero-meta-row" id="heroMetaRow"></div>
       </div>
     </section>
+
+    <!-- Bar under the hero: entry status / timer + entries, prize pool, your points -->
+    <div class="pr-statbar">
+      <div class="hero-cta-row" id="heroCtaRow">
+        <div class="loading" style="color:var(--text-dim); font-size:13px;">Loading tournament…</div>
+      </div>
+      <div class="hero-meta-row" id="heroMetaRow"></div>
+    </div>
 
     <div id="predsFinishedCard" style="display:none;">
       <div class="card" style="text-align:center; padding:30px 24px; margin-bottom:16px;">
