@@ -612,30 +612,26 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
     async function loadTournament() {
       try {
-        let res = await fetch('/api/tournaments?status=live&tournament_type=lms');
-        let data = await res.json();
+        // Speed: these four used to be asked one after another. They don't
+        // depend on each other, so they're asked all at once now. Which
+        // tournament is shown is decided exactly as before: live first, then
+        // one open for registration (upcoming), then the last finished one.
+        const getJson = url => fetch(url).then(r => r.json()).catch(() => ({}));
+        const [data, upData, finData, gwData0] = await Promise.all([
+          getJson('/api/tournaments?status=live&tournament_type=lms'),
+          getJson('/api/tournaments?status=upcoming&tournament_type=lms'),
+          getJson('/api/tournaments?status=finished&tournament_type=lms'),
+          getJson('/api/current-gameweek')
+        ]);
         let t = (data.tournaments || [])[0];
         let tournamentUpcoming = false;
 
         if (!t) {
-          // Real bug fixed here: this used to jump straight from "no
-          // live tournament" to checking finished, completely skipping
-          // upcoming - so a tournament that was genuinely open for
-          // registration (confirmed real case: an LMS tournament
-          // created for a future gameweek) showed the OLD finished
-          // tournament's results instead of a working entry screen.
-          const upRes = await fetch('/api/tournaments?status=upcoming&tournament_type=lms');
-          const upData = await upRes.json();
           t = (upData.tournaments || [])[0];
           tournamentUpcoming = !!t;
         }
 
         if (!t) {
-          // Still nothing live or upcoming — check whether one just
-          // finished, so we can show the final result instead of a
-          // generic "nothing live" message.
-          const finRes = await fetch('/api/tournaments?status=finished&tournament_type=lms');
-          const finData = await finRes.json();
           t = (finData.tournaments || [])[0];
           tournamentFinished = !!t;
         } else {
@@ -673,6 +669,10 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           return;
         }
         tournamentId = t.id;
+        // Speed: start "am I entered?" and the pick-lock check now, side by
+        // side, instead of one waiting for the other.
+        const entryP = isLoggedIn() ? fetchMyEntry(t.id) : null;
+        const lockP = fetch(`/api/tournaments?lms_lock_status=true&tournament_id=${t.id}`).then(r => r.json()).catch(() => null);
 
         if (tournamentUpcoming) {
           // Real, serious mistake fixed here, flagged directly by a
@@ -696,13 +696,13 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             return;
           }
 
-          const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${t.id}&tournament_type=lms`, { headers: authHeaders() });
+          const entryRes = await entryP;
           if (entryRes.status === 401) {
             document.getElementById('enterGate').style.display = 'none';
             document.getElementById('sessionExpiredGate').style.display = 'block';
             return;
           }
-          const entryData = await entryRes.json();
+          const entryData = entryRes.data || {};
 
           if (!entryData.entry) {
             document.getElementById('enterGate').style.display = 'block';
@@ -724,17 +724,24 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           if (pickCard) pickCard.style.display = '';
         }
 
-        const gwRes = await fetch('/api/current-gameweek');
-        const gwData = await gwRes.json();
+        const gwData = (gwData0 && gwData0.current_gameweek !== undefined) ? gwData0 : await fetch('/api/current-gameweek').then(r => r.json());
         currentGw = gwData.current_gameweek;
 
-        await refreshEntryState(t);
+        await refreshEntryState(t, entryP, lockP);
       } catch (e) {
         console.error('Failed to load tournament:', e);
       }
     }
 
-    async function refreshEntryState(tournament) {
+    // "Am I entered?" as { status, data }, so one answer can be shared within a page load.
+    function fetchMyEntry(id){
+      return fetch(`/api/tournaments?my_entry=true&tournament_id=${id}&tournament_type=lms`, { headers: authHeaders() })
+        .then(async r => ({ status: r.status, data: r.status === 401 ? null : await r.json().catch(() => ({})) }));
+    }
+
+    // entryP / lockP: answers already being fetched by loadTournament (only passed from there;
+    // after entering, this is called without them and asks the server fresh).
+    async function refreshEntryState(tournament, entryP, lockP) {
       if (!isLoggedIn()) {
         document.getElementById('enterGate').style.display = 'block';
         document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · Prize pool £${((tournament.prize_pool||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
@@ -742,7 +749,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         return;
       }
 
-      const entryRes = await fetch(`/api/tournaments?my_entry=true&tournament_id=${tournamentId}&tournament_type=lms`, { headers: authHeaders() });
+      const entryRes = await (entryP || fetchMyEntry(tournamentId));
 
       // Real bug fixed here: fetch() doesn't throw on a 401, so an
       // expired/invalid token used to fall straight into "not entered"
@@ -755,7 +762,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         return;
       }
 
-      const entryData = await entryRes.json();
+      const entryData = entryRes.data || {};
 
       if (!entryData.entry) {
         document.getElementById('sessionExpiredGate').style.display = 'none';
@@ -769,7 +776,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       document.getElementById('enterGate').style.display = 'none';
       document.getElementById('mainContent').style.display = 'block';
 
-      await loadLockStatus();
+      await loadLockStatus(lockP);
 
       const statRowHtml = `
         <div class="stat"><div class="label">Entries</div><div class="value">${tournament.current_entries||0}</div></div>
@@ -881,10 +888,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       }
     }
 
-    async function loadLockStatus() {
+    async function loadLockStatus(lockP) {
       try {
-        const res = await fetch(`/api/tournaments?lms_lock_status=true&tournament_id=${tournamentId}`);
-        const lock = await res.json();
+        const lock = (lockP && await lockP) || await fetch(`/api/tournaments?lms_lock_status=true&tournament_id=${tournamentId}`).then(r => r.json());
         const banner = document.getElementById('lockBanner');
         locked = !!lock.locked;
         if (lock.locked && !tournamentFinished) {
