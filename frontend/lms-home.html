@@ -401,6 +401,14 @@
     .lms-gwbar .pick-gw{ font-size:15px; white-space:nowrap; }
     .lms-gwbar .gw-deadline{ font-size:12.5px; white-space:nowrap; }
   }
+
+  /* Confirm lives on the selected team card now; the old header button stays hidden but still does the saving */
+  .lms-teams #confirmPickBtn{ display:none !important; }
+  .team-tile .tile-confirm{ display:inline-flex; align-items:center; justify-content:center; gap:6px; width:100%; margin-top:10px; padding:9px 8px; border-radius:8px;
+    background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:.4px; box-shadow:0 6px 16px rgba(37,99,235,.35); }
+  .team-tile .tile-confirm:disabled{ opacity:.7; }
+  .team-tile .tile-cancel{ display:block; margin-top:6px; font-size:10px; color:var(--text-faint); }
+  @media (max-width:480px){ .team-tile .tile-confirm{ font-size:11px; padding:7px 4px; } .team-tile .tile-cancel{ display:none; } }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -1086,6 +1094,12 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           if (isPending) {
             tileClass = 'pending-select';
             tagHtml = `<span class="pick-tag" style="color:var(--accent-2);"><i class="fas fa-hand-pointer"></i> Selected</span>`;
+            // Confirm sits right on the selected card (it presses the same Confirm Team
+            // button as before, so saving the pick works exactly the same way)
+            if (!(thisWeekPick && thisWeekPick.team === team)) {
+              tagHtml += `<button type="button" class="tile-confirm" onclick="event.stopPropagation(); this.disabled=true; this.innerHTML='Saving…'; document.getElementById('confirmPickBtn').click();"><i class="fas fa-check"></i> Confirm</button>
+                <span class="tile-cancel">Tap the card again to cancel</span>`;
+            }
           } else if (isCurrentPick) {
             const result = pickResultState(team);
             const state = result ? result.state : 'pending';
