@@ -451,6 +451,35 @@
     .lms-teams .team-tile .gw-tag, .lms-teams .team-tile .pick-tag{ font-size:11px; }
     .team-tile .tile-confirm{ font-size:13px; padding:9px 6px; }
   }
+
+  /* ===== Round 4: "default background" (assets/card-bg-sports.jpg) on the pick box and the team cards ===== */
+  .lms-teams .pick-cta{
+    background:linear-gradient(90deg, rgba(4,9,30,0.78), rgba(4,9,30,0.55)), url('assets/card-bg-sports.jpg') center 45% / cover no-repeat !important;
+    border-color:rgba(96,165,250,0.35) !important; padding:18px 22px !important; }
+  .lms-teams .pick-cta, .lms-teams .pick-cta span{ color:#fff !important; }
+  .lms-teams .pick-cta .team{ font-size:24px !important; gap:14px !important; color:#fff; }
+  .lms-teams .pick-cta .team img{ width:64px !important; height:64px !important; }
+  .lms-teams .pick-cta .team .team-name{ color:#fff; }
+  .lms-teams .pick-cta .pick-result-tag{ font-size:14px !important; padding:5px 14px !important; margin-left:8px !important; }
+  .lms-teams .pick-cta .pick-result-tag.pending{ background:rgba(255,255,255,0.14); color:#fff; }
+  @media (max-width:480px){
+    .lms-teams .pick-cta{ padding:14px 14px !important; }
+    .lms-teams .pick-cta .team{ font-size:20px !important; gap:10px !important; }
+    .lms-teams .pick-cta .team img{ width:52px !important; height:52px !important; }
+    .lms-teams .pick-cta .pick-result-tag{ font-size:12px !important; padding:4px 10px !important; }
+  }
+  /* team cards: the default background behind every card; picked / selected cards keep their colour tint on top */
+  .lms-teams .team-tile{ background:linear-gradient(rgba(6,12,32,0.72), rgba(6,12,32,0.72)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .lms-teams .team-tile.pending-select{ background:linear-gradient(rgba(59,130,246,0.30), rgba(6,12,32,0.65)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .lms-teams .team-tile.current-pick.pick-pending{ background:linear-gradient(rgba(242,185,61,0.26), rgba(6,12,32,0.65)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .lms-teams .team-tile.current-pick.pick-win{ background:linear-gradient(rgba(34,197,94,0.26), rgba(6,12,32,0.65)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .lms-teams .team-tile.current-pick.pick-lose, .lms-teams .team-tile.current-pick.pick-draw{ background:linear-gradient(rgba(239,68,68,0.26), rgba(6,12,32,0.65)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .lms-teams .team-tile .name{ color:#fff; text-shadow:0 1px 6px rgba(0,0,0,.8); }
+  .lms-teams .team-tile.pending-select .name{ color:#93c5fd; }
+  .lms-teams .team-tile.current-pick.pick-pending .name{ color:var(--gold); }
+  .lms-teams .team-tile.current-pick.pick-win .name{ color:var(--green); }
+  .lms-teams .team-tile.current-pick.pick-lose .name, .lms-teams .team-tile.current-pick.pick-draw .name{ color:#ef4444; }
+  .lms-teams .team-tile img{ filter:drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
