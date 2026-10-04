@@ -409,6 +409,37 @@
   .team-tile .tile-confirm:disabled{ opacity:.7; }
   .team-tile .tile-cancel{ display:block; margin-top:6px; font-size:10px; color:var(--text-faint); }
   @media (max-width:480px){ .team-tile .tile-confirm{ font-size:11px; padding:7px 4px; } .team-tile .tile-cancel{ display:none; } }
+
+  /* ===== Round 2: deadline in the stat bar (desktop), no Change Pick, bigger team cards ===== */
+  .pick-cta a.btn-primary[href="#teamsGrid"]:has(.fa-pen){ display:none !important; }   /* Change Pick: not needed */
+  .lms-statbar .sb-deadline .value{ color:var(--gold); }
+  @media (min-width:641px){
+    /* gameweek + deadline now live in the stat bar, so the separate gameweek bar only
+       appears when it has something else to say (eliminated / winner) */
+    .lms-gwbar:not(:has(#entryStatusBadge.out)):not(:has(.fa-trophy)){ display:none; }
+    .lms-gwbar .gw-deadline{ display:none; }
+  }
+  @media (min-width:481px){
+    .lms-teams .teams-grid{ gap:14px; }
+    .lms-teams .team-tile{ padding:26px 12px 22px; min-height:190px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .lms-teams .team-tile img{ width:84px; height:84px; margin-bottom:12px; }
+    .lms-teams .team-tile .name{ font-size:16px; }
+    .lms-teams .team-tile .gw-tag, .lms-teams .team-tile .pick-tag{ font-size:12px; }
+  }
+  @media (max-width:640px){
+    .lms-statbar .sb-deadline{ display:none; }   /* phones: the deadline shows in the gameweek bar instead */
+    /* Your Teams edge to edge, square corners */
+    .lms-teams{ margin-left:-14px !important; margin-right:-14px !important; border-radius:0 !important; border-left:none !important; border-right:none !important; padding:16px 10px !important; }
+    .lms-teams .card-title{ padding:0 4px; }
+    .lms-teams .pick-cta{ margin-left:4px; margin-right:4px; }
+  }
+  @media (max-width:480px){
+    .lms-teams .teams-grid{ grid-template-columns:repeat(4, 1fr); gap:7px; }
+    .lms-teams .team-tile{ padding:14px 3px 12px; min-height:112px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+    .lms-teams .team-tile img{ width:46px; height:46px; margin-bottom:8px; }
+    .lms-teams .team-tile .name{ font-size:11.5px; white-space:normal; line-height:1.15; overflow-wrap:anywhere; }
+    .lms-teams .team-tile .gw-tag, .lms-teams .team-tile .pick-tag{ font-size:10px; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -791,20 +822,20 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     }
 
     // Bar under the hero (entries, prize pool, gameweek) and the deadline in the gameweek bar.
+    let lmsDeadline = null;
     function renderStatBar(t, gw, deadline){
+      if (deadline !== undefined) lmsDeadline = deadline || null;
+      const ms = lmsDeadline ? new Date(lmsDeadline) - Date.now() : 0;
+      const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+      const left = ms > 0 ? (d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm') : '';
       const row = document.getElementById('heroStatRow');
       if (row) row.innerHTML = `
         <div class="stat"><div class="label">Entries</div><div class="value">${t.current_entries||0}</div></div>
         <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((t.prize_pool||0)/100).toFixed(2)}</div></div>
-        <div class="stat"><div class="label">Gameweek</div><div class="value">${gw ?? '--'}</div></div>`;
+        <div class="stat"><div class="label">Gameweek</div><div class="value">${gw ?? '--'}</div></div>
+        ${left ? `<div class="stat sb-deadline"><div class="label">Picks close in</div><div class="value">${left}</div></div>` : ''}`;
       const dl = document.getElementById('pickDeadline');
-      const ms = deadline ? new Date(deadline) - Date.now() : 0;
-      if (dl) {
-        if (ms > 0) {
-          const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
-          dl.innerHTML = `<i class="fas fa-clock"></i> Picks close in ${d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm'}`;
-        } else dl.innerHTML = '';
-      }
+      if (dl) dl.innerHTML = left ? `<i class="fas fa-clock"></i> Picks close in ${left}` : '';
     }
 
     // "Am I entered?" as { status, data }, so one answer can be shared within a page load.
@@ -852,13 +883,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
       await loadLockStatus(lockP);
 
-      const statRowHtml = `
-        <div class="stat"><div class="label">Entries</div><div class="value">${tournament.current_entries||0}</div></div>
-        <div class="stat"><div class="label">Prize Pool</div><div class="value">£${((tournament.prize_pool||0)/100).toFixed(2)}</div></div>
-        <div class="stat"><div class="label">Gameweek</div><div class="value">${currentGw ?? '--'}</div></div>
-      `;
-      const heroStatRow = document.getElementById('heroStatRow');
-      if (heroStatRow) heroStatRow.innerHTML = statRowHtml;
+      renderStatBar(tournament, currentGw);
 
       await loadGameweekResults();
       await loadLmsState();
