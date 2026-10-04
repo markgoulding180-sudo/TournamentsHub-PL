@@ -167,6 +167,72 @@
   .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
   @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
   .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+
+  /* ================= Hub look (same as the new GB Hub / Last Man Standing pages) =================
+     Look only - nothing here changes how picks work. */
+  /* page background: the default background, darkened */
+  body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+  /* hero: same size as the hub's hero - washed backdrop + the Champions League card picture on the right */
+  :root{ --hero-h:clamp(220px, calc((100vh - 236px) * 0.5), 340px); }
+  .hero{ background:#01061a !important; border:none !important; box-shadow:none !important; margin-bottom:0 !important;
+    border-radius:22px 22px 0 0 !important; min-height:var(--hero-h) !important; padding:clamp(16px, 3vh, 30px) 50px !important; }
+  .hero::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, rgba(1,6,26,0.82) 0%, rgba(1,6,26,0.62) 45%, rgba(1,6,26,0.4) 100%), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat; }
+  .hero::after{ content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    --art-w:calc(var(--hero-h) * 1.5 * 1.06);
+    background:url('assets/card-champions-league.jpg') right 50% / auto 106% no-repeat;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px));
+            mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px)); }
+  .hero-content{ z-index:2; }
+  .hero h1{ font-size:clamp(30px, calc(var(--hero-h) * 0.13), 46px); margin-bottom:clamp(4px, 1vh, 10px); text-transform:uppercase; font-weight:400; }
+  .hero-eyebrow{ margin-bottom:clamp(6px, 1.2vh, 12px); }
+  .hero-sub{ font-size:clamp(15px, calc(var(--hero-h) * 0.06), 20px); margin-bottom:0; }
+  .hero-desc{ display:none; }
+  /* same width as the hub page on desktop */
+  @media (min-width:900px){ main{ max-width:none !important; padding:12px 32px 60px !important; } }
+
+  /* the bar under the hero */
+  .cl-statbar{ display:flex; align-items:stretch; margin-bottom:20px; border:1px solid var(--border); border-top:none; border-radius:0 0 22px 22px;
+    overflow:hidden; background:linear-gradient(180deg, rgba(10,18,40,0.97), rgba(6,12,30,0.97)); }
+  .cl-statbar .stat-row{ display:flex; flex:1; min-width:0; margin:0; gap:0 !important; flex-wrap:nowrap; }
+  .cl-statbar .stat{ flex:1; min-width:0 !important; background:none; border:none; border-right:1px solid var(--border); border-radius:0; padding:12px 22px !important; }
+  .cl-statbar .stat .label{ font-size:11px !important; }
+  .cl-statbar .stat .value{ font-size:20px !important; }
+  .cl-statbar .cl-links{ display:flex; }
+  .cl-statbar .btn-secondary{ margin:0 !important; border:none; border-left:1px solid var(--border); border-radius:0; padding:0 24px !important; background:rgba(59,130,246,0.1); color:var(--text); font-size:14px !important; }
+  .cl-statbar .btn-secondary:first-child{ border-left:none; }
+  .cl-statbar .btn-secondary i{ color:var(--accent-2); }
+  .cl-statbar .btn-secondary:hover{ background:rgba(59,130,246,0.2); }
+
+  /* sections and stage headers: dark navy with the default background behind */
+  #root .card{ background:linear-gradient(180deg, rgba(4,9,30,0.86), rgba(4,9,30,0.92)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028; }
+  .stage-header{ background:linear-gradient(90deg, rgba(14,26,58,0.97), rgba(8,16,40,0.97)); }
+
+  /* team cards: the default background at 40% transparent; selected / correct / wrong keep their colour tint */
+  .team-card{ background:linear-gradient(rgba(6,12,32,0.40), rgba(6,12,32,0.40)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .team-card.selected{ background:linear-gradient(rgba(59,130,246,0.38), rgba(6,12,32,0.40)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .team-card.correct{ background:linear-gradient(rgba(34,197,94,0.34), rgba(6,12,32,0.40)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .team-card.wrong{ background:linear-gradient(rgba(239,68,68,0.32), rgba(6,12,32,0.40)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .team-card .team-name{ color:#fff; text-shadow:0 1px 6px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9); }
+  .team-card .used-tag{ color:#cbd5e1; text-shadow:0 1px 4px rgba(0,0,0,.9); }
+
+  @media (max-width:640px){
+    main{ padding:12px 12px 50px !important; }
+    .hero{ border-radius:16px 16px 0 0 !important; min-height:211px !important; padding:16px 16px 18px !important; }
+    .hero::before{ background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.65) 60%, rgba(1,6,26,0.4) 100%), url('assets/card-champions-league.jpg') 70% center / cover no-repeat; }
+    .hero::after{ display:none; }
+    .hero h1{ font-size:28px; }
+    .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
+    .hero-sub{ font-size:15px; }
+    /* bar: stats on one line, the two links on a second line */
+    .cl-statbar{ flex-direction:column; border-radius:0 0 16px 16px; }
+    .cl-statbar .stat{ padding:9px 10px !important; }
+    .cl-statbar .stat:last-child{ border-right:none; }
+    .cl-statbar .stat .label{ font-size:9.5px !important; }
+    .cl-statbar .stat .value{ font-size:15px !important; }
+    .cl-statbar .cl-links{ border-top:1px solid var(--border); }
+    .cl-statbar .btn-secondary{ flex:1; justify-content:center; padding:11px 8px !important; font-size:13px !important; }
+  }
 </style>
 </head>
 <body>
@@ -217,13 +283,17 @@
           <i class="fas fa-triangle-exclamation" style="color:var(--gold); font-size:13px;"></i>
           <span style="font-size:13px; font-weight:600; color:var(--gold);">Each team can only ever be picked once across the whole tournament</span>
         </div>
-        <div class="stat-row" id="heroStatRow"></div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <a href="/champions-league-leaderboard" class="btn-secondary"><i class="fas fa-ranking-star"></i> Leaderboard</a>
-          <a href="/champions-league-how-it-works" class="btn-secondary"><i class="fas fa-circle-question"></i> How It Works</a>
-        </div>
       </div>
     </section>
+
+    <!-- Bar under the hero: entries, prize pool, your points + links -->
+    <div class="cl-statbar">
+      <div class="stat-row" id="heroStatRow"></div>
+      <div class="cl-links">
+        <a href="/champions-league-leaderboard" class="btn-secondary"><i class="fas fa-ranking-star"></i> Leaderboard</a>
+        <a href="/champions-league-how-it-works" class="btn-secondary"><i class="fas fa-circle-question"></i> How It Works</a>
+      </div>
+    </div>
 
     <div id="root"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div></div>
   </main>
