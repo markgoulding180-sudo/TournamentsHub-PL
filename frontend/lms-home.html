@@ -440,6 +440,17 @@
     .lms-teams .team-tile .name{ font-size:11.5px; white-space:normal; line-height:1.15; overflow-wrap:anywhere; }
     .lms-teams .team-tile .gw-tag, .lms-teams .team-tile .pick-tag{ font-size:10px; }
   }
+
+  /* ===== Round 3: green Confirm, 3 bigger team cards per row on phones ===== */
+  .team-tile .tile-confirm{ background:linear-gradient(135deg, #22c55e, #15803d) !important; box-shadow:0 6px 16px rgba(34,197,94,.35) !important; }
+  @media (max-width:480px){
+    .lms-teams .teams-grid{ grid-template-columns:repeat(3, 1fr) !important; gap:9px; }
+    .lms-teams .team-tile{ min-height:150px; padding:18px 6px 14px; }
+    .lms-teams .team-tile img{ width:68px; height:68px; margin-bottom:10px; }
+    .lms-teams .team-tile .name{ font-size:14px; }
+    .lms-teams .team-tile .gw-tag, .lms-teams .team-tile .pick-tag{ font-size:11px; }
+    .team-tile .tile-confirm{ font-size:13px; padding:9px 6px; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
