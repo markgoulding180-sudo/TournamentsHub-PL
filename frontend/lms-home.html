@@ -213,10 +213,14 @@
     .r-simple-tag.win{ color:var(--green); }
     .r-simple-tag.upcoming{ color:var(--text-faint); }
 
-    .pick-result-tag{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:2rem; margin-left:10px; }
+    .pick-result-tag{ white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:2rem; margin-left:10px; }
     .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
     .pick-result-tag.lose{ background:rgba(239,68,68,0.15); color:#fca5a5; }
     .pick-result-tag.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
+    .pick-tag-wrap{ display:inline-flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; margin-left:10px; }
+    .pick-tag-wrap .pick-result-tag{ margin-left:0 !important; }
+    .pick-kickoff{ font-family:var(--font-body, inherit); font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
+    @media (max-width:640px){ .pick-kickoff{ font-size:11px; } .pick-tag-wrap{ margin-left:6px; } }
     .pick-result-tag.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
 
     /* Survivors leaderboard */
@@ -461,12 +465,15 @@
   .lms-teams .pick-cta .team img{ width:64px !important; height:64px !important; }
   .lms-teams .pick-cta .team .team-name{ color:#fff; }
   .lms-teams .pick-cta .pick-result-tag{ font-size:14px !important; padding:5px 14px !important; margin-left:8px !important; }
+  .lms-teams .pick-cta .pick-kickoff{ font-size:15px; }
+  .lms-teams .pick-cta .pick-tag-wrap .pick-result-tag{ margin-left:0 !important; }
   .lms-teams .pick-cta .pick-result-tag.pending{ background:rgba(255,255,255,0.14); color:#fff; }
   @media (max-width:480px){
     .lms-teams .pick-cta{ padding:14px 14px !important; }
     .lms-teams .pick-cta .team{ font-size:20px !important; gap:10px !important; }
     .lms-teams .pick-cta .team img{ width:52px !important; height:52px !important; }
     .lms-teams .pick-cta .pick-result-tag{ font-size:12px !important; padding:4px 10px !important; }
+    .lms-teams .pick-cta .pick-kickoff{ font-size:13px; }
   }
   /* team cards (20% darker): the default background behind every card; picked / selected cards keep their colour tint on top */
   .lms-teams .team-tile{ background:linear-gradient(rgba(6,12,32,0.80), rgba(6,12,32,0.80)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
@@ -1059,7 +1066,16 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       if (!result) return '';
       const { state, match } = result;
       if (state === 'pending') {
-        return `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
+        // Keep the status tag (e.g. "upcoming") and show the kickoff day
+        // and time (UK time) underneath it, e.g. "Mon 12 Oct · 20:00".
+        const tag = `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
+        const k = match.kickoff_time ? new Date(match.kickoff_time) : null;
+        if ((match.status || 'upcoming') === 'upcoming' && k && !isNaN(k)) {
+          const day = k.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
+          const time = k.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
+          return `<span class="pick-tag-wrap">${tag}<span class="pick-kickoff">${escapeHtml(day)} · ${escapeHtml(time)}</span></span>`;
+        }
+        return tag;
       }
       const score = `${match.home_score}-${match.away_score}`;
       if (state === 'win') return `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
