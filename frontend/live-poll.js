@@ -4,7 +4,9 @@
 // Two things happen here, both while a logged-in user has any of these
 // pages open:
 //
-// 1. Data refresh, every 2 minutes:
+// 1. Data refresh, every 2 minutes (one combined server call, action
+//    poll_all, which runs all of these in order; falls back to calling
+//    them one by one if that ever fails):
 //   - /api/live-scores    -> match scores/status, recalculates prediction points
 //   - /api/sync-players   -> player points (season total + this gameweek)
 //   - /api/sync-fixtures  -> fixture schedule itself (postponements, kickoff
@@ -122,7 +124,32 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     try { await runPoll(); } finally { polling = false; }
   }
 
+  // One server call that runs all six refresh jobs (see poll_all in
+  // api/tournaments.js). If it ever fails for any reason - e.g. an expired
+  // login, or the server not updated yet - fall back to the original six
+  // separate calls below, so live scores and points never stop updating.
   async function runPoll() {
+    try {
+      const token = localStorage.getItem('gbf_token');
+      const r = await fetch('/api/tournaments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ action: 'poll_all' })
+      });
+      const data = await r.json().catch(() => null);
+      if (r.ok && data && data.success) {
+        console.log('[live-poll] Refreshed shared PL data (combined):', data.parts);
+        window.dispatchEvent(new CustomEvent('gbf-data-refreshed'));
+        return;
+      }
+      console.warn('[live-poll] combined refresh failed, using separate calls:', r.status, data);
+    } catch (e) {
+      console.warn('[live-poll] combined refresh failed, using separate calls:', e);
+    }
+    await runPollSeparately();
+  }
+
+  async function runPollSeparately() {
 
     try {
       const liveScoresResponse = await fetch('/api/live-scores', {

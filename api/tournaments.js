@@ -2603,6 +2603,45 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       const { action, tournament_id, name, entry_fee, prize_pool, gameweek, end_gameweek, max_entries, closes_at, payment_due_date, squad_players, captain_id, tournament_type, team, pack_type, position, player_id, is_sub } = req.body;
       const schemaName = resolveSchema(tournament_type);
 
+      // Background refresh in ONE call instead of six. live-poll.js used to
+      // call six endpoints separately every 2 minutes; this runs exactly the
+      // same six pieces of code, in the same order, inside this one request.
+      // Nothing about how they work changes - each still has its own 90s
+      // shared timer, its own scoring and its own error handling - it just
+      // costs one Vercel invocation instead of six. If one part fails, the
+      // others still run (same as before).
+      if (action === 'poll_all') {
+        const runPart = async (handler, fakeReq) => {
+          const fakeRes = {
+            statusCode: 200, headers: {}, body: null,
+            setHeader(k, v) { this.headers[k] = v; return this; },
+            getHeader(k) { return this.headers[k]; },
+            status(c) { this.statusCode = c; return this; },
+            json(b) { this.body = b; return this; },
+            send(b) { this.body = b; return this; },
+            end() { return this; }
+          };
+          try {
+            await handler(fakeReq, fakeRes);
+            let body = fakeRes.body;
+            try { if (JSON.stringify(body).length > 2000) body = { note: 'response trimmed' }; } catch (e) { body = null; }
+            return { status: fakeRes.statusCode, body };
+          } catch (e) {
+            console.error('[poll_all] part failed:', e);
+            return { status: 500, body: { error: e.message } };
+          }
+        };
+        const authOnly = { authorization: req.headers.authorization, 'content-type': 'application/json' };
+        const out = {};
+        out.live_scores = await runPart(require('./live-scores.js'), { method: 'POST', headers: {}, query: {}, body: {} });
+        out.sync_players = await runPart(require('./sync-players.js'), { method: 'GET', headers: {}, query: {}, body: {} });
+        out.sync_fixtures = await runPart(require('./sync-fixtures.js'), { method: 'GET', headers: {}, query: { poll: 'true' }, body: {} });
+        out.cl_sync = await runPart(module.exports, { method: 'POST', headers: authOnly, query: {}, body: { action: 'cl_sync' } });
+        out.stockmarket_check_deadline = await runPart(module.exports, { method: 'POST', headers: authOnly, query: {}, body: { action: 'stockmarket_check_deadline' } });
+        out.sync_current_gameweek_stats = await runPart(module.exports, { method: 'POST', headers: authOnly, query: {}, body: { action: 'sync_current_gameweek_stats' } });
+        return res.status(200).json({ success: true, parts: out });
+      }
+
       // CREATE tournament (admin action)
       if (action === 'create') {
         // Real gap fixed here, confirmed during code review: this was
