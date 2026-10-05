@@ -430,6 +430,28 @@
     .fixture-chip .teams{ font-size:13.5px !important; }
     .fixture-chip .score{ font-size:15.5px !important; }
   }
+
+  /* ===== Round 3: Predict Now in the bar, countdown, white picks, bigger titles ===== */
+  .pr-statbar .hero-predict-btn{ text-decoration:none; justify-content:center; min-width:190px; }
+  .pr-statbar .hero-predict-btn.need{ background:linear-gradient(135deg, #f59e0b, #d97706); color:#111; }
+  .pr-statbar .hero-timer .value{ font-size:20px; }
+  body.pr-entered .predict-nav-bar .predict-now-link{ display:none !important; }   /* it lives in the bar now */
+  .pred-row .pred-pick{ color:#fff !important; }
+  #yourPredictionsCard .card-title > span:first-child{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; }
+  #yourPredictionsCard .card-title{ gap:10px; }
+  #yourPredictionsTitle{ font-size:28px !important; white-space:nowrap; }
+  .lb-row{ font-size:15.5px !important; }
+  .lb-row .pts{ font-size:16px; }
+  @media (max-width:640px){
+    /* Predict Now across the bar, the countdown underneath it */
+    .pr-statbar .hero-cta-row{ flex-direction:column; }
+    .pr-statbar .hero-predict-btn, .pr-statbar .hero-enter-btn{ width:100%; }
+    .pr-statbar .hero-timer{ flex-direction:row !important; justify-content:center; align-items:baseline; gap:8px; border-right:none; border-top:1px solid var(--border); padding:7px 12px; }
+    .pr-statbar .hero-timer .value{ font-size:16px; }
+    #yourPredictionsTitle{ font-size:min(22px, 5.6vw) !important; max-width:none !important; overflow:visible !important; }
+    #yourPredictionsCard .card-title > span:first-child i{ display:none; }
+    .lb-row{ font-size:14.5px !important; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -556,7 +578,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     <!-- Your Predictions This Week -->
     <section class="card week-card" id="yourPredictionsCard">
       <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
-        <span><i class="fas fa-user-check" style="color:var(--accent-2);"></i> <span id="yourPredictionsTitle" style="font-family:var(--font-display); font-size:20px; color:#fff;">Your Predictions This Week</span></span>
+        <span><i class="fas fa-user-check" style="color:var(--accent-2);"></i> <span id="yourPredictionsTitle" style="font-family:var(--font-display); font-size:20px; color:#fff;">Your Picks This Week</span></span>
         <div style="display:flex; gap:8px; align-items:center;">
           <button id="yourPredPrevGw" title="Previous gameweek" aria-label="Previous gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-left"></i></button>
           <button id="yourPredNextGw" title="Next gameweek" aria-label="Next gameweek" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; color:var(--text); cursor:pointer; font-size:14px;"><i class="fas fa-chevron-right"></i></button>
@@ -604,6 +626,31 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     let viewedPredictionsGw = null; // which gameweek the Your Predictions card shows — separate from currentGw so browsing history doesn't touch the real pick flow
     let tournamentId = null;
     let isEnteredInTournament = false;
+    // Predict Now button in the bar: says "Need Picks" while this gameweek still needs picks
+    let heroPickState = null;
+    // Keep "Your Picks This Week GW##" on one line: biggest size that fits the space
+    // left of the arrow buttons (room for two-digit gameweeks).
+    function fitPicksTitle(){
+      const el = document.getElementById('yourPredictionsTitle');
+      if (!el) return;
+      const wrap = el.parentElement;
+      let size = innerWidth < 641 ? 22 : 28;
+      el.style.setProperty('font-size', size + 'px', 'important');
+      while (size > 13 && wrap.scrollWidth > wrap.clientWidth) {
+        size -= 1;
+        el.style.setProperty('font-size', size + 'px', 'important');
+      }
+    }
+    window.addEventListener('resize', fitPicksTitle);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitPicksTitle);
+    new MutationObserver(fitPicksTitle).observe(document.getElementById('yourPredictionsTitle') || document.body, { childList:true, subtree:true, characterData:true });
+    function applyHeroPickState(){
+      const b = document.getElementById('heroPredictBtn');
+      if (!b || !heroPickState) return;
+      b.href = `/predict?gameweek=${heroPickState.gw}`;
+      b.classList.toggle('need', heroPickState.need);
+      b.querySelector('span').textContent = heroPickState.need ? 'Need Picks' : 'Predict Now';
+    }
 
     // ---------- This Week's Games ----------
     async function loadThisWeek() {
@@ -648,6 +695,10 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           statusArea.innerHTML = `<a href="/login?redirect=%2Fpredictions" class="predict-status todo"><i class="fas fa-right-to-bracket"></i> Log In to Predict</a>`;
           document.getElementById('yourPredictionsBody').innerHTML = `<div class="empty">Log in to see your predictions.</div>`;
           document.getElementById('yourPredictionsSummary').innerHTML = '';
+        }
+        heroPickState = loggedIn && matches.length > 0 ? { need: myPredictions.length < matches.length, gw: currentGw } : null;
+        applyHeroPickState();
+        if (!loggedIn) {
         } else if (matches.length > 0 && myPredictions.length >= matches.length) {
           statusArea.innerHTML = `<span class="predict-status done"><i class="fas fa-circle-check"></i> You've Predicted This Week</span>`;
         } else {
@@ -661,7 +712,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           // window between two independent fetches.
           viewedPredictionsGw = currentGw;
           const titleEl = document.getElementById('yourPredictionsTitle');
-          if (titleEl) titleEl.innerHTML = `Your Predictions This Week <span style="color:var(--accent-2);">GW${currentGw}</span>`;
+          if (titleEl) titleEl.innerHTML = `Your Picks This Week <span style="color:var(--accent-2);">GW${currentGw}</span>`;
           renderYourPredictions(matches, myPredictions);
         }
       } catch (e) {
@@ -677,8 +728,8 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       const prevBtn = document.getElementById('yourPredPrevGw');
       const nextBtn = document.getElementById('yourPredNextGw');
       if (titleEl) titleEl.innerHTML = gw === currentGw
-        ? `Your Predictions This Week <span style="color:var(--accent-2);">GW${gw}</span>`
-        : `Your Predictions — <span style="color:var(--accent-2);">Gameweek ${gw}</span>`;
+        ? `Your Picks This Week <span style="color:var(--accent-2);">GW${gw}</span>`
+        : `Your Picks — <span style="color:var(--accent-2);">GW${gw}</span>`;
       // GW1 is the real floor for every tournament — never navigate below it.
       if (prevBtn) {
         const atFloor = !gw || gw <= 1;
@@ -896,7 +947,10 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
               const entryData = await entryRes.json();
               if (entryData.entry) {
                 isEnteredInTournament = true;
-                entryHtml = `<button class="hero-enter-btn entered" disabled><i class="fas fa-circle-check"></i> You're Entered</button>`;
+                // "You're Entered" told players nothing new - the Predict Now button
+                // takes its place (it turns into "Need Picks" when this gameweek still needs picks)
+                entryHtml = `<a href="/predict" class="hero-enter-btn hero-predict-btn" id="heroPredictBtn"><i class="fas fa-futbol"></i> <span>Predict Now</span></a>`;
+                document.body.classList.add('pr-entered');
                 // Real fix: this is the actual, stored cumulative total
                 // across every gameweek (updated whenever a gameweek
                 // finalizes) - not the current-gameweek-only running total
@@ -923,13 +977,19 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPointsItem">Your Points <b id="heroPointsValue" style="font-family:var(--font-display); color:var(--accent-2);">${myTotalPoints} pts</b></div>` : ''}
         `;
 
+        applyHeroPickState();
         const enterBtn = document.getElementById('enterTournamentBtn');
         if (enterBtn && !enterBtn.disabled) enterBtn.onclick = () => enterPredictionsTournament(t);
 
         // Countdown to the tournament's own start gameweek — not
         // necessarily the same as "this week", since a tournament can be
         // set up in admin to start on any gameweek.
-        if (t.gameweek) loadHeroKickoffTimer(t.gameweek);
+        let timerGw = t.gameweek || null;
+        try {
+          const cg = currentGw || (await (await fetch('/api/current-gameweek')).json()).current_gameweek;
+          if (cg && (!timerGw || cg > timerGw)) timerGw = cg;
+        } catch (e) {}
+        if (timerGw) loadHeroKickoffTimer(timerGw);
       } catch (e) {
         console.error('Failed to load tournament:', e);
         ctaRow.innerHTML = '<div style="color:var(--text-dim); font-size:13px;">Couldn\'t load tournament right now.</div>';
