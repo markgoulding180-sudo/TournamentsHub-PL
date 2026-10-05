@@ -523,6 +523,14 @@
     .survivor-row .s-pick span:last-child{ font-size:11px !important; }
     .survivor-row .s-status{ font-size:10px; }
   }
+
+  /* ===== Round 6 ===== */
+  /* page background: the default background behind everything */
+  body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+  /* Gameweek Results: side by side with Survivors on desktop, full width on phones */
+  @media (max-width:640px){
+    #resultsCardSection{ margin-left:-14px !important; margin-right:-14px !important; border-radius:0 !important; border-left:none !important; border-right:none !important; padding:16px 10px !important; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
