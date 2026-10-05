@@ -3138,16 +3138,20 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // ---- Forum ----
       if (action === 'forum_get_categories') {
         const { data: categories, error: catErr } = await supabaseAdmin
-          .schema('forum').from('categories').select('*').order('sort_order');
+          .from('forum_categories').select('*').order('sort_order');
         if (catErr) return res.status(500).json({ error: catErr.message });
 
         const { data: threadCounts } = await supabaseAdmin
-          .schema('forum').from('threads').select('category_id');
-        const countByCategory = {};
-        (threadCounts || []).forEach(t => { countByCategory[t.category_id] = (countByCategory[t.category_id] || 0) + 1; });
+          .from('forum_threads').select('category_id, reply_count, last_reply_at');
+        const countByCategory = {}, postsByCategory = {}, lastByCategory = {};
+        (threadCounts || []).forEach(t => {
+          countByCategory[t.category_id] = (countByCategory[t.category_id] || 0) + 1;
+          postsByCategory[t.category_id] = (postsByCategory[t.category_id] || 0) + 1 + (t.reply_count || 0);
+          if (!lastByCategory[t.category_id] || t.last_reply_at > lastByCategory[t.category_id]) lastByCategory[t.category_id] = t.last_reply_at;
+        });
 
         return res.status(200).json({
-          categories: categories.map(c => ({ ...c, thread_count: countByCategory[c.id] || 0 }))
+          categories: categories.map(c => ({ ...c, thread_count: countByCategory[c.id] || 0, post_count: postsByCategory[c.id] || 0, last_activity_at: lastByCategory[c.id] || null }))
         });
       }
 
@@ -3156,12 +3160,12 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!category_slug) return res.status(400).json({ error: 'category_slug is required' });
 
         const { data: category, error: catErr } = await supabaseAdmin
-          .schema('forum').from('categories').select('*').eq('slug', category_slug).maybeSingle();
+          .from('forum_categories').select('*').eq('slug', category_slug).maybeSingle();
         if (catErr) return res.status(500).json({ error: catErr.message });
         if (!category) return res.status(404).json({ error: 'Category not found' });
 
         const { data: threads, error: threadErr } = await supabaseAdmin
-          .schema('forum').from('threads').select('*')
+          .from('forum_threads').select('*')
           .eq('category_id', category.id)
           .order('pinned', { ascending: false })
           .order('last_reply_at', { ascending: false });
@@ -3169,14 +3173,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = [...new Set(threads.map(t => t.user_id))];
         const { data: authors } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds)
+          ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_url').in('id', userIds)
           : { data: [] };
-        const nameByUser = {};
-        (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; });
+        const nameByUser = {}, avatarByUser = {};
+        (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; avatarByUser[u.id] = u.avatar_url || null; });
 
+        const { data: parentCat } = category.parent_id ? await supabaseAdmin.from('forum_categories').select('*').eq('id', category.parent_id).maybeSingle() : { data: null };
         return res.status(200).json({
-          category,
-          threads: threads.map(t => ({ ...t, author_name: nameByUser[t.user_id] || 'Unknown' }))
+          category, parent: parentCat || null,
+          threads: threads.map(t => ({ ...t, author_name: nameByUser[t.user_id] || 'Unknown', author_avatar: avatarByUser[t.user_id] || null }))
         });
       }
 
@@ -3185,22 +3190,27 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!thread_id) return res.status(400).json({ error: 'thread_id is required' });
 
         const { data: thread, error: threadErr } = await supabaseAdmin
-          .schema('forum').from('threads').select('*').eq('id', thread_id).maybeSingle();
+          .from('forum_threads').select('*').eq('id', thread_id).maybeSingle();
         if (threadErr) return res.status(500).json({ error: threadErr.message });
         if (!thread) return res.status(404).json({ error: 'Thread not found' });
 
         const { data: posts, error: postsErr } = await supabaseAdmin
-          .schema('forum').from('posts').select('*').eq('thread_id', thread_id).order('created_at', { ascending: true });
+          .from('forum_posts').select('*').eq('thread_id', thread_id).order('created_at', { ascending: true });
         if (postsErr) return res.status(500).json({ error: postsErr.message });
 
         const userIds = [...new Set([thread.user_id, ...posts.map(p => p.user_id)])];
-        const { data: authors } = await supabaseAdmin.from('users').select('id, display_name, username').in('id', userIds);
-        const nameByUser = {};
-        (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; });
+        const { data: authors } = await supabaseAdmin.from('users').select('id, display_name, username, avatar_url').in('id', userIds);
+        const nameByUser = {}, avatarByUser = {};
+        (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; avatarByUser[u.id] = u.avatar_url || null; });
+        const { data: tCat } = await supabaseAdmin.from('forum_categories').select('*').eq('id', thread.category_id).maybeSingle();
+        const { data: tParent } = tCat && tCat.parent_id ? await supabaseAdmin.from('forum_categories').select('*').eq('id', tCat.parent_id).maybeSingle() : { data: null };
+        const { data: me } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
 
         return res.status(200).json({
-          thread: { ...thread, author_name: nameByUser[thread.user_id] || 'Unknown' },
-          posts: posts.map(p => ({ ...p, author_name: nameByUser[p.user_id] || 'Unknown' }))
+          thread: { ...thread, author_name: nameByUser[thread.user_id] || 'Unknown', author_avatar: avatarByUser[thread.user_id] || null },
+          category: tCat || null, parent: tParent || null,
+          me: { id: user.id, is_admin: !!(me && me.is_admin) },
+          posts: posts.map(p => ({ ...p, author_name: nameByUser[p.user_id] || 'Unknown', author_avatar: avatarByUser[p.user_id] || null }))
         });
       }
 
@@ -3210,15 +3220,19 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'category_id, title, and content are all required' });
         }
         if (title.length > 200) return res.status(400).json({ error: 'Title is too long (max 200 characters)' });
+        if (content.length > 5000) return res.status(400).json({ error: 'Post is too long (max 5000 characters)' });
+        const { data: targetCat } = await supabaseAdmin.from('forum_categories').select('id, parent_id').eq('id', category_id).maybeSingle();
+        if (!targetCat) return res.status(404).json({ error: 'Category not found' });
+        if (!targetCat.parent_id) return res.status(400).json({ error: 'Choose Live or Past to post in' });
 
         const { data: thread, error: threadErr } = await supabaseAdmin
-          .schema('forum').from('threads')
+          .from('forum_threads')
           .insert({ category_id, user_id: user.id, title: title.trim() })
           .select().single();
         if (threadErr) return res.status(500).json({ error: threadErr.message });
 
         const { error: postErr } = await supabaseAdmin
-          .schema('forum').from('posts')
+          .from('forum_posts')
           .insert({ thread_id: thread.id, user_id: user.id, content: content.trim() });
         if (postErr) return res.status(500).json({ error: postErr.message });
 
@@ -3228,15 +3242,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       if (action === 'forum_create_reply') {
         const { thread_id, content } = req.body;
         if (!thread_id || !content?.trim()) return res.status(400).json({ error: 'thread_id and content are required' });
+        if (content.length > 5000) return res.status(400).json({ error: 'Reply is too long (max 5000 characters)' });
 
         const { data: thread, error: threadErr } = await supabaseAdmin
-          .schema('forum').from('threads').select('locked').eq('id', thread_id).maybeSingle();
+          .from('forum_threads').select('locked').eq('id', thread_id).maybeSingle();
         if (threadErr) return res.status(500).json({ error: threadErr.message });
         if (!thread) return res.status(404).json({ error: 'Thread not found' });
         if (thread.locked) return res.status(403).json({ error: 'This thread is locked' });
 
         const { error: postErr } = await supabaseAdmin
-          .schema('forum').from('posts')
+          .from('forum_posts')
           .insert({ thread_id, user_id: user.id, content: content.trim() });
         if (postErr) return res.status(500).json({ error: postErr.message });
 
@@ -3254,7 +3269,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!post_id) return res.status(400).json({ error: 'post_id is required' });
 
         const { data: post, error: postErr } = await supabaseAdmin
-          .schema('forum').from('posts').select('user_id, thread_id').eq('id', post_id).maybeSingle();
+          .from('forum_posts').select('user_id, thread_id').eq('id', post_id).maybeSingle();
         if (postErr) return res.status(500).json({ error: postErr.message });
         if (!post) return res.status(404).json({ error: 'Post not found' });
 
@@ -3263,8 +3278,20 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const isAdmin = caller?.is_admin;
         if (!isOwner && !isAdmin) return res.status(403).json({ error: 'You can only delete your own posts' });
 
-        const { error: delErr } = await supabaseAdmin.schema('forum').from('posts').delete().eq('id', post_id);
+        // Deleting the opening post removes the whole thread; deleting a
+        // reply just removes that reply and lowers the reply count.
+        const { data: firstPost } = await supabaseAdmin.from('forum_posts').select('id').eq('thread_id', post.thread_id)
+          .order('created_at', { ascending: true }).limit(1).maybeSingle();
+        if (firstPost && firstPost.id === post_id) {
+          const { error: thDelErr } = await supabaseAdmin.from('forum_threads').delete().eq('id', post.thread_id);
+          if (thDelErr) return res.status(500).json({ error: thDelErr.message });
+          return res.status(200).json({ success: true, thread_deleted: true });
+        }
+
+        const { error: delErr } = await supabaseAdmin.from('forum_posts').delete().eq('id', post_id);
         if (delErr) return res.status(500).json({ error: delErr.message });
+        const { data: th } = await supabaseAdmin.from('forum_threads').select('reply_count').eq('id', post.thread_id).maybeSingle();
+        if (th) await supabaseAdmin.from('forum_threads').update({ reply_count: Math.max(0, (th.reply_count || 0) - 1) }).eq('id', post.thread_id);
 
         return res.status(200).json({ success: true });
       }
@@ -3277,7 +3304,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!thread_id) return res.status(400).json({ error: 'thread_id is required' });
 
         if (shouldDelete) {
-          const { error: delErr } = await supabaseAdmin.schema('forum').from('threads').delete().eq('id', thread_id);
+          const { error: delErr } = await supabaseAdmin.from('forum_threads').delete().eq('id', thread_id);
           if (delErr) return res.status(500).json({ error: delErr.message });
           return res.status(200).json({ success: true, deleted: true });
         }
@@ -3287,7 +3314,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (typeof locked === 'boolean') updates.locked = locked;
         if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' });
 
-        const { error: updateErr } = await supabaseAdmin.schema('forum').from('threads').update(updates).eq('id', thread_id);
+        const { error: updateErr } = await supabaseAdmin.from('forum_threads').update(updates).eq('id', thread_id);
         if (updateErr) return res.status(500).json({ error: updateErr.message });
 
         return res.status(200).json({ success: true });
