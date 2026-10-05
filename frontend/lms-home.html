@@ -161,7 +161,6 @@
       .pick-cta .team img{ width:22px; height:22px; }
       .pick-cta .btn-primary{ padding:10px 12px; font-size:13px; white-space:nowrap; width:100%; text-align:center; justify-content:center; }
       .pick-cta > span:not(.team){ white-space:normal; }
-      .pick-cta .pick-result-tag{ font-size:10px; padding:2px 8px; margin-left:6px; }
     }
 
     /* Teams used grid */
@@ -213,11 +212,6 @@
     .r-simple-tag.win{ color:var(--green); }
     .r-simple-tag.upcoming{ color:var(--text-faint); }
 
-    .pick-result-tag{ white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 10px; border-radius:2rem; margin-left:10px; }
-    .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
-    .pick-result-tag.lose{ background:rgba(239,68,68,0.15); color:#fca5a5; }
-    .pick-result-tag.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
-    .pick-result-tag.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
 
     /* Survivors leaderboard */
     .survivor-row{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; }
@@ -460,15 +454,10 @@
   .lms-teams .pick-cta .team{ font-size:24px !important; gap:14px !important; color:#fff; }
   .lms-teams .pick-cta .team img{ width:64px !important; height:64px !important; }
   .lms-teams .pick-cta .team .team-name{ color:#fff; }
-  .lms-teams .pick-cta .pick-result-tag{ font-size:14px !important; padding:5px 14px !important; margin-left:8px !important; }
-  .lms-teams .pick-cta .pick-result-tag.pending{ background:rgba(255,255,255,0.14); color:#fff; }
-  .lms-teams .pick-cta .pick-result-tag.win{ background:#16a34a !important; }
-  .lms-teams .pick-cta .pick-result-tag.lose, .lms-teams .pick-cta .pick-result-tag.live{ background:#dc2626 !important; }
   @media (max-width:480px){
     .lms-teams .pick-cta{ padding:14px 14px !important; }
     .lms-teams .pick-cta .team{ font-size:20px !important; gap:10px !important; }
     .lms-teams .pick-cta .team img{ width:52px !important; height:52px !important; }
-    .lms-teams .pick-cta .pick-result-tag{ font-size:12px !important; padding:4px 10px !important; }
   }
   /* team cards (20% darker): the default background behind every card; picked / selected cards keep their colour tint on top */
   .lms-teams .team-tile{ background:linear-gradient(rgba(6,12,32,0.80), rgba(6,12,32,0.80)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
@@ -484,16 +473,23 @@
   .lms-teams .team-tile img{ filter:drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
 
   /* ===== Round 5 ===== */
-  /* pick box: badge under the name, info to the right at the same size as the name */
-  .pick-cta .pick-name-col{ display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
-  .pick-cta .pick-name-col .team-name{ max-width:100%; }
-  .pick-cta .pick-name-col .pick-result-tag{ margin-left:0 !important; }
-  .pick-cta .pick-side{ font-family:var(--font-head); font-size:inherit; font-weight:700; color:#fff; margin-left:8px; line-height:1.15; flex-shrink:0; }
-  .pick-cta .pick-side .nw{ white-space:nowrap; }
-  .lms-teams .pick-cta .pick-side.through{ color:#4ade80 !important; }
-  .lms-teams .pick-cta .pick-side.out{ color:#fca5a5 !important; }
-  .pick-result-tag.live{ background:#dc2626; color:#fff; }
-  .pick-result-tag .live-dot{ width:8px; height:8px; border-radius:50%; background:#fff; display:inline-block; animation:lmsLivePulse 1.2s ease-in-out infinite; }
+  /* pick box: name + pill on one line, plain status text underneath */
+  .pick-cta .pick-name-col{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0; }
+  .pick-cta .pick-name-row{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; min-width:0; }
+  .pick-cta .pick-name-row .team-name{ line-height:1.1; }
+  .pick-cta .pick-pill{ display:inline-flex; align-items:center; padding:5px 14px; border-radius:999px; font-family:var(--font-head); font-size:16px; font-weight:700; line-height:1.1; white-space:nowrap; }
+  .lms-teams .pick-cta .pick-pill.green{ background:#16a34a; color:#fff !important; }
+  .lms-teams .pick-cta .pick-pill.red{ background:#dc2626; color:#fff !important; }
+  .lms-teams .pick-cta .pick-pill.neutral{ background:rgba(255,255,255,0.14); color:#fff !important; }
+  .pick-cta .pick-status{ display:inline-flex; align-items:center; gap:7px; font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; line-height:1; padding:0; }
+  .lms-teams .pick-cta .pick-status.live, .lms-teams .pick-cta .pick-status.lose{ color:#f87171 !important; }
+  .lms-teams .pick-cta .pick-status.win{ color:#4ade80 !important; }
+  .lms-teams .pick-cta .pick-status.pending{ color:rgba(255,255,255,0.75) !important; }
+  .pick-status .live-dot{ width:9px; height:9px; border-radius:50%; background:#ef4444; display:inline-block; animation:lmsLivePulse 1.2s ease-in-out infinite; }
+  @media (max-width:480px){
+    .pick-cta .pick-pill{ font-size:13px; padding:4px 11px; }
+    .pick-cta .pick-status{ font-size:13px; }
+  }
   @keyframes lmsLivePulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
 
   /* this week's team in the grid gets a clear border (colour follows its result) */
@@ -1171,35 +1167,38 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     // text (In play / You're through / You're out / kickoff day & time) to
     // the right of the name, the same size as the name.
     function pickTeamBlock(team) {
+      // Line 1: team name with a pill beside it (In play / You're through /
+      // You're out / kickoff day & time). Line 2: plain status text under
+      // the name (LIVE 1-0 / Won 2-1 / Lost / Drew / Upcoming).
       const nameHtml = `<span class="team-name">${escapeHtml(team)}</span>`;
       const result = pickResultState(team);
-      if (!result) return `<span class="pick-name-col">${nameHtml}</span>`;
+      if (!result) return `<span class="pick-name-col"><span class="pick-name-row">${nameHtml}</span></span>`;
       const { state, match } = result;
       const isHome = match.home_team === team;
       const hasScore = match.home_score !== null && match.home_score !== undefined;
       // Score shown with the picked team's goals first, e.g. "Won 2-1".
       const score = hasScore ? (isHome ? `${match.home_score}-${match.away_score}` : `${match.away_score}-${match.home_score}`) : '';
-      let badge = '', side = '', sideCls = '';
+      let status = '', statusCls = '', pill = '', pillCls = '';
       if (state === 'live') {
-        badge = `<span class="pick-result-tag live"><span class="live-dot"></span> LIVE${score ? ' ' + score : ''}</span>`;
-        side = 'In play';
+        status = `<span class="live-dot"></span> LIVE${score ? ' ' + score : ''}`; statusCls = 'live';
+        pill = 'In play'; pillCls = 'green';
       } else if (state === 'pending') {
-        badge = `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
+        status = `<i class="fas fa-clock"></i> ${escapeHtml(match.status === 'upcoming' || !match.status ? 'Upcoming' : match.status)}`; statusCls = 'pending';
         const k = match.kickoff_time ? new Date(match.kickoff_time) : null;
         if ((match.status || 'upcoming') === 'upcoming' && k && !isNaN(k)) {
           const day = k.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' }).replace(',', '');
           const time = k.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
-          side = `<span class="nw">${escapeHtml(day)}</span> <span class="nw">${escapeHtml(time)}</span>`;
+          pill = `${escapeHtml(day)} · ${escapeHtml(time)}`; pillCls = 'neutral';
         }
       } else if (state === 'win') {
-        badge = `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
-        side = "You're through"; sideCls = 'through';
+        status = `<i class="fas fa-check"></i> Won ${score}`; statusCls = 'win';
+        pill = "You're through"; pillCls = 'green';
       } else {
         // In Last Man Standing a draw counts as a loss, so it's red too.
-        badge = `<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> ${state === 'draw' ? 'Drew' : 'Lost'} ${score}</span>`;
-        side = "You're out"; sideCls = 'out';
+        status = `<i class="fas fa-xmark"></i> ${state === 'draw' ? 'Drew' : 'Lost'} ${score}`; statusCls = 'lose';
+        pill = "You're out"; pillCls = 'red';
       }
-      return `<span class="pick-name-col">${nameHtml}${badge}</span>${side ? `<span class="pick-side ${sideCls}">${side}</span>` : ''}`;
+      return `<span class="pick-name-col"><span class="pick-name-row">${nameHtml}${pill ? `<span class="pick-pill ${pillCls}">${pill}</span>` : ''}</span><span class="pick-status ${statusCls}">${status}</span></span>`;
     }
 
     async function loadLmsState() {
