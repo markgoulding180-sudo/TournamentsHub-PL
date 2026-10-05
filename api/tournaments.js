@@ -3921,6 +3921,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const STAGE_TO_ROUND = { 'LAST_16': 'r16', 'QUARTER_FINALS': 'qf', 'SEMI_FINALS': 'sf', 'FINAL': 'final' };
 
         try {
+          // Every logged-in user's page calls this every 2 minutes. Run the
+          // full sync at most once every 90 seconds no matter how many
+          // people are on the site - same shared timer the other syncs use.
+          // Nothing is skipped for good: the next call after 90s does the
+          // full sync (scores, points, auto-picks) exactly as before.
+          const { data: lastClSync } = await masterDb.from('sync_debounce').select('last_synced_at').eq('sync_name', 'cl_sync').maybeSingle();
+          if (lastClSync && lastClSync.last_synced_at) {
+            const ageMs = Date.now() - new Date(lastClSync.last_synced_at).getTime();
+            if (ageMs < 90000) return res.status(200).json({ success: true, skipped: true, reason: 'synced recently', age_seconds: Math.round(ageMs / 1000) });
+          }
+          await masterDb.from('sync_debounce').upsert({ sync_name: 'cl_sync', last_synced_at: new Date().toISOString() }, { onConflict: 'sync_name' });
+
           const { data: tournament } = await supabaseAdmin
             .schema('champions_league').from('tournaments').select('*')
             .order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -4042,7 +4054,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             };
 
             if (existing) {
-              await supabaseAdmin.schema('champions_league').from('matches').update(matchFields).eq('id', existing.id);
+              // Only write when something actually changed (e.g. a kickoff
+              // time moved). Rewriting all 144 unchanged rows on every sync
+              // was ~38,000 pointless database writes a day.
+              const sameTime = (a, b) => (!a && !b) || (!!a && !!b && new Date(a).getTime() === new Date(b).getTime());
+              const changed =
+                existing.tournament_id !== matchFields.tournament_id ||
+                (existing.matchday ?? null) !== (matchFields.matchday ?? null) ||
+                (existing.round ?? null) !== (matchFields.round ?? null) ||
+                existing.home_team_id !== matchFields.home_team_id ||
+                existing.away_team_id !== matchFields.away_team_id ||
+                !sameTime(existing.kickoff_time, matchFields.kickoff_time) ||
+                Number(existing.external_match_id) !== Number(matchFields.external_match_id);
+              if (changed) {
+                await supabaseAdmin.schema('champions_league').from('matches').update(matchFields).eq('id', existing.id);
+                results.fixturesChanged = (results.fixturesChanged || 0) + 1;
+              }
             } else {
               await supabaseAdmin.schema('champions_league').from('matches').insert(matchFields);
               results.matchesCreated++;

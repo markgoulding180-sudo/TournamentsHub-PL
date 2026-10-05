@@ -32,6 +32,11 @@
 //   a couple of pages tried to renew this, only once on page load, so any
 //   session running longer than that eventually broke with "Invalid or
 //   expired token". This renews it proactively, repeatedly, on every page.
+//
+// Data refresh only runs while the page is actually on screen. A tab left
+// open in the background (or a phone with the screen off) no longer keeps
+// calling the server. As soon as the page is shown again it refreshes
+// straight away if the last refresh is more than 2 minutes old.
 
 const SUPABASE_URL = 'https://liuuzvboeesimvovnooh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdXV6dmJvZWVzaW12b3Zub29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTA1MjYsImV4cCI6MjA5ODc2NjUyNn0.rfV-5DZ-06GIQ5vJcT0rCzmruSjXdCOP__XhhPv7jDs';
@@ -42,6 +47,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   let pollTimer = null;
   let refreshTimer = null;
   let supabaseClient = null;
+  let lastPollAt = 0;
+  let lastRefreshAt = 0;
+  let polling = false;
+
+  function pageVisible() {
+    return typeof document === 'undefined' || document.visibilityState !== 'hidden';
+  }
 
   function getClient() {
     if (supabaseClient) return supabaseClient;
@@ -67,6 +79,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   }
 
   async function refreshSessionToken() {
+    lastRefreshAt = Date.now();
     const saved = localStorage.getItem('gbf_refresh');
     const spare = oldSavedRefresh();
     if (!saved && !spare) return;
@@ -102,6 +115,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   async function pollAll() {
     const token = localStorage.getItem('gbf_token');
     if (!token) return; // only poll while logged in
+    if (!pageVisible()) return; // page not on screen - skip until it is
+    if (polling) return; // a refresh is already running
+    polling = true;
+    lastPollAt = Date.now();
+    try { await runPoll(); } finally { polling = false; }
+  }
+
+  async function runPoll() {
 
     try {
       const liveScoresResponse = await fetch('/api/live-scores', {
@@ -202,6 +223,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
     pollTimer = setInterval(pollAll, POLL_INTERVAL_MS);
     refreshTimer = setInterval(refreshSessionToken, REFRESH_INTERVAL_MS);
+  }
+
+  // When the page comes back on screen, catch up straight away instead of
+  // waiting for the next 2-minute tick. Phones pause timers in the
+  // background, so renew the login too if it's been a while.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!pollTimer || !pageVisible()) return; // not started (logged out) or still hidden
+      const now = Date.now();
+      if (now - lastRefreshAt >= REFRESH_INTERVAL_MS) refreshSessionToken();
+      if (now - lastPollAt >= POLL_INTERVAL_MS) pollAll();
+    });
   }
 
   function stop() {
