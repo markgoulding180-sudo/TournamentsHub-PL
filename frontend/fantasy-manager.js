@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             <span style="color:var(--gold);">${p.event_points ?? 0} GW</span>
           </span>
           <button class="fm-add-btn" data-add="${p.id}" ${inSquad || disabled ? 'disabled' : ''} title="${inSquad ? 'Already in squad' : (quotaFull ? posLabel + ' slots full' : (overBudget ? 'Over budget' : 'Add to squad'))}">
-            ${inSquad ? '<i class="fas fa-check"></i>' : '+'}
+            ${inSquad ? '<i class="fas fa-check"></i><span class="fm-btn-txt"> In squad</span>' : '<i class="fas fa-plus"></i><span class="fm-btn-txt"> Add</span>'}
           </button>
         </div>`;
     }).join('') || '<p class="text-muted">No players match your search.</p>';
@@ -478,15 +478,17 @@ document.addEventListener('DOMContentLoaded', async function () {
         const p = players[i];
         if (p) {
           const isCaptain = p.id === captainId;
+          const team = teamsById[p.team];
+          const teamName = team ? (team.short_name || team.name) : '';
           html += `
-            <div class="fm-squad-slot" data-player-id="${p.id}">
+            <div class="fm-squad-slot pos-${POSITION_LABELS[type].toLowerCase()}" data-player-id="${p.id}">
               <button class="fm-cap-btn ${isCaptain ? 'active' : ''}" data-captain="${p.id}" title="Set as captain">C</button>
-              <span class="fm-player-name"><span data-player-link="${p.id}" style="cursor:pointer;">${escapeHtml(p.web_name)}</span><span class="team">£${fmt(p.now_cost)}m</span></span>
+              <span class="fm-player-name"><span data-player-link="${p.id}" style="cursor:pointer;">${escapeHtml(p.web_name)}</span><span class="team">${teamName ? escapeHtml(teamName) + ' · ' : ''}£${fmt(p.now_cost)}m</span></span>
               <span class="fm-slot-points" style="color:var(--gold); font-size:.8rem; font-weight:700;">${(p.event_points ?? 0) * (isCaptain ? 2 : 1)} GW</span>
-              <button class="fm-remove-btn" data-remove="${p.id}" title="Remove"><i class="fas fa-xmark"></i></button>
+              <button class="fm-remove-btn" data-remove="${p.id}" title="Sell"><i class="fas fa-arrow-right-from-bracket"></i><span class="fm-btn-txt"> Sell</span></button>
             </div>`;
         } else {
-          html += `<div class="fm-squad-slot empty">Empty ${POSITION_LABELS[type]} slot</div>`;
+          html += `<div class="fm-squad-slot empty pos-${POSITION_LABELS[type].toLowerCase()}" data-empty-pos="${type}"><i class="fas fa-plus"></i> Empty ${POSITION_LABELS[type]} slot<span class="fm-empty-hint">Find a ${POSITION_LABELS[type]} in the Player Pool</span></div>`;
         }
       }
       return html;

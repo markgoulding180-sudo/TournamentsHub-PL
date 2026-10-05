@@ -269,6 +269,110 @@
   .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
   @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
   .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+
+  /* ================= Hub look (same as the GB Hub page) =================
+     Look only: page background, hero the same size as the hub's, card
+     artwork, and the new squad / player pool layout. Nothing here changes
+     how squads are built, saved or scored. */
+  body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+  .bg-glow{ display:none; }
+  @media (min-width:900px){ main{ max-width:none !important; padding:12px 32px 60px !important; } }
+
+  .hero{ background:#01061a !important; border:none; display:flex; align-items:center; }
+  .hero::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, rgba(1,6,26,0.82) 0%, rgba(1,6,26,0.62) 45%, rgba(1,6,26,0.4) 100%), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat; }
+  .hero::after{ content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    --art-w:calc(var(--hero-h, 340px) * 1.77 * 1.06);
+    background:url('assets/card-fantasy.jpg') right 50% / auto 106% no-repeat;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px));
+            mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px)); }
+  .hero .hero-content{ z-index:2; }
+  .hero .fm-status-badge{ backdrop-filter:blur(4px); }
+  @media (min-width:641px){
+    :root{ --hero-h:clamp(220px, calc((100vh - 236px) * 0.5), 340px); }
+    .hero{ min-height:var(--hero-h); padding:clamp(18px, 3.2vh, 34px) 50px; border-radius:22px; margin-bottom:18px; }
+    .hero h1{ font-size:clamp(30px, calc(var(--hero-h) * 0.13), 46px); margin-bottom:clamp(4px, 1vh, 10px); line-height:1; }
+    .hero-eyebrow{ margin-bottom:clamp(6px, 1.2vh, 12px); }
+    .hero-sub{ font-size:clamp(15px, calc(var(--hero-h) * 0.06), 20px); margin-bottom:clamp(8px, 1.6vh, 16px); }
+    .hero-desc{ display:none; }
+  }
+  @media (max-width:640px){
+    .hero{ padding:16px 16px 18px; min-height:211px; margin-bottom:14px; margin-left:-12px; margin-right:-12px; }
+    .hero::before{ background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.7) 55%, rgba(1,6,26,0.45) 100%), linear-gradient(180deg, rgba(1,6,26,0.2) 0%, rgba(1,6,26,0.55) 70%, rgba(1,6,26,0.85) 100%), url('assets/card-fantasy.jpg') 75% center / cover no-repeat; }
+    .hero::after{ display:none; }
+    .hero h1{ font-size:28px; margin-bottom:6px; }
+    .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
+    .hero-sub{ font-size:15px; margin-bottom:10px; }
+    .hero-desc{ display:none; }
+    .hero .fm-status-badge{ font-size:.78rem; padding:.42rem .9rem; }
+  }
+
+  /* stat cards: the "Live · In-Play" picture from the hub behind them */
+  .fm-budget-bar .fm-stat{ background:linear-gradient(180deg, rgba(4,9,30,0.62), rgba(4,9,30,0.84)), url('assets/section-bg-football.jpg') center 45% / cover no-repeat, #0a1226;
+    border-color:rgba(96,165,250,0.35) !important; }
+  .fm-budget-bar .fm-stat-label{ color:#b8c4dc; }
+
+  /* cards: the default background behind them */
+  .fm-card{ background:linear-gradient(180deg, rgba(4,9,30,0.88), rgba(4,9,30,0.93)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028; border-color:rgba(96,165,250,0.28); }
+
+  /* ---- squad / player pool ---- */
+  .fm-tabs{ display:none; }
+  .fm-player-row{ background:rgba(13,23,48,0.88); border-color:rgba(96,165,250,0.16); }
+  .fm-player-row:hover{ border-color:rgba(96,165,250,0.45); }
+  .fm-add-btn{ width:auto !important; height:32px !important; border-radius:999px !important; padding:0 14px; font-family:var(--font-head); font-size:13px !important; font-weight:700; display:inline-flex; align-items:center; gap:5px; background:#16a34a; }
+  .fm-add-btn:disabled{ background:rgba(255,255,255,0.08); color:var(--text-faint); }
+  .fm-squad-slot{ background:rgba(13,23,48,0.88); border-color:rgba(96,165,250,0.16); border-left:4px solid var(--text-faint); padding:.6rem .7rem; }
+  .fm-squad-slot.pos-gk{ border-left-color:var(--gold); }
+  .fm-squad-slot.pos-def{ border-left-color:var(--accent-2); }
+  .fm-squad-slot.pos-mid{ border-left-color:var(--green); }
+  .fm-squad-slot.pos-fwd{ border-left-color:var(--red); }
+  .fm-squad-slot .fm-player-name{ font-weight:600; font-size:.95rem; }
+  .fm-cap-btn{ width:28px; height:28px; font-size:.75rem; }
+  .fm-remove-btn{ display:inline-flex; align-items:center; gap:5px; height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(239,68,68,0.6); background:rgba(239,68,68,0.12); color:#fca5a5; font-family:var(--font-head); font-weight:700; font-size:13px; }
+  .fm-remove-btn:hover{ background:rgba(239,68,68,0.25); }
+  .fm-squad-slot.empty{ opacity:1; cursor:pointer; flex-wrap:wrap; gap:4px 8px; color:var(--text-dim); font-style:normal; border-style:dashed; border-left-style:solid; background:rgba(13,23,48,0.55); }
+  .fm-squad-slot.empty:hover{ border-color:rgba(96,165,250,0.6); }
+  .fm-squad-slot.empty i{ color:var(--accent-2); }
+  .fm-empty-hint{ flex-basis:100%; font-size:.72rem; color:var(--accent-2); padding-left:20px; }
+  .fm-squad-group-title{ color:#b8c4dc; }
+
+  @media (max-width:900px){
+    /* one card, two tabs: My Squad (default) and Player Pool */
+    .fm-tabs{ display:flex; gap:6px; padding:6px; position:sticky; top:58px; z-index:40;
+      background:rgba(6,12,30,0.96); border:1px solid rgba(96,165,250,0.28); border-bottom:none; border-radius:14px 14px 0 0; backdrop-filter:blur(8px); }
+    .fm-tab{ flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:11px 6px; border-radius:10px; font-family:var(--font-head); font-size:15px; font-weight:700; color:var(--text-dim); background:transparent; }
+    .fm-tab.active{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; box-shadow:0 4px 14px rgba(59,130,246,0.35); }
+    .fm-tab-badge{ font-size:11px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(255,255,255,0.14); color:#fff; }
+    .fm-tab-badge.full{ background:#16a34a; }
+    #fmTabPoolBadge{ background:#f2b93d; color:#111; }
+    .fm-layout{ gap:0; }
+    .fm-layout.show-squad #playerPoolCard{ display:none; }
+    .fm-layout.show-pool #mySquadCard{ display:none; }
+    #playerPoolCard, #mySquadCard{ border-top-left-radius:0; border-top-right-radius:0; margin-bottom:18px !important; }
+    #playerPoolCard .view-all, #mySquadCard .view-all{ display:none; }
+    .fm-player-list{ max-height:none; overflow-y:visible; }
+  }
+  @media (max-width:640px){
+    /* stat cards 2 x 2 on phones so the labels and countdown fit in full */
+    .fm-budget-bar{ grid-template-columns:1fr 1fr !important; gap:8px !important; }
+    .fm-budget-bar .fm-stat{ min-height:60px; padding:.6rem .8rem !important; }
+    .fm-budget-bar .fm-stat-label{ font-size:.68rem !important; }
+    .fm-budget-bar .fm-stat-value, #fmDeadlineValue{ font-size:1.15rem !important; }
+    /* builder edge to edge on phones, square corners */
+    .fm-tabs{ margin-left:-12px; margin-right:-12px; border-radius:0; border-left:none; border-right:none; }
+    #playerPoolCard, #mySquadCard, #fmLeaderboardCard{ margin-left:-12px; margin-right:-12px; border-radius:0 !important; border-left:none; border-right:none; }
+    .fm-add-btn{ height:30px !important; padding:0 11px; font-size:12px !important; }
+    .fm-remove-btn{ height:28px; padding:0 10px; font-size:12px; }
+    .fm-squad-slot{ flex-wrap:nowrap !important; padding:.55rem .55rem; }
+    .fm-squad-slot .fm-cap-btn{ order:0 !important; }
+    .fm-squad-slot .fm-player-name{ order:1 !important; flex:1 1 auto !important; }
+    .fm-slot-points{ order:2 !important; flex-basis:auto !important; margin-top:0 !important; }
+    .fm-squad-slot .fm-remove-btn{ order:3 !important; }
+    .fm-squad-slot.empty{ flex-wrap:wrap !important; }
+    .fm-player-name{ font-size:.88rem !important; }
+    .fm-player-name .team{ font-size:.68rem !important; }
+    .fm-player-meta{ font-size:.66rem !important; }
+  }
 </style>
 </head>
 <body>
@@ -315,34 +419,6 @@
 
   <main>
     <section class="hero">
-      <div class="hero-graphic">
-        <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
-          <defs>
-            <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#93c5fd"/>
-              <stop offset="100%" stop-color="#3b82f6"/>
-            </linearGradient>
-          </defs>
-          <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
-          <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
-          <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
-          <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
-          <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
-          <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
-          <g opacity="0.9">
-            <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
-          </g>
-          <g opacity="0.5">
-            <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
-          </g>
-          <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
-          <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
-        </svg>
-      </div>
       <div class="hero-content">
         <div class="hero-eyebrow"><span class="dot"></span>Squad Building Open</div>
         <h1>Fantasy Manager</h1>
@@ -412,12 +488,18 @@
       </div>
     </div>
 
-    <div class="fm-layout">
+    <!-- Phones: one card with two tabs - your squad first, then the player pool -->
+    <div class="fm-tabs" id="fmTabs" role="tablist">
+      <button type="button" class="fm-tab active" data-tab="squad" role="tab"><i class="fas fa-shirt"></i> My Squad <span class="fm-tab-badge" id="fmTabSquadBadge">0/15</span></button>
+      <button type="button" class="fm-tab" data-tab="pool" role="tab"><i class="fas fa-list"></i> Player Pool <span class="fm-tab-badge" id="fmTabPoolBadge" style="display:none;"></span></button>
+    </div>
+
+    <div class="fm-layout show-squad" id="fmLayout">
       <!-- Player pool -->
       <section class="fm-card" id="playerPoolCard">
         <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
           <span><i class="fas fa-list"></i> Player Pool</span>
-          <a href="#mySquadCard" class="view-all"><i class="fas fa-shirt" style="font-size:11px; margin-right:4px;"></i>My Squad</a>
+          <a href="#mySquadCard" class="view-all" data-goto-tab="squad"><i class="fas fa-shirt" style="font-size:11px; margin-right:4px;"></i>My Squad</a>
         </div>
         <input type="text" class="fm-search" id="fmSearch" placeholder="Search players…">
         <div class="fm-pool-filters" id="fmFilters">
@@ -460,7 +542,7 @@
         <section class="fm-card" id="mySquadCard" style="margin-bottom:20px;">
           <div class="fm-card-title" style="display:flex; align-items:center; justify-content:space-between;">
             <span><i class="fas fa-shirt"></i> My Squad</span>
-            <a href="#playerPoolCard" class="view-all"><i class="fas fa-list" style="font-size:11px; margin-right:4px;"></i>Player Pool</a>
+            <a href="#playerPoolCard" class="view-all" data-goto-tab="pool"><i class="fas fa-list" style="font-size:11px; margin-right:4px;"></i>Player Pool</a>
           </div>
           <div id="fmSquadPanel" style="overflow-x:auto;"></div>
           <div class="fm-save-bar">
@@ -512,6 +594,57 @@
         btn.href = '/profile';
         btn.title = 'View profile';
       } catch (e) {}
+    })();
+
+    // ---- My Squad / Player Pool tabs (phones) ----
+    // Only changes which card is showing; buying, selling, captain and
+    // saving all work exactly as before.
+    (function () {
+      const layout = document.getElementById('fmLayout');
+      const tabs = document.getElementById('fmTabs');
+      if (!layout || !tabs) return;
+      const isPhone = () => window.matchMedia('(max-width:900px)').matches;
+      function showTab(name, scroll) {
+        layout.classList.toggle('show-squad', name === 'squad');
+        layout.classList.toggle('show-pool', name === 'pool');
+        tabs.querySelectorAll('.fm-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+        if (scroll && isPhone()) {
+          const top = tabs.getBoundingClientRect().top + window.scrollY - 64;
+          if (window.scrollY > top) window.scrollTo({ top, behavior: 'smooth' });
+        }
+      }
+      window.fmShowTab = showTab;
+      tabs.addEventListener('click', e => { const b = e.target.closest('.fm-tab'); if (b) showTab(b.dataset.tab, true); });
+      // "My Squad" / "Player Pool" links in the card titles switch tabs on phones
+      document.querySelectorAll('[data-goto-tab]').forEach(a => a.addEventListener('click', e => {
+        if (!isPhone()) return;
+        e.preventDefault(); showTab(a.dataset.gotoTab, true);
+      }));
+      // Tapping an empty slot opens the Player Pool filtered to that position
+      const squadPanel = document.getElementById('fmSquadPanel');
+      if (squadPanel) squadPanel.addEventListener('click', e => {
+        const slot = e.target.closest('[data-empty-pos]');
+        if (!slot) return;
+        const f = document.querySelector(`#fmFilters .fm-filter-btn[data-pos="${slot.dataset.emptyPos}"]`);
+        if (f) f.click();
+        showTab('pool', true);
+        if (!isPhone()) { const pool = document.getElementById('playerPoolCard'); if (pool) pool.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      });
+      // Tab badges follow the squad count
+      const count = document.getElementById('fmSquadCount');
+      const sBadge = document.getElementById('fmTabSquadBadge');
+      const pBadge = document.getElementById('fmTabPoolBadge');
+      function syncBadges() {
+        const n = parseInt((count && count.textContent) || '0', 10) || 0;
+        if (sBadge) { sBadge.textContent = `${n}/15`; sBadge.classList.toggle('full', n === 15); }
+        if (pBadge) {
+          const open = 15 - n;
+          pBadge.style.display = open > 0 ? '' : 'none';
+          pBadge.textContent = `${open} to buy`;
+        }
+      }
+      if (count) new MutationObserver(syncBadges).observe(count, { childList: true, characterData: true, subtree: true });
+      syncBadges();
     })();
 
     function toggleMobileNav(open) {
