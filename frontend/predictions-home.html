@@ -452,6 +452,11 @@
     #yourPredictionsCard .card-title > span:first-child i{ display:none; }
     .lb-row{ font-size:14.5px !important; }
   }
+
+  /* Picks Saved (still opens the predict page so picks can be changed before kickoff) */
+  .pr-statbar .hero-predict-btn.saved{ background:linear-gradient(135deg, #22c55e, #15803d); color:#fff; }
+  /* keep the page simple: no injuries / Premier League table */
+  #injuriesTableGrid{ display:none !important; }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -649,7 +654,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       if (!b || !heroPickState) return;
       b.href = `/predict?gameweek=${heroPickState.gw}`;
       b.classList.toggle('need', heroPickState.need);
-      b.querySelector('span').textContent = heroPickState.need ? 'Need Picks' : 'Predict Now';
+      b.classList.toggle('saved', !heroPickState.need);
+      b.querySelector('span').textContent = heroPickState.need ? 'Need Picks' : 'Picks Saved';
+      const ic = b.querySelector('i'); if (ic) ic.className = heroPickState.need ? 'fas fa-futbol' : 'fas fa-circle-check';
     }
 
     // ---------- This Week's Games ----------
