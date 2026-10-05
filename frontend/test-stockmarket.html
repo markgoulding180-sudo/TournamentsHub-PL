@@ -565,6 +565,53 @@
   .gb-av-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
   .gb-av-sm{ flex-shrink:0; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); font-size:10px; font-weight:700; color:#9fb3d9; line-height:1; vertical-align:middle; }
+
+  /* ================= Hub look (same as the GB Hub page) =================
+     Look only: default background behind the page and the cards, and the
+     hero the same size and width as the hub's. Nothing here changes how
+     the market, values or squads work. */
+  html, body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+  @media (min-width:900px){ :root{ --gutter:32px; } }
+
+  /* hero: washed default background + the Stock Market picture on the right */
+  .sm-hero{ background:#01061a !important; border:none; }
+  .sm-hero::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(90deg, rgba(1,6,26,0.82) 0%, rgba(1,6,26,0.62) 45%, rgba(1,6,26,0.4) 100%), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat; }
+  .sm-hero::after{ content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    --art-w:calc(var(--hero-h, 340px) * 1.77 * 1.06);
+    background:url('assets/card-stockmarket.jpg') right 50% / auto 106% no-repeat;
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px));
+            mask-image:linear-gradient(90deg, transparent 0, transparent calc(100% - var(--art-w)), #000 calc(100% - var(--art-w) + 200px)); }
+  .sm-hero-content{ z-index:2; }
+  .sm-hero-desc{ display:none; }
+  @media (min-width:601px){
+    :root{ --hero-h:clamp(220px, calc((100vh - 236px) * 0.5), 340px); }
+    .sm-hero{ min-height:var(--hero-h); padding:clamp(18px, 3.2vh, 34px) 50px; border-radius:22px; margin:12px var(--gutter) 16px; }
+    .sm-hero h1{ font-size:clamp(30px, calc(var(--hero-h) * 0.13), 46px); margin-bottom:clamp(4px, 1vh, 10px); line-height:1; }
+    .sm-hero-eyebrow{ margin-bottom:clamp(6px, 1.2vh, 12px); }
+    .sm-hero-sub{ font-size:clamp(15px, calc(var(--hero-h) * 0.06), 20px); margin-bottom:0; }
+    .sm-hero-controls{ margin-top:clamp(10px, 2vh, 20px); }
+  }
+  @media (max-width:600px){
+    .sm-hero{ padding:16px var(--gutter) 18px; min-height:211px; }
+    .sm-hero::before{ background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.7) 55%, rgba(1,6,26,0.45) 100%), linear-gradient(180deg, rgba(1,6,26,0.2) 0%, rgba(1,6,26,0.55) 70%, rgba(1,6,26,0.85) 100%), url('assets/card-stockmarket.jpg') 75% center / cover no-repeat; }
+    .sm-hero::after{ display:none; }
+    .sm-hero h1{ font-size:28px; margin-bottom:6px; }
+    .sm-hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:6px; }
+    .sm-hero-sub{ font-size:15px; margin-bottom:0; }
+    .sm-hero-controls{ margin-top:12px; gap:8px; }
+  }
+
+  /* cards: the default background behind them */
+  #heroBlock{ margin:12px var(--gutter) 0; border:1px solid rgba(96,165,250,0.28); border-radius:16px;
+    background:linear-gradient(180deg, rgba(4,9,30,0.78), rgba(4,9,30,0.9)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028; }
+  .vs-strip, .state-card, .lg-row, .mini-board, .empty-note, .demo-toggle,
+  .row:not(.has-shirt):not(.empty-slot){
+    background:linear-gradient(180deg, rgba(4,9,30,0.84), rgba(4,9,30,0.92)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #0b1430 !important; }
+  .row:not(.has-shirt):not(.empty-slot) .row-main{ background:transparent; }
+  .lg-main:hover{ background:rgba(16,26,56,0.55); }
+  .sm-how-list{ background:linear-gradient(180deg, rgba(4,9,30,0.92), rgba(4,9,30,0.96)), url('assets/card-bg-sports.jpg') center / cover no-repeat, #0a1226; }
+  .row.empty-slot{ background:rgba(4,9,30,0.55); }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
