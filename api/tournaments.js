@@ -3136,6 +3136,68 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // confirmation phrase, since this is genuinely irreversible and
       // touches literally every table the platform uses.
       // ---- Forum ----
+      // Admin-chosen card backgrounds: one of the site's own pictures
+      // (assets/...) or an https link (e.g. an uploaded one). Anything else
+      // is refused, so nothing odd can end up inside the page's styling.
+      const forumCleanBg = (v) => {
+        if (v === null || v === '') return null;
+        if (typeof v !== 'string' || v.length > 500) return undefined;
+        if (/^assets\/[A-Za-z0-9._ -]+\.(jpg|jpeg|png|webp)$/i.test(v)) return v;
+        if (/^https:\/\/[A-Za-z0-9._~:\/?#@!$&+,;=%-]+$/.test(v)) return v;
+        return undefined;
+      };
+      const forumIsAdmin = async () => {
+        const { data: c } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        return !!(c && c.is_admin);
+      };
+
+      // Everything the forum home page needs in one call: sections with
+      // counts, the latest discussions, featured (admin background) posts.
+      if (action === 'forum_get_home') {
+        const { data: categories, error: catErr } = await supabaseAdmin.from('forum_categories').select('*').order('sort_order');
+        if (catErr) return res.status(500).json({ error: catErr.message });
+        const { data: allThreads } = await supabaseAdmin.from('forum_threads')
+          .select('id, category_id, user_id, title, pinned, locked, reply_count, last_reply_at, created_at, bg_image')
+          .order('last_reply_at', { ascending: false }).limit(1000);
+        const threads = allThreads || [];
+        const countBy = {}, postsBy = {}, lastBy = {};
+        threads.forEach(t => {
+          countBy[t.category_id] = (countBy[t.category_id] || 0) + 1;
+          postsBy[t.category_id] = (postsBy[t.category_id] || 0) + 1 + (t.reply_count || 0);
+          if (!lastBy[t.category_id] || t.last_reply_at > lastBy[t.category_id]) lastBy[t.category_id] = t.last_reply_at;
+        });
+        const latest = threads.slice(0, 8);
+        const featured = threads.filter(t => t.bg_image).sort((a, b) => (b.pinned - a.pinned) || (b.created_at > a.created_at ? 1 : -1)).slice(0, 4);
+        const ids = [...new Set([...latest, ...featured].map(t => t.user_id))];
+        const { data: authors } = ids.length ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_url').in('id', ids) : { data: [] };
+        const au = {}; (authors || []).forEach(u => { au[u.id] = u; });
+        const withAuthor = t => ({ ...t, author_name: au[t.user_id] ? (au[t.user_id].display_name || au[t.user_id].username) : 'Unknown', author_avatar: au[t.user_id] ? au[t.user_id].avatar_url || null : null });
+        const members = new Set(threads.map(t => t.user_id)).size;
+        return res.status(200).json({
+          categories: categories.map(c => ({ ...c, thread_count: countBy[c.id] || 0, post_count: postsBy[c.id] || 0, last_activity_at: lastBy[c.id] || null })),
+          latest: latest.map(withAuthor), featured: featured.map(withAuthor),
+          totals: { threads: threads.length, posts: threads.reduce((n, t) => n + 1 + (t.reply_count || 0), 0), members },
+          me: { id: user.id, is_admin: await forumIsAdmin() }
+        });
+      }
+
+      // Admin: upload a background picture for a post card.
+      if (action === 'forum_upload_bg') {
+        if (!(await forumIsAdmin())) return res.status(403).json({ error: 'Admin access required' });
+        const { image_base64, file_ext } = req.body;
+        if (!image_base64) return res.status(400).json({ error: 'image_base64 is required' });
+        const ext = ((file_ext || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase()) || 'jpg';
+        if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext)) return res.status(400).json({ error: 'Use a JPG, PNG or WebP image' });
+        const buffer = Buffer.from(image_base64, 'base64');
+        if (buffer.length > 3 * 1024 * 1024) return res.status(400).json({ error: 'Image too large (3MB max)' });
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: upErr } = await supabaseAdmin.storage.from('forum-backgrounds')
+          .upload(path, buffer, { contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`, upsert: false });
+        if (upErr) return res.status(500).json({ error: 'Upload failed', detail: upErr.message });
+        const { data: urlData } = supabaseAdmin.storage.from('forum-backgrounds').getPublicUrl(path);
+        return res.status(200).json({ ok: true, url: urlData.publicUrl });
+      }
+
       if (action === 'forum_get_categories') {
         const { data: categories, error: catErr } = await supabaseAdmin
           .from('forum_categories').select('*').order('sort_order');
@@ -3180,7 +3242,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const { data: parentCat } = category.parent_id ? await supabaseAdmin.from('forum_categories').select('*').eq('id', category.parent_id).maybeSingle() : { data: null };
         return res.status(200).json({
-          category, parent: parentCat || null,
+          category, parent: parentCat || null, me: { id: user.id, is_admin: await forumIsAdmin() },
           threads: threads.map(t => ({ ...t, author_name: nameByUser[t.user_id] || 'Unknown', author_avatar: avatarByUser[t.user_id] || null }))
         });
       }
@@ -3225,9 +3287,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!targetCat) return res.status(404).json({ error: 'Category not found' });
         if (!targetCat.parent_id) return res.status(400).json({ error: 'Choose Live or Past to post in' });
 
+        let bgImage = null;
+        if (req.body.bg_image) {
+          if (!(await forumIsAdmin())) return res.status(403).json({ error: 'Only admins can add a card background' });
+          bgImage = forumCleanBg(req.body.bg_image);
+          if (bgImage === undefined) return res.status(400).json({ error: 'That background image link is not allowed' });
+        }
         const { data: thread, error: threadErr } = await supabaseAdmin
           .from('forum_threads')
-          .insert({ category_id, user_id: user.id, title: title.trim() })
+          .insert({ category_id, user_id: user.id, title: title.trim(), bg_image: bgImage })
           .select().single();
         if (threadErr) return res.status(500).json({ error: threadErr.message });
 
@@ -3312,6 +3380,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const updates = {};
         if (typeof pinned === 'boolean') updates.pinned = pinned;
         if (typeof locked === 'boolean') updates.locked = locked;
+        if (Object.prototype.hasOwnProperty.call(req.body, 'bg_image')) {
+          const bg = forumCleanBg(req.body.bg_image);
+          if (bg === undefined) return res.status(400).json({ error: 'That background image link is not allowed' });
+          updates.bg_image = bg;
+        }
         if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' });
 
         const { error: updateErr } = await supabaseAdmin.from('forum_threads').update(updates).eq('id', thread_id);

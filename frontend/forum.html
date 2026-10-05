@@ -148,51 +148,124 @@
   .crumbs a{ color:var(--accent-2); }
   .crumbs i{ font-size:10px; color:var(--text-faint); }
 
-  /* home: one card per tournament, with Live and Past sections */
-  .cat-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
-  @media (max-width:900px){ .cat-grid{ grid-template-columns:1fr; gap:0; } }
-  .cat-card{ margin-bottom:0; }
-  @media (max-width:900px){ .cat-card{ margin-bottom:12px; } }
-  .cat-head{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-  .cat-icon{ width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:linear-gradient(150deg, var(--accent-2), var(--accent-dim)); color:#fff; font-size:18px; flex:none; box-shadow:0 0 16px var(--accent-glow); }
-  .cat-name{ font-family:var(--font-head); font-size:20px; font-weight:700; line-height:1.1; }
-  .cat-desc{ font-size:12.5px; color:var(--text-dim); margin-top:2px; }
-  .sec-row{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:rgba(13,23,48,0.85); border:1px solid rgba(96,165,250,0.16); margin-top:8px; transition:border-color .15s, background .15s; }
-  .sec-row:hover{ border-color:rgba(96,165,250,0.55); background:rgba(16,28,60,0.9); }
-  .sec-badge{ font-family:var(--font-head); font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; padding:4px 10px; border-radius:999px; flex:none; min-width:58px; text-align:center; }
+  /* ---------- stats strip under the hero ---------- */
+  .hero{ margin-bottom:0 !important; }
+  @media (min-width:641px){ .hero{ border-radius:22px 22px 0 0; } }
+  .f-stats{ display:flex; align-items:stretch; margin-bottom:18px; border:1px solid rgba(96,165,250,0.22); border-top:none; overflow:hidden;
+    background:linear-gradient(180deg, rgba(10,18,40,0.96), rgba(6,12,30,0.96)); }
+  @media (min-width:641px){ .f-stats{ border-radius:0 0 22px 22px; } }
+  @media (max-width:640px){ .f-stats{ margin-left:-12px; margin-right:-12px; border-left:none; border-right:none; margin-bottom:14px; } }
+  .f-stat{ flex:1; min-width:0; padding:12px 20px; border-right:1px solid rgba(96,165,250,0.14); }
+  .f-stat .l{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.6px; }
+  .f-stat .v{ font-family:var(--font-head); font-size:21px; font-weight:700; }
+  .f-stat-cta{ display:flex; align-items:center; justify-content:center; gap:8px; padding:0 22px; font-family:var(--font-head); font-weight:700; font-size:14px; background:rgba(59,130,246,0.14); color:#fff; white-space:nowrap; }
+  .f-stat-cta:hover{ background:rgba(59,130,246,0.26); }
+  @media (max-width:640px){ .f-stat{ padding:10px 12px; } .f-stat .v{ font-size:18px; } .f-stat-cta{ display:none; } }
+
+  .f-sec-title{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:6px 2px 12px; }
+  .f-sec-title h2{ font-family:var(--font-head); font-size:20px; font-weight:700; display:flex; align-items:center; gap:9px; }
+  .f-sec-title h2 i{ color:var(--accent-2); font-size:16px; }
+  .f-sec-title span{ font-size:12.5px; color:var(--text-dim); }
+
+  /* ---------- featured (admin background) cards ---------- */
+  .feat-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; margin-bottom:22px; }
+  @media (max-width:640px){ .feat-grid{ grid-template-columns:1fr; gap:10px; } }
+  .feat{ position:relative; display:flex; flex-direction:column; justify-content:flex-end; min-height:180px; border-radius:16px; overflow:hidden; padding:16px;
+    border:1px solid rgba(96,165,250,0.35); background:#0a1226 center / cover no-repeat; box-shadow:0 10px 28px rgba(0,0,0,0.35); transition:transform .15s, box-shadow .15s; }
+  .feat::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(2,6,20,0.05) 0%, rgba(2,6,20,0.55) 50%, rgba(2,6,20,0.94) 100%); }
+  .feat > *{ position:relative; }
+  .feat:hover{ transform:translateY(-2px); box-shadow:0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(96,165,250,0.6); }
+  .feat-kicker{ display:inline-flex; align-items:center; gap:6px; align-self:flex-start; font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:3px 9px; border-radius:999px; background:rgba(242,185,61,0.92); color:#1a1200; margin-bottom:8px; }
+  .feat-title{ font-family:var(--font-head); font-size:21px; font-weight:700; line-height:1.15; text-shadow:0 2px 8px rgba(0,0,0,0.7); }
+  .feat-meta{ font-size:12.5px; color:#cbd5e1; margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+  /* ---------- home layout: tournaments + latest ---------- */
+  .home-grid{ display:grid; grid-template-columns:minmax(0, 1fr) 360px; gap:20px; align-items:start; }
+  .home-grid > *{ min-width:0; }
+  @media (max-width:1100px){ .home-grid{ grid-template-columns:minmax(0, 1fr); } }
+  .cat-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+  @media (min-width:1500px){ .cat-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width:700px){ .cat-grid{ grid-template-columns:1fr; gap:12px; } }
+
+  .cat-card{ border-radius:18px; overflow:hidden; border:1px solid rgba(96,165,250,0.28); background:rgba(6,12,30,0.94); display:flex; flex-direction:column; box-shadow:0 10px 26px rgba(0,0,0,0.3); }
+  .cat-img{ position:relative; aspect-ratio:16 / 8; background:#0a1226 center / cover no-repeat; display:flex; align-items:flex-end; padding:14px 16px; }
+  .cat-img::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(2,6,20,0) 35%, rgba(2,6,20,0.88) 100%); }
+  .cat-img > *{ position:relative; }
+  .cat-img-name{ font-family:var(--font-head); font-size:23px; font-weight:700; line-height:1; text-shadow:0 2px 10px rgba(0,0,0,0.8); flex:1; min-width:0; }
+  .cat-img-count{ font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; background:rgba(2,6,20,0.72); border:1px solid rgba(255,255,255,0.2); white-space:nowrap; }
+  .cat-body{ padding:10px 12px 12px; display:flex; flex-direction:column; gap:8px; }
+  .sec-row{ display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:12px; background:rgba(13,23,48,0.9); border:1px solid rgba(96,165,250,0.14); transition:border-color .15s, background .15s; }
+  .sec-row:hover{ border-color:rgba(96,165,250,0.55); background:rgba(16,28,60,0.95); }
+  .sec-badge{ display:inline-flex; align-items:center; justify-content:center; gap:6px; font-family:var(--font-head); font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; padding:4px 10px; border-radius:999px; flex:none; min-width:62px; }
   .sec-badge.live{ background:#16a34a; color:#fff; }
+  .sec-badge.live::before{ content:''; width:7px; height:7px; border-radius:50%; background:#fff; animation:fPulse 1.4s ease-in-out infinite; }
   .sec-badge.past{ background:rgba(255,255,255,0.12); color:#cbd5e1; }
+  @keyframes fPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
   .sec-info{ flex:1; min-width:0; }
-  .sec-title{ font-weight:600; font-size:14px; }
+  .sec-title{ font-weight:600; font-size:13.5px; }
   .sec-meta{ font-size:12px; color:var(--text-dim); margin-top:2px; }
-  .sec-count{ text-align:right; flex:none; font-family:var(--font-head); font-weight:700; font-size:18px; }
-  .sec-count small{ display:block; font-family:var(--font-body); font-size:11px; font-weight:500; color:var(--text-faint); }
+  .sec-count{ text-align:right; flex:none; font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; }
+  .sec-count small{ display:block; font-family:var(--font-body); font-size:10.5px; font-weight:500; color:var(--text-faint); }
   .chev{ color:var(--text-faint); font-size:12px; }
 
-  /* thread list */
-  .list-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
-  .list-head h2{ font-family:var(--font-head); font-size:20px; display:flex; align-items:center; gap:10px; }
-  .th-row{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:rgba(13,23,48,0.85); border:1px solid rgba(96,165,250,0.14); margin-top:8px; }
+  .side-card{ position:sticky; top:84px; }
+  @media (max-width:1100px){ .side-card{ position:static; } }
+  .latest-row{ display:flex; align-items:center; gap:10px; padding:10px 4px; border-top:1px solid rgba(255,255,255,0.06); }
+  .latest-row:first-of-type{ border-top:none; }
+  .latest-row:hover .lt-title{ color:var(--accent-2); }
+  .lt-main{ flex:1; min-width:0; }
+  .lt-title{ font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lt-meta{ font-size:11.5px; color:var(--text-dim); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lt-meta .where{ color:var(--accent-2); font-weight:600; }
+  .lt-replies{ flex:none; font-size:12px; font-weight:700; color:var(--text-dim); display:inline-flex; align-items:center; gap:4px; }
+
+  /* ---------- section + thread banner ---------- */
+  .banner{ position:relative; border-radius:18px; overflow:hidden; min-height:150px; padding:18px 20px; display:flex; flex-direction:column; justify-content:flex-end; margin-bottom:14px;
+    background:#0a1226 center / cover no-repeat; border:1px solid rgba(96,165,250,0.3); }
+  .banner::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(2,6,20,0.92) 0%, rgba(2,6,20,0.7) 55%, rgba(2,6,20,0.35) 100%); }
+  .banner > *{ position:relative; }
+  @media (max-width:640px){ .banner{ margin-left:-12px; margin-right:-12px; border-radius:0; border-left:none; border-right:none; } }
+  .banner-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .banner h2{ font-family:var(--font-head); font-size:26px; font-weight:700; line-height:1.1; text-shadow:0 2px 10px rgba(0,0,0,0.7); }
+  .banner p{ font-size:13px; color:#cbd5e1; margin-top:4px; }
+  .seg{ display:inline-flex; gap:4px; padding:4px; border-radius:999px; background:rgba(2,6,20,0.7); border:1px solid rgba(255,255,255,0.16); margin-top:12px; }
+  .seg a{ font-family:var(--font-head); font-weight:700; font-size:13px; padding:6px 16px; border-radius:999px; color:var(--text-dim); }
+  .seg a.on{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; }
+
+  /* ---------- thread list ---------- */
+  .th-row{ display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:rgba(13,23,48,0.88); border:1px solid rgba(96,165,250,0.14); margin-top:8px; transition:border-color .15s; }
   .th-row:hover{ border-color:rgba(96,165,250,0.5); }
+  .th-row.has-bg{ position:relative; overflow:hidden; min-height:110px; align-items:flex-end; background:#0a1226 center / cover no-repeat; border-color:rgba(242,185,61,0.45); }
+  .th-row.has-bg::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(2,6,20,0.92) 0%, rgba(2,6,20,0.62) 60%, rgba(2,6,20,0.35) 100%); }
+  .th-row.has-bg > *{ position:relative; }
+  .th-row.has-bg .th-title{ font-size:17px; white-space:normal; }
   .th-main{ flex:1; min-width:0; }
   .th-title{ font-weight:600; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .th-meta{ font-size:12px; color:var(--text-dim); margin-top:3px; }
-  .th-tag{ font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; margin-right:6px; text-transform:uppercase; letter-spacing:.3px; }
-  .th-tag.pin{ background:rgba(242,185,61,0.18); color:var(--gold); }
-  .th-tag.lock{ background:rgba(239,68,68,0.15); color:#fca5a5; }
+  .th-tags{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:4px; }
+  .th-tags:empty{ display:none; }
+  .th-tag{ display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:.3px; }
+  .th-tag.pin{ background:rgba(242,185,61,0.2); color:var(--gold); }
+  .th-tag.lock{ background:rgba(239,68,68,0.16); color:#fca5a5; }
+  .th-tag.new{ background:rgba(34,197,94,0.18); color:#4ade80; }
+  .th-tag.hot{ background:rgba(249,115,22,0.2); color:#fdba74; }
+  .th-tag.featd{ background:rgba(242,185,61,0.92); color:#1a1200; }
   .th-replies{ text-align:center; flex:none; font-family:var(--font-head); font-weight:700; font-size:18px; min-width:52px; }
   .th-replies small{ display:block; font-family:var(--font-body); font-size:10.5px; color:var(--text-faint); font-weight:500; }
-  .empty{ text-align:center; color:var(--text-dim); padding:26px 10px; font-size:14px; }
+  .empty{ text-align:center; color:var(--text-dim); padding:30px 10px; font-size:14px; }
+  .empty i{ display:block; font-size:28px; color:var(--accent-2); margin-bottom:10px; }
 
   /* avatars */
   .av{ position:relative; overflow:hidden; flex:none; width:36px; height:36px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:linear-gradient(150deg,#2c3d5c,#161f33); border:1px solid rgba(255,255,255,0.16); font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--accent-2); }
+  .av.sm{ width:22px; height:22px; font-size:9px; }
   .av img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
-  /* thread view */
-  .thread-title{ font-family:var(--font-head); font-size:24px; font-weight:700; line-height:1.2; margin-bottom:6px; word-break:break-word; }
-  .mod-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  /* ---------- thread view ---------- */
+  .thread-title{ font-family:var(--font-head); font-size:28px; font-weight:700; line-height:1.15; word-break:break-word; text-shadow:0 2px 10px rgba(0,0,0,0.7); }
+  .mod-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
   .post{ display:flex; gap:12px; padding:14px 0; border-top:1px solid rgba(255,255,255,0.07); }
   .post:first-of-type{ border-top:none; }
+  .post.op-post .post-text{ font-size:15.5px; }
   .post-body{ flex:1; min-width:0; }
   .post-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--text-dim); margin-bottom:5px; }
   .post-head b{ color:var(--text); font-family:var(--font-head); font-size:15px; }
@@ -201,13 +274,20 @@
   .post-del{ margin-left:auto; background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:12px; }
   .post-del:hover{ color:#fca5a5; }
 
-  /* forms */
+  /* ---------- forms + background picker ---------- */
   .f-input, .f-text{ width:100%; background:rgba(13,23,48,0.9); border:1px solid rgba(96,165,250,0.25); border-radius:10px; padding:11px 13px; color:var(--text); font-family:var(--font-body); font-size:14.5px; }
   .f-input:focus, .f-text:focus{ outline:none; border-color:var(--accent-2); }
   .f-text{ min-height:120px; resize:vertical; line-height:1.5; }
   .f-label{ display:block; font-family:var(--font-head); font-weight:700; font-size:14px; margin:12px 0 6px; }
+  .f-label .adm{ font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:999px; background:rgba(242,185,61,0.2); color:var(--gold); margin-left:6px; text-transform:uppercase; }
   .f-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:12px; align-items:center; }
   .f-count{ margin-right:auto; font-size:12px; color:var(--text-faint); }
+  .bg-pick{ display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:8px; }
+  .bg-opt{ position:relative; aspect-ratio:16 / 10; border-radius:10px; border:2px solid rgba(255,255,255,0.12); background:#0a1226 center / cover no-repeat; cursor:pointer; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-family:var(--font-head); font-weight:700; font-size:12px; }
+  .bg-opt.on{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(242,185,61,0.35); }
+  .bg-opt.on::after{ content:'\f00c'; font-family:'Font Awesome 6 Free'; font-weight:900; position:absolute; top:4px; right:5px; width:18px; height:18px; border-radius:50%; background:var(--gold); color:#1a1200; font-size:10px; display:flex; align-items:center; justify-content:center; }
+  .bg-opt.none, .bg-opt.up{ background:rgba(13,23,48,0.9); flex-direction:column; gap:3px; }
+  .bg-preview{ margin-top:10px; }
   .locked-note{ text-align:center; color:#fca5a5; font-size:14px; padding:6px; }
   .loading{ text-align:center; color:var(--text-dim); padding:30px; }
 
@@ -264,6 +344,13 @@
       </div>
     </section>
 
+    <div class="f-stats" id="fStats">
+      <div class="f-stat"><div class="l">Threads</div><div class="v" id="fsThreads">–</div></div>
+      <div class="f-stat"><div class="l">Posts</div><div class="v" id="fsPosts">–</div></div>
+      <div class="f-stat"><div class="l">Members posting</div><div class="v" id="fsMembers">–</div></div>
+      <a class="f-stat-cta" id="fsCta" href="#/"><i class="fas fa-comments"></i> All Sections</a>
+    </div>
+
     <div id="forumApp"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div></div>
   </main>
 
@@ -305,15 +392,26 @@
   <script>
   // ===================== GB Forum =====================
   // Logged-in users only. Pages (all on /forum):
-  //   #/            every tournament, each with Live and Past sections
+  //   #/            featured posts, every tournament (Live / Past), latest discussions
   //   #/c/<slug>    threads in one section
   //   #/t/<id>      one thread with its replies
+  // Admins can give a post a special card background (pick a site picture
+  // or upload one) when posting, and change it later on the thread.
   (function () {
     const app = document.getElementById('forumApp');
     const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
     const token = () => localStorage.getItem('gbf_token');
     const toast = (m, t) => { if (typeof showToast === 'function') showToast(m, t); else alert(m); };
-    let cache = { categories: null };
+    const LOADING = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+    const PRESET_BGS = ['assets/hero-forum.jpg', 'assets/card-bg-sports.jpg', 'assets/hero-gb-tournaments.jpg', 'assets/hero-gb-app.jpg',
+      'assets/hero-join-tournament.jpg', 'assets/section-bg-football.jpg', 'assets/card-predictions.jpg', 'assets/card-lms.jpg',
+      'assets/card-fantasy.jpg', 'assets/card-stockmarket.jpg', 'assets/card-champions-league.jpg', 'assets/card-darts.jpg',
+      'assets/champions-league-hero.jpg', 'assets/darts-background-hero.jpg', 'assets/haaland-hero.jpg', 'assets/scoreboard-Hero.jpg'];
+    let ME = { id: null, is_admin: false };
+
+    // only site pictures or https links ever go inside url(...)
+    const safeBg = u => (typeof u === 'string' && (/^assets\/[A-Za-z0-9._ -]+\.(jpg|jpeg|png|webp)$/i.test(u) || /^https:\/\/[A-Za-z0-9._~:\/?#@!$&+,;=%-]+$/.test(u))) ? u : null;
+    const bgStyle = u => { const s = safeBg(u); return s ? ` style="background-image:url('${s.replace(/ /g, '%20')}')"` : ''; };
 
     async function api(body) {
       const r = await fetch('/api/tournaments', {
@@ -327,7 +425,6 @@
       if (!r.ok) throw new Error(data.error || 'Something went wrong');
       return data;
     }
-
     function ago(iso) {
       if (!iso) return '';
       const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -337,13 +434,31 @@
       if (s < 604800) return Math.floor(s / 86400) + 'd ago';
       return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
-    function avatar(name, url) {
+    function avatar(name, url, cls) {
       const ini = String(name || '?').trim().substring(0, 2).toUpperCase();
       const ok = typeof url === 'string' && /^https:\/\//i.test(url);
-      return `<span class="av">${esc(ini)}${ok ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+      return `<span class="av ${cls || ''}">${esc(ini)}${ok ? `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+    }
+    const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+    function tags(t) {
+      const out = [];
+      if (t.bg_image) out.push('<span class="th-tag featd"><i class="fas fa-star"></i> Featured</span>');
+      if (t.pinned) out.push('<span class="th-tag pin"><i class="fas fa-thumbtack"></i> Pinned</span>');
+      if (t.locked) out.push('<span class="th-tag lock"><i class="fas fa-lock"></i> Locked</span>');
+      if (Date.now() - new Date(t.created_at).getTime() < 86400000) out.push('<span class="th-tag new">New</span>');
+      if ((t.reply_count || 0) >= 10) out.push('<span class="th-tag hot"><i class="fas fa-fire"></i> Hot</span>');
+      return `<div class="th-tags">${out.join('')}</div>`;
+    }
+    function setStats(t) {
+      if (!t) return;
+      document.getElementById('fsThreads').textContent = t.threads;
+      document.getElementById('fsPosts').textContent = t.posts;
+      document.getElementById('fsMembers').textContent = t.members;
     }
 
     function showLogin() {
+      const cta = document.getElementById('fsCta');
+      cta.href = '/login?redirect=%2Fforum'; cta.innerHTML = '<i class="fas fa-right-to-bracket"></i> Log In';
       app.innerHTML = `<div class="f-card f-gate"><i class="fas fa-comments big"></i>
         <h2>Log in to join the conversation</h2>
         <p>The GB Forum is for members only. Log in or create a free account to read and post.</p>
@@ -360,62 +475,151 @@
         <a class="btn btn-ghost" href="#/" onclick="location.reload();return false;"><i class="fas fa-rotate"></i> Try again</a></div>`;
     }
 
-    // ---------- Home: every tournament with Live / Past ----------
+    // ---------- admin: card background picker ----------
+    // Shrinks an uploaded picture in the browser first (max 1600px wide) so
+    // uploads stay small and quick.
+    function shrink(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => {
+          const scale = Math.min(1, 1600 / img.width);
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve(c.toDataURL('image/jpeg', 0.84).split(',')[1]);
+        };
+        img.onerror = () => reject(new Error("Couldn't read that picture"));
+        img.src = url;
+      });
+    }
+    function bgPicker(host, current, onChange) {
+      let value = current || null;
+      let uploaded = current && !PRESET_BGS.includes(current) ? current : null;
+      function draw() {
+        const opts = [`<div class="bg-opt none ${!value ? 'on' : ''}" data-bg=""><i class="fas fa-ban"></i>None</div>`]
+          .concat(uploaded ? [`<div class="bg-opt ${value === uploaded ? 'on' : ''}" data-bg="${esc(uploaded)}"${bgStyle(uploaded)}></div>`] : [])
+          .concat(PRESET_BGS.map(u => `<div class="bg-opt ${value === u ? 'on' : ''}" data-bg="${esc(u)}"${bgStyle(u)} title="${esc(u.replace('assets/', ''))}"></div>`))
+          .concat([`<label class="bg-opt up"><i class="fas fa-upload"></i>Upload<input type="file" accept="image/jpeg,image/png,image/webp" hidden></label>`]);
+        host.innerHTML = `<div class="bg-pick">${opts.join('')}</div>`;
+        host.querySelectorAll('[data-bg]').forEach(el => el.onclick = () => { value = el.dataset.bg || null; draw(); onChange(value); });
+        const file = host.querySelector('input[type=file]');
+        file.onchange = async () => {
+          const f = file.files && file.files[0]; if (!f) return;
+          const lab = host.querySelector('.bg-opt.up'); lab.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Uploading';
+          try {
+            const b64 = await shrink(f);
+            const r = await api({ action: 'forum_upload_bg', image_base64: b64, file_ext: 'jpg' });
+            uploaded = r.url; value = r.url; draw(); onChange(value);
+          } catch (err) { if (err.message !== 'expired') toast(err.message, 'error'); draw(); }
+        };
+      }
+      draw();
+      return { get: () => value };
+    }
+
+    // ---------- Home ----------
     async function renderHome() {
-      app.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
-      const data = await api({ action: 'forum_get_categories' });
-      cache.categories = data.categories || [];
-      const parents = cache.categories.filter(c => !c.parent_id).sort((a, b) => a.sort_order - b.sort_order);
-      app.innerHTML = `<div class="cat-grid">${parents.map(p => {
-        const subs = cache.categories.filter(c => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order);
-        return `<section class="f-card cat-card">
-          <div class="cat-head"><span class="cat-icon"><i class="fas ${esc(p.icon || 'fa-comments')}"></i></span>
-            <div><div class="cat-name">${esc(p.name)}</div><div class="cat-desc">${esc(p.description || '')}</div></div></div>
-          ${subs.map(s => {
+      app.innerHTML = LOADING;
+      const data = await api({ action: 'forum_get_home' });
+      ME = data.me || ME; setStats(data.totals);
+      const cats = data.categories || [];
+      const bySlug = {}; cats.forEach(c => { bySlug[c.id] = c; });
+      const parents = cats.filter(c => !c.parent_id).sort((a, b) => a.sort_order - b.sort_order);
+      const whereOf = t => { const s = bySlug[t.category_id]; const p = s && bySlug[s.parent_id]; return s ? `${p ? p.name + ' · ' : ''}${s.name}` : ''; };
+
+      const featured = data.featured || [];
+      const featHtml = featured.length ? `
+        <div class="f-sec-title"><h2><i class="fas fa-star"></i> Featured</h2></div>
+        <div class="feat-grid">${featured.map(t => `
+          <a class="feat" href="#/t/${esc(t.id)}"${bgStyle(t.bg_image)}>
+            <span class="feat-kicker"><i class="fas fa-star"></i> ${esc(whereOf(t))}</span>
+            <div class="feat-title">${esc(t.title)}</div>
+            <div class="feat-meta">${avatar(t.author_name, t.author_avatar, 'sm')} ${esc(t.author_name)} · ${ago(t.created_at)} · <i class="fas fa-comment"></i> ${t.reply_count || 0}</div>
+          </a>`).join('')}</div>` : '';
+
+      const catHtml = parents.map(p => {
+        const subs = cats.filter(c => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order);
+        const total = subs.reduce((n, s) => n + (s.thread_count || 0), 0);
+        return `<section class="cat-card">
+          <a class="cat-img" href="#/c/${esc(subs[0] ? subs[0].slug : '')}"${bgStyle(p.image)}>
+            <span class="cat-img-name">${esc(p.name)}</span><span class="cat-img-count">${plural(total, 'thread', 'threads')}</span></a>
+          <div class="cat-body">${subs.map(s => {
             const kind = /-live$/.test(s.slug) ? 'live' : 'past';
             return `<a class="sec-row" href="#/c/${esc(s.slug)}">
               <span class="sec-badge ${kind}">${esc(s.name)}</span>
-              <span class="sec-info"><div class="sec-title">${esc(s.description || '')}</div>
+              <span class="sec-info"><div class="sec-title">${kind === 'live' ? 'Tournaments running now' : 'Finished tournaments'}</div>
                 <div class="sec-meta">${s.last_activity_at ? 'Last post ' + ago(s.last_activity_at) : 'No posts yet — start one'}</div></span>
               <span class="sec-count">${s.thread_count || 0}<small>${(s.thread_count || 0) === 1 ? 'thread' : 'threads'}</small></span>
               <i class="fas fa-chevron-right chev"></i></a>`;
-          }).join('')}
+          }).join('')}</div>
         </section>`;
-      }).join('')}</div>`;
+      }).join('');
+
+      const latest = data.latest || [];
+      const latestHtml = latest.length ? latest.map(t => `
+        <a class="latest-row" href="#/t/${esc(t.id)}">${avatar(t.author_name, t.author_avatar)}
+          <span class="lt-main"><div class="lt-title">${esc(t.title)}</div>
+            <div class="lt-meta"><span class="where">${esc(whereOf(t))}</span> · ${esc(t.author_name)} · ${ago(t.last_reply_at)}</div></span>
+          <span class="lt-replies"><i class="fas fa-comment"></i> ${t.reply_count || 0}</span></a>`).join('')
+        : '<div class="empty"><i class="fas fa-comments"></i>No discussions yet.<br>Pick a tournament and start the first one!</div>';
+
+      app.innerHTML = `${featHtml}
+        <div class="home-grid">
+          <div><div class="f-sec-title"><h2><i class="fas fa-trophy"></i> Tournaments</h2><span>Pick Live or Past</span></div>
+            <div class="cat-grid">${catHtml}</div></div>
+          <aside><div class="f-card side-card"><div class="f-sec-title" style="margin-top:0;"><h2><i class="fas fa-bolt"></i> Latest Discussions</h2></div>${latestHtml}</div></aside>
+        </div>`;
     }
 
     // ---------- Section: thread list ----------
     async function renderSection(slug) {
-      app.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+      app.innerHTML = LOADING;
       const data = await api({ action: 'forum_get_threads', category_slug: slug });
+      ME = data.me || ME;
       const c = data.category, p = data.parent;
-      const title = p ? `${p.name} · ${c.name}` : c.name;
+      const base = p ? p.slug : c.slug;
+      const kind = /-live$/.test(c.slug) ? 'live' : 'past';
       app.innerHTML = `
         <div class="crumbs"><a href="#/">Forum</a><i class="fas fa-chevron-right"></i>${p ? esc(p.name) + '<i class="fas fa-chevron-right"></i>' : ''}<span>${esc(c.name)}</span></div>
+        <div class="banner"${bgStyle(p ? p.image : c.image)}>
+          <div class="banner-row"><div><h2>${esc(p ? p.name : c.name)}</h2><p>${esc(c.description || '')}</p>
+            ${p ? `<div class="seg"><a href="#/c/${esc(base)}-live" class="${kind === 'live' ? 'on' : ''}">Live</a><a href="#/c/${esc(base)}-past" class="${kind === 'past' ? 'on' : ''}">Past</a></div>` : ''}</div>
+            <button class="btn btn-primary" id="newThreadBtn"><i class="fas fa-plus"></i> New Thread</button></div>
+        </div>
+        <section class="f-card" id="newThreadForm" style="display:none;">
+          <label class="f-label" for="ntTitle" style="margin-top:0;">Title</label>
+          <input class="f-input" id="ntTitle" maxlength="200" placeholder="What's it about?">
+          <label class="f-label" for="ntBody">Message</label>
+          <textarea class="f-text" id="ntBody" maxlength="5000" placeholder="Say something…"></textarea>
+          ${ME.is_admin ? `<label class="f-label">Card background <span class="adm">Admin</span></label><div id="ntBg"></div>` : ''}
+          <div class="f-actions"><span class="f-count" id="ntCount">0 / 5000</span>
+            <button class="btn btn-ghost btn-sm" id="ntCancel">Cancel</button>
+            <button class="btn btn-primary btn-sm" id="ntPost"><i class="fas fa-paper-plane"></i> Post Thread</button></div>
+        </section>
         <section class="f-card">
-          <div class="list-head"><h2>${p ? `<span class="sec-badge ${/-live$/.test(c.slug) ? 'live' : 'past'}">${esc(c.name)}</span>` : ''} ${esc(p ? p.name : c.name)}</h2>
-            <button class="btn btn-primary btn-sm" id="newThreadBtn"><i class="fas fa-plus"></i> New Thread</button></div>
-          <div id="newThreadForm" style="display:none;">
-            <label class="f-label" for="ntTitle">Title</label>
-            <input class="f-input" id="ntTitle" maxlength="200" placeholder="What's it about?">
-            <label class="f-label" for="ntBody">Message</label>
-            <textarea class="f-text" id="ntBody" maxlength="5000" placeholder="Say something…"></textarea>
-            <div class="f-actions"><span class="f-count" id="ntCount">0 / 5000</span>
-              <button class="btn btn-ghost btn-sm" id="ntCancel">Cancel</button>
-              <button class="btn btn-primary btn-sm" id="ntPost"><i class="fas fa-paper-plane"></i> Post Thread</button></div>
-          </div>
-          <div id="threadList">${(data.threads || []).length ? data.threads.map(t => `
-            <a class="th-row" href="#/t/${esc(t.id)}">
+          <div class="f-sec-title" style="margin-top:0;"><h2><span class="sec-badge ${kind}">${esc(c.name)}</span> ${plural((data.threads || []).length, 'thread', 'threads')}</h2></div>
+          ${(data.threads || []).length ? data.threads.map(t => `
+            <a class="th-row ${t.bg_image ? 'has-bg' : ''}" href="#/t/${esc(t.id)}"${bgStyle(t.bg_image)}>
               ${avatar(t.author_name, t.author_avatar)}
-              <span class="th-main"><div class="th-title">${t.pinned ? '<span class="th-tag pin"><i class="fas fa-thumbtack"></i> Pinned</span>' : ''}${t.locked ? '<span class="th-tag lock"><i class="fas fa-lock"></i> Locked</span>' : ''}${esc(t.title)}</div>
+              <span class="th-main">${tags(t)}<div class="th-title">${esc(t.title)}</div>
                 <div class="th-meta">by ${esc(t.author_name)} · ${ago(t.created_at)}${t.reply_count ? ' · last reply ' + ago(t.last_reply_at) : ''}</div></span>
               <span class="th-replies">${t.reply_count || 0}<small>${(t.reply_count || 0) === 1 ? 'reply' : 'replies'}</small></span>
-            </a>`).join('') : '<div class="empty">No threads here yet. Be the first to start one!</div>'}</div>
+            </a>`).join('') : '<div class="empty"><i class="fas fa-comment-dots"></i>No threads here yet. Be the first to start one!</div>'}
         </section>`;
-      document.title = `${title} - Forum - GB Tournaments`;
+      document.title = `${p ? p.name + ' · ' : ''}${c.name} - Forum - GB Tournaments`;
+
       const form = document.getElementById('newThreadForm');
       const body = document.getElementById('ntBody');
-      document.getElementById('newThreadBtn').onclick = () => { form.style.display = form.style.display === 'none' ? 'block' : 'none'; if (form.style.display === 'block') document.getElementById('ntTitle').focus(); };
+      let picker = null;
+      document.getElementById('newThreadBtn').onclick = () => {
+        const open = form.style.display === 'none';
+        form.style.display = open ? 'block' : 'none';
+        if (open) {
+          if (ME.is_admin && !picker) picker = bgPicker(document.getElementById('ntBg'), null, () => {});
+          document.getElementById('ntTitle').focus();
+        }
+      };
       document.getElementById('ntCancel').onclick = () => { form.style.display = 'none'; };
       body.oninput = () => { document.getElementById('ntCount').textContent = `${body.value.length} / 5000`; };
       document.getElementById('ntPost').onclick = async (e) => {
@@ -425,7 +629,9 @@
         if (!ttl || !txt) { toast('Add a title and a message first.', 'error'); return; }
         btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
         try {
-          const r = await api({ action: 'forum_create_thread', category_id: c.id, title: ttl, content: txt });
+          const req = { action: 'forum_create_thread', category_id: c.id, title: ttl, content: txt };
+          if (picker && picker.get()) req.bg_image = picker.get();
+          const r = await api(req);
           location.hash = `#/t/${r.thread_id}`;
         } catch (err) {
           if (err.message !== 'expired') toast(err.message, 'error');
@@ -436,22 +642,28 @@
 
     // ---------- Thread ----------
     async function renderThread(id) {
-      app.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+      app.innerHTML = LOADING;
       const data = await api({ action: 'forum_get_thread', thread_id: id });
       const t = data.thread, c = data.category, p = data.parent, me = data.me || {};
+      ME = me;
       const posts = data.posts || [];
       app.innerHTML = `
         <div class="crumbs"><a href="#/">Forum</a><i class="fas fa-chevron-right"></i>${p ? esc(p.name) + '<i class="fas fa-chevron-right"></i>' : ''}${c ? `<a href="#/c/${esc(c.slug)}">${esc(c.name)}</a>` : ''}</div>
-        <section class="f-card">
-          <div class="thread-title">${t.pinned ? '<span class="th-tag pin"><i class="fas fa-thumbtack"></i> Pinned</span>' : ''}${t.locked ? '<span class="th-tag lock"><i class="fas fa-lock"></i> Locked</span>' : ''}${esc(t.title)}</div>
-          <div class="th-meta">Started by ${esc(t.author_name)} · ${ago(t.created_at)} · ${t.reply_count || 0} ${(t.reply_count || 0) === 1 ? 'reply' : 'replies'}</div>
+        <div class="banner"${bgStyle(t.bg_image || (p && p.image))}>
+          ${tags(t)}<div class="thread-title">${esc(t.title)}</div>
+          <p>Started by ${esc(t.author_name)} · ${ago(t.created_at)} · ${plural(t.reply_count || 0, 'reply', 'replies')}</p>
           ${me.is_admin ? `<div class="mod-bar">
             <button class="btn btn-ghost btn-sm" data-mod="pin"><i class="fas fa-thumbtack"></i> ${t.pinned ? 'Unpin' : 'Pin'}</button>
             <button class="btn btn-ghost btn-sm" data-mod="lock"><i class="fas fa-lock"></i> ${t.locked ? 'Unlock' : 'Lock'}</button>
+            <button class="btn btn-ghost btn-sm" data-mod="bg"><i class="fas fa-image"></i> Card background</button>
             <button class="btn btn-danger btn-sm" data-mod="delete"><i class="fas fa-trash"></i> Delete thread</button></div>` : ''}
-        </section>
+        </div>
+        ${me.is_admin ? `<section class="f-card" id="bgEdit" style="display:none;">
+          <label class="f-label" style="margin-top:0;">Card background <span class="adm">Admin</span></label><div id="bgEditPick"></div>
+          <div class="f-actions"><button class="btn btn-ghost btn-sm" id="bgCancel">Cancel</button><button class="btn btn-primary btn-sm" id="bgSave"><i class="fas fa-check"></i> Save background</button></div>
+        </section>` : ''}
         <section class="f-card">
-          ${posts.map((po, i) => `<div class="post">
+          ${posts.map((po, i) => `<div class="post ${i === 0 ? 'op-post' : ''}">
             ${avatar(po.author_name, po.author_avatar)}
             <div class="post-body"><div class="post-head"><b>${esc(po.author_name)}</b>${po.user_id === t.user_id ? '<span class="op">Starter</span>' : ''}<span>${ago(po.created_at)}</span>
               ${(po.user_id === me.id || me.is_admin) ? `<button class="post-del" data-del="${esc(po.id)}" data-first="${i === 0 ? 1 : 0}" title="Delete"><i class="fas fa-trash"></i> Delete</button>` : ''}</div>
@@ -486,8 +698,20 @@
           else { toast('Post deleted.', 'success'); renderThread(id); }
         } catch (err) { if (err.message !== 'expired') toast(err.message, 'error'); }
       });
+      let editPicker = null;
       app.querySelectorAll('[data-mod]').forEach(b => b.onclick = async () => {
         const m = b.dataset.mod;
+        if (m === 'bg') {
+          const box = document.getElementById('bgEdit');
+          box.style.display = box.style.display === 'none' ? 'block' : 'none';
+          if (!editPicker) editPicker = bgPicker(document.getElementById('bgEditPick'), t.bg_image || null, () => {});
+          document.getElementById('bgCancel').onclick = () => { box.style.display = 'none'; };
+          document.getElementById('bgSave').onclick = async () => {
+            try { await api({ action: 'forum_admin_moderate_thread', thread_id: id, bg_image: editPicker.get() || null }); toast('Background saved.', 'success'); renderThread(id); }
+            catch (err) { if (err.message !== 'expired') toast(err.message, 'error'); }
+          };
+          return;
+        }
         if (m === 'delete' && !confirm('Delete this whole thread and all its replies?')) return;
         const body = { action: 'forum_admin_moderate_thread', thread_id: id };
         if (m === 'pin') body.pinned = !t.pinned;
@@ -501,6 +725,7 @@
       });
     }
 
+    let statsLoaded = false;
     async function route() {
       if (!token()) { showLogin(); return; }
       const h = location.hash || '#/';
@@ -508,7 +733,8 @@
         let m;
         if ((m = h.match(/^#\/c\/([a-z0-9-]+)$/))) await renderSection(m[1]);
         else if ((m = h.match(/^#\/t\/([0-9a-f-]{36})$/))) await renderThread(m[1]);
-        else { document.title = 'Forum - GB Tournaments'; await renderHome(); }
+        else { document.title = 'Forum - GB Tournaments'; await renderHome(); statsLoaded = true; return; }
+        if (!statsLoaded) { statsLoaded = true; api({ action: 'forum_get_home' }).then(d => setStats(d.totals)).catch(() => {}); }
       } catch (err) {
         if (err.message !== 'expired') showError(err.message);
       }
