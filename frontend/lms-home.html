@@ -217,6 +217,11 @@
     .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
     .pick-result-tag.lose{ background:rgba(239,68,68,0.15); color:#fca5a5; }
     .pick-result-tag.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
+    .pick-result-tag.live{ background:#dc2626; color:#fff; }
+    .pick-result-tag .live-dot{ width:8px; height:8px; border-radius:50%; background:#fff; display:inline-block; animation:lmsLivePulse 1.2s ease-in-out infinite; }
+    @keyframes lmsLivePulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
+    .pick-kickoff.through{ color:#4ade80 !important; }
+    .pick-kickoff.out{ color:#fca5a5 !important; }
     .pick-tag-wrap{ display:inline-flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; margin-left:10px; }
     .pick-tag-wrap .pick-result-tag{ margin-left:0 !important; }
     .pick-kickoff{ font-family:var(--font-body, inherit); font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
@@ -468,6 +473,10 @@
   .lms-teams .pick-cta .pick-kickoff{ font-size:15px; }
   .lms-teams .pick-cta .pick-tag-wrap .pick-result-tag{ margin-left:0 !important; }
   .lms-teams .pick-cta .pick-result-tag.pending{ background:rgba(255,255,255,0.14); color:#fff; }
+  .lms-teams .pick-cta .pick-result-tag.win{ background:#16a34a !important; }
+  .lms-teams .pick-cta .pick-result-tag.lose, .lms-teams .pick-cta .pick-result-tag.live{ background:#dc2626 !important; }
+  .lms-teams .pick-cta .pick-kickoff.through{ color:#4ade80 !important; }
+  .lms-teams .pick-cta .pick-kickoff.out{ color:#fca5a5 !important; }
   @media (max-width:480px){
     .lms-teams .pick-cta{ padding:14px 14px !important; }
     .lms-teams .pick-cta .team{ font-size:20px !important; gap:10px !important; }
@@ -1051,10 +1060,27 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       }
     }
 
+    // The pick box always uses the CURRENT gameweek's matches - not whatever
+    // gameweek the Results card has been browsed to.
+    let pickGwMatches = [];
+    let pickGwMatchesFor = null;
+    async function ensurePickGwMatches() {
+      if (!currentGw) { pickGwMatches = []; pickGwMatchesFor = null; return; }
+      if (viewedGw === currentGw && gwMatches.length) { pickGwMatches = gwMatches; pickGwMatchesFor = currentGw; return; }
+      try {
+        const r = await fetch(`/api/predictions?gameweek=${currentGw}`);
+        const d = await r.json();
+        pickGwMatches = d.matches || [];
+        pickGwMatchesFor = currentGw;
+      } catch (e) { console.error('Failed to load pick gameweek matches:', e); }
+    }
+
     function pickResultState(team) {
-      const match = gwMatches.find(m => m.home_team === team || m.away_team === team);
+      const list = pickGwMatchesFor === currentGw ? pickGwMatches : gwMatches;
+      const match = list.find(m => m.home_team === team || m.away_team === team);
       if (!match) return null;
       const hasScore = match.home_score !== null && match.home_score !== undefined;
+      if (match.status === 'live') return { state: 'live', match };
       if (!hasScore || match.status !== 'finished') return { state: 'pending', match };
       const won = (match.home_team === team && match.result === 'H') || (match.away_team === team && match.result === 'A');
       const drew = match.result === 'D';
@@ -1065,6 +1091,15 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       const result = pickResultState(team);
       if (!result) return '';
       const { state, match } = result;
+      // Score shown with the picked team's goals first, e.g. "Won 2-1".
+      const isHome = match.home_team === team;
+      const hasScore = match.home_score !== null && match.home_score !== undefined;
+      const score = hasScore ? (isHome ? `${match.home_score}-${match.away_score}` : `${match.away_score}-${match.home_score}`) : '';
+      const wrap = (tag, sub, cls) => `<span class="pick-tag-wrap">${tag}<span class="pick-kickoff${cls ? ' ' + cls : ''}">${sub}</span></span>`;
+
+      if (state === 'live') {
+        return wrap(`<span class="pick-result-tag live"><span class="live-dot"></span> LIVE${score ? ' ' + score : ''}</span>`, 'In play');
+      }
       if (state === 'pending') {
         // Keep the status tag (e.g. "upcoming") and show the kickoff day
         // and time (UK time) underneath it, e.g. "Mon 12 Oct · 20:00".
@@ -1073,14 +1108,14 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         if ((match.status || 'upcoming') === 'upcoming' && k && !isNaN(k)) {
           const day = k.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
           const time = k.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
-          return `<span class="pick-tag-wrap">${tag}<span class="pick-kickoff">${escapeHtml(day)} · ${escapeHtml(time)}</span></span>`;
+          return wrap(tag, `${escapeHtml(day)} · ${escapeHtml(time)}`);
         }
         return tag;
       }
-      const score = `${match.home_score}-${match.away_score}`;
-      if (state === 'win') return `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
-      if (state === 'draw') return `<span class="pick-result-tag draw"><i class="fas fa-minus"></i> Drew ${score}</span>`;
-      return `<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Lost ${score}</span>`;
+      // Finished. In Last Man Standing a draw counts as a loss, so it's red too.
+      if (state === 'win') return wrap(`<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`, "You're through", 'through');
+      if (state === 'draw') return wrap(`<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Drew ${score}</span>`, "You're out", 'out');
+      return wrap(`<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Lost ${score}</span>`, "You're out", 'out');
     }
 
     async function loadLmsState() {
@@ -1123,6 +1158,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         // This gameweek's pick
         document.getElementById('pickGwLabel').textContent = currentGw ? `Gameweek ${currentGw}` : '';
         const thisWeekPick = picks.find(p => p.gameweek === currentGw);
+        if (thisWeekPick) await ensurePickGwMatches();
         const cta = document.getElementById('pickCta');
 
         if (tournamentFinished) {
