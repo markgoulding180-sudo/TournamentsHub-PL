@@ -196,7 +196,7 @@
     .team-tile .pick-tag{ font-size:9px; text-transform:uppercase; letter-spacing:.3px; margin-top:2px; display:block; font-weight:700; }
     .team-tile .pick-tag-pending{ color:var(--gold); }
     .team-tile .pick-tag-win{ color:var(--green); }
-    .team-tile .pick-tag-lose, .team-tile .pick-tag-draw{ color:#ef4444; }
+    .team-tile .pick-tag-lose, .team-tile .pick-tag-draw, .team-tile .pick-tag-live{ color:#ef4444; }
 
     /* Gameweek results card */
     .results-card{ margin-bottom:24px; }
@@ -753,6 +753,35 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     let gwMatches = [];
     let tournamentFinished = false;
 
+    // ── PREVIEW MODE (display only) ─────────────────────────────────────
+    // /last-man-standing?preview=live   (or =won / =lost / =draw)
+    // Shows the page as if the gameweek were being played, using made-up
+    // scores IN THE BROWSER ONLY. Nothing is saved, nobody's pick or entry
+    // is touched, and picking is switched off while previewing.
+    // Remove this block once the real gameweek is live.
+    const PREVIEW = (() => { const v = new URLSearchParams(location.search).get('preview'); return ['live','won','lost','draw'].includes(v) ? v : null; })();
+    let previewTeam = null;
+    function applyPreview(list) {
+      if (!PREVIEW || !Array.isArray(list)) return list;
+      return list.map((m, i) => {
+        const c = { ...m };
+        const mine = previewTeam && (c.home_team === previewTeam || c.away_team === previewTeam);
+        let mode = mine ? PREVIEW : (i % 3 === 0 ? 'fin' : i % 3 === 1 ? 'live' : 'upcoming');
+        if (mode === 'upcoming') return c;
+        if (mode === 'live') { c.status = 'live'; c.home_score = i % 2; c.away_score = (i + 1) % 2; c.result = null; return c; }
+        c.status = 'finished';
+        if (mode === 'fin') { c.home_score = (i % 4); c.away_score = (i % 3); }
+        else if (mode === 'draw') { c.home_score = 1; c.away_score = 1; }
+        else {
+          const teamHome = c.home_team === previewTeam;
+          const teamWins = mode === 'won';
+          c.home_score = (teamHome === teamWins) ? 2 : 1; c.away_score = (teamHome === teamWins) ? 1 : 2;
+        }
+        c.result = c.home_score > c.away_score ? 'H' : c.away_score > c.home_score ? 'A' : 'D';
+        return c;
+      });
+    }
+
     async function loadTournament() {
       try {
         // Speed: these four used to be asked one after another. They don't
@@ -789,7 +818,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         // the actual story, not buried under leftover "in progress" UI.
         // Same treatment for an upcoming tournament - there's nothing to
         // pick yet either.
-        if (tournamentFinished || tournamentUpcoming) {
+        if ((tournamentFinished || tournamentUpcoming) && !PREVIEW) {
           const howEl = document.getElementById('howCollapsible');
           if (howEl) howEl.style.display = 'none';
           const pickCard = document.querySelector('.pick-card');
@@ -975,7 +1004,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       try {
         const res = await fetch(`/api/predictions?gameweek=${viewedGw}`);
         const data = await res.json();
-        gwMatches = data.matches || [];
+        gwMatches = viewedGw === currentGw ? applyPreview(data.matches || []) : (data.matches || []);
 
         if (gwMatches.length === 0) {
           grid.innerHTML = '<div class="empty">No fixtures found for this gameweek yet.</div>';
@@ -993,6 +1022,13 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           const isDraw = started && m.result === 'D';
           const scoreText = hasScore ? `${m.home_score}-${m.away_score}` : null;
 
+          if (m.status === 'live') {
+            return `
+              <div class="result-simple-row">
+                <span class="r-simple-name" style="color:#fff;">${escapeHtml(m.home_team)} ${hasScore ? m.home_score + '-' + m.away_score : 'v'} ${escapeHtml(m.away_team)}</span>
+                <span class="r-simple-tag" style="color:#ef4444;"><i class="fas fa-circle" style="font-size:8px;"></i> Live</span>
+              </div>`;
+          }
           if (!started) {
             return `
               <div class="result-simple-row">
@@ -1055,6 +1091,11 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           banner.style.display = 'none';
         }
         if (lock.gameweek) currentGw = lock.gameweek;
+        if (PREVIEW) {
+          locked = true;
+          banner.style.display = 'flex';
+          document.getElementById('lockText').textContent = `PREVIEW (${PREVIEW}) — made-up scores, nothing is saved. Picking is switched off.`;
+        }
       } catch (e) {
         console.error('Failed to load lock status:', e);
       }
@@ -1070,7 +1111,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       try {
         const r = await fetch(`/api/predictions?gameweek=${currentGw}`);
         const d = await r.json();
-        pickGwMatches = d.matches || [];
+        pickGwMatches = applyPreview(d.matches || []);
         pickGwMatchesFor = currentGw;
       } catch (e) { console.error('Failed to load pick gameweek matches:', e); }
     }
@@ -1158,6 +1199,10 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         // This gameweek's pick
         document.getElementById('pickGwLabel').textContent = currentGw ? `Gameweek ${currentGw}` : '';
         const thisWeekPick = picks.find(p => p.gameweek === currentGw);
+        if (PREVIEW && thisWeekPick && previewTeam !== thisWeekPick.team) {
+          previewTeam = thisWeekPick.team;
+          await loadGameweekResults();
+        }
         if (thisWeekPick) await ensurePickGwMatches();
         const cta = document.getElementById('pickCta');
 
@@ -1221,8 +1266,8 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             const result = pickResultState(team);
             const state = result ? result.state : 'pending';
             tileClass = `current-pick pick-${state}`;
-            const tagLabel = state === 'pending' ? 'This Week' : state === 'win' ? 'Won' : state === 'draw' ? 'Drew' : 'Lost';
-            const tagIcon = state === 'pending' ? 'fa-star' : state === 'win' ? 'fa-check' : state === 'draw' ? 'fa-minus' : 'fa-xmark';
+            const tagLabel = state === 'pending' ? 'This Week' : state === 'live' ? 'Live' : state === 'win' ? 'Won' : state === 'draw' ? 'Drew' : 'Lost';
+            const tagIcon = state === 'pending' ? 'fa-star' : state === 'live' ? 'fa-circle' : state === 'win' ? 'fa-check' : state === 'draw' ? 'fa-minus' : 'fa-xmark';
             tagHtml = `<span class="pick-tag pick-tag-${state}"><i class="fas ${tagIcon}"></i> ${tagLabel}</span>`;
           }
           if (eligible) tileClass += ' selectable';
