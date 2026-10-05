@@ -217,15 +217,6 @@
     .pick-result-tag.win{ background:rgba(34,197,94,0.15); color:var(--green); }
     .pick-result-tag.lose{ background:rgba(239,68,68,0.15); color:#fca5a5; }
     .pick-result-tag.draw{ background:rgba(242,185,61,0.15); color:var(--gold); }
-    .pick-result-tag.live{ background:#dc2626; color:#fff; }
-    .pick-result-tag .live-dot{ width:8px; height:8px; border-radius:50%; background:#fff; display:inline-block; animation:lmsLivePulse 1.2s ease-in-out infinite; }
-    @keyframes lmsLivePulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
-    .pick-kickoff.through{ color:#4ade80 !important; }
-    .pick-kickoff.out{ color:#fca5a5 !important; }
-    .pick-tag-wrap{ display:inline-flex; flex-direction:column; align-items:center; gap:5px; flex-shrink:0; margin-left:10px; }
-    .pick-tag-wrap .pick-result-tag{ margin-left:0 !important; }
-    .pick-kickoff{ font-family:var(--font-body, inherit); font-size:13px; font-weight:700; color:#fff; white-space:nowrap; }
-    @media (max-width:640px){ .pick-kickoff{ font-size:11px; } .pick-tag-wrap{ margin-left:6px; } }
     .pick-result-tag.pending{ background:rgba(255,255,255,0.06); color:var(--text-faint); }
 
     /* Survivors leaderboard */
@@ -470,19 +461,14 @@
   .lms-teams .pick-cta .team img{ width:64px !important; height:64px !important; }
   .lms-teams .pick-cta .team .team-name{ color:#fff; }
   .lms-teams .pick-cta .pick-result-tag{ font-size:14px !important; padding:5px 14px !important; margin-left:8px !important; }
-  .lms-teams .pick-cta .pick-kickoff{ font-size:15px; }
-  .lms-teams .pick-cta .pick-tag-wrap .pick-result-tag{ margin-left:0 !important; }
   .lms-teams .pick-cta .pick-result-tag.pending{ background:rgba(255,255,255,0.14); color:#fff; }
   .lms-teams .pick-cta .pick-result-tag.win{ background:#16a34a !important; }
   .lms-teams .pick-cta .pick-result-tag.lose, .lms-teams .pick-cta .pick-result-tag.live{ background:#dc2626 !important; }
-  .lms-teams .pick-cta .pick-kickoff.through{ color:#4ade80 !important; }
-  .lms-teams .pick-cta .pick-kickoff.out{ color:#fca5a5 !important; }
   @media (max-width:480px){
     .lms-teams .pick-cta{ padding:14px 14px !important; }
     .lms-teams .pick-cta .team{ font-size:20px !important; gap:10px !important; }
     .lms-teams .pick-cta .team img{ width:52px !important; height:52px !important; }
     .lms-teams .pick-cta .pick-result-tag{ font-size:12px !important; padding:4px 10px !important; }
-    .lms-teams .pick-cta .pick-kickoff{ font-size:13px; }
   }
   /* team cards (20% darker): the default background behind every card; picked / selected cards keep their colour tint on top */
   .lms-teams .team-tile{ background:linear-gradient(rgba(6,12,32,0.80), rgba(6,12,32,0.80)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
@@ -496,6 +482,47 @@
   .lms-teams .team-tile.current-pick.pick-win .name{ color:var(--green); }
   .lms-teams .team-tile.current-pick.pick-lose .name, .lms-teams .team-tile.current-pick.pick-draw .name{ color:#ef4444; }
   .lms-teams .team-tile img{ filter:drop-shadow(0 4px 10px rgba(0,0,0,.6)); }
+
+  /* ===== Round 5 ===== */
+  /* pick box: badge under the name, info to the right at the same size as the name */
+  .pick-cta .pick-name-col{ display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
+  .pick-cta .pick-name-col .team-name{ max-width:100%; }
+  .pick-cta .pick-name-col .pick-result-tag{ margin-left:0 !important; }
+  .pick-cta .pick-side{ font-family:var(--font-head); font-size:inherit; font-weight:700; color:#fff; margin-left:8px; line-height:1.15; flex-shrink:0; }
+  .pick-cta .pick-side .nw{ white-space:nowrap; }
+  .lms-teams .pick-cta .pick-side.through{ color:#4ade80 !important; }
+  .lms-teams .pick-cta .pick-side.out{ color:#fca5a5 !important; }
+  .pick-result-tag.live{ background:#dc2626; color:#fff; }
+  .pick-result-tag .live-dot{ width:8px; height:8px; border-radius:50%; background:#fff; display:inline-block; animation:lmsLivePulse 1.2s ease-in-out infinite; }
+  @keyframes lmsLivePulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
+
+  /* this week's team in the grid gets a clear border (colour follows its result) */
+  .lms-teams .team-tile.current-pick{ border:3px solid #60a5fa !important; box-shadow:0 0 0 1px rgba(96,165,250,0.35), 0 0 18px rgba(96,165,250,0.45); }
+  .lms-teams .team-tile.current-pick.pick-pending{ border-color:var(--gold) !important; box-shadow:0 0 18px rgba(242,185,61,0.45); }
+  .lms-teams .team-tile.current-pick.pick-win{ border-color:#22c55e !important; box-shadow:0 0 18px rgba(34,197,94,0.5); }
+  .lms-teams .team-tile.current-pick.pick-live,
+  .lms-teams .team-tile.current-pick.pick-lose,
+  .lms-teams .team-tile.current-pick.pick-draw{ border-color:#ef4444 !important; box-shadow:0 0 18px rgba(239,68,68,0.5); }
+  .lms-teams .team-tile.current-pick.pick-live{ background:linear-gradient(rgba(239,68,68,0.22), rgba(6,12,32,0.74)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+
+  /* hero buttons: jump to Survivors / Results */
+  .hero-links{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .hero-link{ display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:999px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.28); color:#fff; font-family:var(--font-head); font-weight:700; font-size:14px; text-decoration:none; backdrop-filter:blur(4px); }
+  .hero-link:hover{ background:rgba(96,165,250,0.25); border-color:#60a5fa; }
+  #survivorsSection, #resultsCardSection{ scroll-margin-top:84px; }
+
+  @media (max-width:640px){
+    .hero-links{ margin-top:12px; gap:8px; }
+    .hero-link{ padding:8px 14px; font-size:13px; }
+    /* Survivors edge to edge, square corners, more room for names */
+    #survivorsSection{ margin-left:-14px !important; margin-right:-14px !important; border-radius:0 !important; border-left:none !important; border-right:none !important; padding:16px 10px !important; }
+    .survivor-row{ grid-template-columns:1fr 104px 74px !important; column-gap:6px; padding:9px 2px !important; }
+    .survivor-row .s-name{ gap:0 !important; }
+    .survivor-row .s-name .s-av-m{ display:none !important; }
+    .survivor-row .s-name-t{ font-size:14px; }
+    .survivor-row .s-pick span:last-child{ font-size:11px !important; }
+    .survivor-row .s-status{ font-size:10px; }
+  }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -582,6 +609,10 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         <div class="hero-eyebrow"><span class="dot"></span>Elimination Format</div>
         <h1>Last Man Standing</h1>
         <div class="hero-sub">Pick One. Survive. Repeat.</div>
+        <div class="hero-links" id="heroLinks">
+          <a href="#survivorsSection" class="hero-link" id="heroLinkSurvivors" style="display:none;" onclick="document.getElementById('survivorsSection').scrollIntoView({behavior:'smooth', block:'start'}); return false;"><i class="fas fa-skull-crossbones"></i> Survivors</a>
+          <a href="#resultsCardSection" class="hero-link" id="heroLinkResults" style="display:none;" onclick="document.getElementById('resultsCardSection').scrollIntoView({behavior:'smooth', block:'start'}); return false;"><i class="fas fa-list-ol"></i> Results</a>
+        </div>
         <p class="hero-desc">Pick a Premier League team to win every gameweek. Get it wrong and you're out — and you can never use the same team twice. Last manager standing takes the pot.</p>
       </div>
     </section>
@@ -1128,35 +1159,39 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       return { state: won ? 'win' : drew ? 'draw' : 'lose', match };
     }
 
-    function pickResultTagHtml(team) {
+    // Pick box: team name with its status badge underneath, and the info
+    // text (In play / You're through / You're out / kickoff day & time) to
+    // the right of the name, the same size as the name.
+    function pickTeamBlock(team) {
+      const nameHtml = `<span class="team-name">${escapeHtml(team)}</span>`;
       const result = pickResultState(team);
-      if (!result) return '';
+      if (!result) return `<span class="pick-name-col">${nameHtml}</span>`;
       const { state, match } = result;
-      // Score shown with the picked team's goals first, e.g. "Won 2-1".
       const isHome = match.home_team === team;
       const hasScore = match.home_score !== null && match.home_score !== undefined;
+      // Score shown with the picked team's goals first, e.g. "Won 2-1".
       const score = hasScore ? (isHome ? `${match.home_score}-${match.away_score}` : `${match.away_score}-${match.home_score}`) : '';
-      const wrap = (tag, sub, cls) => `<span class="pick-tag-wrap">${tag}<span class="pick-kickoff${cls ? ' ' + cls : ''}">${sub}</span></span>`;
-
+      let badge = '', side = '', sideCls = '';
       if (state === 'live') {
-        return wrap(`<span class="pick-result-tag live"><span class="live-dot"></span> LIVE${score ? ' ' + score : ''}</span>`, 'In play');
-      }
-      if (state === 'pending') {
-        // Keep the status tag (e.g. "upcoming") and show the kickoff day
-        // and time (UK time) underneath it, e.g. "Mon 12 Oct · 20:00".
-        const tag = `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
+        badge = `<span class="pick-result-tag live"><span class="live-dot"></span> LIVE${score ? ' ' + score : ''}</span>`;
+        side = 'In play';
+      } else if (state === 'pending') {
+        badge = `<span class="pick-result-tag pending"><i class="fas fa-clock"></i> ${escapeHtml(match.status || 'upcoming')}</span>`;
         const k = match.kickoff_time ? new Date(match.kickoff_time) : null;
         if ((match.status || 'upcoming') === 'upcoming' && k && !isNaN(k)) {
-          const day = k.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' });
+          const day = k.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/London' }).replace(',', '');
           const time = k.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' });
-          return wrap(tag, `${escapeHtml(day)} · ${escapeHtml(time)}`);
+          side = `<span class="nw">${escapeHtml(day)}</span> <span class="nw">${escapeHtml(time)}</span>`;
         }
-        return tag;
+      } else if (state === 'win') {
+        badge = `<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`;
+        side = "You're through"; sideCls = 'through';
+      } else {
+        // In Last Man Standing a draw counts as a loss, so it's red too.
+        badge = `<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> ${state === 'draw' ? 'Drew' : 'Lost'} ${score}</span>`;
+        side = "You're out"; sideCls = 'out';
       }
-      // Finished. In Last Man Standing a draw counts as a loss, so it's red too.
-      if (state === 'win') return wrap(`<span class="pick-result-tag win"><i class="fas fa-check"></i> Won ${score}</span>`, "You're through", 'through');
-      if (state === 'draw') return wrap(`<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Drew ${score}</span>`, "You're out", 'out');
-      return wrap(`<span class="pick-result-tag lose"><i class="fas fa-xmark"></i> Lost ${score}</span>`, "You're out", 'out');
+      return `<span class="pick-name-col">${nameHtml}${badge}</span>${side ? `<span class="pick-side ${sideCls}">${side}</span>` : ''}`;
     }
 
     async function loadLmsState() {
@@ -1214,12 +1249,12 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           cta.innerHTML = `<span style="color:var(--text-faint);">Eliminated — no further picks this tournament.</span>`;
         } else if (thisWeekPick && locked) {
           cta.innerHTML = `
-            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> <span class="team-name">${escapeHtml(thisWeekPick.team)}</span> ${pickResultTagHtml(thisWeekPick.team)}</div>
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${pickTeamBlock(thisWeekPick.team)}</div>
             <span style="color:var(--text-faint); font-size:13px;"><i class="fas fa-lock"></i> Locked in</span>
           `;
         } else if (thisWeekPick) {
           cta.innerHTML = `
-            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> <span class="team-name">${escapeHtml(thisWeekPick.team)}</span> ${pickResultTagHtml(thisWeekPick.team)}</div>
+            <div class="team"><img src="${shirtSrc(thisWeekPick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';"> ${pickTeamBlock(thisWeekPick.team)}</div>
             <a href="#teamsGrid" class="btn-primary" onclick="document.getElementById('teamsGrid').scrollIntoView({behavior:'smooth', block:'center'}); return false;"><i class="fas fa-pen"></i> Change Pick</a>
           `;
         } else if (!currentGw) {
@@ -1477,6 +1512,19 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       loadTournament();
     });
     window.addEventListener('gbf-data-refreshed', loadTournament);
+
+    // Hero buttons only appear when the section they jump to is showing.
+    function updateHeroLinks() {
+      [['heroLinkSurvivors', 'survivorsSection'], ['heroLinkResults', 'resultsCardSection']].forEach(([linkId, secId]) => {
+        const link = document.getElementById(linkId), sec = document.getElementById(secId);
+        if (link) link.style.display = (sec && sec.offsetParent !== null) ? '' : 'none';
+      });
+    }
+    try {
+      const mo = new MutationObserver(updateHeroLinks);
+      ['mainContent', 'survivorsSection', 'resultsCardSection'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { attributes: true, attributeFilter: ['style', 'class'] }); });
+    } catch (e) {}
+    setTimeout(updateHeroLinks, 1500);
   </script>
   <script src="notifications.js"></script>
 </body>
