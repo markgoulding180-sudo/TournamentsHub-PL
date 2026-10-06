@@ -84,6 +84,61 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     try {
       const params = new URLSearchParams(req.query);
+
+      // ---- News feed (Sky Sports football headlines) ----
+      // Public, read-only. The feed is fetched from Sky at most once every
+      // 30 minutes and saved, so 1 visitor or 1,000 makes no difference.
+      // Only headline, short summary, picture, time and link are kept -
+      // every story opens on Sky's own site.
+      if (params.get('news') === 'sky') {
+        const SOURCE = 'skysports';
+        const FEEDS = ['https://www.skysports.com/rss/12040', 'https://www.skysports.com/rss/11095', 'https://www.skysports.com/rss/0,20514,11095,00.xml'];
+        const MAX_AGE_MS = 30 * 60 * 1000;
+        res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
+        const { data: cached } = await supabaseAdmin.from('news_cache').select('*').eq('source', SOURCE).maybeSingle();
+        if (cached && Date.now() - new Date(cached.fetched_at).getTime() < MAX_AGE_MS && (cached.items || []).length) {
+          return res.status(200).json({ source: 'Sky Sports', items: cached.items, fetched_at: cached.fetched_at });
+        }
+        const decode = (t) => String(t || '')
+          .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&#(\d+);/g, (m, n) => String.fromCharCode(parseInt(n, 10)))
+          .replace(/\s+/g, ' ').trim();
+        const tag = (xml, name) => { const m = xml.match(new RegExp('<' + name + '[^>]*>([\\s\\S]*?)</' + name + '>', 'i')); return m ? m[1] : ''; };
+        const okUrl = (u) => /^https?:\/\/[^\s"'<>()]+$/i.test(u || '') ? u.replace(/^http:/i, 'https:') : null;
+        let items = [], usedFeed = null;
+        for (const url of FEEDS) {
+          try {
+            const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 6000);
+            const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (GB Tournaments news reader)' }, signal: ctrl.signal });
+            clearTimeout(timer);
+            if (!r.ok) continue;
+            const xml = await r.text();
+            const blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || [];
+            items = blocks.slice(0, 20).map(b => {
+              const img = (b.match(/<media:content[^>]*url="([^"]+)"/i) || b.match(/<media:thumbnail[^>]*url="([^"]+)"/i) || b.match(/<enclosure[^>]*url="([^"]+)"/i) || [])[1];
+              const pub = decode(tag(b, 'pubDate'));
+              const d = pub ? new Date(pub.replace(/\sBST$/i, ' +0100')) : null;
+              return {
+                title: decode(tag(b, 'title')).slice(0, 220),
+                summary: decode(tag(b, 'description')).slice(0, 300),
+                link: okUrl(decode(tag(b, 'link'))),
+                image: okUrl(img ? img.replace(/&amp;/g, '&') : null),
+                published_at: d && !isNaN(d) ? d.toISOString() : null
+              };
+            }).filter(i => i.title && i.link);
+            if (items.length) { usedFeed = url; break; }
+          } catch (e) { console.error('[news] feed failed', url, e.message); }
+        }
+        if (items.length) {
+          await supabaseAdmin.from('news_cache').upsert({ source: SOURCE, items, fetched_at: new Date().toISOString(), feed_url: usedFeed }, { onConflict: 'source' });
+          return res.status(200).json({ source: 'Sky Sports', items, fetched_at: new Date().toISOString() });
+        }
+        // Sky unreachable right now: show the last saved headlines if we have any
+        return res.status(200).json({ source: 'Sky Sports', items: (cached && cached.items) || [], fetched_at: cached ? cached.fetched_at : null, stale: true });
+      }
+
       const status = params.get('status'); // live, upcoming, closed, finished
       const gameweek = params.get('gameweek');
       const tournamentId = params.get('tournament_id');
