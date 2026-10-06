@@ -705,6 +705,12 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .sheet a span{ font-size:12.5px; color:var(--text-dim); }
 }
 
+/* green "+N" on the Live Forum pill for new posts since the last visit */
+.sn-new{ display:inline-grid; place-items:center; min-width:22px; height:20px; padding:0 6px; margin-left:2px; border-radius:999px; background:#16a34a; color:#fff;
+  font-family:var(--font-body); font-size:11px; font-weight:800; line-height:1; box-shadow:0 0 0 2px rgba(22,163,74,0.25), 0 0 12px rgba(34,197,94,0.55); animation:snPop 1.8s ease-in-out infinite; }
+@keyframes snPop{ 0%,100%{ box-shadow:0 0 0 2px rgba(22,163,74,0.25), 0 0 8px rgba(34,197,94,0.4); } 50%{ box-shadow:0 0 0 4px rgba(22,163,74,0.18), 0 0 16px rgba(34,197,94,0.7); } }
+@media (prefers-reduced-motion: reduce){ .sn-new{ animation:none; } }
+
 </style>
 </head>
 <body>
@@ -1525,6 +1531,7 @@ document.addEventListener('click', e => {
     const cats = {}; (d.categories || []).forEach(c => { cats[c.id] = c; });
     const where = t => { const s = cats[t.category_id]; const p = s && cats[s.parent_id]; return { name: p ? p.name : (s ? s.name : 'Forum'), kind: s && /-live$/.test(s.slug) ? 'live' : 'past' }; };
     const latest = d.latest || [], feat = (d.featured || [])[0];
+    newBadge(latest);
     const totals = d.totals || {};
     if (!latest.length) {
       body.innerHTML = `<div class="fm-gate"><div><h4>Be the first to post</h4><p>Every tournament has its own Live and Past sections. Start a discussion and get the ball rolling.</p></div><a class="fm-cta" href="/forum">Start a discussion ${arrow}</a></div>`;
@@ -1549,6 +1556,29 @@ document.addEventListener('click', e => {
       </div>
       <div class="fm-foot"><span><b>${totals.threads || 0}</b> threads · <b>${totals.posts || 0}</b> posts · <b>${totals.members || 0}</b> members posting</span><a class="fm-cta" href="/forum">Join the conversation ${arrow}</a></div>`;
   }
+  // Green "+N" on the Live Forum pill: new posts or replies since this
+  // person last looked at the forum (or in the last day, first time).
+  const SEEN_KEY = 'gbf_forum_seen';
+  const seenAt = () => { try { return parseInt(localStorage.getItem(SEEN_KEY) || '0', 10) || (Date.now() - 86400000); } catch (e) { return Date.now() - 86400000; } };
+  function newBadge(list) {
+    const pill = document.querySelector('.sn-item[data-for="forumSection"]');
+    if (!pill) return;
+    const since = seenAt();
+    const n = (list || []).filter(t => new Date(t.last_reply_at || t.created_at).getTime() > since).length;
+    let b = pill.querySelector('.sn-new');
+    if (!n) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('span'); b.className = 'sn-new'; pill.appendChild(b); }
+    b.textContent = '+' + (n > 9 ? '9' : n);
+    b.title = n + ' new ' + (n === 1 ? 'post' : 'posts') + ' since your last visit';
+  }
+  // Once they've had a proper look at the forum feed, clear it
+  let seenTimer = null;
+  new IntersectionObserver(es => {
+    const vis = es.some(e => e.isIntersecting && e.intersectionRatio > 0.4);
+    clearTimeout(seenTimer);
+    if (vis) seenTimer = setTimeout(() => { try { localStorage.setItem(SEEN_KEY, String(Date.now())); } catch (e) {} newBadge([]); }, 2500);
+  }, { threshold: [0, 0.4, 0.7] }).observe(document.getElementById('forumSection'));
+
   setTimeout(() => load(true), 900);
   // keep it live: refresh every 2 minutes while the page is on screen
   setInterval(() => { if (document.visibilityState === 'visible') load(false); }, 120000);

@@ -740,6 +740,8 @@
       }
     }
     window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
+    // the hub's green "+N" on Live Forum counts posts newer than this
+    try { if (token()) localStorage.setItem('gbf_forum_seen', String(Date.now())); } catch (e) {}
     route();
   })();
   </script>
