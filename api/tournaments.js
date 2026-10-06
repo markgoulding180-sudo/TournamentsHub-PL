@@ -91,8 +91,12 @@ module.exports = async (req, res) => {
       // Only headline, short summary, picture, time and link are kept -
       // every story opens on Sky's own site.
       if (params.get('news') === 'sky') {
-        const SOURCE = 'skysports';
-        const FEEDS = ['https://www.skysports.com/rss/12040', 'https://www.skysports.com/rss/11095', 'https://www.skysports.com/rss/0,20514,11095,00.xml'];
+        // Premier League only: Sky's football feeds are read and every
+        // story is kept only if it's a football story that names a current
+        // Premier League club (or the Premier League itself). Women's
+        // football and other sports are left out.
+        const SOURCE = 'skysports_pl';
+        const FEEDS = ['https://www.skysports.com/rss/11661', 'https://www.skysports.com/rss/11095', 'https://www.skysports.com/rss/12040'];
         const MAX_AGE_MS = 30 * 60 * 1000;
         res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
         const { data: cached } = await supabaseAdmin.from('news_cache').select('*').eq('source', SOURCE).maybeSingle();
@@ -107,7 +111,25 @@ module.exports = async (req, res) => {
           .replace(/\s+/g, ' ').trim();
         const tag = (xml, name) => { const m = xml.match(new RegExp('<' + name + '[^>]*>([\\s\\S]*?)</' + name + '>', 'i')); return m ? m[1] : ''; };
         const okUrl = (u) => /^https?:\/\/[^\s"'<>()]+$/i.test(u || '') ? u.replace(/^http:/i, 'https:') : null;
-        let items = [], usedFeed = null;
+
+        // Current Premier League clubs, straight from our own teams table,
+        // plus the other names papers use for them.
+        const ALIASES = {
+          'Man Utd': ['Manchester United', 'Man United', 'Man Utd'], 'Man City': ['Manchester City', 'Man City'],
+          'Spurs': ['Tottenham', 'Spurs'], "Nott'm Forest": ['Nottingham Forest', "Nott'm Forest", 'Forest'],
+          'Wolves': ['Wolverhampton', 'Wolves'], 'Newcastle': ['Newcastle'], 'Brighton': ['Brighton'],
+          'West Ham': ['West Ham'], 'Aston Villa': ['Aston Villa', 'Villa'], 'Crystal Palace': ['Crystal Palace', 'Palace'],
+          'Coventry City': ['Coventry'], 'Hull City': ['Hull City', 'Hull'], 'Ipswich Town': ['Ipswich'], 'Leeds': ['Leeds']
+        };
+        const { data: plTeams } = await masterDb.from('teams').select('name');
+        const names = new Set(['Premier League']);
+        (plTeams || []).forEach(t => { names.add(t.name); (ALIASES[t.name] || []).forEach(a => names.add(a)); });
+        const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const clubRe = new RegExp('\\b(' + [...names].map(esc).join('|') + ')\\b', 'i');
+        const notPL = /\b(women|women's|wsl|lionesses|u21|under-21)\b/i;
+        const isPL = (i) => /\/football\//i.test(i.link) && clubRe.test(i.title + ' ' + i.summary) && !notPL.test(i.title + ' ' + i.summary);
+
+        const seen = new Set(); let items = [], used = [];
         for (const url of FEEDS) {
           try {
             const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), 6000);
@@ -116,26 +138,31 @@ module.exports = async (req, res) => {
             if (!r.ok) continue;
             const xml = await r.text();
             const blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || [];
-            items = blocks.slice(0, 20).map(b => {
+            let added = 0;
+            blocks.forEach(b => {
               const img = (b.match(/<media:content[^>]*url="([^"]+)"/i) || b.match(/<media:thumbnail[^>]*url="([^"]+)"/i) || b.match(/<enclosure[^>]*url="([^"]+)"/i) || [])[1];
               const pub = decode(tag(b, 'pubDate'));
               const d = pub ? new Date(pub.replace(/\sBST$/i, ' +0100')) : null;
-              return {
+              const it = {
                 title: decode(tag(b, 'title')).slice(0, 220),
                 summary: decode(tag(b, 'description')).slice(0, 300),
                 link: okUrl(decode(tag(b, 'link'))),
                 image: okUrl(img ? img.replace(/&amp;/g, '&') : null),
                 published_at: d && !isNaN(d) ? d.toISOString() : null
               };
-            }).filter(i => i.title && i.link);
-            if (items.length) { usedFeed = url; break; }
+              if (!it.title || !it.link || seen.has(it.link) || !isPL(it)) return;
+              seen.add(it.link); items.push(it); added++;
+            });
+            if (added) used.push(url);
           } catch (e) { console.error('[news] feed failed', url, e.message); }
         }
+        items.sort((x, y) => (y.published_at || '').localeCompare(x.published_at || ''));
+        items = items.slice(0, 20);
         if (items.length) {
-          await supabaseAdmin.from('news_cache').upsert({ source: SOURCE, items, fetched_at: new Date().toISOString(), feed_url: usedFeed }, { onConflict: 'source' });
+          await supabaseAdmin.from('news_cache').upsert({ source: SOURCE, items, fetched_at: new Date().toISOString(), feed_url: used.join(' ') }, { onConflict: 'source' });
           return res.status(200).json({ source: 'Sky Sports', items, fetched_at: new Date().toISOString() });
         }
-        // Sky unreachable right now: show the last saved headlines if we have any
+        // Sky unreachable (or nothing PL right now): show the last saved headlines if we have any
         return res.status(200).json({ source: 'Sky Sports', items: (cached && cached.items) || [], fetched_at: cached ? cached.fetched_at : null, stale: true });
       }
 
