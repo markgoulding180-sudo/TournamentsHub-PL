@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
         // story is kept only if it's a football story that names a current
         // Premier League club (or the Premier League itself). Women's
         // football and other sports are left out.
-        const SOURCE = 'skysports_pl';
+        const SOURCE = 'skysports_pl2';
         const FEEDS = ['https://www.skysports.com/rss/11661', 'https://www.skysports.com/rss/11095', 'https://www.skysports.com/rss/12040'];
         const MAX_AGE_MS = 30 * 60 * 1000;
         res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
@@ -150,8 +150,15 @@ module.exports = async (req, res) => {
                 image: okUrl(img ? img.replace(/&amp;/g, '&') : null),
                 published_at: d && !isNaN(d) ? d.toISOString() : null
               };
-              if (!it.title || !it.link || seen.has(it.link) || !isPL(it)) return;
-              seen.add(it.link); items.push(it); added++;
+              if (!it.title || !it.link || !isPL(it)) return;
+              // The same story appears in several Sky feeds with a different
+              // feed number in its link (/news/11661/13591771/... and
+              // /news/11095/13591771/...), so match on the story's own number
+              // and on its headline.
+              const idm = it.link.match(/\/\d{4,6}\/(\d{6,})\//);
+              const keys = [idm ? 'id:' + idm[1] : null, 't:' + it.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()].filter(Boolean);
+              if (keys.some(k => seen.has(k))) return;
+              keys.forEach(k => seen.add(k)); items.push(it); added++;
             });
             if (added) used.push(url);
           } catch (e) { console.error('[news] feed failed', url, e.message); }
