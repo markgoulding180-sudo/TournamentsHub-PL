@@ -240,6 +240,22 @@
     .ob-dots{ width:100%; justify-content:center; margin:0 0 6px; }
   }
 
+  /* last step: tournaments open for registration */
+  .ob-reg{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+  .ob-rcard{ display:flex; align-items:stretch; border-radius:14px; overflow:hidden; border:1px solid rgba(245,184,61,0.45); background:rgba(13,23,48,0.92); }
+  .ob-rimg{ flex:none; width:118px; background:#0a1226 center / cover no-repeat; position:relative; }
+  .ob-rimg span{ position:absolute; top:7px; left:7px; font-family:var(--font-head); font-weight:700; font-size:10.5px; letter-spacing:.8px; text-transform:uppercase; padding:2px 8px; border-radius:999px; background:#f5b83d; color:#1a1200; }
+  .ob-rbody{ flex:1; min-width:0; padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
+  .ob-rsport{ font-family:var(--font-head); font-weight:700; font-size:11px; letter-spacing:1.4px; text-transform:uppercase; color:var(--accent-2); }
+  .ob-rname{ font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.15; }
+  .ob-rmeta{ display:flex; flex-wrap:wrap; gap:3px 12px; font-size:12px; color:var(--text-dim); }
+  .ob-rmeta b{ color:#fff; }
+  .ob-rfoot{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px; flex-wrap:wrap; }
+  .ob-rclose{ font-size:12px; color:#f5b83d; font-weight:600; }
+  .ob-rbtn{ display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:9px; background:linear-gradient(135deg, #22c55e, #15803d); color:#fff; font-family:var(--font-head); font-weight:700; font-size:14px; text-decoration:none; box-shadow:0 4px 14px rgba(34,197,94,0.3); }
+  .ob-rnone{ padding:16px; border-radius:12px; border:1px dashed rgba(255,255,255,0.2); color:var(--text-dim); font-size:14px; text-align:center; line-height:1.5; }
+  @media (max-width:600px){ .ob-rimg{ width:92px; } .ob-rname{ font-size:16px; } }
+
 </style>
 </head>
 <body>
@@ -1012,8 +1028,56 @@
             <div class="ob-tile" style="background-image:url('assets/card-champions-league.jpg')"><span>Champions League<small>Pick the winners</small></span></div>
             <div class="ob-tile" style="background-image:url('assets/card-darts.jpg')"><span>Darts<small>Bracket tournaments</small></span></div>
           </div>
-` }
+` },
+      { hero: 'assets/hero-join-tournament.jpg', render: () => `
+          <h3>Open for registration now</h3>
+          <p>These tournaments are taking entries right now. Tap <b>Register</b> to go to one and join in.</p>
+          <div class="ob-reg" id="obReg">${obRegHtml()}</div>` }
     ];
+
+
+    // Tournaments taking entries right now (for the last setup step). Same
+    // public lists the hub uses; fetched once when the guide starts.
+    const OB_TYPES = {
+      predictions:      { label:'Premier League',   title:'Score Predictions',   href:'/predictions',       img:'assets/card-predictions.jpg' },
+      lms:              { label:'Premier League',   title:'Last Man Standing',   href:'/last-man-standing', img:'assets/card-lms.jpg' },
+      fantasy:          { label:'Premier League',   title:'Fantasy Manager',     href:'/fantasy-manager',   img:'assets/card-fantasy.jpg' },
+      stockmarket:      { label:'Premier League',   title:'Player Stock Market', href:'/stock-market',      img:'assets/card-stockmarket.jpg' },
+      champions_league: { label:'Champions League', title:'Champions League',    href:'/champions-league',  img:'assets/card-champions-league.jpg' },
+      darts:            { label:'Darts',            title:'Darts',               href:'/darts',             img:'assets/card-darts.jpg' }
+    };
+    let obOpenList = null;   // null = still loading
+    function obLoadOpen() {
+      if (obOpenList !== null || obLoadOpen.busy) return;
+      obLoadOpen.busy = true;
+      Promise.all(Object.keys(OB_TYPES).map(type =>
+        fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+          .then(d => (d.tournaments || []).map(t => ({ type, t })))
+      )).then(lists => {
+        obOpenList = [].concat(...lists).sort((a, b) => new Date(a.t.closes_at || 8.64e15) - new Date(b.t.closes_at || 8.64e15));
+        const box = document.getElementById('obReg'); if (box) box.innerHTML = obRegHtml();
+      });
+    }
+    function obMoney(p) { const v = (p || 0) / 100; return '£' + (v % 1 ? v.toFixed(2) : v.toFixed(0)); }
+    function obUntil(iso) {
+      if (!iso) return '';
+      const ms = new Date(iso).getTime() - Date.now(); if (!(ms > 0)) return '';
+      const d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000), m = Math.floor(ms % 3600000 / 60000);
+      return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+    }
+    function obRegHtml() {
+      if (obOpenList === null) return '<div class="ob-rnone"><i class="fas fa-spinner fa-spin"></i> Finding open tournaments…</div>';
+      if (!obOpenList.length) return '<div class="ob-rnone">Nothing is taking entries right this minute — new tournaments open regularly, so keep an eye on the <b>Registering · Join Now</b> section of the GB Hub.</div>';
+      return obOpenList.slice(0, 4).map(({ type, t }) => {
+        const info = OB_TYPES[type], left = obUntil(t.closes_at);
+        return `<div class="ob-rcard"><div class="ob-rimg" style="background-image:url('${info.img}')"><span>Open</span></div>
+          <div class="ob-rbody"><div class="ob-rsport">${obEsc(info.label)}</div><div class="ob-rname">${obEsc(t.name || info.title)}</div>
+            <div class="ob-rmeta"><span>Entry <b>${t.entry_fee ? obMoney(t.entry_fee) : 'Free'}</b></span>${t.prize_pool ? `<span>Prize pool <b>${obMoney(t.prize_pool)}</b></span>` : ''}<span><b>${t.current_entries || 0}</b> entered</span></div>
+            <div class="ob-rfoot"><span class="ob-rclose">${left ? 'Closes in ' + left : 'Entries open'}</span><a class="ob-rbtn" href="${info.href}" onclick="obFinishLink(event, '${info.href}')"><i class="fas fa-right-to-bracket"></i> Register</a></div></div></div>`;
+      }).join('');
+    }
+    // Going to a tournament from the guide counts as finishing the setup
+    function obFinishLink(e, url) { e.preventDefault(); obFinish(url); }
 
     function obRender() {
       const st = OB_STEPS[obStep];
@@ -1046,7 +1110,7 @@
     function obOpen(step) {
       if (typeof step === 'number') obStep = step;
       try { sessionStorage.removeItem('gbf_ob_closed'); } catch (e) {}
-      obActive = true; obRender();
+      obActive = true; obLoadOpen(); obRender();
       document.getElementById('obOverlay').classList.add('open');
     }
     function obClose() { obActive = false; try { sessionStorage.setItem('gbf_ob_closed', '1'); } catch (e) {} document.getElementById('obOverlay').classList.remove('open'); obBanner(); }
