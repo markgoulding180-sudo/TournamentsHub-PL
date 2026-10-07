@@ -607,12 +607,22 @@ async function handleRegisterSubmit(e) {
   const result = await registerUser(userData);
 
   if (result.success) {
-    showToast('Account created successfully! Please log in.', 'success');
-    // Preserve wherever the user was headed (e.g. Fantasy Manager, a
-    // tournament page) so login.html can send them there after signing in.
+    // New account: log them straight in (no second login) and take them to
+    // their profile for the first-time welcome and setup steps. If they came
+    // from a particular page (e.g. a tournament), the last welcome step
+    // offers a button back to it.
+    showToast('Account created! Setting up your profile…', 'success');
     const params = new URLSearchParams(window.location.search);
     const redirectTo = params.get('redirect');
-    window.location.href = redirectTo ? ('login.html?redirect=' + encodeURIComponent(redirectTo)) : 'login.html';
+    try {
+      localStorage.setItem('gbf_onboard_pending', '1');
+      if (redirectTo) localStorage.setItem('gbf_onboard_return', redirectTo);
+      else localStorage.removeItem('gbf_onboard_return');
+    } catch (e) {}
+    const signedIn = await loginUser({ email: userData.email, password: userData.password });
+    window.location.href = signedIn.success
+      ? '/profile?welcome=1'
+      : 'login.html?redirect=' + encodeURIComponent('/profile?welcome=1');
   } else {
     showToast(result.error, 'error');
   }
