@@ -291,7 +291,7 @@
     </section>
 
     <div class="profile-header" id="profileHeader">
-      <button class="profile-avatar" id="profileAvatar" onclick="openAvatarPicker()" title="Change profile picture">--
+      <button class="profile-avatar" id="profileAvatar" onclick="obOpen(0)" title="Change your picture or team background">--
         <span class="avatar-edit-badge"><i class="fas fa-pen"></i></span>
       </button>
       <div style="flex:1; min-width:180px;">
@@ -980,6 +980,17 @@
           <div class="ob-preview ${obHasBg() ? 'has-bg' : ''}"${obBgStyle()}><div class="ob-av">${obAvatarHtml()}</div><div><div class="ob-pname">${obEsc(obName())}</div>
             <div class="ob-pstate ${obHasBg() ? 'done' : ''}">${obHasBg() ? '<i class="fas fa-circle-check"></i> Team background set' : 'No team picked yet'}</div></div></div>
           <div class="wb-btns" style="margin-bottom:6px;"><button type="button" class="ob-btn ${obHasBg() ? 'ghost' : 'green'}" onclick="obPick('bg')"><i class="fas fa-shirt"></i> ${obHasBg() ? 'Change team' : 'Choose your team'}</button></div>` },
+      { hero: 'assets/hero-gb-app.jpg', render: () => `
+          <h3>Your profile page</h3>
+          <p>Want a new picture or a different team later? Just <b>tap your profile picture</b> at the top of this page and this setup will open again.</p>
+          <div class="ob-preview ${obHasBg() ? 'has-bg' : ''}"${obBgStyle()}><div class="ob-av" style="box-shadow:0 0 0 3px rgba(96,165,250,0.6), 0 0 18px rgba(59,130,246,0.6);">${obAvatarHtml()}</div><div><div class="ob-pname">${obEsc(obName())}</div>
+            <div class="ob-pstate"><i class="fas fa-hand-pointer"></i> Tap your picture any time to change it</div></div></div>
+          <p style="margin-bottom:8px;">Also on your profile:</p>
+          <ul class="ob-list">
+            <li><span class="ob-num"><i class="fas fa-chart-simple"></i></span><div><b>Your stats</b> — tournaments entered, how many are live, your win rate and how many you're leading.</div></li>
+            <li><span class="ob-num"><i class="fas fa-wallet"></i></span><div><b>Money</b> — whether you owe anything, and your overall winnings minus entry fees.</div></li>
+            <li><span class="ob-num"><i class="fas fa-trophy"></i></span><div><b>My Tournaments</b> — everything you're in right now, plus your past tournaments and how you did.</div></li>
+          </ul>` },
       { hero: 'assets/hero-join-tournament.jpg', render: () => `
           <h3>Join your first tournament</h3>
           <p>It only takes a few taps:</p>
@@ -1001,7 +1012,7 @@
             <div class="ob-tile" style="background-image:url('assets/card-champions-league.jpg')"><span>Champions League<small>Pick the winners</small></span></div>
             <div class="ob-tile" style="background-image:url('assets/card-darts.jpg')"><span>Darts<small>Bracket tournaments</small></span></div>
           </div>
-          <div class="ob-extras"><span><i class="fas fa-comments"></i> Live Forum</span><span><i class="fas fa-newspaper"></i> Football News</span><span><i class="fas fa-chart-simple"></i> Leaderboards</span><span><i class="fas fa-wallet"></i> Wallet</span></div>` }
+` }
     ];
 
     function obRender() {
