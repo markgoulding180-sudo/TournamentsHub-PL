@@ -90,6 +90,23 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .mine-open .mo-go{ flex:none; display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border-radius:999px; background:var(--amber); color:#1a1203; font-size:12px; letter-spacing:.5px; text-transform:uppercase; }
 .mine-open:hover{ background:rgba(245,184,61,.2); }
 .mine-open .mo-time{ color:#fde68a; letter-spacing:.6px; }
+/* Compact "registering now" cards (REG_STYLE = 'cards') - 2 per row */
+.reg-mini-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
+.reg-mini-grid > .reg-mini:only-child{ grid-column:1 / -1; }
+.reg-mini{ position:relative; display:flex; flex-direction:column; justify-content:flex-end; min-height:158px; padding:10px; border-radius:14px; overflow:hidden; text-decoration:none; color:#fff; border:1px solid rgba(245,184,61,.55); background:#0a1226 var(--img) center / cover no-repeat; box-shadow:0 0 18px rgba(245,184,61,.12); }
+.reg-mini::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(2,6,20,.05) 0%, rgba(2,6,20,.55) 42%, rgba(2,6,20,.95) 100%); }
+.reg-mini > *{ position:relative; }
+.reg-mini .rm-badge{ position:absolute; top:8px; left:8px; padding:3px 8px; border-radius:999px; background:rgba(20,14,2,.78); border:1px solid rgba(245,184,61,.75); color:var(--amber); font-family:var(--font-head); font-weight:800; font-size:10px; letter-spacing:1.2px; text-transform:uppercase; display:inline-flex; align-items:center; gap:5px; }
+.reg-mini .rm-badge i{ width:6px; height:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px rgba(245,184,61,.9); animation:hubpulse 1.6s ease-in-out infinite; }
+.reg-mini .rm-sport{ font-family:var(--font-head); font-weight:700; font-size:10px; letter-spacing:1.3px; text-transform:uppercase; color:var(--accent-2); }
+.reg-mini .rm-name{ font-family:var(--font-head); font-weight:700; font-size:15px; line-height:1.15; margin:2px 0 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.reg-mini .rm-meta{ font-size:11.5px; color:#cbd5e1; }
+.reg-mini .rm-meta b{ color:#fff; }
+.reg-mini .rm-foot{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:7px; }
+.reg-mini .rm-time{ font-size:11px; font-weight:700; color:#fde68a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.reg-mini .rm-go{ flex:none; display:inline-flex; align-items:center; gap:3px; padding:4px 10px; border-radius:999px; background:var(--amber); color:#1a1203; font-family:var(--font-head); font-weight:800; font-size:11px; letter-spacing:.5px; text-transform:uppercase; }
+.reg-mini:hover{ border-color:var(--amber); }
+@media (min-width:900px){ .reg-mini-grid{ grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); } .reg-mini-grid > .reg-mini:only-child{ grid-column:auto; } .reg-mini{ min-height:170px; } }
 .t-card.flash{ animation:cardflash 2.2s ease-out 1; }
 @keyframes cardflash{ 0%,40%{ box-shadow:0 0 0 3px var(--amber), 0 0 34px rgba(245,184,61,.55); } 100%{ box-shadow:none; } }
 .mine-need{ display:flex; align-items:center; gap:8px; margin-top:8px; color:#fca5a5; font-weight:700; font-size:13.5px; line-height:1.3; }
@@ -1230,16 +1247,33 @@ function dots(gridId, dotsId){
 }
 
 // ---------- "Registering now" pills ----------
+// REG_STYLE: 'cards' = compact tournament cards, 2 per row; 'pills' = the gold pills.
+// Change this one word to switch back.
+const REG_STYLE = 'cards';
 function pillTime(iso){ const l = untilText(iso); return l ? ' · closes in ' + l : ''; }
+function miniTime(iso){ const l = untilText(iso); return l ? 'Closes in ' + l : 'Entries open'; }
+function regMiniHtml(r){
+  const info = TYPES[r.type], t = r.t || {};
+  return `<a class="reg-mini" href="#all" data-go="${r.type}" style="--img:url('${info.img}')">
+      <span class="rm-badge"><i></i>Registering</span>
+      <span class="rm-sport">${esc(info.sportLabel)}</span>
+      <span class="rm-name">${esc(t.name || info.title)}</span>
+      <span class="rm-meta">${t.entry_fee ? '<b>' + money(t.entry_fee) + '</b> entry' : '<b>Free</b> entry'}${t.current_entries != null ? ` · <b>${t.current_entries}</b> entered` : ''}</span>
+      <span class="rm-foot"><span class="rm-time" data-closes="${esc(t.closes_at || '')}">${miniTime(t.closes_at)}</span><span class="rm-go">Join <svg class="icon" style="width:11px;height:11px"><use href="#i-arrow"/></svg></span></span>
+    </a>`;
+}
 document.getElementById('mineTop').addEventListener('click', e => {
-  const a = e.target.closest('.mine-open'); if (!a) return;
+  const a = e.target.closest('.mine-open, .reg-mini'); if (!a) return;
   e.preventDefault();
   STATE.filter = { kind:'chip', v:'open' }; applyFilter();
   const card = document.querySelector(`#allCards .t-card[data-type="${a.dataset.go}"]`) || document.getElementById('all');
   card.scrollIntoView({ behavior:'smooth', block:'center' });
   if (card.classList.contains('t-card')) { card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
 });
-setInterval(() => document.querySelectorAll('#mineTop .mo-time').forEach(el => { el.textContent = pillTime(el.dataset.closes); }), 30000);
+setInterval(() => {
+  document.querySelectorAll('#mineTop .mo-time').forEach(el => { el.textContent = pillTime(el.dataset.closes); });
+  document.querySelectorAll('#mineTop .rm-time').forEach(el => { el.textContent = miniTime(el.dataset.closes); });
+}, 30000);
 
 function render(){
   const all = Object.values(STATE.results);
@@ -1279,7 +1313,10 @@ function render(){
   const openNotMine = open.filter(r => !isMine(r.type));
   const topEl = document.getElementById('mineTop');
   const loggedOut = !token();
-  const pills = openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
+  // Logged in but not in anything: My Tournaments already shows the full
+  // registering cards, so the compact ones would just repeat them.
+  const fullCardsShown = !loggedOut && !STATE.mine.length;
+  const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
   const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2Fhub-test">Log in</a></div>' : '';
   if ((btns || pills) && !(token() && STATE.loginExpired)) { topEl.innerHTML = btns + pills; topEl.hidden = false; }
   else { topEl.innerHTML = ''; topEl.hidden = true; }
@@ -1290,7 +1327,7 @@ function render(){
     mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in again</a></div>';
   } else if (!token()) {
     // Not logged in (or never had an account): a welcome card instead of "log in to see…"
-    document.getElementById('mineSub').textContent = 'Free to join · Football, darts and more';
+    document.getElementById('mineSub').innerHTML = 'To get started, <b>create your account</b>. Returning users, <b>log in</b>.<br>Football, darts and more tournaments. See what tournaments are upcoming below.';
     mineCards.innerHTML = `<div class="welcome-card">
         <p class="wc-lead">Enter tournaments, make your picks each week and climb the leaderboards against other players to win the prize pot.</p>
         <ul class="wc-list">
