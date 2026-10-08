@@ -841,7 +841,6 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
     </div>
   </section>
 
-  <!-- ===== LIVE / REGISTERING by sport ===== -->
   <!-- ===== SECTION NAV: built automatically from every section marked data-nav ===== -->
   <nav class="sec-nav" id="secNav" aria-label="Jump to a section">
     <button type="button" class="sn-arrow prev" id="snPrev" aria-label="Scroll left"><svg class="icon" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button>
@@ -849,19 +848,20 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
     <button type="button" class="sn-arrow next" id="snNext" aria-label="Scroll right"><svg class="icon"><use href="#i-arrow"/></svg></button>
   </nav>
 
+  <!-- ===== YOUR TOURNAMENTS ===== -->
+  <section class="panel s3" id="mineSection" data-nav="My Tournaments" data-nav-icon="i-trophy">
+    <div class="sec-head"><div class="mine-head"><div class="avatar mine-av" id="mineAvatar" hidden></div><div><div class="mine-who" id="mineWho" hidden></div><div class="sec-title" id="mineTitle">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div></div><a class="sec-link" id="mineSeeAll" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
+    <div class="cards small" id="mineCards"></div>
+    <div class="swipe-dots" id="mineDots"></div>
+  </section>
+
+  <!-- ===== LIVE / REGISTERING by sport ===== -->
   <section class="panel s2 banner-panel">
     <div class="banners" id="banners">
       <button class="banner" data-zone="live" style="background-image:url('assets/section-bg-football.jpg')"><div class="bt"><span class="live-dot"></span><span>Live<span class="sep"> · </span><span class="t2">In-Play</span></span></div><div class="bs" id="bn-live">–</div></button>
       <button class="banner" data-zone="open" style="background-image:url('images/football-banner.webp')"><div class="bt"><span class="reg-dot"></span><span>Registering<span class="sep"> · </span><span class="t2">Join Now</span></span></div><div class="bs" id="bn-open">–</div></button>
       <button class="banner" data-zone="mine" style="background-image:url('assets/champions-league-hero.jpg')"><div class="bt"><span class="mine-dot"></span><span>My<span class="sep"> </span><span class="t2">Tournaments</span></span></div><div class="bs" id="bn-mine">–</div></button>
     </div>
-  </section>
-
-  <!-- ===== YOUR TOURNAMENTS ===== -->
-  <section class="panel s3" id="mineSection" data-nav="My Tournaments" data-nav-icon="i-trophy">
-    <div class="sec-head"><div class="mine-head"><div class="avatar mine-av" id="mineAvatar" hidden></div><div><div class="mine-who" id="mineWho" hidden></div><div class="sec-title" id="mineTitle">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div></div><a class="sec-link" id="mineSeeAll" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
-    <div class="cards small" id="mineCards"></div>
-    <div class="swipe-dots" id="mineDots"></div>
   </section>
 
   <!-- ===== FOOTBALL NEWS (Sky Sports headlines; every story opens on Sky Sports) ===== -->
