@@ -46,14 +46,7 @@
     .profile-header{
       display:flex; align-items:center; gap:20px; padding:26px;
       background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:22px;
-      flex-wrap:wrap; position:relative; background-size:auto 220%; background-position:right top; background-repeat:no-repeat;
-    }
-    /* When a team background is set, a dark overlay keeps the name and
-       stats readable regardless of the shirt image's own colours. */
-    .profile-header.has-bg::before{
-      content:''; position:absolute; inset:0; border-radius:var(--radius);
-      background:linear-gradient(120deg, rgba(4,8,18,0.88), rgba(4,8,18,0.72));
-      z-index:0;
+      flex-wrap:wrap; position:relative;
     }
     .profile-header > *{ position:relative; z-index:1; }
     .profile-avatar{
@@ -106,19 +99,6 @@
     .crop-btn-go{ background:linear-gradient(135deg,#22c55e,#16a34a); border:1px solid #22c55e; color:#fff; }
     .crop-btn-go:disabled{ opacity:.6; cursor:wait; }
     .crop-status{ text-align:center; margin-top:10px; font-size:12.5px; color:var(--text-dim); min-height:16px; }
-    .bg-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr)); gap:10px; }
-    .bg-grid button{
-      border-radius:10px; border:2px solid var(--border); background:var(--bg-card);
-      cursor:pointer; overflow:hidden; padding:0; aspect-ratio:1; position:relative;
-    }
-    .bg-grid button:hover{ border-color:var(--border-hover); }
-    .bg-grid button.selected{ border-color:var(--accent-2); box-shadow:0 0 0 2px rgba(59,130,246,0.35); }
-    .bg-grid button img{ width:100%; height:100%; object-fit:cover; }
-    .bg-grid button span{
-      position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.7); color:#fff;
-      font-size:9.5px; padding:3px 4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-
     .card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; }
     .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
 
@@ -224,23 +204,18 @@
   .ob-body h3{ font-family:var(--font-display); font-weight:400; font-size:27px; letter-spacing:.4px; text-transform:uppercase; line-height:1.05; margin-bottom:8px; }
   .ob-body > p{ color:#cbd5e1; font-size:14.5px; line-height:1.55; margin-bottom:14px; }
   .ob-preview{ display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px; background:rgba(13,23,48,0.9); border:1px solid rgba(96,165,250,0.2); margin-bottom:14px; background-size:auto 220%; background-position:right top; background-repeat:no-repeat; position:relative; overflow:hidden; }
-  .ob-preview.has-bg::before{ content:''; position:absolute; inset:0; background:linear-gradient(120deg, rgba(4,8,18,0.9), rgba(4,8,18,0.6)); }
   .ob-preview > *{ position:relative; }
   .ob-av{ width:64px; height:64px; flex:none; border-radius:50%; display:grid; place-items:center; overflow:hidden; background:linear-gradient(150deg,var(--accent-2),var(--accent-dim)); font-family:var(--font-head); font-weight:700; font-size:22px; color:#fff; border:2px solid rgba(255,255,255,0.25); }
   .ob-av img{ width:100%; height:100%; object-fit:cover; }
   .ob-pname{ font-family:var(--font-head); font-weight:700; font-size:19px; }
   .ob-pstate{ font-size:13px; margin-top:3px; color:var(--text-dim); }
   .ob-pstate.done{ color:#4ade80; font-weight:700; }
+  .ob-congrats{ width:54px; height:54px; border-radius:50%; display:grid; place-items:center; margin:0 0 10px; font-size:24px; color:#facc15; background:radial-gradient(circle, rgba(250,204,21,0.25), rgba(250,204,21,0.05)); border:1px solid rgba(250,204,21,0.5); box-shadow:0 0 22px rgba(250,204,21,0.35); }
   .ob-list{ list-style:none; display:flex; flex-direction:column; gap:10px; margin:0 0 14px; }
   .ob-list li{ display:flex; gap:12px; align-items:flex-start; font-size:14px; color:#cbd5e1; line-height:1.5; }
   .ob-list b{ color:#fff; }
   .ob-num{ flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:rgba(59,130,246,0.18); border:1px solid rgba(96,165,250,0.5); color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:14px; }
   .ob-tip{ font-size:12.5px; color:#fde68a; background:rgba(242,185,61,0.08); border:1px solid rgba(242,185,61,0.3); border-radius:10px; padding:9px 12px; margin-bottom:14px; line-height:1.5; }
-  .ob-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; margin-bottom:12px; }
-  .ob-tile{ display:flex; align-items:flex-end; min-height:76px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:#0a1226 center / cover no-repeat; position:relative; overflow:hidden; }
-  .ob-tile::before{ content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(2,6,20,0.15), rgba(2,6,20,0.9)); }
-  .ob-tile span{ position:relative; font-family:var(--font-head); font-weight:700; font-size:15px; line-height:1.15; }
-  .ob-tile small{ display:block; font-family:var(--font-body); font-weight:500; font-size:11px; color:#cbd5e1; }
   .ob-extras{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
   .ob-extras span{ display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:999px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); font-size:12.5px; font-weight:600; }
   .ob-extras i{ color:var(--accent-2); }
@@ -321,13 +296,13 @@
     <section class="welcome-banner" id="welcomeBanner">
       <div class="wb-kicker"><span class="dot"></span>Account created</div>
       <h2 id="wbTitle">Welcome to GB Tournaments!</h2>
-      <p>Thanks for joining. Before you jump in, take a minute to set up your profile — just add a <b>profile picture</b> and pick your <b>team shirt background</b>. They show next to your name on leaderboards, in tournaments and on the forum.</p>
-      <div class="wb-checks"><span class="wb-check" id="wbCheckAvatar"><i class="fas fa-circle-check"></i> Profile picture</span><span class="wb-check" id="wbCheckBg"><i class="fas fa-circle-check"></i> Team background</span></div>
+      <p>Thanks for joining. Before you jump in, take a minute to set up your profile — just add a <b>profile picture</b>. It shows next to your name on leaderboards, in tournaments and on the forum.</p>
+      <div class="wb-checks"><span class="wb-check" id="wbCheckAvatar"><i class="fas fa-circle-check"></i> Profile picture</span></div>
       <div class="wb-btns"><button type="button" class="ob-btn primary" onclick="obOpen()"><i class="fas fa-wand-magic-sparkles"></i> <span id="wbStartText">Start setup</span></button><a class="ob-btn ghost" href="/hub-test" id="wbHubBtn"><i class="fas fa-house"></i> Go to the GB Hub</a></div>
     </section>
 
     <div class="profile-header" id="profileHeader">
-      <button class="profile-avatar" id="profileAvatar" onclick="obOpen(0)" title="Change your picture or team background">--
+      <button class="profile-avatar" id="profileAvatar" onclick="obOpen(0)" title="Change your profile picture">--
         <span class="avatar-edit-badge"><i class="fas fa-pen"></i></span>
       </button>
       <div style="flex:1; min-width:180px;">
@@ -335,7 +310,6 @@
         <div class="username" id="profileUsername">@username</div>
         <div class="member-since"><i class="fas fa-calendar" style="margin-right:4px;"></i>Member since <span id="profileJoinDate">--</span></div>
       </div>
-      <button class="btn-outline btn-sm" onclick="openBackgroundPicker()" style="flex:none;"><i class="fas fa-image"></i> Card Background</button>
     </div>
 
     <!-- Avatar picker modal - upload only, stock avatar option removed -->
@@ -364,18 +338,6 @@
           <div class="crop-status" id="cropStatus"></div>
         </div>
         <button class="btn-outline" id="avatarRemoveBtn" style="width:100%; margin-top:14px; color:var(--text-faint);" onclick="removeAvatar()"><i class="fas fa-rotate-left"></i> Remove — use initials instead</button>
-      </div>
-    </div>
-
-    <!-- Background picker modal -->
-    <div class="picker-overlay" id="bgPickerOverlay" onclick="if(event.target===this) closeBackgroundPicker()">
-      <div class="picker-modal">
-        <div class="picker-modal-head">
-          <h3>Card Background</h3>
-          <button class="picker-close" onclick="closeBackgroundPicker()"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="bg-grid" id="bgGrid"></div>
-        <button class="btn-outline" style="width:100%; margin-top:14px; color:var(--text-faint);" onclick="setBackground('none')"><i class="fas fa-rotate-left"></i> Remove background</button>
       </div>
     </div>
 
@@ -411,10 +373,10 @@
 
   <footer>&copy; 2026 GB Tournaments. Predict responsibly.</footer>
 
-  <!-- First-time setup guide: 4 short steps -->
+  <!-- First-time setup guide: 3 short steps -->
   <div class="ob-overlay" id="obOverlay" role="dialog" aria-modal="true" aria-label="Set up your profile">
     <div class="ob-modal">
-      <div class="ob-hero" id="obHero"><span class="ob-step-no" id="obStepNo">Step 1 of 4</span><button type="button" class="ob-x" onclick="obClose()" title="Close"><i class="fas fa-times"></i></button></div>
+      <div class="ob-hero" id="obHero"><span class="ob-step-no" id="obStepNo">Step 1 of 3</span><button type="button" class="ob-x" onclick="obClose()" title="Close"><i class="fas fa-times"></i></button></div>
       <div class="ob-body">
         <div id="obContent"></div>
         <div class="ob-foot"><div class="ob-dots" id="obDots"></div><button type="button" class="ob-btn link" id="obBack" onclick="obGo(-1)">Back</button><button type="button" class="ob-btn primary" id="obNext" onclick="obGo(1)">Next</button></div>
@@ -424,37 +386,10 @@
 
   <script src="live-poll.js"></script>
   <script>
-    // Fresh copy of the logged-in user's own row, including avatar and
-    // background - fetched once on load via ?me=true, updated locally
-    // whenever the user picks a new avatar/background so the page
-    // reflects it immediately without needing a full reload.
+    // Fresh copy of the logged-in user's own row, including the avatar -
+    // fetched once on load via ?me=true, updated locally whenever the user
+    // picks a new picture so the page reflects it without a reload.
     let currentProfile = null;
-
-    // Real Premier League teams, matching the same 20 already used for
-    // links.js - local shirt images (frontend/shirts/*.webp) used as
-    // the actual background image, team key used as the stored value.
-    const BACKGROUND_TEAMS = [
-      { key: 'arsenal', label: 'Arsenal', shirt: 'shirts/arsenal.webp' },
-      { key: 'aston-villa', label: 'Aston Villa', shirt: 'shirts/aston villa.webp' },
-      { key: 'bournemouth', label: 'Bournemouth', shirt: 'shirts/bournmouth.webp' },
-      { key: 'brentford', label: 'Brentford', shirt: 'shirts/brentford.webp' },
-      { key: 'brighton', label: 'Brighton', shirt: 'shirts/brighton.webp' },
-      { key: 'burnley', label: 'Burnley', shirt: 'shirts/burnley.webp' },
-      { key: 'chelsea', label: 'Chelsea', shirt: 'shirts/chelsea.webp' },
-      { key: 'crystal-palace', label: 'Crystal Palace', shirt: 'shirts/crystal.webp' },
-      { key: 'everton', label: 'Everton', shirt: 'shirts/everton.webp' },
-      { key: 'fulham', label: 'Fulham', shirt: 'shirts/fullham.webp' },
-      { key: 'liverpool', label: 'Liverpool', shirt: 'shirts/liverpool.webp' },
-      { key: 'manchester-city', label: 'Man City', shirt: 'shirts/man city.webp' },
-      { key: 'manchester-united', label: 'Man United', shirt: 'shirts/man u.webp' },
-      { key: 'newcastle-united', label: 'Newcastle', shirt: 'shirts/new castle.webp' },
-      { key: 'nottingham-forest', label: "Nott'm Forest", shirt: 'shirts/nots forest.webp' },
-      { key: 'tottenham-hotspur', label: 'Tottenham', shirt: 'shirts/spurs.webp' },
-      { key: 'west-ham-united', label: 'West Ham', shirt: 'shirts/west ham.webp' },
-      { key: 'wolverhampton-wanderers', label: 'Wolves', shirt: 'shirts/wovles temp.webp' },
-      { key: 'leeds-united', label: 'Leeds', shirt: 'shirts/leeds.webp' },
-      { key: 'sunderland', label: 'Sunderland', shirt: 'shirts/sunderland.webp' }
-    ];
 
     function openAvatarPicker() {
       document.getElementById('avatarPickerOverlay').classList.add('open');
@@ -677,48 +612,6 @@
       }
     }
 
-    function openBackgroundPicker() {
-      populateBackgroundGrid();
-      document.getElementById('bgPickerOverlay').classList.add('open');
-    }
-    function closeBackgroundPicker() {
-      document.getElementById('bgPickerOverlay').classList.remove('open');
-    }
-    function populateBackgroundGrid() {
-      const grid = document.getElementById('bgGrid');
-      if (grid.dataset.built) return;
-      grid.dataset.built = '1';
-      grid.innerHTML = BACKGROUND_TEAMS.map(t => `
-        <button data-team="${t.key}" onclick="setBackground('${t.key}')" class="${currentProfile && currentProfile.profile_background === t.key ? 'selected' : ''}">
-          <img src="${t.shirt}" alt="${t.label}">
-          <span>${t.label}</span>
-        </button>
-      `).join('');
-    }
-
-    async function setBackground(team) {
-      try {
-        await apiPost('set_profile_background', { team });
-        currentProfile.profile_background = team === 'none' ? null : team;
-        renderProfileBackground(currentProfile);
-        closeBackgroundPicker();
-      } catch (e) {
-        alert('Failed to set background: ' + e.message);
-      }
-    }
-
-    function renderProfileBackground(profile) {
-      const header = document.getElementById('profileHeader');
-      const team = BACKGROUND_TEAMS.find(t => t.key === profile.profile_background);
-      if (team) {
-        header.style.backgroundImage = `url('${team.shirt}')`;
-        header.classList.add('has-bg');
-      } else {
-        header.style.backgroundImage = '';
-        header.classList.remove('has-bg');
-      }
-    }
-
     async function apiPost(action, body) {
       const token = localStorage.getItem('gbf_token');
       const res = await fetch('/api/tournaments', {
@@ -802,7 +695,6 @@
           if (meData.user) {
             currentProfile = meData.user;
             renderAvatar(meData.user);
-            renderProfileBackground(meData.user);
           }
         }
       } catch (e) { console.error('Failed to load fresh profile:', e); }
@@ -1080,16 +972,15 @@
 
 
     // ================= First-time welcome + setup guide =================
-    // Shown to brand-new accounts (straight after Create Account). Four
-    // steps: profile picture, team background, how to join a tournament,
-    // and what's on the site - finishing with a button to the GB Hub.
-    // It reuses the page's own picture and background pickers.
+    // Shown to brand-new accounts (straight after Create Account). Three
+    // steps: profile picture, a congratulations / what's on this page, and
+    // the tournaments open for registration right now - finishing with a
+    // button to the GB Hub. It reuses the page's own picture picker.
     const OB_HUB = '/hub-test';           // change to '/' when the test hub becomes the main hub
     let obStep = 0, obActive = false;
     const obUid = () => { try { return (JSON.parse(localStorage.getItem('gbf_user') || '{}').id) || 'me'; } catch (e) { return 'me'; } };
     const obDoneKey = () => 'gbf_onboarded_' + obUid();
     const obHasAvatar = () => !!(currentProfile && currentProfile.avatar_type === 'upload' && currentProfile.avatar_url);
-    const obHasBg = () => !!(currentProfile && currentProfile.profile_background);
     const obName = () => (currentProfile && (currentProfile.display_name || currentProfile.username)) || (() => { try { const u = JSON.parse(localStorage.getItem('gbf_user') || '{}'); return u.display_name || u.username; } catch (e) { return ''; } })() || 'there';
     const obEsc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
     const obReturn = () => { try { const r = localStorage.getItem('gbf_onboard_return'); return r && /^\/[A-Za-z0-9\-_/?=&%.#]*$/.test(r) ? r : null; } catch (e) { return null; } };
@@ -1097,10 +988,6 @@
     function obAvatarHtml() {
       const n = obName();
       return obHasAvatar() ? `<img src="${obEsc(currentProfile.avatar_url)}" alt="">` : obEsc(n.substring(0, 2).toUpperCase());
-    }
-    function obBgStyle() {
-      const t = BACKGROUND_TEAMS.find(x => currentProfile && x.key === currentProfile.profile_background);
-      return t ? ` style="background-image:url('${t.shirt}')"` : '';
     }
     const OB_STEPS = [
       { hero: 'assets/hero-gb-app.jpg', render: () => `
@@ -1110,45 +997,19 @@
             <div class="ob-pstate ${obHasAvatar() ? 'done' : ''}">${obHasAvatar() ? '<i class="fas fa-circle-check"></i> Looking good — picture added' : 'No picture yet — showing your initials'}</div></div></div>
           <div class="ob-tip"><i class="fas fa-lightbulb"></i> On a phone, choose <b>Files</b> or <b>Gallery</b> when asked (not Camera). If you want a new photo, take it with your camera app first.</div>
           <div class="wb-btns" style="margin-bottom:6px;"><button type="button" class="ob-btn ${obHasAvatar() ? 'ghost' : 'green'}" onclick="obPick('avatar')"><i class="fas fa-camera"></i> ${obHasAvatar() ? 'Change picture' : 'Choose a picture'}</button></div>` },
-      { hero: 'assets/card-bg-sports.jpg', render: () => `
-          <h3>Pick your team background</h3>
-          <p>Choose your club's shirt to sit behind your profile card. It's a quick way to show who you support.</p>
-          <div class="ob-preview ${obHasBg() ? 'has-bg' : ''}"${obBgStyle()}><div class="ob-av">${obAvatarHtml()}</div><div><div class="ob-pname">${obEsc(obName())}</div>
-            <div class="ob-pstate ${obHasBg() ? 'done' : ''}">${obHasBg() ? '<i class="fas fa-circle-check"></i> Team background set' : 'No team picked yet'}</div></div></div>
-          <div class="wb-btns" style="margin-bottom:6px;"><button type="button" class="ob-btn ${obHasBg() ? 'ghost' : 'green'}" onclick="obPick('bg')"><i class="fas fa-shirt"></i> ${obHasBg() ? 'Change team' : 'Choose your team'}</button></div>` },
-      { hero: 'assets/hero-gb-app.jpg', render: () => `
-          <h3>Your profile page</h3>
-          <p>Want a new picture or a different team later? Just <b>tap your profile picture</b> at the top of this page and this setup will open again.</p>
-          <div class="ob-preview ${obHasBg() ? 'has-bg' : ''}"${obBgStyle()}><div class="ob-av" style="box-shadow:0 0 0 3px rgba(96,165,250,0.6), 0 0 18px rgba(59,130,246,0.6);">${obAvatarHtml()}</div><div><div class="ob-pname">${obEsc(obName())}</div>
-            <div class="ob-pstate"><i class="fas fa-hand-pointer"></i> Tap your picture any time to change it</div></div></div>
-          <p style="margin-bottom:8px;">Also on your profile:</p>
-          <ul class="ob-list">
-            <li><span class="ob-num"><i class="fas fa-chart-simple"></i></span><div><b>Your stats</b> — tournaments entered, how many are live, your win rate and how many you're leading.</div></li>
-            <li><span class="ob-num"><i class="fas fa-wallet"></i></span><div><b>Money</b> — whether you owe anything, and your overall winnings minus entry fees.</div></li>
-            <li><span class="ob-num"><i class="fas fa-trophy"></i></span><div><b>My Tournaments</b> — everything you're in right now, plus your past tournaments and how you did.</div></li>
-          </ul>` },
-      { hero: 'assets/hero-join-tournament.jpg', render: () => `
-          <h3>Join your first tournament</h3>
-          <p>It only takes a few taps:</p>
-          <ul class="ob-list">
-            <li><span class="ob-num">1</span><div>On the <b>GB Hub</b>, look for tournaments marked <b>Registering · Join Now</b>.</div></li>
-            <li><span class="ob-num">2</span><div>Tap a tournament card to see the entry fee, prize pool and rules, then tap <b>Enter</b>. The fee comes from your <b>Wallet</b>.</div></li>
-            <li><span class="ob-num">3</span><div>Make your picks before the deadline — predictions, your Last Man Standing team, your Fantasy squad and so on.</div></li>
-            <li><span class="ob-num">4</span><div>Back on the hub, <b>My Tournaments</b> shows everything you're in. A red <b>Need picks</b> means you've still got something to do.</div></li>
-          </ul>
-          <div class="ob-tip"><i class="fas fa-clock"></i> Picks lock at each tournament's deadline, so don't leave it until the last minute.</div>` },
       { hero: 'assets/hero-gb-tournaments.jpg', render: () => `
-          <h3>What's on GB Tournaments</h3>
-          <p>Six ways to play, all in one place:</p>
-          <div class="ob-grid">
-            <div class="ob-tile" style="background-image:url('assets/card-predictions.jpg')"><span>Predictions<small>Score every match</small></span></div>
-            <div class="ob-tile" style="background-image:url('assets/card-lms.jpg')"><span>Last Man Standing<small>One team a week</small></span></div>
-            <div class="ob-tile" style="background-image:url('assets/card-fantasy.jpg')"><span>Fantasy Manager<small>Build a 15-man squad</small></span></div>
-            <div class="ob-tile" style="background-image:url('assets/card-stockmarket.jpg')"><span>Stock Market<small>Players as shares</small></span></div>
-            <div class="ob-tile" style="background-image:url('assets/card-champions-league.jpg')"><span>Champions League<small>Pick the winners</small></span></div>
-            <div class="ob-tile" style="background-image:url('assets/card-darts.jpg')"><span>Darts<small>Bracket tournaments</small></span></div>
-          </div>
-` },
+          <div class="ob-congrats"><i class="fas fa-trophy"></i></div>
+          <h3>Congratulations, you're all set!</h3>
+          <p>You've completed your registration and profile setup. Welcome to GB Tournaments.</p>
+          <div class="ob-preview"><div class="ob-av" style="box-shadow:0 0 0 3px rgba(34,197,94,0.6), 0 0 18px rgba(34,197,94,0.45);">${obAvatarHtml()}</div><div><div class="ob-pname">${obEsc(obName())}</div>
+            <div class="ob-pstate done"><i class="fas fa-circle-check"></i> Account ready</div></div></div>
+          <p style="margin-bottom:8px;">What's on your profile page:</p>
+          <ul class="ob-list">
+            <li><span class="ob-num"><i class="fas fa-camera"></i></span><div><b>Your picture</b> — tap it at the top of the page any time to change it.</div></li>
+            <li><span class="ob-num"><i class="fas fa-chart-simple"></i></span><div><b>Your stats</b> — tournaments entered, live, win rate and how many you're leading.</div></li>
+            <li><span class="ob-num"><i class="fas fa-wallet"></i></span><div><b>Money</b> — anything owed, and your winnings minus entry fees.</div></li>
+            <li><span class="ob-num"><i class="fas fa-trophy"></i></span><div><b>My Tournaments</b> — what you're in now, plus your past results.</div></li>
+          </ul>` },
       { hero: 'assets/hero-join-tournament.jpg', render: () => `
           <h3>Open for registration now</h3>
           <p>These tournaments are taking entries right now. Tap <b>Register</b> to go to one and join in.</p>
@@ -1204,7 +1065,7 @@
       document.getElementById('obHero').style.backgroundImage = `url('${st.hero}')`;
       document.getElementById('obStepNo').textContent = `Step ${obStep + 1} of ${OB_STEPS.length}`;
       document.getElementById('obContent').innerHTML = st.render();
-      document.getElementById('obDots').innerHTML = OB_STEPS.map((_, i) => `<i class="${i === obStep ? 'on' : ''} ${(i === 0 && obHasAvatar()) || (i === 1 && obHasBg()) ? 'done' : ''}"></i>`).join('');
+      document.getElementById('obDots').innerHTML = OB_STEPS.map((_, i) => `<i class="${i === obStep ? 'on' : ''} ${(i === 0 && obHasAvatar()) || (i > 0 && i < obStep) ? 'done' : ''}"></i>`).join('');
       document.getElementById('obBack').style.visibility = obStep === 0 ? 'hidden' : 'visible';
       const next = document.getElementById('obNext');
       const last = obStep === OB_STEPS.length - 1;
@@ -1219,7 +1080,7 @@
         }
       } else {
         const r = document.getElementById('obReturnBtn'); if (r) r.remove();
-        const skipLabel = (obStep === 0 && !obHasAvatar()) || (obStep === 1 && !obHasBg()) ? 'Skip for now' : 'Next';
+        const skipLabel = obStep === 0 && !obHasAvatar() ? 'Skip for now' : 'Next';
         next.className = skipLabel === 'Next' ? 'ob-btn primary' : 'ob-btn ghost';
         next.innerHTML = skipLabel === 'Next' ? 'Next <i class="fas fa-arrow-right"></i>' : skipLabel;
         next.onclick = () => obGo(1);
@@ -1238,17 +1099,16 @@
       try { localStorage.setItem(obDoneKey(), '1'); localStorage.removeItem('gbf_onboard_pending'); localStorage.removeItem('gbf_onboard_return'); sessionStorage.removeItem('gbf_ob_step'); } catch (e) {}
       window.location.href = url;
     }
-    // Step 1/2 buttons: hide the guide, open the page's own picker, and bring
+    // Step 1 button: hide the guide, open the page's picture picker, and bring
     // the guide back (same step, now ticked) when the picker closes.
     let obPicking = false;
     function obPick(which) {
       obPicking = true;
       document.getElementById('obOverlay').classList.remove('open');
-      if (which === 'avatar') openAvatarPicker(); else openBackgroundPicker();
+      openAvatarPicker();
     }
-    const _obCloseAvatar = closeAvatarPicker, _obCloseBg = closeBackgroundPicker;
+    const _obCloseAvatar = closeAvatarPicker;
     closeAvatarPicker = function () { _obCloseAvatar(); obAfterPick(); };
-    closeBackgroundPicker = function () { _obCloseBg(); obAfterPick(); };
     function obAfterPick() {
       if (!obPicking || !obActive) return;
       obPicking = false;
@@ -1260,8 +1120,7 @@
       if (!b.classList.contains('show')) return;
       document.getElementById('wbTitle').textContent = `Welcome to GB Tournaments, ${obName()}!`;
       document.getElementById('wbCheckAvatar').classList.toggle('done', obHasAvatar());
-      document.getElementById('wbCheckBg').classList.toggle('done', obHasBg());
-      document.getElementById('wbStartText').textContent = obHasAvatar() && obHasBg() ? 'Continue the tour' : 'Start setup';
+      document.getElementById('wbStartText').textContent = obHasAvatar() ? 'Continue setup' : 'Start setup';
     }
     function obInit() {
       let pending = false, done = false;
@@ -1274,6 +1133,7 @@
       obBanner();
       // Start the guide - or, after a phone reload mid-photo, pick up where they were
       let step = 0; try { step = parseInt(sessionStorage.getItem('gbf_ob_step') || '0', 10) || 0; } catch (e) {}
+      step = Math.min(Math.max(step, 0), OB_STEPS.length - 1);
       if (sessionStorage.getItem('gbf_avatar_picker_opening') === '1') { obActive = true; obStep = step; obPicking = true; return; }
       // Open the guide straight away on arrival from Create Account (or a
       // refresh in the same visit). On later visits just the welcome banner
@@ -1285,7 +1145,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadProfile();
       // The guide waits (up to 3 seconds) for the profile details so it
-      // knows whether a picture or background is already set.
+      // knows whether a picture is already set.
       const t0 = Date.now();
       (function waitForProfile() {
         if (!currentProfile && Date.now() - t0 < 3000 && localStorage.getItem('gbf_token')) { setTimeout(waitForProfile, 100); return; }
