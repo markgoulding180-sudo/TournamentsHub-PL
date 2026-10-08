@@ -97,6 +97,7 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .mine-subhead.reg{ color:#fde68a; }
 .mine-subhead.reg .dot{ width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 10px rgba(245,184,61,.8); animation:hubpulse 1.6s ease-in-out infinite; flex:none; }
 #mineTop .wc-btns + .mine-subhead{ margin-top:8px; }
+.mine-top.mine-reg{ margin:18px 0 0; }
 #mineTop .reg-mini-grid{ margin-bottom:6px; }
 /* Compact "registering now" cards (REG_STYLE = 'cards') - 2 per row */
 .reg-mini-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
@@ -920,6 +921,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
     <div class="mine-subhead" id="mineYourHead" hidden><svg class="icon"><use href="#i-trophy"/></svg>Your Tournaments</div>
     <div class="cards small" id="mineCards"></div>
     <div class="swipe-dots" id="mineDots"></div>
+    <div class="mine-top mine-reg" id="mineReg" hidden></div>
   </section>
 
   <!-- ===== LIVE / REGISTERING by sport ===== -->
@@ -1283,7 +1285,7 @@ function regMiniHtml(r){
       <span class="rm-foot"><span class="rm-time" data-closes="${esc(t.closes_at || '')}">${miniTime(t.closes_at)}</span><span class="rm-go">Join <svg class="icon" style="width:11px;height:11px"><use href="#i-arrow"/></svg></span></span>
     </a>`;
 }
-document.getElementById('mineTop').addEventListener('click', e => {
+['mineTop','mineReg'].forEach(id => document.getElementById(id).addEventListener('click', e => {
   const a = e.target.closest('.mine-open, .reg-mini'); if (!a) return;
   e.preventDefault();
   e.stopPropagation();   // don't let the page's general #link handler jump to the top of All Tournaments
@@ -1291,10 +1293,10 @@ document.getElementById('mineTop').addEventListener('click', e => {
   const card = document.querySelector(`#allCards .t-card[data-type="${a.dataset.go}"]`) || document.getElementById('all');
   card.scrollIntoView({ behavior:'smooth', block:'center' });
   if (card.classList.contains('t-card')) { card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
-});
+}));
 setInterval(() => {
-  document.querySelectorAll('#mineTop .mo-time').forEach(el => { el.textContent = pillTime(el.dataset.closes); });
-  document.querySelectorAll('#mineTop .rm-time').forEach(el => { el.textContent = miniTime(el.dataset.closes); });
+  document.querySelectorAll('#mineTop .mo-time, #mineReg .mo-time').forEach(el => { el.textContent = pillTime(el.dataset.closes); });
+  document.querySelectorAll('#mineTop .rm-time, #mineReg .rm-time').forEach(el => { el.textContent = miniTime(el.dataset.closes); });
 }, 30000);
 
 function render(){
@@ -1343,8 +1345,14 @@ function render(){
   const fullCardsShown = REG_STYLE !== 'cards' && !loggedOut && !STATE.mine.length;
   const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="mine-subhead reg"><span class="dot"></span>New Tournaments · Registering Now</div><div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
   const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2Fhub-test">Log in</a></div>' : '';
-  if ((btns || pills) && !(token() && STATE.loginExpired)) { topEl.innerHTML = btns + pills; topEl.hidden = false; }
-  else { topEl.innerHTML = ''; topEl.hidden = true; }
+  // Logged in and in some tournaments: "Your Tournaments" first, then the
+  // registering ones underneath. Otherwise the registering ones sit at the top.
+  const regBelow = !loggedOut && STATE.mine.length > 0;
+  const regEl = document.getElementById('mineReg');
+  const ok = !(token() && STATE.loginExpired);
+  const topHtml = btns + (regBelow ? '' : pills), regHtml = regBelow ? pills : '';
+  if (topHtml && ok) { topEl.innerHTML = topHtml; topEl.hidden = false; } else { topEl.innerHTML = ''; topEl.hidden = true; }
+  if (regHtml && ok) { regEl.innerHTML = regHtml; regEl.hidden = false; } else { regEl.innerHTML = ''; regEl.hidden = true; }
   // "Your Tournaments" heading separates the registering cards from the ones you're in
   document.getElementById('mineYourHead').hidden = !(pills && !loggedOut && STATE.mine.length);
   document.getElementById('mineTitle').textContent = token() ? 'My tournaments' : 'Welcome To GB Tournaments';
