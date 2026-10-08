@@ -737,6 +737,14 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .mine-counts.tight button{ padding:5px 8px; }
 }
 .mine-counts .l-short{ display:none; }
+/* desktop: tournament names after Live / Registering */
+.mine-counts .mc-names{ display:none; }
+@media (min-width:900px){
+  .mine-counts{ flex-wrap:wrap; justify-content:flex-end; }
+  .mine-counts .mc-names{ display:inline; margin-left:4px; padding-left:9px; border-left:1px solid currentColor; font-weight:700; letter-spacing:.3px; text-transform:none; font-size:13px; }
+  .mine-counts .mc-live .mc-names{ color:#bbf7d0; border-left-color:rgba(74,222,128,.45); }
+  .mine-counts .mc-open .mc-names{ color:#fef3c7; border-left-color:rgba(253,230,138,.45); }
+}
 .mine-stack .sec-title{ display:block; }
 .mine-stack .sec-sub{ max-width:none; width:100%; line-height:1.45; }
 .mine-id{ display:flex; align-items:center; gap:12px; min-width:0; margin-top:10px; }
@@ -1377,8 +1385,9 @@ function render(){
 
   // "● 3 Live  ● 2 Registering" next to the My Tournaments / Welcome heading
   const countsEl = document.getElementById('mineCounts');
-  countsEl.innerHTML = (live.length ? `<button type="button" class="mc-live" data-f="live"><i></i><b>${live.length}</b> Live</button>` : '')
-    + (open.length ? `<button type="button" class="mc-open" data-f="open"><i></i><b>${open.length}</b> <span class="l-full">Registering</span><span class="l-short">Reg</span></button>` : '');
+  const names = list => `<span class="mc-names">${list.map(r => esc(TYPES[r.type].title)).join(' · ')}</span>`;
+  countsEl.innerHTML = (live.length ? `<button type="button" class="mc-live" data-f="live"><i></i><b>${live.length}</b> Live${names(live)}</button>` : '')
+    + (open.length ? `<button type="button" class="mc-open" data-f="open"><i></i><b>${open.length}</b> <span class="l-full">Registering</span><span class="l-short">Reg</span>${names(open)}</button>` : '');
   countsEl.hidden = !(live.length || open.length);
   requestAnimationFrame(fitMineTitle);
 
