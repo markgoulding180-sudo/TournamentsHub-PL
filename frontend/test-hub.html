@@ -769,8 +769,13 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 /* phones: compact hero that sizes to its content (no fixed height, no big gaps).
    Every slide shares the height of the tallest one; buttons sit at the bottom. */
 @media (max-width:599px){
-  .slides.hero{ height:auto; }
-  .hero-slide{ padding:10px 16px 24px; height:auto; }
+  /* one left edge for everything: hero text, nav pills and section text all
+     start 14px in (the same as the My Tournaments panel's text) */
+  :root{ --edge:14px; }
+  .hero-panel{ margin:0 calc(-1 * var(--gutter)); border-radius:0 !important; }
+  .slides.hero{ height:auto; border-radius:0; }
+  .hero-slide{ padding:10px var(--edge) 24px; height:auto; border-radius:0; }
+  .hero .slide-dots{ left:var(--edge); }
   .hero-slide .hero-content{ margin-top:0; }
   .hero-slide .hero-brand-heading{ margin:0 0 3px; line-height:.95; }
   .hero-brand-heading.size-md{ font-size:26px; }
@@ -780,11 +785,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-btn-row .btn-hero-sm{ padding:7px 8px; }
   .hero .slide-dots{ bottom:7px; }
   .hero-slide.slide-join{ min-height:118px; background-size:auto, cover; background-position:center, 0% 62%; }
-  .slide-join .hero-btn-row{ bottom:22px; }
+  .slide-join .hero-btn-row{ bottom:22px; left:var(--edge); }
   /* section nav sits tight between the hero and My Tournaments */
   .sec-nav{ margin-top:-10px; margin-bottom:-10px; padding-top:4px; padding-bottom:4px; padding-left:0; padding-right:0; }
   /* first pill lines up with the page text; still scrolls edge to edge */
-  .sn-track{ padding:0 var(--gutter); scroll-padding-inline:var(--gutter); }
+  .sn-track{ padding:0 var(--edge); scroll-padding-inline:var(--edge); }
 }
 </style>
 </head>
