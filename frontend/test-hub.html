@@ -710,6 +710,19 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 @keyframes snPop{ 0%,100%{ box-shadow:0 0 0 2px rgba(22,163,74,0.25), 0 0 8px rgba(34,197,94,0.4); } 50%{ box-shadow:0 0 0 4px rgba(22,163,74,0.18), 0 0 16px rgba(34,197,94,0.7); } }
 @media (prefers-reduced-motion: reduce){ .sn-new{ animation:none; } }
 
+/* phones: hero 20% shorter (216px -> 173px), same elements, tighter spacing */
+@media (max-width:599px){
+  .slides.hero{ height:173px; }
+  .hero-slide{ padding:9px 16px 28px; height:173px; }
+  .hero-slide .hero-content{ margin-top:0; }
+  .hero-slide .hero-brand-heading{ margin-bottom:3px; }
+  .hero-eyebrow{ margin-bottom:3px; }
+  .hero-sub{ font-size:14px; margin-bottom:4px; }
+  .hero-btn-row{ padding-top:6px; }
+  .hero-btn-row .btn-hero-sm{ padding:8px 8px; }
+  .hero .slide-dots{ bottom:7px; }
+  .slide-join .hero-btn-row{ bottom:26px; }
+}
 </style>
 </head>
 <body>
