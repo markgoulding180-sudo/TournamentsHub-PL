@@ -1325,7 +1325,10 @@ function render(){
   const loggedOut = !token();
   // Logged in but not in anything: My Tournaments already shows the full
   // registering cards, so the compact ones would just repeat them.
-  const fullCardsShown = !loggedOut && !STATE.mine.length;
+  // (With REG_STYLE 'cards' the compact cards are used for everyone, including
+  // logged-in users who aren't in anything yet; with 'pills' those users get
+  // the full-size cards in My Tournaments instead.)
+  const fullCardsShown = REG_STYLE !== 'cards' && !loggedOut && !STATE.mine.length;
   const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="mine-subhead reg"><span class="dot"></span>New Tournaments · Registering Now</div><div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
   const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2Fhub-test">Log in</a></div>' : '';
   if ((btns || pills) && !(token() && STATE.loginExpired)) { topEl.innerHTML = btns + pills; topEl.hidden = false; }
@@ -1357,8 +1360,8 @@ function render(){
     // Not in anything yet: show what's taking entries right now instead of an empty box
     document.getElementById('mineSub').textContent = openNotMine.length === 1
       ? 'You\'re not in anything yet · this is open for registration now'
-      : 'You\'re not in anything yet · these are open for registration now' + (innerWidth < 900 ? ' — swipe to see them all' : '');
-    mineCards.innerHTML = openNotMine.map(cardHtml).join('');
+      : 'You\'re not in anything yet · these are open for registration now' + (innerWidth < 900 && REG_STYLE !== 'cards' ? ' — swipe to see them all' : '');
+    mineCards.innerHTML = REG_STYLE === 'cards' ? '' : openNotMine.map(cardHtml).join('');   // compact cards sit above instead
   } else {
     document.getElementById('mineSub').textContent = 'You haven\'t entered anything that\'s running yet';
     mineCards.innerHTML = '<div class="empty-card">Pick a tournament below and join in.</div>';
