@@ -90,6 +90,14 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .mine-open .mo-go{ flex:none; display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border-radius:999px; background:var(--amber); color:#1a1203; font-size:12px; letter-spacing:.5px; text-transform:uppercase; }
 .mine-open:hover{ background:rgba(245,184,61,.2); }
 .mine-open .mo-time{ color:#fde68a; letter-spacing:.6px; }
+.mine-subhead{ display:flex; align-items:center; gap:8px; margin:0 0 10px; font-family:var(--font-head); font-weight:800; font-size:13px; letter-spacing:1.4px; text-transform:uppercase; color:#fff; }
+.mine-subhead[hidden]{ display:none; }
+.mine-subhead .icon{ width:15px; height:15px; color:var(--accent-2); flex:none; }
+.mine-subhead::after{ content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--border-2), transparent); }
+.mine-subhead.reg{ color:#fde68a; }
+.mine-subhead.reg .dot{ width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 10px rgba(245,184,61,.8); animation:hubpulse 1.6s ease-in-out infinite; flex:none; }
+#mineTop .wc-btns + .mine-subhead{ margin-top:8px; }
+#mineTop .reg-mini-grid{ margin-bottom:6px; }
 /* Compact "registering now" cards (REG_STYLE = 'cards') - 2 per row */
 .reg-mini-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }
 .reg-mini-grid > .reg-mini:only-child{ grid-column:1 / -1; }
@@ -898,6 +906,7 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   <section class="panel s3" id="mineSection" data-nav="My Tournaments" data-nav-icon="i-trophy">
     <div class="sec-head"><div class="mine-head"><div class="avatar mine-av" id="mineAvatar" hidden></div><div><div class="mine-who" id="mineWho" hidden></div><div class="sec-title" id="mineTitle">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div></div><a class="sec-link" id="mineSeeAll" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
     <div class="mine-top" id="mineTop" hidden></div>
+    <div class="mine-subhead" id="mineYourHead" hidden><svg class="icon"><use href="#i-trophy"/></svg>Your Tournaments</div>
     <div class="cards small" id="mineCards"></div>
     <div class="swipe-dots" id="mineDots"></div>
   </section>
@@ -1265,6 +1274,7 @@ function regMiniHtml(r){
 document.getElementById('mineTop').addEventListener('click', e => {
   const a = e.target.closest('.mine-open, .reg-mini'); if (!a) return;
   e.preventDefault();
+  e.stopPropagation();   // don't let the page's general #link handler jump to the top of All Tournaments
   STATE.filter = { kind:'chip', v:'open' }; applyFilter();
   const card = document.querySelector(`#allCards .t-card[data-type="${a.dataset.go}"]`) || document.getElementById('all');
   card.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -1316,10 +1326,12 @@ function render(){
   // Logged in but not in anything: My Tournaments already shows the full
   // registering cards, so the compact ones would just repeat them.
   const fullCardsShown = !loggedOut && !STATE.mine.length;
-  const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
+  const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="mine-subhead reg"><span class="dot"></span>New Tournaments · Registering Now</div><div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
   const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2Fhub-test">Log in</a></div>' : '';
   if ((btns || pills) && !(token() && STATE.loginExpired)) { topEl.innerHTML = btns + pills; topEl.hidden = false; }
   else { topEl.innerHTML = ''; topEl.hidden = true; }
+  // "Your Tournaments" heading separates the registering cards from the ones you're in
+  document.getElementById('mineYourHead').hidden = !(pills && !loggedOut && STATE.mine.length);
   document.getElementById('mineTitle').textContent = token() ? 'My tournaments' : 'Welcome To GB Tournaments';
   document.getElementById('mineSeeAll').style.display = token() ? '' : 'none';
   if (token() && STATE.loginExpired && !STATE.mine.length) {
