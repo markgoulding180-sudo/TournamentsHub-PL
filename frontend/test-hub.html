@@ -809,6 +809,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .sn-item .icon{ width:14px; height:14px; }
   .mine-top .wc-btns .btn{ padding:6px 12px; font-size:12.5px; line-height:1.2; min-height:0; }
 }
+/* Sticky section nav sits flush under the top bar (no gap for the page to show through) */
+@media (min-width:900px){
+  .sec-nav{ top:60px; background:#060c20; }
+  .sec-nav.stuck{ border-top-color:transparent; border-radius:0 0 16px 16px; box-shadow:0 10px 24px rgba(0,0,0,0.45); }
+}
 /* ===== Section nav as a 4-button bar like the bottom tab bar (NAV_STYLE 'tabs') ===== */
 .sec-nav.sn-tabs{ padding:0; gap:0; }
 .sec-nav.sn-tabs .sn-arrow{ display:none !important; }
@@ -1715,6 +1720,10 @@ document.addEventListener('click', e => {
     { id:'forumSection',  label:'Forum',          icon:'i-chat' },
     { id:'howSection',    label:'How It Works',   icon:'i-play' }
   ];
+  // mark the bar as "stuck" once it's pinned under the top bar
+  const navEl = document.getElementById('secNav');
+  const stuckCheck = () => navEl.classList.toggle('stuck', navEl.getBoundingClientRect().top <= parseFloat(getComputedStyle(navEl).top) + 0.5 && scrollY > 0);
+  window.addEventListener('scroll', stuckCheck, { passive:true }); window.addEventListener('resize', stuckCheck); stuckCheck();
   const secs = NAV_STYLE === 'tabs'
     ? TAB_ITEMS.map(t => document.getElementById(t.id)).filter(Boolean)
     : [...document.querySelectorAll('main [data-nav]')];
