@@ -217,13 +217,14 @@
     </div>
 
     <h2 style="margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 2px solid var(--border-color); font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">User Management</h2>
-    <p class="text-muted mb-2" style="font-size: 0.85rem;">Remove someone who hasn't paid or won't be continuing. Their entry fee charge is deleted entirely (never genuinely collected), not refunded.</p>
-    <div class="admin-card" style="border: 2px solid var(--accent-red, #ef4444); grid-column: 1 / -1;">
-      <h3 style="color: var(--accent-red, #ef4444);"><i class="fas fa-user-minus"></i> Remove Users From a Tournament</h3>
+    <p class="text-muted mb-2" style="font-size: 0.85rem;">After registration closes, pick the tournament, check who hasn't paid and remove them before the first match. Their entry and picks are removed, their unpaid entry-fee charge is deleted (never collected, so not a refund), and the entries count and prize pool are recalculated.</p>
+    <div class="admin-card" id="removeUsersCard" style="border: 2px solid var(--accent-red, #ef4444); grid-column: 1 / -1;">
+      <h3 style="color: var(--accent-red, #ef4444);"><i class="fas fa-user-minus"></i> Remove Unpaid / Users From a Tournament</h3>
       <select id="userMgmtTournamentSelect" onchange="loadTournamentEntrants()" style="width:100%; padding:0.6rem; margin-bottom:0.75rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px;">
         <option value="">Loading tournaments…</option>
       </select>
-      <div id="userMgmtEntrantsList" style="max-height:320px; overflow-y:auto; margin-bottom:0.75rem;"></div>
+      <div id="userMgmtSummary" style="margin-bottom:0.6rem;"></div>
+      <div id="userMgmtEntrantsList" style="max-height:420px; overflow-y:auto; margin-bottom:0.75rem;"></div>
       <button class="btn" onclick="removeSelectedUsers()" style="width:100%; background:var(--accent-red, #ef4444); color:#fff; font-weight:700;">
         <i class="fas fa-trash-can"></i> Remove Selected Users
       </button>
@@ -895,7 +896,7 @@
     </div>
 
     <div class="admin-card" style="border: 2px solid var(--accent-green, #22c55e); grid-column: 1 / -1;">
-      <h3><i class="fas fa-book"></i> Payments &amp; Bookkeeping</h3>
+      <h3 style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;"><i class="fas fa-book"></i> Payments &amp; Bookkeeping <a href="#removeUsersCard" class="btn btn-sm" style="margin-left:auto; color:var(--red); border-color:var(--red);" onclick="document.getElementById('removeUsersCard').scrollIntoView({behavior:'smooth', block:'start'}); return false;"><i class="fas fa-user-minus"></i> Remove unpaid players</a></h3>
       <p class="text-muted mb-2" style="font-size: 0.875rem;">
         Every registered user, what they've paid in total and what they still owe (entry fees charged when they join, minus payments you've recorded). Tick Verified for users you trust, e.g. they've paid on time before. Nothing here moves real money — it's a ledger.
       </p>

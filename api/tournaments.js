@@ -4470,12 +4470,47 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const byId = {};
         (users || []).forEach(u => { byId[u.id] = u; });
 
+        // Tournament details for the header (fee, pay-by date, close time)
+        const tCols = tournament_type === 'stockmarket'
+          ? 'id, name, status, entry_fee, payment_due_date, closes_at, is_test'
+          : 'id, name, status, entry_fee, payment_due_date, closes_at';
+        const { data: tInfo } = await supabaseAdmin.schema(tournament_type).from('tournaments').select(tCols).eq('id', tournament_id).maybeSingle();
+
+        // Paid / unpaid per player for THIS tournament, using exactly the
+        // same allocation as Payments & Bookkeeping (computeUserTournamentDues)
+        // so the two screens always agree. A few users at a time.
+        const payByUser = {};
+        const queue = [...new Set(userIds)];
+        const worker = async () => {
+          while (queue.length) {
+            const uid = queue.shift();
+            try {
+              const dues = await computeUserTournamentDues(supabaseAdmin, uid);
+              const d = dues.find(x => x.tournament_type === tournament_type && x.tournament_id === tournament_id);
+              payByUser[uid] = d ? { fee: d.entry_fee, paid: Math.min(d.paid || 0, d.entry_fee || 0), outstanding: d.outstanding, covered: d.covered } : null;
+            } catch (e) { payByUser[uid] = null; }
+          }
+        };
+        await Promise.all(Array.from({ length: 6 }, worker));
+
+        const statusOf = p => !p ? 'unknown' : (p.fee || 0) === 0 ? 'free' : p.covered ? 'paid' : (p.paid > 0 ? 'part' : 'unpaid');
         return res.status(200).json({
-          entrants: entries.map(e => ({
-            entry_id: e.id, user_id: e.user_id,
-            display_name: byId[e.user_id]?.display_name || byId[e.user_id]?.username || 'Unknown',
-            email: byId[e.user_id]?.email || ''
-          }))
+          tournament: tInfo ? {
+            name: tInfo.name, status: tInfo.status, entry_fee: (tInfo.is_test ? 0 : tInfo.entry_fee) || 0,
+            payment_due_date: tInfo.payment_due_date || null, closes_at: tInfo.closes_at || null,
+            overdue: !!(tInfo.payment_due_date && ukToday() > tInfo.payment_due_date)
+          } : null,
+          entrants: entries.map(e => {
+            const p = payByUser[e.user_id];
+            return {
+              entry_id: e.id, user_id: e.user_id,
+              display_name: byId[e.user_id]?.display_name || byId[e.user_id]?.username || 'Unknown',
+              email: byId[e.user_id]?.email || '',
+              pay_status: statusOf(p),
+              paid: p ? p.paid : 0,
+              outstanding: p ? p.outstanding : 0
+            };
+          })
         });
       }
 
@@ -4521,10 +4556,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               // prediction_history, and gameweek_summary all lack a
               // tournament_id column entirely — only tournament_entries
               // genuinely has one. Predictions aren't tournament-scoped
-              // the way the other 3 types are.
-              await supabaseAdmin.schema('predictions').from('predictions').delete().eq('user_id', targetUserId);
-              await supabaseAdmin.schema('predictions').from('prediction_history').delete().eq('user_id', targetUserId);
-              await supabaseAdmin.schema('predictions').from('gameweek_summary').delete().eq('user_id', targetUserId);
+              // the way the other 3 types are. So those shared rows are
+              // only cleared when this is the player's ONLY predictions
+              // tournament - otherwise removing them from one tournament
+              // would wipe their picks/points in another they're still in.
+              const { count: otherPredEntries } = await supabaseAdmin
+                .schema('predictions').from('tournament_entries').select('id', { count: 'exact', head: true })
+                .eq('user_id', targetUserId).neq('tournament_id', tournament_id);
+              if (!otherPredEntries) {
+                await supabaseAdmin.schema('predictions').from('predictions').delete().eq('user_id', targetUserId);
+                await supabaseAdmin.schema('predictions').from('prediction_history').delete().eq('user_id', targetUserId);
+                await supabaseAdmin.schema('predictions').from('gameweek_summary').delete().eq('user_id', targetUserId);
+              }
               await supabaseAdmin.schema('predictions').from('tournament_entries').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);
             } else if (tournament_type === 'lms') {
               await supabaseAdmin.schema('lms').from('picks').delete().eq('user_id', targetUserId).eq('tournament_id', tournament_id);

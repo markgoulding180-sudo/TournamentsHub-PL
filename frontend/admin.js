@@ -2613,13 +2613,26 @@ async function loadUserMgmtTournamentDropdown() {
 }
 document.addEventListener('DOMContentLoaded', loadUserMgmtTournamentDropdown);
 
+let userMgmtEntrants = [];
+const PAY_PILL = {
+  paid:    '<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; letter-spacing:.04em; background:rgba(34,197,94,.15); color:var(--green, #22c55e); border:1px solid rgba(34,197,94,.5);">PAID</span>',
+  unpaid:  '<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; letter-spacing:.04em; background:rgba(239,68,68,.15); color:var(--red, #ef4444); border:1px solid rgba(239,68,68,.6);">NOT PAID</span>',
+  part:    '<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; letter-spacing:.04em; background:rgba(245,158,11,.15); color:#f59e0b; border:1px solid rgba(245,158,11,.6);">PART PAID</span>',
+  free:    '<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; letter-spacing:.04em; background:rgba(148,163,184,.12); color:var(--text-secondary); border:1px solid var(--border-color);">FREE</span>',
+  unknown: '<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; letter-spacing:.04em; color:var(--text-secondary); border:1px solid var(--border-color);">?</span>'
+};
+const gbp = p => '£' + ((p || 0) / 100).toFixed(2);
+
 async function loadTournamentEntrants() {
   const select = document.getElementById('userMgmtTournamentSelect');
   const listEl = document.getElementById('userMgmtEntrantsList');
+  const sumEl = document.getElementById('userMgmtSummary');
   const [tournamentType, tournamentId] = (select.value || '').split('|');
+  userMgmtEntrants = [];
+  if (sumEl) sumEl.innerHTML = '';
   if (!tournamentType || !tournamentId) { listEl.innerHTML = ''; return; }
 
-  listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading entrants…</p>';
+  listEl.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading entrants and payments…</p>';
   try {
     const token = localStorage.getItem('gbf_token');
     const response = await fetch('/api/tournaments', {
@@ -2630,14 +2643,46 @@ async function loadTournamentEntrants() {
     const data = await response.json();
     if (!response.ok) { listEl.innerHTML = `<p style="color:var(--accent-red);">${data.error}</p>`; return; }
     if (data.entrants.length === 0) { listEl.innerHTML = '<p class="text-muted">No one has entered yet.</p>'; return; }
-    listEl.innerHTML = data.entrants.map(e => `
-      <label style="display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.25rem; border-bottom:1px solid var(--border-color); cursor:pointer;">
-        <input type="checkbox" class="user-mgmt-checkbox" value="${e.user_id}">
-        <span>${escapeHtmlAdmin(e.display_name)} <span class="text-muted" style="font-size:0.8rem;">${escapeHtmlAdmin(e.email)}</span></span>
+
+    // Not paid first, then part paid, then paid / free
+    const rank = { unpaid:0, part:1, unknown:2, paid:3, free:4 };
+    userMgmtEntrants = data.entrants.slice().sort((a, b) => (rank[a.pay_status] - rank[b.pay_status]) || a.display_name.localeCompare(b.display_name));
+    const n = s => userMgmtEntrants.filter(e => e.pay_status === s).length;
+    const t = data.tournament || {};
+    const closes = t.closes_at ? new Date(t.closes_at).toLocaleString('en-GB', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : 'not set';
+    const due = t.payment_due_date ? new Date(t.payment_due_date + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) : 'not set';
+    const unpaidCount = n('unpaid') + n('part');
+    sumEl.innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; gap:0.4rem 1.2rem; font-size:0.85rem; padding:0.6rem 0.75rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:0.6rem;">
+        <span>Entry fee <b>${t.entry_fee ? gbp(t.entry_fee) : 'Free'}</b></span>
+        <span>Registration closes <b>${closes}</b></span>
+        <span>Pay by <b>${due}</b>${t.overdue ? ' <span style="color:var(--red); font-weight:800;">· OVERDUE</span>' : ''}</span>
+        <span>Status <b>${t.status || '?'}</b></span>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem;">
+        <span style="font-size:0.85rem;"><b>${data.entrants.length}</b> entered · <b style="color:var(--green);">${n('paid')}</b> paid · <b style="color:var(--red);">${n('unpaid')}</b> not paid${n('part') ? ` · <b style="color:#f59e0b;">${n('part')}</b> part paid` : ''}${n('free') ? ` · ${n('free')} free` : ''}</span>
+        <span style="margin-left:auto; display:flex; gap:0.4rem;">
+          <button class="btn btn-sm" type="button" onclick="userMgmtSelect('unpaid')" ${unpaidCount ? '' : 'disabled'} style="color:var(--red); border-color:var(--red);"><i class="fas fa-check-double"></i> Select all not paid (${unpaidCount})</button>
+          <button class="btn btn-sm" type="button" onclick="userMgmtSelect('none')">Clear</button>
+        </span>
+      </div>
+      ${tournamentType === 'stockmarket' && t.status !== 'upcoming' ? '<div style="margin-top:0.5rem; font-size:0.82rem; color:#f59e0b;"><i class="fas fa-triangle-exclamation"></i> This Stock Market tournament is already live, so players can\'t be removed any more. Remove unpaid players before registration closes.</div>' : ''}`;
+
+    listEl.innerHTML = userMgmtEntrants.map(e => `
+      <label style="display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.25rem; border-bottom:1px solid var(--border-color); cursor:pointer; ${e.pay_status === 'unpaid' || e.pay_status === 'part' ? 'background:rgba(239,68,68,.06);' : ''}">
+        <input type="checkbox" class="user-mgmt-checkbox" value="${e.user_id}" data-status="${e.pay_status}" data-name="${escapeHtmlAdmin(e.display_name)}">
+        <span style="flex:1; min-width:0;">${escapeHtmlAdmin(e.display_name)} <span class="text-muted" style="font-size:0.8rem;">${escapeHtmlAdmin(e.email)}</span></span>
+        <span style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">${e.pay_status === 'part' ? `${gbp(e.paid)} paid · ${gbp(e.outstanding)} owed` : e.pay_status === 'unpaid' ? `${gbp(e.outstanding)} owed` : ''}</span>
+        ${PAY_PILL[e.pay_status] || PAY_PILL.unknown}
       </label>`).join('');
   } catch (error) {
     listEl.innerHTML = `<p style="color:var(--accent-red);">Error: ${error.message}</p>`;
   }
+}
+function userMgmtSelect(which) {
+  document.querySelectorAll('.user-mgmt-checkbox').forEach(cb => {
+    cb.checked = which === 'unpaid' ? (cb.dataset.status === 'unpaid' || cb.dataset.status === 'part') : false;
+  });
 }
 
 async function removeSelectedUsers() {
@@ -2648,7 +2693,10 @@ async function removeSelectedUsers() {
 
   if (!tournamentType || !tournamentId) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Pick a tournament first.</span>'; return; }
   if (checked.length === 0) { resultEl.innerHTML = '<span style="color:var(--accent-red);">Select at least one user.</span>'; return; }
-  if (!confirm(`Remove ${checked.length} user(s) from this tournament?\n\nTheir entry fee charge will be deleted entirely (not refunded), and the prize pool will adjust. This cannot be undone.`)) return;
+  const boxes = Array.from(document.querySelectorAll('.user-mgmt-checkbox:checked'));
+  const names = boxes.map(cb => `• ${cb.dataset.name}${cb.dataset.status === 'paid' ? '  (HAS PAID)' : cb.dataset.status === 'part' ? '  (PART PAID)' : ''}`).join('\n');
+  const paidCount = boxes.filter(cb => cb.dataset.status === 'paid' || cb.dataset.status === 'part').length;
+  if (!confirm(`Remove ${checked.length} player(s) from this tournament?\n\n${names}\n\nTheir entry and picks are removed, their unpaid entry-fee charge is deleted, and the entries count and prize pool are recalculated.${paidCount ? `\n\nWARNING: ${paidCount} of these have paid something. Their payment record stays in their wallet as credit - you'd need to refund or reuse it yourself.` : ''}\n\nThis cannot be undone.`)) return;
 
   resultEl.innerHTML = '<span class="text-amber"><i class="fas fa-spinner fa-spin"></i> Removing…</span>';
   try {
