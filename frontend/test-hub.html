@@ -520,13 +520,12 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
   footer{ flex-direction:column; gap:4px; text-align:center; padding-bottom:22px; }
 
-  .tabbar{ display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; z-index:70; height:calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom); background:rgba(8,13,32,0.96); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border-2); }
+  .tabbar{ display:grid; grid-template-columns:repeat(4,1fr); position:fixed; left:0; right:0; bottom:0; z-index:70; height:calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom); background:rgba(8,13,32,0.96); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border-2); }
   .tab{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:11px; letter-spacing:.4px; position:relative; }
   .tab .icon{ width:22px; height:22px; }
   .tab.active{ color:var(--text); }
   .tab.active .icon{ color:var(--accent-2); filter:drop-shadow(0 0 6px var(--accent-glow)); }
   .tab.active::before{ content:''; position:absolute; top:0; left:30%; right:30%; height:2px; border-radius:2px; background:var(--accent); box-shadow:0 0 10px var(--accent-glow); }
-  .tab .avatar{ width:24px; height:24px; font-size:9px; }
 
   .sheet{ display:block; position:fixed; left:0; right:0; bottom:0; z-index:90; background:var(--navy-1); border-top:1px solid var(--border-2); border-radius:20px 20px 0 0; padding:10px 16px calc(18px + env(safe-area-inset-bottom)); transform:translateY(105%); transition:transform .25s ease; max-height:80vh; overflow-y:auto; }
   .sheet.open{ transform:none; }
@@ -927,7 +926,6 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   <a class="tab" href="#all" id="tabAll"><svg class="icon"><use href="#i-grid"/></svg>Tournaments</a>
   <button class="tab" id="tabBoards" onclick="openSheet(true)"><svg class="icon"><use href="#i-chart"/></svg>Leaders</button>
   <a class="tab" href="/wallet"><svg class="icon"><use href="#i-wallet"/></svg>Wallet</a>
-  <a class="tab" href="/login?redirect=%2Fhub-test" id="tabMe"><div class="avatar" id="tabAvatar"><svg class="icon" style="width:13px;height:13px"><use href="#i-user"/></svg></div>Me</a>
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1044,14 +1042,13 @@ function initMe(){
 function setMe(u){
   const name = u.display_name || u.username || 'Account';
   const photo = u.avatar_type === 'upload' && /^https:\/\//i.test(u.avatar_url || '') ? u.avatar_url : '';
-  ['meAvatar','tabAvatar','mineAvatar'].forEach(id => {
+  ['meAvatar','mineAvatar'].forEach(id => {
     document.getElementById(id).innerHTML = esc(name.substring(0, 2).toUpperCase()) + (photo ? `<img src="${esc(photo)}" alt="" onerror="this.remove()">` : '');
   });
   document.getElementById('meName').textContent = name;
   const who = document.getElementById('mineWho'); who.textContent = name; who.hidden = false;
   document.getElementById('mineAvatar').hidden = false;
   const meBtn = document.getElementById('meBtn'); meBtn.href = '/profile'; meBtn.title = 'Your profile';
-  document.getElementById('tabMe').href = '/profile';
   document.getElementById('drawerLogout').style.display = 'flex';
   if (u.is_admin) document.getElementById('drawerAdmin').style.display = 'flex';
 }
