@@ -2926,6 +2926,20 @@ async function launchTournamentUnified() {
     document.getElementById('tournament-payment-due-input')?.focus();
     return;
   }
+  // Every tournament needs a registration close date & time (no more
+  // silent "7 days from now" default)
+  const closesEl = document.getElementById(sport === 'darts' ? 'dartsClosesInput' : 'tournament-closes-input');
+  const closesVal = closesEl?.value;
+  if (!closesVal) {
+    alert('Please set the date and time registration closes.');
+    closesEl?.focus();
+    return;
+  }
+  if (new Date(closesVal).getTime() <= Date.now()) {
+    alert('Registration close date and time must be in the future.');
+    closesEl?.focus();
+    return;
+  }
   if (sport === 'darts') {
     await createDartsTournament();
   } else {
@@ -2961,7 +2975,10 @@ function toggleStockmarketTestOption() {
 async function launchTournament() {
   const typeLabels = { predictions: 'Predictions', lms: 'Last Man Standing', stockmarket: 'Stock Market', fantasy: 'Fantasy Manager' };
   const tournamentType = document.getElementById('tournament-type-input')?.value || 'predictions';
-  if (!confirm(`Launch new ${typeLabels[tournamentType]} tournament? This will:\n1. Create the tournament\n2. Open for user registrations`)) {
+  const closesInput = document.getElementById('tournament-closes-input')?.value;
+  const closesAtIso = closesInput ? new Date(closesInput).toISOString() : null;
+  const closesLabel = closesInput ? new Date(closesInput).toLocaleString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'not set';
+  if (!confirm(`Launch new ${typeLabels[tournamentType]} tournament? This will:\n1. Create the tournament\n2. Open for user registrations\n\nRegistration closes: ${closesLabel}`)) {
     return;
   }
   
@@ -3017,7 +3034,7 @@ async function launchTournament() {
         max_entries: 100,
         is_test: isTest,
         payment_due_date: document.getElementById('tournament-payment-due-input')?.value || null,
-        closes_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        closes_at: closesAtIso   // set by the admin in 'Registration Closes'
       })
     });
     
