@@ -766,22 +766,25 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 @keyframes snPop{ 0%,100%{ box-shadow:0 0 0 2px rgba(22,163,74,0.25), 0 0 8px rgba(34,197,94,0.4); } 50%{ box-shadow:0 0 0 4px rgba(22,163,74,0.18), 0 0 16px rgba(34,197,94,0.7); } }
 @media (prefers-reduced-motion: reduce){ .sn-new{ animation:none; } }
 
-/* phones: hero 28% shorter (216px -> 156px), same elements, tighter spacing */
+/* phones: compact hero that sizes to its content (no fixed height, no big gaps).
+   Every slide shares the height of the tallest one; buttons sit at the bottom. */
 @media (max-width:599px){
-  .slides.hero{ height:156px; }
-  .hero-slide{ padding:7px 16px 22px; height:156px; }
+  .slides.hero{ height:auto; }
+  .hero-slide{ padding:10px 16px 24px; height:auto; }
   .hero-slide .hero-content{ margin-top:0; }
-  .hero-slide .hero-brand-heading{ margin-bottom:2px; }
+  .hero-slide .hero-brand-heading{ margin:0 0 3px; line-height:.95; }
   .hero-brand-heading.size-md{ font-size:26px; }
   .hero-eyebrow{ margin-bottom:2px; }
-  .hero-sub{ font-size:14px; margin-bottom:3px; }
-  .hero-btn-row{ padding-top:4px; }
-  .hero-btn-row .btn-hero-sm{ padding:6px 8px; }
-  .hero .slide-dots{ bottom:5px; }
-  .slide-join .hero-btn-row{ bottom:20px; }
-  .hero-slide.slide-join{ background-size:auto, cover; background-position:center, 0% 62%; }   /* picture fills the full width at this height */
+  .hero-sub{ font-size:14px; margin-bottom:0; }
+  .hero-btn-row{ padding-top:10px; }
+  .hero-btn-row .btn-hero-sm{ padding:7px 8px; }
+  .hero .slide-dots{ bottom:7px; }
+  .hero-slide.slide-join{ min-height:118px; background-size:auto, cover; background-position:center, 0% 62%; }
+  .slide-join .hero-btn-row{ bottom:22px; }
   /* section nav sits tight between the hero and My Tournaments */
-  .sec-nav{ margin-top:-10px; margin-bottom:-10px; padding-top:4px; padding-bottom:4px; }
+  .sec-nav{ margin-top:-10px; margin-bottom:-10px; padding-top:4px; padding-bottom:4px; padding-left:0; padding-right:0; }
+  /* first pill lines up with the page text; still scrolls edge to edge */
+  .sn-track{ padding:0 var(--gutter); scroll-padding-inline:var(--gutter); }
 }
 </style>
 </head>
@@ -1451,6 +1454,26 @@ function fitBannerText(){
   if (isFinite(scale)) strip.style.setProperty('--bn-fs', Math.min(26, Math.max(12, 20 * scale)).toFixed(1) + 'px');
 }
 window.addEventListener('resize', fitBannerText);
+// Phones: keep each hero heading on one line (shrinks the font only as much
+// as needed) so the hero stays short and every slide lines up.
+function fitHeroHeadings(){
+  document.querySelectorAll('.hero-slide .hero-brand-heading').forEach(h => {
+    h.style.fontSize = '';
+    if (innerWidth > 599) return;
+    const slide = h.closest('.hero-slide'); if (!slide) return;
+    const cs = getComputedStyle(slide);
+    const room = slide.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    if (room <= 0) return;
+    const r = document.createRange(); r.selectNodeContents(h);
+    h.style.whiteSpace = 'nowrap';
+    let size = parseFloat(getComputedStyle(h).fontSize), guard = 0;
+    while (r.getBoundingClientRect().width > room && size > 16 && guard++ < 30) { size -= 1; h.style.fontSize = size + 'px'; }
+    h.style.whiteSpace = '';
+  });
+}
+window.addEventListener('resize', fitHeroHeadings);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeroHeadings);
+fitHeroHeadings();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitBannerText);
 fitBannerText();
 
