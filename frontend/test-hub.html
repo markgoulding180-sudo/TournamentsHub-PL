@@ -710,6 +710,12 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 }
 
 /* ---------- My tournaments: who's logged in ---------- */
+.mine-stack{ display:block; }
+.mine-stack .sec-title{ display:block; }
+.mine-stack .sec-sub{ max-width:none; width:100%; line-height:1.45; }
+.mine-id{ display:flex; align-items:center; gap:12px; min-width:0; margin-top:10px; }
+.mine-id[hidden]{ display:none; }
+.mine-id .mine-who{ margin:0; font-size:18px; }
 .mine-head{ display:flex; align-items:center; gap:16px; min-width:0; }
 .mine-head > div:last-child{ min-width:0; }
 .avatar.mine-av{ width:62px; height:62px; flex:none; font-size:20px; border:2px solid var(--accent-2); box-shadow:0 0 0 4px rgba(59,130,246,0.18), 0 0 22px var(--accent-glow); position:relative; overflow:hidden; }
@@ -904,7 +910,12 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
   <!-- ===== YOUR TOURNAMENTS ===== -->
   <section class="panel s3" id="mineSection" data-nav="My Tournaments" data-nav-icon="i-trophy">
-    <div class="sec-head"><div class="mine-head"><div class="avatar mine-av" id="mineAvatar" hidden></div><div><div class="mine-who" id="mineWho" hidden></div><div class="sec-title" id="mineTitle">My tournaments</div><div class="sec-sub" id="mineSub">Jump straight back in</div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div></div><a class="sec-link" id="mineSeeAll" href="/my-tournaments">See all <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
+    <div class="sec-head mine-stack">
+      <div class="sec-title" id="mineTitle">My tournaments</div>
+      <div class="mine-id" id="mineId" hidden><div class="avatar mine-av" id="mineAvatar" hidden></div><div class="mine-who" id="mineWho" hidden></div></div>
+      <div class="sec-sub" id="mineSub">Jump straight back in</div>
+      <div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div>
+    </div>
     <div class="mine-top" id="mineTop" hidden></div>
     <div class="mine-subhead" id="mineYourHead" hidden><svg class="icon"><use href="#i-trophy"/></svg>Your Tournaments</div>
     <div class="cards small" id="mineCards"></div>
@@ -1104,6 +1115,7 @@ function setMe(u){
   });
   document.getElementById('meName').textContent = name;
   const who = document.getElementById('mineWho'); who.textContent = name; who.hidden = false;
+  document.getElementById('mineId').hidden = false;
   document.getElementById('mineAvatar').hidden = false;
   const meBtn = document.getElementById('meBtn'); meBtn.href = '/profile'; meBtn.title = 'Your profile';
   document.getElementById('drawerLogout').style.display = 'flex';
@@ -1336,7 +1348,6 @@ function render(){
   // "Your Tournaments" heading separates the registering cards from the ones you're in
   document.getElementById('mineYourHead').hidden = !(pills && !loggedOut && STATE.mine.length);
   document.getElementById('mineTitle').textContent = token() ? 'My tournaments' : 'Welcome To GB Tournaments';
-  document.getElementById('mineSeeAll').style.display = token() ? '' : 'none';
   if (token() && STATE.loginExpired && !STATE.mine.length) {
     document.getElementById('mineSub').textContent = 'Your login has expired — log in again to see your tournaments';
     mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in again</a></div>';
