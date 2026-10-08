@@ -1260,9 +1260,16 @@ function render(){
   const mo = document.getElementById('mineOpen');
   if (openNotMine.length && !(token() && STATE.loginExpired)) {
     const one = openNotMine.length === 1 ? openNotMine[0] : null;
-    mo.innerHTML = `<span class="mo-dot"></span><span class="mo-t"><small>Registering now</small>${one ? esc((one.t && one.t.name) || TYPES[one.type].title) : openNotMine.length + ' tournaments taking entries'}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span>`;
-    mo.href = one ? TYPES[one.type].href : '#all';
-    mo.onclick = one ? null : e => { e.preventDefault(); STATE.filter = { kind:'chip', v:'open' }; applyFilter(); document.getElementById('all').scrollIntoView({ behavior:'smooth' }); };
+    mo.innerHTML = `<span class="mo-dot"></span><span class="mo-t"><small>Registering now</small>${one ? esc((one.t && one.t.name) || TYPES[one.type].title) : openNotMine.length + ' tournaments taking entries'}</span><span class="mo-go">${token() ? 'Join' : 'Sign up'} <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span>`;
+    if (!token()) {
+      // Not logged in: create an account first; after the profile setup,
+      // "Back to where I was" brings them to this tournament (or the open list)
+      mo.href = '/register?redirect=' + encodeURIComponent(one ? TYPES[one.type].href : '/hub-test#all');
+      mo.onclick = null;
+    } else {
+      mo.href = one ? TYPES[one.type].href : '#all';
+      mo.onclick = one ? null : e => { e.preventDefault(); STATE.filter = { kind:'chip', v:'open' }; applyFilter(); document.getElementById('all').scrollIntoView({ behavior:'smooth' }); };
+    }
     mo.hidden = false;
   } else mo.hidden = true;
   document.getElementById('mineTitle').textContent = token() ? 'My tournaments' : 'Welcome To GB Tournaments';
