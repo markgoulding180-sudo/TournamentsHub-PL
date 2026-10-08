@@ -722,7 +722,21 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 .mine-counts .mc-live i{ background:var(--green); box-shadow:0 0 10px rgba(34,197,94,.9); }
 .mine-counts .mc-open i{ background:var(--amber); box-shadow:0 0 10px rgba(245,184,61,.9); }
 .mine-counts b{ font-size:15px; }
-@media (max-width:599px){ .mine-counts{ margin-left:0; } }
+@media (max-width:599px){
+  /* counts stay on the same line as the heading (heading shortened to "Welcome" when logged out) */
+  .mine-titlerow{ flex-wrap:nowrap; }
+  .mine-titlerow .sec-title{ white-space:nowrap; min-width:0; }
+  .mine-titlerow .wt-rest{ display:none; }
+  .mine-counts{ margin-left:auto; gap:6px; flex:none; }
+  .mine-counts button{ padding:5px 9px; font-size:11px; gap:5px; letter-spacing:.6px; }
+  .mine-counts b{ font-size:13px; }
+  .mine-counts i{ width:7px; height:7px; }
+  .mine-counts .l-short{ display:none; }
+  .mine-counts.tight .l-full{ display:none; }
+  .mine-counts.tight .l-short{ display:inline; }
+  .mine-counts.tight button{ padding:5px 8px; }
+}
+.mine-counts .l-short{ display:none; }
 .mine-stack .sec-title{ display:block; }
 .mine-stack .sec-sub{ max-width:none; width:100%; line-height:1.45; }
 .mine-id{ display:flex; align-items:center; gap:12px; min-width:0; margin-top:10px; }
@@ -790,6 +804,10 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .sec-nav{ margin-top:-10px; margin-bottom:-10px; padding-top:4px; padding-bottom:4px; padding-left:0; padding-right:0; }
   /* first pill lines up with the page text; still scrolls edge to edge */
   .sn-track{ padding:0 var(--edge); scroll-padding-inline:var(--edge); }
+  /* compact nav buttons; Create account / Log in match their height */
+  .sn-item{ padding:6px 12px; font-size:12.5px; gap:6px; line-height:1.2; }
+  .sn-item .icon{ width:14px; height:14px; }
+  .mine-top .wc-btns .btn{ padding:6px 12px; font-size:12.5px; line-height:1.2; min-height:0; }
 }
 </style>
 </head>
@@ -1332,8 +1350,9 @@ function render(){
   // "● 3 Live  ● 2 Registering" next to the My Tournaments / Welcome heading
   const countsEl = document.getElementById('mineCounts');
   countsEl.innerHTML = (live.length ? `<button type="button" class="mc-live" data-f="live"><i></i><b>${live.length}</b> Live</button>` : '')
-    + (open.length ? `<button type="button" class="mc-open" data-f="open"><i></i><b>${open.length}</b> Registering</button>` : '');
+    + (open.length ? `<button type="button" class="mc-open" data-f="open"><i></i><b>${open.length}</b> <span class="l-full">Registering</span><span class="l-short">Reg</span></button>` : '');
   countsEl.hidden = !(live.length || open.length);
+  requestAnimationFrame(fitMineTitle);
 
   document.querySelectorAll('.gwLabel').forEach(el => el.textContent = 'GB Tournaments' + (STATE.gw ? ` · Gameweek ${STATE.gw}` : ''));
   document.getElementById('statLive').textContent = live.length;
@@ -1385,7 +1404,7 @@ function render(){
   if (regHtml && ok) { regEl.innerHTML = regHtml; regEl.hidden = false; } else { regEl.innerHTML = ''; regEl.hidden = true; }
   // "Your Tournaments" heading separates the registering cards from the ones you're in
   document.getElementById('mineYourHead').hidden = !(pills && !loggedOut && STATE.mine.length);
-  document.getElementById('mineTitle').textContent = token() ? 'My tournaments' : 'Welcome To GB Tournaments';
+  document.getElementById('mineTitle').innerHTML = token() ? 'My tournaments' : 'Welcome<span class="wt-rest"> To GB Tournaments</span>';
   if (token() && STATE.loginExpired && !STATE.mine.length) {
     document.getElementById('mineSub').textContent = 'Your login has expired — log in again to see your tournaments';
     mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in again</a></div>';
@@ -1477,6 +1496,21 @@ function fitHeroHeadings(){
   });
 }
 window.addEventListener('resize', fitHeroHeadings);
+// Phones: the My Tournaments / Welcome heading shares its line with the
+// Live / Registering counts - shrink the heading a little if they'd touch.
+function fitMineTitle(){
+  const t = document.getElementById('mineTitle'), c = document.getElementById('mineCounts');
+  if (!t || !c) return;
+  t.style.fontSize = ''; c.classList.remove('tight');
+  if (innerWidth > 599 || c.hidden) return;
+  const r = document.createRange(); r.selectNodeContents(t);
+  const fits = () => r.getBoundingClientRect().width <= t.parentElement.clientWidth - c.offsetWidth - 10;
+  const shrinkTo = min => { let size = parseFloat(getComputedStyle(t).fontSize), g = 0; while (!fits() && size > min && g++ < 30) { size -= 1; t.style.fontSize = size + 'px'; } };
+  shrinkTo(20);                                   // first: shrink the heading a little
+  if (!fits()) { t.style.fontSize = ''; c.classList.add('tight'); shrinkTo(16); }   // narrow phones: "Reg" + a bit smaller
+}
+window.addEventListener('resize', fitMineTitle);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitMineTitle);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeroHeadings);
 fitHeroHeadings();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitBannerText);
