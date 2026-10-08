@@ -809,6 +809,29 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .sn-item .icon{ width:14px; height:14px; }
   .mine-top .wc-btns .btn{ padding:6px 12px; font-size:12.5px; line-height:1.2; min-height:0; }
 }
+/* ===== Section nav as a 4-button bar like the bottom tab bar (NAV_STYLE 'tabs') ===== */
+.sec-nav.sn-tabs{ padding:0; gap:0; }
+.sec-nav.sn-tabs .sn-arrow{ display:none !important; }
+.sec-nav.sn-tabs .sn-track{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:0; overflow:visible; padding:0 !important; scroll-snap-type:none; }
+.sec-nav.sn-tabs .sn-item{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-width:0; padding:9px 4px 8px !important; border:none; border-radius:0; background:none; box-shadow:none;
+  color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:12px !important; letter-spacing:.4px; text-align:center; position:relative; white-space:nowrap; }
+.sec-nav.sn-tabs .sn-item span{ overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.sec-nav.sn-tabs .sn-item .icon{ width:20px !important; height:20px !important; }
+.sec-nav.sn-tabs .sn-item:hover{ color:var(--text); }
+.sec-nav.sn-tabs .sn-item.on{ background:none; color:var(--text); box-shadow:none; }
+.sec-nav.sn-tabs .sn-item.on .icon{ color:var(--accent-2); filter:drop-shadow(0 0 6px var(--accent-glow)); }
+.sec-nav.sn-tabs .sn-new{ position:absolute; top:3px; left:calc(50% + 6px); margin:0; min-width:18px; height:16px; font-size:10px; padding:0 4px; }
+@media (min-width:900px){ .sec-nav.sn-tabs .sn-new{ position:static; } }
+.sec-nav.sn-tabs .sn-item.on::before{ content:''; position:absolute; top:0; left:30%; right:30%; height:2px; border-radius:2px; background:var(--accent); box-shadow:0 0 10px var(--accent-glow); }
+@media (min-width:900px){
+  .sec-nav.sn-tabs .sn-item{ flex-direction:row; gap:9px; padding:13px 8px !important; font-size:14px !important; }
+}
+@media (max-width:599px){
+  .sec-nav.sn-tabs{ padding:0; }
+  .sec-nav.sn-tabs .sn-item{ font-size:11px !important; padding:7px 2px 6px !important; gap:3px; white-space:normal; line-height:1.1; }
+  .sec-nav.sn-tabs .sn-item span{ overflow:visible; }
+  .sec-nav.sn-tabs .sn-item .icon{ width:19px !important; height:19px !important; }
+}
 </style>
 </head>
 <body>
@@ -1683,13 +1706,29 @@ document.addEventListener('click', e => {
 (function sectionNav(){
   const track = document.getElementById('snTrack');
   if (!track) return;
-  const secs = [...document.querySelectorAll('main [data-nav]')];
+  // NAV_STYLE: 'tabs' = 4 fixed buttons styled like the bottom bar (test);
+  // 'pills' = the original scrolling pill strip. Change this one word to switch back.
+  const NAV_STYLE = 'tabs';
+  const TAB_ITEMS = [
+    { id:'mineSection',   label:'My Tournaments', icon:'i-trophy' },
+    { id:'newsSection',   label:'News',           icon:'i-news' },
+    { id:'forumSection',  label:'Forum',          icon:'i-chat' },
+    { id:'howSection',    label:'How It Works',   icon:'i-play' }
+  ];
+  const secs = NAV_STYLE === 'tabs'
+    ? TAB_ITEMS.map(t => document.getElementById(t.id)).filter(Boolean)
+    : [...document.querySelectorAll('main [data-nav]')];
+  if (NAV_STYLE === 'tabs') {
+    document.getElementById('secNav').classList.add('sn-tabs');
+    track.innerHTML = TAB_ITEMS.filter(t => document.getElementById(t.id)).map(t =>
+      `<a class="sn-item" href="#${t.id}" data-for="${t.id}"><svg class="icon"><use href="#${t.icon}"/></svg><span>${esc(t.label)}</span></a>`).join('');
+  }
   const pill = s => `<a class="sn-item" href="#${s.id}" data-for="${s.id}"><svg class="icon"><use href="#${esc(s.dataset.navIcon || 'i-arrow')}"/></svg>${esc(s.dataset.nav)}</a>`;
   // Leaderboards isn't a section: it opens the leaderboard list (same as the
   // Leaders button at the bottom of the screen on phones)
   const boards = `<button type="button" class="sn-item" id="snBoards" onclick="openSheet(true)"><svg class="icon"><use href="#i-chart"/></svg>Leaderboards</button>`;
   const before = secs.findIndex(s => s.id === 'howSection');
-  track.innerHTML = secs.map((s, i) => (i === before ? boards : '') + pill(s)).join('') + (before < 0 ? boards : '');
+  if (NAV_STYLE !== 'tabs') track.innerHTML = secs.map((s, i) => (i === before ? boards : '') + pill(s)).join('') + (before < 0 ? boards : '');
   const prev = document.getElementById('snPrev'), next = document.getElementById('snNext');
   const arrows = () => {
     const max = track.scrollWidth - track.clientWidth;
@@ -1708,7 +1747,7 @@ document.addEventListener('click', e => {
       if (l < track.scrollLeft || r > track.scrollLeft + track.clientWidth) track.scrollTo({ left: l }); }
   };
   const io = new IntersectionObserver(entries => {
-    const vis = secs.map(s => ({ s, r: s.getBoundingClientRect() })).filter(x => x.r.top < innerHeight * 0.45 && x.r.bottom > 150);
+    const vis = secs.map(s => ({ s, r: s.getBoundingClientRect() })).filter(x => x.r.top < (NAV_STYLE === 'tabs' ? Math.min(innerHeight * 0.45, 240) : innerHeight * 0.45) && x.r.bottom > 150);
     if (vis.length) mark(vis[vis.length - 1].s.id); else if (scrollY < 200) mark(null);
   }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
   secs.forEach(s => io.observe(s));
