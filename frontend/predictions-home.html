@@ -455,7 +455,15 @@
   }
 
   /* Picks Saved (still opens the predict page so picks can be changed before kickoff) */
-  .pr-statbar .hero-predict-btn.saved{ background:linear-gradient(135deg, var(--accent), #1d4ed8); border:1px solid var(--accent); color:#fff; box-shadow:0 4px 14px rgba(59,130,246,0.35); }   /* same blue as the hub pills */
+  .pr-statbar .hero-predict-btn.saved{ background:transparent !important; border:1.5px solid var(--accent) !important; border-radius:999px !important; color:#fff !important; box-shadow:none !important; }   /* transparent pill, blue border */
+  .pr-statbar .hero-predict-btn.saved i{ color:var(--accent-2); }
+  body.hubnav .pr-statbar .hero-predict-btn{ margin:8px !important; min-height:44px !important; }
+  @media (min-width:641px){
+    body.hubnav .hero{ border-radius:22px !important; }
+    body.hubnav .pr-tabs{ margin-top:14px !important; }
+    body.hubnav .pr-statbar{ border-top:1px solid var(--border); border-radius:16px; }
+  }
+  @media (max-width:640px){ body.hubnav .pr-statbar .hero-predict-btn{ margin:8px 14px !important; width:auto !important; } }
   /* keep the page simple: no injuries / Premier League table */
   #injuriesTableGrid{ display:none !important; }
 
@@ -478,6 +486,17 @@
     body.hubnav .pr-tabs{ margin:0 0 10px; border-radius:0; border-left:none; border-right:none; }
     body.hubnav .pr-tab{ flex-direction:column; gap:4px; padding:8px 4px 7px; font-size:12px; }
     body.hubnav .pr-tab i{ font-size:18px; }
+  }
+  /* phones: hero and tab bar the same size as the test hub (full width, 140px hero, 59px tabs) */
+  @media (max-width:640px){
+    body.hubnav .hero{ margin:12px -12px 0 !important; min-height:140px !important; height:140px; padding:10px 14px 24px !important; border-radius:0 !important; align-items:flex-start; }
+    body.hubnav .hero .hero-eyebrow{ font-size:10px; letter-spacing:1.6px; margin-bottom:4px; }
+    body.hubnav .hero h1{ font-size:26px !important; margin-bottom:3px; line-height:.95; }
+    body.hubnav .hero .hero-sub{ font-size:14px !important; }
+    body.hubnav .pr-tabs{ margin:4px -12px 10px !important; }
+    body.hubnav .pr-tab{ min-height:59px; padding:7px 2px 6px; gap:3px; font-size:11px; }
+    body.hubnav .pr-tab i{ font-size:19px; }
+    body.hubnav .pr-statbar{ margin-left:-12px; margin-right:-12px; border-radius:0; border-left:none; border-right:none; }
   }
   @media (max-width:899px){
     body.hubnav{ padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
