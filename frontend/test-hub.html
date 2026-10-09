@@ -818,6 +818,8 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .sn-item .icon{ width:14px; height:14px; }
   .mine-top .wc-btns .btn{ padding:6px 12px; font-size:12.5px; line-height:1.2; min-height:0; }
 }
+/* Desktop: the Live · Registering · My Tournaments banner strip is no longer needed */
+@media (min-width:900px){ .banner-panel{ display:none !important; } }
 /* Sticky section nav sits flush under the top bar (no gap for the page to show through) */
 @media (min-width:900px){
   .sec-nav{ top:60px; background:#060c20; }
@@ -1042,15 +1044,6 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
     </div>
   </section>
 
-  <!-- ===== HOW IT WORKS ===== -->
-  <section class="panel s2" id="howSection" data-nav="How It Works" data-nav-icon="i-play">
-    <div class="sec-head"><div><div class="sec-title">How it works</div><div class="sec-sub">Three steps to your first tournament</div></div><a class="sec-link" href="/how-it-works">More <svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg></a></div>
-    <div class="how-grid">
-      <div class="step"><div class="num">01</div><h4>Join</h4><p>Create your free account and enter any tournament that's registering.</p></div>
-      <div class="step"><div class="num">02</div><h4>Play</h4><p>Predict scores, pick a team, build a squad or fill your bracket each week.</p></div>
-      <div class="step"><div class="num">03</div><h4>Win</h4><p>Score points, climb the leaderboard and take the prize pot.</p></div>
-    </div>
-  </section>
 </main>
 
 <footer>
@@ -1728,19 +1721,20 @@ document.addEventListener('click', e => {
     { id:'mineSection',   label:'My Tournaments', icon:'i-trophy' },
     { id:'newsSection',   label:'News',           icon:'i-news' },
     { id:'forumSection',  label:'Forum',          icon:'i-chat' },
-    { id:'howSection',    label:'How It Works',   icon:'i-play' }
+    { href:'/how-it-works', label:'How It Works',   icon:'i-play' }   // opens the How It Works page
   ];
   // mark the bar as "stuck" once it's pinned under the top bar
   const navEl = document.getElementById('secNav');
   const stuckCheck = () => navEl.classList.toggle('stuck', navEl.getBoundingClientRect().top <= parseFloat(getComputedStyle(navEl).top) + 0.5 && scrollY > 0);
   window.addEventListener('scroll', stuckCheck, { passive:true }); window.addEventListener('resize', stuckCheck); stuckCheck();
   const secs = NAV_STYLE === 'tabs'
-    ? TAB_ITEMS.map(t => document.getElementById(t.id)).filter(Boolean)
+    ? TAB_ITEMS.filter(t => t.id).map(t => document.getElementById(t.id)).filter(Boolean)
     : [...document.querySelectorAll('main [data-nav]')];
   if (NAV_STYLE === 'tabs') {
     document.getElementById('secNav').classList.add('sn-tabs');
-    track.innerHTML = TAB_ITEMS.filter(t => document.getElementById(t.id)).map(t =>
-      `<a class="sn-item" href="#${t.id}" data-for="${t.id}"><svg class="icon"><use href="#${t.icon}"/></svg><span>${esc(t.label)}</span></a>`).join('');
+    track.innerHTML = TAB_ITEMS.filter(t => t.href || document.getElementById(t.id)).map(t => t.href
+      ? `<a class="sn-item" href="${t.href}"><svg class="icon"><use href="#${t.icon}"/></svg><span>${esc(t.label)}</span></a>`
+      : `<a class="sn-item" href="#${t.id}" data-for="${t.id}"><svg class="icon"><use href="#${t.icon}"/></svg><span>${esc(t.label)}</span></a>`).join('');
   }
   const pill = s => `<a class="sn-item" href="#${s.id}" data-for="${s.id}"><svg class="icon"><use href="#${esc(s.dataset.navIcon || 'i-arrow')}"/></svg>${esc(s.dataset.nav)}</a>`;
   // Leaderboards isn't a section: it opens the leaderboard list (same as the
