@@ -508,6 +508,26 @@
     body.hubnav .pr-bb{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:11px; letter-spacing:.4px; }
     body.hubnav .pr-bb i{ font-size:20px; }
   }
+
+  /* ===== Blueprint (HUB_NAV): every state of the main button is the same see-through pill, only the text changes ===== */
+  body.hubnav .pr-statbar .hero-enter-btn,
+  body.hubnav .pr-statbar .hero-predict-btn,
+  body.hubnav .pr-statbar .hero-predict-btn.need,
+  body.hubnav .pr-statbar .hero-predict-btn.saved,
+  body.hubnav .pr-statbar .hero-enter-btn.entered{
+    background:transparent !important; border:1.5px solid var(--accent) !important; border-radius:999px !important;
+    color:#fff !important; box-shadow:none !important; margin:8px !important; min-height:44px !important; padding:0 22px !important;
+    display:inline-flex; align-items:center; justify-content:center; gap:9px; text-decoration:none;
+  }
+  body.hubnav .pr-statbar .hero-enter-btn i{ color:var(--accent-2) !important; }
+  body.hubnav .pr-statbar .hero-enter-btn:hover{ background:rgba(59,130,246,0.12) !important; }
+  @media (max-width:640px){ body.hubnav .pr-statbar .hero-enter-btn, body.hubnav .pr-statbar .hero-predict-btn.need, body.hubnav .pr-statbar .hero-predict-btn.saved, body.hubnav .pr-statbar .hero-enter-btn.entered{ margin:8px 14px !important; width:auto !important; } }
+  /* slightly see-through bars (tab bar + kick-off / entries / prize pool bar) */
+  body.hubnav .pr-tabs{ background:rgba(6,12,32,0.62) !important; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+  body.hubnav .pr-statbar{ background:rgba(6,12,32,0.55) !important; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  /* tab heights fixed to the test hub's: 46px desktop, 59px phone */
+  body.hubnav .pr-tab{ height:46px; padding-top:0 !important; padding-bottom:0 !important; box-sizing:border-box; }
+  @media (max-width:640px){ body.hubnav .pr-tab{ height:59px; min-height:59px; } }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
