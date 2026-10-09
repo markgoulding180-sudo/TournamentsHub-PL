@@ -189,6 +189,17 @@
   .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
   @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
   .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+
+/* ===== Default background (assets/card-bg-sports.jpg) behind the whole page ===== */
+body{
+  background:
+    linear-gradient(180deg, rgba(4,8,22,0.80) 0%, rgba(4,8,22,0.88) 55%, rgba(4,8,22,0.96) 100%),
+    url('assets/card-bg-sports.jpg') center top / cover no-repeat fixed,
+    var(--bg);
+}
+@media (max-width:860px){
+  body{ background-attachment:scroll, scroll, scroll; background-size:auto, auto 100vh, auto; background-position:0 0, center top, 0 0; }
+}
 </style>
 </head>
 <body>
