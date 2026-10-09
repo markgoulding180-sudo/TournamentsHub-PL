@@ -525,6 +525,17 @@
   /* slightly see-through bars (tab bar + kick-off / entries / prize pool bar) */
   body.hubnav .pr-tabs{ background:rgba(6,12,32,0.62) !important; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
   body.hubnav .pr-statbar{ background:rgba(6,12,32,0.55) !important; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  /* Registration Closed: same see-through pill, greyed and not clickable */
+  .hero-closed-btn{ cursor:default !important; pointer-events:none; }
+  body.hubnav .pr-statbar .hero-closed-btn{ border-color:rgba(148,163,184,0.55) !important; color:var(--text-dim) !important; }
+  body.hubnav .pr-statbar .hero-closed-btn i{ color:var(--text-dim) !important; }
+  .pr-statbar .hero-meta-item b .of{ font-size:.7em; color:var(--text-dim); font-weight:600; }
+  /* phones: 5 numbers don't fit on one line, so 3 on top and the rest under them */
+  @media (max-width:640px){
+    .pr-statbar .hero-meta-row{ flex-wrap:wrap !important; }
+    .pr-statbar .hero-meta-item{ flex:1 1 33.33% !important; min-width:33.33%; box-sizing:border-box; border-bottom:1px solid var(--border); }
+    .pr-statbar .hero-meta-row .hero-meta-item:nth-child(3n){ border-right:none; }
+  }
   /* tab heights fixed to the test hub's: 46px desktop, 59px phone */
   body.hubnav .pr-tab{ height:46px; padding-top:0 !important; padding-bottom:0 !important; box-sizing:border-box; }
   @media (max-width:640px){ body.hubnav .pr-tab{ height:59px; min-height:59px; } }
@@ -934,6 +945,23 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       }).join('');
     }
 
+    // ---------- Your position (same numbers as the leaderboard and the hub card) ----------
+    function heroOrdinal(n){ const v = n % 100; if (v >= 11 && v <= 13) return n + 'th'; return n + ({1:'st',2:'nd',3:'rd'}[n % 10] || 'th'); }
+    async function loadHeroPosition(tid, uid){
+      try {
+        if (!uid) { try { uid = (JSON.parse(localStorage.getItem('gbf_user') || 'null') || {}).id; } catch (e) {} }
+        if (!uid) return;
+        const d = await (await fetch(`/api/leaderboard?tournament=${encodeURIComponent(tid)}&limit=500`)).json();
+        const rows = (d && d.leaderboard) || [];
+        const me = rows.find(x => x.user && x.user.id === uid);
+        const item = document.getElementById('heroPosItem'), val = document.getElementById('heroPosValue');
+        if (!me || !me.rank || !item || !val) return;   // not ranked yet - keep it hidden
+        const of = (d.pagination && d.pagination.total) || rows.length;
+        val.innerHTML = `${heroOrdinal(me.rank)} <span class="of">of ${of}</span>`;
+        item.style.display = '';
+      } catch (e) { console.error('[hero position]', e); }
+    }
+
     // ---------- Tournament card ----------
     async function loadTournament() {
       const ctaRow = document.getElementById('heroCtaRow');
@@ -1021,8 +1049,14 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
         const token = localStorage.getItem('gbf_token');
         let myTotalPoints = null; // captured here, used below once the actual element is created
+        let myUserId = null;      // used to find this player's position on the leaderboard
+        // Registration closed: the server refuses new entries once closes_at has passed,
+        // so show that instead of an Enter button that would only error when tapped.
+        const regClosed = !!(t.closes_at && Date.now() >= new Date(t.closes_at).getTime());
+        const closedHtml = `<span class="hero-enter-btn hero-closed-btn" aria-disabled="true"><i class="fas fa-lock"></i> Registration Closed</span>`;
+        if (regClosed) entryHtml = closedHtml;
         if (!token) {
-          entryHtml = `<a href="/login?redirect=%2Fpredictions" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
+          entryHtml = regClosed ? closedHtml : `<a href="/login?redirect=%2Fpredictions" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
         } else {
           try {
             const entryRes = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: authHeaders() });
@@ -1047,6 +1081,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
                 // finalizes) - not the current-gameweek-only running total
                 // that was here before.
                 myTotalPoints = entryData.entry.entry_points || 0;
+                myUserId = entryData.entry.user_id || null;
               }
             }
           } catch (e) {
@@ -1062,12 +1097,16 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           </div>
         `;
 
+        const gwSpan = t.gameweek ? `GW${t.gameweek}${t.end_gameweek ? ' / GW' + t.end_gameweek : ''}` : '';
         metaRow.innerHTML = `
+          ${gwSpan ? `<div class="hero-meta-item" id="heroGwItem">Gameweeks <b>${gwSpan}</b></div>` : ''}
           <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
           <div class="hero-meta-item">Prize Pool <b>£${((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></div>
+          ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPosItem" style="display:none;">Your Position <b id="heroPosValue">--</b></div>` : ''}
           ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPointsItem">Your Points <b id="heroPointsValue" style="font-family:var(--font-display); color:var(--accent-2);">${myTotalPoints} pts</b></div>` : ''}
         `;
 
+        if (myTotalPoints !== null) loadHeroPosition(t.id, myUserId);
         applyHeroPickState();
         const enterBtn = document.getElementById('enterTournamentBtn');
         if (enterBtn && !enterBtn.disabled) enterBtn.onclick = () => enterPredictionsTournament(t);
