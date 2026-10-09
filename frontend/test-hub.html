@@ -1741,7 +1741,15 @@ function refreshLogin(force){
 // Phones reopen pages where you left them, and in-page links used to leave
 // "#all" in the address — both made the page load half way down.
 try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch(e){}
-if (location.hash) { try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
+// "Tournaments" on the bottom bar of the other pages comes here as ?go=all (or #all):
+// open the page at the All Tournaments section once it has loaded.
+const GO_ALL = location.hash === '#all' || new URLSearchParams(location.search).get('go') === 'all';
+if (location.hash || GO_ALL) { try { history.replaceState(null, '', location.pathname); } catch(e){} }
+if (GO_ALL) window.addEventListener('load', () => {
+  const go = smooth => { const el = document.getElementById('all'); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: smooth ? 'smooth' : 'auto' }); };
+  setTimeout(() => go(true), 400);
+  setTimeout(() => go(false), 1600);   // again once the cards above have finished loading
+});
 window.scrollTo(0, 0);
 window.addEventListener('pageshow', () => window.scrollTo(0, 0));
 // In-page links (#top, #all, #mineSection…) scroll smoothly without changing the address
