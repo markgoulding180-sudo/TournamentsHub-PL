@@ -22,8 +22,8 @@
 
   // ---------- tab sets (each game's own links) ----------
   var NAV = {
-    predictions: [['Predictions', '/predictions', 'home'], ['Make Your Predictions', '/predict', 'ball'], ['Leaderboard', '/leaderboard', 'chart'], ['My Stats', '/predictions-stats', 'stats']],
-    lms:         [['Last Man Standing', '/last-man-standing', 'home'], ['Make Your Pick', '/last-man-standing-pick', 'ball'], ['Survivors', '/last-man-standing#survivorsSection', 'users']],
+    predictions: [['Predictions', '/predictions', 'home'], ['Make Your Predictions', '/predict', 'ball'], ['Leaderboard', '/leaderboard', 'chart']],
+    lms:         [['Make Your Pick', '/last-man-standing', 'ball'], ['Survivors', '/last-man-standing#survivorsSection', 'users']],
     fantasy:     [['Fantasy Manager', '/fantasy-manager', 'home'], ['Leaderboard', '/fantasy-leaderboard', 'chart']],
     stock:       [['Stock Market', '/stock-market', 'home'], ['Draft Squad', '/stock-market-draft', 'box'], ['Injuries', '/injuries', 'plus']],
     cl:          [['Make Your Picks', '/champions-league', 'ball'], ['Leaderboard', '/champions-league-leaderboard', 'chart'], ['How It Works', '/champions-league-how-it-works', 'info']],
@@ -43,15 +43,13 @@
     'predictions-home': { own: true },   // already done (the blueprint): only the top bar + pop-ups
     'predict':      { nav: 'predictions', on: '/predict', hero: { eyebrow: 'Premier League Predictions', title: 'Make Your Predictions', sub: 'Predict the scores. Climb the leaderboard.', art: 'card-predictions.jpg' }, hide: ['.hero-stadium'] },
     'leaderboard':  { nav: 'predictions', on: '/leaderboard', hero: { eyebrow: 'Premier League Predictions', title: 'Leaderboard', sub: 'Every player, ranked by total points.', art: 'card-predictions.jpg' }, hide: ['.lb-hero'] },
-    'predictions-stats': { nav: 'predictions', on: '/predictions-stats', hero: { eyebrow: 'Premier League Predictions', title: 'My Stats', sub: 'Your prediction journey, week by week.', art: 'card-predictions.jpg' } },
     'predictions-user-history': { nav: 'predictions', on: '/leaderboard', hero: { eyebrow: 'Premier League Predictions', title: 'Player History', sub: 'Every gameweek, every pick.', art: 'card-predictions.jpg' } },
     'lms':          { nav: 'lms', on: '/last-man-standing', hero: 'own' },
-    'lms-pick':     { nav: 'lms', on: '/last-man-standing-pick', hero: { eyebrow: 'Last Man Standing', title: 'Make Your Pick', sub: 'Pick One. Survive. Repeat.', art: 'card-lms.jpg' }, hide: ['main > h1:first-of-type'] },
     'fantasy':      { nav: 'fantasy', on: '/fantasy-manager', hero: 'own', hide: ['.hero .fm-leaderboard-pill'] },
     'fantasy-leaderboard': { nav: 'fantasy', on: '/fantasy-leaderboard', hero: { eyebrow: 'Fantasy Manager', title: 'Leaderboard', sub: "Season total points. Captain's points are doubled.", art: 'card-fantasy.jpg' }, hide: ['.lb-hero'] },
     'fantasy-entry-history': { nav: 'fantasy', on: '/fantasy-leaderboard', hero: { eyebrow: 'Fantasy Manager', title: 'Entry History', sub: 'Every gameweek, every player.', art: 'card-fantasy.jpg' } },
     'player':       { nav: 'fantasy', on: '/fantasy-manager', hero: { eyebrow: 'Fantasy Manager', title: 'Player', sub: 'Form, fixtures and points.', art: 'card-fantasy.jpg' }, hide: ['main > .back-link'] },
-    'stock':        { nav: 'stock', on: '/stock-market', hero: 'own', hide: ['.hero .hero-pill-link[href="/injuries"]'] },
+    'stock':        { nav: 'stock', on: '/stock-market', hero: 'own', art: 'card-stockmarket.jpg', hide: ['.hero .hero-pill-link[href="/injuries"]'] },
     'stock-draft':  { nav: 'stock', on: '/stock-market-draft', hero: { eyebrow: 'Player Stock Market', title: 'Draft Your Squad', sub: 'Open a pack. Pick your 6.', art: 'card-stockmarket.jpg' }, hide: ['main > h1:first-of-type'] },
     'stock-history': { nav: 'stock', on: '/stock-market', hero: { eyebrow: 'Player Stock Market', title: 'Gameweek History', sub: 'Every player, every action.', art: 'card-stockmarket.jpg' }, hide: ['main > h1:first-of-type'] },
     'stock-player': { nav: 'stock', on: '/stock-market', hero: { eyebrow: 'Player Stock Market', title: 'Player History', sub: 'Week-by-week breakdown for this entrant.', art: 'card-stockmarket.jpg' } },
@@ -165,7 +163,16 @@
       var oldHeader = document.querySelector('body > header.navbar, body > nav.navbar, body > header.hub-navbar');
       if (CFG.hero === 'own') {
         var h = document.querySelector('.hero');
-        if (h) top.appendChild(h);
+        if (h) {
+          top.appendChild(h);
+          if (CFG.art) {
+            h.classList.add('gbs-restyle');
+            var art = document.createElement('div');
+            art.className = 'gbs-hero-art';
+            art.style.backgroundImage = "url('" + A + CFG.art + "')";
+            h.insertBefore(art, h.firstChild);
+          }
+        }
       } else if (CFG.hero) {
         var hero = document.createElement('section');
         hero.className = 'gbs-hero';
@@ -267,9 +274,17 @@
     // tabs that point at a section of this same page just scroll to it
     document.querySelectorAll('.gbs-tab[href*="#"]').forEach(function (a) {
       a.addEventListener('click', function (e) {
-        var href = a.getAttribute('href'); if (!samePage(href)) return;
+        var href = a.getAttribute('href');
         var el = document.getElementById(href.split('#')[1]);
-        if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        if (!el && !samePage(href)) return;   // section is on another page: just go there
+        if (!el) return;
+        e.preventDefault();
+        if (el.offsetParent !== null) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+        // section not showing yet (tournament not started / not entered): say so on the tab for a moment
+        var sp = a.querySelector('span'), was = sp.textContent;
+        if (a.dataset.busy) return; a.dataset.busy = '1';
+        sp.textContent = 'Shows once it starts';
+        setTimeout(function () { sp.textContent = was; delete a.dataset.busy; }, 2200);
       });
     });
     document.getElementById('gbsWalletBody').addEventListener('click', async function (e) {

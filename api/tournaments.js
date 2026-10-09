@@ -2328,7 +2328,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
                 .select('id').eq('tournament_id', lmsTournament.id).eq('user_id', user.id).eq('gameweek', gw).maybeSingle();
 
               if (!myPick) {
-                actionItems.push({ type: 'lms', href: `/last-man-standing-pick?gameweek=${gw}`, message: `You haven't made your Last Man Standing pick for Gameweek ${gw} yet.` });
+                actionItems.push({ type: 'lms', href: '/last-man-standing', message: `You haven't made your Last Man Standing pick for Gameweek ${gw} yet.` });
               }
             }
           }

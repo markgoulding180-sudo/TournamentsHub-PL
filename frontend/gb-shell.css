@@ -78,6 +78,11 @@ html[data-gbs] .bg-glow{ display:none; }
   padding:clamp(16px,3vh,30px) 50px !important; display:flex !important; align-items:center !important; border:none !important; }
 .gbs-top > .hero .hero-desc{ display:none !important; }
 .gbs-top > .hero .hero-content{ position:relative; z-index:2; }
+/* a page hero given a new picture (Stock Market): same look as the other heroes */
+.gbs-top > .hero.gbs-restyle{ background:#01061a !important; }
+.gbs-top > .hero.gbs-restyle::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:linear-gradient(90deg, rgba(1,6,26,0.82) 0%, rgba(1,6,26,0.62) 45%, rgba(1,6,26,0.4) 100%), url('/assets/card-bg-sports.jpg') center 40% / cover no-repeat; }
+.gbs-top > .hero.gbs-restyle .hero-graphic{ display:none !important; }
 @media (min-width:900px){
   .gbs-top > .hero h1{ font-family:var(--gbs-display) !important; font-weight:400 !important; font-size:clamp(34px, calc(var(--gbs-hero-h) * 0.2), 68px) !important; line-height:.95 !important; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px !important; }
 }
@@ -101,7 +106,8 @@ html[data-gbs] .bg-glow{ display:none; }
   .gbs-top > .hero{ height:auto !important; min-height:140px !important; max-height:none !important; border-radius:0 !important; padding:10px 14px 24px !important; align-items:flex-start !important; }
   /* phones: same as the Predictions page - the picture fills the hero, darkened on the left behind the words */
   .gbs-hero::before{ z-index:1; background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.65) 60%, rgba(1,6,26,0.4) 100%); }
-  .gbs-hero-art{ z-index:0; -webkit-mask-image:none; mask-image:none; background-size:cover; background-position:70% center; }
+  .gbs-hero-art, .gbs-top > .hero.gbs-restyle .gbs-hero-art{ z-index:0; -webkit-mask-image:none; mask-image:none; background-size:cover; background-position:70% center; }
+  .gbs-top > .hero.gbs-restyle::before{ z-index:1; background:linear-gradient(90deg, rgba(1,6,26,0.86) 0%, rgba(1,6,26,0.65) 60%, rgba(1,6,26,0.4) 100%); }
   .gbs-eyebrow, .gbs-top > .hero .hero-eyebrow{ font-size:10px !important; letter-spacing:1.6px !important; margin-bottom:4px !important; }
   .gbs-hero h1.gbs-title, .gbs-top > .hero h1{ font-size:26px !important; margin:0 0 3px !important; line-height:.95 !important; }
   .gbs-sub, .gbs-top > .hero .hero-sub{ font-size:14px !important; margin:0 !important; }

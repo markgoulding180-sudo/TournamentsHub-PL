@@ -6,6 +6,12 @@
     "api/live-scores.js": { "maxDuration": 60 },
     "api/gameweek-transition.js": { "maxDuration": 60 }
   },
+  "redirects": [
+    { "source": "/last-man-standing-pick", "destination": "/last-man-standing", "permanent": false },
+    { "source": "/lms-pick.html", "destination": "/last-man-standing", "permanent": false },
+    { "source": "/predictions-stats", "destination": "/predictions", "permanent": false },
+    { "source": "/predictions-stats.html", "destination": "/predictions", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/register", "destination": "/register.html" },
@@ -31,7 +37,6 @@
     { "source": "/champions-league", "destination": "/champions-league.html" },
     { "source": "/champions-league-leaderboard", "destination": "/champions-league-leaderboard.html" },
     { "source": "/champions-league-how-it-works", "destination": "/champions-league-how-it-works.html" },
-    { "source": "/last-man-standing-pick", "destination": "/lms-pick.html" },
     { "source": "/stock-market", "destination": "/stockmarket-home.html" },
     { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },
     { "source": "/stock-market-history", "destination": "/stockmarket-history.html" },
@@ -40,7 +45,6 @@
     { "source": "/hub-test", "destination": "/test-hub.html" },
     { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
     { "source": "/wallet", "destination": "/wallet.html" },
-    { "source": "/how-it-works", "destination": "/how-it-works.html" },
-    { "source": "/predictions-stats", "destination": "/predictions-stats.html" }
+    { "source": "/how-it-works", "destination": "/how-it-works.html" }
   ]
 }
