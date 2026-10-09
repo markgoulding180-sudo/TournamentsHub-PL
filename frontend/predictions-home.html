@@ -530,11 +530,16 @@
   body.hubnav .pr-statbar .hero-closed-btn{ border-color:rgba(148,163,184,0.55) !important; color:var(--text-dim) !important; }
   body.hubnav .pr-statbar .hero-closed-btn i{ color:var(--text-dim) !important; }
   .pr-statbar .hero-meta-item b .of{ font-size:.7em; color:var(--text-dim); font-weight:600; }
-  /* phones: 5 numbers don't fit on one line, so 3 on top and the rest under them */
+  /* phones: all the numbers on ONE line - each box only as wide as its number
+     (sized for the biggest it can be: 100 entries, £2,000 pool, 100th of 100, GW38) */
+  .pr-statbar .lbl-short{ display:none; }
   @media (max-width:640px){
-    .pr-statbar .hero-meta-row{ flex-wrap:wrap !important; }
-    .pr-statbar .hero-meta-item{ flex:1 1 33.33% !important; min-width:33.33%; box-sizing:border-box; border-bottom:1px solid var(--border); }
-    .pr-statbar .hero-meta-row .hero-meta-item:nth-child(3n){ border-right:none; }
+    .pr-statbar .hero-meta-row{ flex-wrap:nowrap !important; }
+    .pr-statbar .hero-meta-item{ flex:1 1 auto !important; min-width:0; padding:7px 6px !important; font-size:8.5px !important; letter-spacing:.2px !important; white-space:nowrap; }
+    .pr-statbar .hero-meta-item b{ font-size:14px !important; white-space:nowrap; }
+    .pr-statbar .hero-meta-item b .of{ font-size:.68em; }
+    .pr-statbar .lbl-long, .pr-statbar .pence{ display:none; }
+    .pr-statbar .lbl-short{ display:inline; }
   }
   /* tab heights fixed to the test hub's: 46px desktop, 59px phone */
   body.hubnav .pr-tab{ height:46px; padding-top:0 !important; padding-bottom:0 !important; box-sizing:border-box; }
@@ -1099,11 +1104,11 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
         const gwSpan = t.gameweek ? `GW${t.gameweek}${t.end_gameweek ? ' / GW' + t.end_gameweek : ''}` : '';
         metaRow.innerHTML = `
-          ${gwSpan ? `<div class="hero-meta-item" id="heroGwItem">Gameweeks <b>${gwSpan}</b></div>` : ''}
+          ${gwSpan ? `<div class="hero-meta-item" id="heroGwItem"><span class="lbl-long">Gameweeks</span><span class="lbl-short">GWs</span> <b>${gwSpan}</b></div>` : ''}
           <div class="hero-meta-item">Entries <b>${t.current_entries ?? 0}</b></div>
-          <div class="hero-meta-item">Prize Pool <b>£${((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</b></div>
-          ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPosItem" style="display:none;">Your Position <b id="heroPosValue">--</b></div>` : ''}
-          ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPointsItem">Your Points <b id="heroPointsValue" style="font-family:var(--font-display); color:var(--accent-2);">${myTotalPoints} pts</b></div>` : ''}
+          <div class="hero-meta-item"><span class="lbl-long">Prize Pool</span><span class="lbl-short">Pool</span> <b>${(() => { const v = ((t.prize_pool || 0) / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); const i = v.lastIndexOf('.'); return '£' + (v.slice(i) === '.00' ? v.slice(0, i) + '<span class="pence">.00</span>' : v); })()}</b></div>
+          ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPosItem" style="display:none;"><span class="lbl-long">Your Position</span><span class="lbl-short">Position</span> <b id="heroPosValue">--</b></div>` : ''}
+          ${myTotalPoints !== null ? `<div class="hero-meta-item" id="heroPointsItem"><span class="lbl-long">Your Points</span><span class="lbl-short">Points</span> <b id="heroPointsValue" style="font-family:var(--font-display); color:var(--accent-2);">${myTotalPoints} pts</b></div>` : ''}
         `;
 
         if (myTotalPoints !== null) loadHeroPosition(t.id, myUserId);
