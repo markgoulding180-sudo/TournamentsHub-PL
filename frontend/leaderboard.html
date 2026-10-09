@@ -132,6 +132,12 @@
   .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
   @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
   .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+
+    /* ===== Default background (same as the other pages) + the leaderboard box
+       darkened so only 20% of the picture shows - same as the Predictions leaderboard ===== */
+    body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+    .lb-card{ background:linear-gradient(rgba(4,9,30,0.80), rgba(4,9,30,0.80)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028 !important; }
+    .lb-card, .lb-card *, .lb-hero h1, .lb-hero p{ text-shadow:0 1px 4px rgba(0,0,0,.85); }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
