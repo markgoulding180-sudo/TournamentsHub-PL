@@ -200,6 +200,30 @@ body{
 @media (max-width:860px){
   body{ background-attachment:scroll, scroll, scroll; background-size:auto, auto 100vh, auto; background-position:0 0, center top, 0 0; }
 }
+
+/* ===== Tournament images behind each game card, plus images for the wallet + closing sections ===== */
+.game-card.has-img{
+  position:relative; overflow:hidden; padding-top:200px;
+  background:
+    linear-gradient(180deg, rgba(10,18,38,0) 0px, rgba(10,18,38,0.15) 120px, rgba(10,18,38,0.92) 205px, rgba(10,18,38,0.97) 100%),
+    var(--card-img) center top / 100% auto no-repeat,
+    var(--bg-panel);
+  border-color:color-mix(in srgb, var(--card-accent) 40%, var(--border));
+}
+.game-card.has-img > *{ position:relative; }
+@media (max-width:700px){ .game-card.has-img{ padding-top:175px; background-size:auto, auto 190px, auto; } }
+.wallet-section{
+  background:
+    linear-gradient(90deg, rgba(8,14,32,0.70) 0%, rgba(8,14,32,0.88) 45%, rgba(8,14,32,0.96) 100%),
+    url('assets/hero-gb-app.jpg') left center / cover no-repeat,
+    var(--bg-panel) !important;
+}
+.closing-cta{
+  background:
+    linear-gradient(180deg, rgba(8,14,32,0.65) 0%, rgba(8,14,32,0.90) 100%),
+    url('assets/hero-join-tournament.jpg') center / cover no-repeat,
+    var(--bg-panel) !important;
+}
 </style>
 </head>
 <body>
@@ -293,7 +317,7 @@ body{
   </div>
   <div class="games-grid">
 
-    <div class="game-card" style="--card-accent:#3b82f6;">
+    <div class="game-card has-img" style="--card-accent:#3b82f6; --card-img:url('assets/card-predictions.jpg');">
       <div class="game-card-top">
         <div class="game-icon"><i class="fas fa-bullseye"></i></div>
         <div>
@@ -310,7 +334,7 @@ body{
       <a href="/predictions" class="game-card-link">Go to Predictions <i class="fas fa-arrow-right"></i></a>
     </div>
 
-    <div class="game-card" style="--card-accent:#ef4444;">
+    <div class="game-card has-img" style="--card-accent:#ef4444; --card-img:url('assets/card-lms.jpg');">
       <div class="game-card-top">
         <div class="game-icon"><i class="fas fa-shield-halved"></i></div>
         <div>
@@ -327,7 +351,7 @@ body{
       <a href="/last-man-standing" class="game-card-link">Go to Last Man Standing <i class="fas fa-arrow-right"></i></a>
     </div>
 
-    <div class="game-card" style="--card-accent:#60a5fa;">
+    <div class="game-card has-img" style="--card-accent:#60a5fa; --card-img:url('assets/card-fantasy.jpg');">
       <div class="game-card-top">
         <div class="game-icon"><i class="fas fa-users"></i></div>
         <div>
@@ -344,7 +368,7 @@ body{
       <a href="/fantasy-manager" class="game-card-link">Go to Fantasy Manager <i class="fas fa-arrow-right"></i></a>
     </div>
 
-    <div class="game-card" style="--card-accent:#22c55e;">
+    <div class="game-card has-img" style="--card-accent:#22c55e; --card-img:url('assets/card-stockmarket.jpg');">
       <div class="game-card-top">
         <div class="game-icon"><i class="fas fa-chart-line"></i></div>
         <div>
