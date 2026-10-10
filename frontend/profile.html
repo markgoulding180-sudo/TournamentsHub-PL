@@ -311,7 +311,7 @@
       <h2 id="wbTitle">Welcome to GB Tournaments!</h2>
       <p>Thanks for joining. Before you jump in, take a minute to set up your profile — just add a <b>profile picture</b>. It shows next to your name on leaderboards, in tournaments and on the forum.</p>
       <div class="wb-checks"><span class="wb-check" id="wbCheckAvatar"><i class="fas fa-circle-check"></i> Profile picture</span></div>
-      <div class="wb-btns"><button type="button" class="ob-btn primary" onclick="obOpen()"><i class="fas fa-wand-magic-sparkles"></i> <span id="wbStartText">Start setup</span></button><a class="ob-btn ghost" href="/hub-test" id="wbHubBtn"><i class="fas fa-house"></i> Go to the GB Hub</a></div>
+      <div class="wb-btns"><button type="button" class="ob-btn primary" onclick="obOpen()"><i class="fas fa-wand-magic-sparkles"></i> <span id="wbStartText">Start setup</span></button><a class="ob-btn ghost" href="/" id="wbHubBtn"><i class="fas fa-house"></i> Go to the GB Hub</a></div>
     </section>
 
     <div class="profile-header" id="profileHeader">
@@ -989,7 +989,7 @@
     // steps: profile picture, a congratulations / what's on this page, and
     // the tournaments open for registration right now - finishing with a
     // button to the GB Hub. It reuses the page's own picture picker.
-    const OB_HUB = '/hub-test';           // change to '/' when the test hub becomes the main hub
+    const OB_HUB = '/';           // change to '/' when the test hub becomes the main hub
     let obStep = 0, obActive = false;
     const obUid = () => { try { return (JSON.parse(localStorage.getItem('gbf_user') || '{}').id) || 'me'; } catch (e) { return 'me'; } };
     const obDoneKey = () => 'gbf_onboarded_' + obUid();

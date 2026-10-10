@@ -13,7 +13,8 @@
     { "source": "/predictions-stats.html", "destination": "/predictions", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/index.html" },
+    { "source": "/", "destination": "/test-hub.html" },
+    { "source": "/old-home", "destination": "/index.html" },
     { "source": "/register", "destination": "/register.html" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/predictions", "destination": "/predictions-home.html" },

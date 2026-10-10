@@ -11,7 +11,7 @@
 //                        https://tournaments-hub-pl.vercel.app/?gbmove=1)
 // FORWARD_ON = true   -> everyone on the old address is forwarded.
 (function () {
-  var FORWARD_ON = false;
+  var FORWARD_ON = true;
   var OLD_HOST = 'tournaments-hub-pl.vercel.app';
   var NEW_ORIGIN = 'https://www.gbhub.live';
 

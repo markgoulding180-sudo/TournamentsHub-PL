@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
   <script src="/gb-domain.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>GB Hub — Test Layout</title>
+<title>GB Hub — Compete. Predict. Win.</title>
 <meta name="theme-color" content="#060b1e">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -930,7 +930,7 @@ a.np-item:hover{ border-color:var(--accent); }
     <div class="logo-mark"><svg class="icon" style="width:19px;height:19px"><use href="#i-trophy"/></svg></div>
     <div class="logo-text">GB HUB<small>CLICK HERE</small></div>
   </a>
-  <a class="me-btn" id="meBtn" href="/login?redirect=%2Fhub-test" title="Log in">
+  <a class="me-btn" id="meBtn" href="/login?redirect=%2F" title="Log in">
     <div class="avatar" id="meAvatar"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg></div>
     <span class="me-name" id="meName">Log In</span>
   </a>
@@ -1481,7 +1481,7 @@ function render(){
   // the full-size cards in My Tournaments instead.)
   const fullCardsShown = REG_STYLE !== 'cards' && !loggedOut && !STATE.mine.length;
   const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="mine-subhead reg"><span class="dot"></span>New Tournaments · Registering Now</div><div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
-  const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2Fhub-test">Log in</a></div>' : '';
+  const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2F">Log in</a></div>' : '';
   // Logged in and in some tournaments: "Your Tournaments" first, then the
   // registering ones underneath. Otherwise the registering ones sit at the top.
   const regBelow = !loggedOut && STATE.mine.length > 0;
@@ -1495,7 +1495,7 @@ function render(){
   document.getElementById('mineTitle').innerHTML = token() ? 'My tournaments' : 'Welcome<span class="wt-rest"> To GB Tournaments</span>';
   if (token() && STATE.loginExpired && !STATE.mine.length) {
     document.getElementById('mineSub').textContent = 'Your login has expired — log in again to see your tournaments';
-    mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2Fhub-test">Log in again</a></div>';
+    mineCards.innerHTML = '<div class="empty-card"><a class="btn btn-primary" href="/login?redirect=%2F">Log in again</a></div>';
   } else if (!token()) {
     // Not logged in (or never had an account): a welcome card instead of "log in to see…"
     document.getElementById('mineSub').innerHTML = 'To get started, <b>create your account</b>. Returning users, <b>log in</b>.<br>Football, darts and more tournaments. See what tournaments are upcoming below.<br>Every tournament has a <b>How It Works</b> on its own tournament page.';
@@ -1784,7 +1784,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && POP) openP
 function popDate(s){ if (!s) return ''; const d = s.length === 10 ? new Date(s + 'T12:00:00') : new Date(s); return d.toLocaleDateString('en-GB', { day:'numeric', month:'short' }); }
 function popMoney(p){ return '£' + (Math.abs(p || 0) / 100).toFixed(2); }
 function popLoggedOut(what){
-  return `<div class="hpop-empty">Log in to see your ${what}.</div><a class="hpop-btn" href="/login?redirect=%2Fhub-test">Log In</a>`;
+  return `<div class="hpop-empty">Log in to see your ${what}.</div><a class="hpop-btn" href="/login?redirect=%2F">Log In</a>`;
 }
 async function loadWalletPop(){
   const body = document.getElementById('walletPopBody');
@@ -1920,7 +1920,7 @@ async function loadNotifs(){
   const arrow = '<svg class="icon" style="width:14px;height:14px"><use href="#i-arrow"/></svg>';
   function gate(){
     body.innerHTML = `<div class="fm-gate"><div><h4>Join the conversation</h4><p>Talk tactics, share your picks and banter with other members across every tournament. The forum is for members only.</p></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;"><a class="fm-cta" href="/login?redirect=%2Fhub-test">Log In ${arrow}</a><a class="fm-cta" style="background:rgba(255,255,255,0.08);border:1px solid var(--border-2);" href="/register">Create Account</a></div></div>`;
+      <div style="display:flex;gap:10px;flex-wrap:wrap;"><a class="fm-cta" href="/login?redirect=%2F">Log In ${arrow}</a><a class="fm-cta" style="background:rgba(255,255,255,0.08);border:1px solid var(--border-2);" href="/register">Create Account</a></div></div>`;
   }
   async function load(retry){
     const t = token();

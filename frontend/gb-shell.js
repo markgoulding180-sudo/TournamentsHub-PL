@@ -14,7 +14,7 @@
 // so that brings the page straight back to how it was.
 // =====================================================================
 (function () {
-  var HUB_URL = '/hub-test';            // change to '/' when the Hub becomes the homepage
+  var HUB_URL = '/';            // change to '/' when the Hub becomes the homepage
   var root = document.documentElement;
   var KEY = root.getAttribute('data-gbs');
   if (!KEY || window.__gbShell) return;

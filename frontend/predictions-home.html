@@ -1418,7 +1418,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     // HUB_NAV: true = test-hub style nav (tab bar under the hero + bottom bar on phones).
     // Change to false to go back to the old buttons exactly as before.
     const HUB_NAV = true;
-    const HUB_URL = '/hub-test';   // change to '/' when the test hub becomes the main hub
+    const HUB_URL = '/';   // change to '/' when the test hub becomes the main hub
     (function(){
       if (!HUB_NAV) return;
       document.body.classList.add('hubnav');
