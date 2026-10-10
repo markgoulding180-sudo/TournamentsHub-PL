@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <script src="/gb-domain.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GB Tournaments — Compete. Predict. Win.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#060b1e;
+    --bg-panel:#0a1226;
+    --bg-card:#0d1730;
+    --bg-card-2:#101a38;
+    --border:#131f35;
+    --border-hover:#3b82f6;
+    --accent:#3b82f6;
+    --accent-2:#60a5fa;
+    --accent-glow:rgba(59,130,246,0.45);
+    --accent-dim:#1d4ed8;
+    --text:#f1f5fc;
+    --text-dim:#8a97b0;
+    --text-faint:#4d5972;
+    --gold:#f2b93d;
+    --red:#ef4444;
+    --purple:#7c3aed;
+    --radius:14px;
+    --font-display:'Anton','Rajdhani',sans-serif;
+    --font-head:'Rajdhani',sans-serif;
+    --font-body:'Inter',sans-serif;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  html{ overflow-x:hidden; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+  .icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+
+  .bg-glow{
+    position:fixed; top:-260px; left:50%; width:1300px; height:820px;
+    transform:translateX(-50%);
+    background:radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 62%);
+    pointer-events:none; z-index:0;
+  }
+
+  /* ================= NAVBAR ================= */
+  .navbar{
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:15px 32px;
+    background:rgba(4,8,18,0.92);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-left{display:flex;align-items:center;gap:40px;}
+  .logo{display:flex;align-items:center;gap:11px;}
+  .logo-mark{
+    width:38px;height:38px;border-radius:10px;
+    background:linear-gradient(150deg,var(--accent-2),var(--accent-dim));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .logo-mark .icon{width:20px;height:20px;stroke:#fff;stroke-width:1.9;}
+  .logo-text{font-family:var(--font-head); font-weight:700; font-size:17px; line-height:1.05; letter-spacing:0.5px;}
+  .logo-text .sub{color:var(--accent-2); display:block; font-size:11px; letter-spacing:3px; font-weight:600; margin-top:1px;}
+
+  .nav-links{display:flex; gap:30px;}
+  .nav-links a{
+    font-family:var(--font-head); font-size:14px; font-weight:600; letter-spacing:0.6px;
+    text-transform:uppercase; color:var(--text-dim);
+    padding-bottom:19px; position:relative; transition:color .2s;
+  }
+  .nav-links a:hover{color:var(--text);}
+  .nav-links a.active{color:var(--text);}
+  .nav-links a.active::after{
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background:var(--accent-2); box-shadow:0 0 10px var(--accent-glow); border-radius:2px;
+  }
+
+  .nav-right{display:flex;align-items:center;gap:14px;}
+
+  /* Fixed visual order for the nav-right icons, same on desktop and
+     mobile: Avatar, then Wallet, then Bell, then everything else. */
+  .avatar-btn{ order:1; }
+  .wallet-icon-link{ order:2; }
+  .navbar .icon-btn[title="Notifications"]{ order:3; }
+  .my-tournaments-btn{ order:4; }
+  #mobileMenuBtn{ order:5; }
+  #logoutBtn{ order:6; }
+
+  /* ================= NOTIFICATIONS ================= */
+  .notif-overlay{ display:none; position:fixed; inset:0; z-index:198; background:rgba(0,0,0,0.5); }
+  .notif-overlay.open{ display:block; }
+  .notif-panel{
+    display:none; position:fixed; top:76px; right:32px; z-index:199;
+    width:360px; max-width:calc(100vw - 32px); max-height:70vh;
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:14px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5); overflow:hidden; flex-direction:column;
+  }
+  .notif-panel.open{ display:flex; }
+  .notif-panel-header{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 16px;
+    border-bottom:1px solid var(--border); font-family:var(--font-head); font-weight:700; font-size:14px;
+  }
+  .notif-panel-header button{ width:26px;height:26px;border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--bg-card); }
+  .notif-panel-header button .icon{ width:13px;height:13px; }
+  .notif-panel-body{ overflow-y:auto; padding:10px; }
+  .notif-empty{ text-align:center; padding:26px 16px; color:var(--text-faint); font-size:13px; }
+  .notif-item{ display:block; padding:12px 12px; border-radius:10px; margin-bottom:6px; background:var(--bg-card); border:1px solid var(--border); }
+  .notif-item:hover{ border-color:var(--border-hover); }
+  .notif-item .notif-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .notif-item .notif-msg{ font-size:13px; color:var(--text-dim); line-height:1.4; }
+  .notif-item.admin .notif-title{ color:var(--gold); }
+  .notif-item.action .notif-title{ color:var(--accent-2); }
+  .notif-item.severity-warning{ border-color:var(--gold); }
+  .notif-item.severity-urgent{ border-color:var(--red); }
+
+  @media (max-width:640px){
+    .notif-panel{ top:auto; bottom:0; left:0; right:0; width:100%; max-width:100%; border-radius:16px 16px 0 0; max-height:80vh; }
+  }
+  .my-tournaments-btn{
+    display:flex; align-items:center; gap:7px; padding:8px 14px;
+    border-radius:20px; background:rgba(59,130,246,0.1); border:1px solid var(--accent);
+    color:var(--accent-2); font-family:var(--font-head); font-size:13px; font-weight:600; white-space:nowrap;
+  }
+  .my-tournaments-btn:hover{background:rgba(59,130,246,0.18);}
+  .my-tournaments-btn .icon{width:15px;height:15px;flex-shrink:0;}
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-card); border:1px solid var(--border);
+    transition:border-color .2s, transform .2s; position:relative;
+  }
+  .icon-btn .icon{width:17px;height:17px; color:var(--text-dim);}
+  .icon-btn:hover{border-color:var(--accent); transform:translateY(-1px);}
+  .icon-btn:hover .icon{color:var(--accent-2);}
+  .notif-dot{
+    position:absolute; top:7px; right:8px; width:6px;height:6px;border-radius:50%;
+    background:var(--accent-2); box-shadow:0 0 6px var(--accent-glow);
+  }
+  .avatar-btn{display:flex;align-items:center;gap:6px; padding:4px 4px 4px 4px; border-radius:22px; border:1px solid transparent; transition:border-color .2s;}
+  .avatar-btn:hover{border-color:var(--border);}
+  .avatar{
+    width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(150deg,#2c3d5c,#161f33);
+    border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .avatar .icon{width:17px;height:17px;color:var(--text-dim);}
+  .avatar-btn .icon.chev{width:14px;height:14px;color:var(--text-faint); margin-right:2px;}
+  .menu-toggle{display:none;}
+
+  /* ================= LAYOUT ================= */
+  .layout{display:flex; position:relative; z-index:1;}
+
+  .sidebar{
+    display:none;
+    width:222px; min-width:222px;
+    background:var(--bg-panel); border-right:1px solid var(--border);
+    height:calc(100vh - 69px); position:sticky; top:69px;
+    padding:22px 14px; transition:width .25s ease, min-width .25s ease, padding .25s ease;
+    overflow:hidden;
+  }
+  .sidebar.collapsed{width:72px; min-width:72px; padding:22px 10px;}
+
+  .sidebar-toggle{
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:9px 10px; margin-bottom:20px; border-radius:8px;
+    color:var(--text-faint); font-family:var(--font-head); font-size:11.5px; font-weight:700;
+    letter-spacing:1.2px; text-transform:uppercase;
+  }
+  .sidebar-toggle:hover{color:var(--text-dim); background:var(--bg-card);}
+  .sidebar-toggle .icon{width:15px;height:15px; transition:transform .25s ease;}
+  .sidebar.collapsed .icon.arrow{transform:rotate(180deg);}
+  .sidebar.collapsed .toggle-label{display:none;}
+
+  .sidebar-section-label{
+    font-family:var(--font-head); font-size:11px; color:var(--text-faint);
+    letter-spacing:1.6px; text-transform:uppercase; font-weight:700;
+    padding:0 10px; margin-bottom:10px;
+  }
+  .sidebar.collapsed .sidebar-section-label{display:none;}
+
+  .sport-item{
+    display:flex; align-items:center; gap:13px; padding:11px 10px;
+    border-radius:10px; margin-bottom:3px; color:var(--text-dim);
+    font-family:var(--font-head); font-size:14.5px; font-weight:600; letter-spacing:0.2px;
+    transition:background .2s, color .2s;
+  }
+  .sport-item .icon{width:19px;height:19px;flex-shrink:0;}
+  .sport-item:hover{background:var(--bg-card); color:var(--text);}
+  .sport-item.active{background:rgba(59,130,246,0.12); color:var(--accent-2);}
+  .sidebar-menu-mobile{display:none;}
+  .sidebar-divider.sidebar-menu-mobile{ height:1px; background:var(--border); margin:10px 0 12px; padding:0; }
+  @media (max-width:860px){
+    .sidebar-section-label.sidebar-menu-mobile{display:block;}
+    a.sport-item.sidebar-menu-mobile{display:flex;}
+    .sidebar-divider.sidebar-menu-mobile{display:block;}
+  }
+  /* Desktop: the menu button opens the same menu as phones, as a panel
+     on the right under the button (the side panel is hidden on desktop). */
+  @media (min-width:861px){
+    .sidebar.menu-open{
+      display:block; position:fixed; top:69px; right:0; left:auto; z-index:96;
+      width:280px; min-width:280px; height:calc(100vh - 69px); overflow-y:auto;
+      border-right:none; border-left:1px solid var(--border); box-shadow:-12px 0 30px rgba(0,0,0,0.45);
+    }
+    .sidebar.menu-open .sidebar-toggle{display:none;}
+    .sidebar.menu-open .sidebar-section-label.sidebar-menu-mobile{display:block;}
+    .sidebar.menu-open a.sport-item.sidebar-menu-mobile{display:flex;}
+    .sidebar.menu-open .sidebar-divider.sidebar-menu-mobile{display:block;}
+  }
+
+  .mobile-cat-strip{
+    display:none; position:static; z-index:95;
+    justify-content:space-around; padding:14px 14px;
+    background:rgba(4,8,18,0.96); backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
+  }
+  .mobile-cat-item{
+    color:var(--text-dim); font-family:var(--font-head); font-size:13.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.4px; padding:6px 4px; text-decoration:none;
+  }
+  .mobile-cat-item.active{color:var(--accent-2);}
+  @media (max-width:860px){ .mobile-cat-strip{display:flex;} }
+  .sidebar.collapsed .sport-label{display:none;}
+  .sidebar.collapsed .sport-item{justify-content:center;}
+
+  .main-content{flex:1; min-width:0; padding:0 32px 60px; max-width:1440px;}
+
+  /* ================= HERO ================= */
+  .hero{
+    position:relative; border-radius:20px;
+    overflow:hidden;
+    min-height:360px; margin:0 -32px 34px;
+  }
+  .hero-slide{
+    position:absolute; inset:0; z-index:1;
+    display:flex; align-items:center; padding:58px 50px;
+    opacity:0; pointer-events:none; transition:opacity .9s ease;
+    background-size:cover, cover, auto 105%;
+    background-repeat:no-repeat, no-repeat, no-repeat;
+    background-position:center, center, right center;
+  }
+  .hero-slide.active{ opacity:1; pointer-events:auto; z-index:2; }
+  .hero-slide.slide-1{
+    background-image:
+      radial-gradient(ellipse 60% 100% at 100% 20%, rgba(59,130,246,0.22) 0%, transparent 60%),
+      linear-gradient(90deg, rgba(6,12,26,0.96) 0%, rgba(6,12,26,0.88) 30%, rgba(6,12,26,0.45) 55%, rgba(6,12,26,0.12) 75%, rgba(6,12,26,0.05) 100%),
+      url('assets/haaland-hero.jpg?v=2');
+  }
+  .hero-slide.slide-2{
+    background-size:cover, cover;
+    background-position:center, center;
+    background-image:
+      linear-gradient(90deg, rgba(6,12,26,0.94) 0%, rgba(6,12,26,0.8) 35%, rgba(6,12,26,0.35) 65%, rgba(6,12,26,0.12) 100%),
+      url('assets/new-predictions.jpg');
+  }
+  .hero-slide.slide-3{
+    background-size:cover, cover;
+    background-position:center, center;
+    background-image:
+      linear-gradient(90deg, rgba(6,12,26,0.94) 0%, rgba(6,12,26,0.8) 35%, rgba(6,12,26,0.35) 65%, rgba(6,12,26,0.12) 100%),
+      url('assets/Mobile-Background.png');
+  }
+  .hero-graphic{
+    position:absolute; right:-40px; top:0; bottom:0; width:52%;
+    display:flex; align-items:center; justify-content:center; opacity:0.95;
+    pointer-events:none;
+  }
+  .hero-content{position:relative; z-index:2; max-width:540px; margin-top:10px;}
+  .hero-eyebrow{
+    display:inline-flex; align-items:center; gap:8px; color:var(--accent-2);
+    font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px;
+    text-transform:uppercase; margin-bottom:12px;
+  }
+  .hero-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+  .hero h1{
+    font-family:var(--font-display); font-size:76px; font-weight:400; line-height:0.92;
+    letter-spacing:1px; color:var(--text); margin-bottom:16px; text-transform:uppercase;
+  }
+  .hero-brand-heading{
+    font-family:var(--font-display); font-size:76px; font-weight:400; line-height:0.92;
+    letter-spacing:1px; color:var(--text); margin-top:8px; margin-bottom:10px; text-transform:uppercase;
+  }
+  .hero-brand-heading.size-md{ font-size:56px; }
+  .hero-sub{font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--accent-2); margin-bottom:8px; letter-spacing:0.3px;}
+  .hero-desc{font-size:15px; color:var(--text-dim); margin-bottom:18px; max-width:420px; line-height:1.55;}
+  @media (max-width:640px){
+    .hero::before{
+      content:''; position:absolute; inset:0; z-index:1;
+      background:linear-gradient(180deg, rgba(4,8,18,0.55) 0%, rgba(4,8,18,0.8) 60%, rgba(4,8,18,0.92) 100%);
+    }
+  }
+  .btn-outline-lg{
+    display:inline-flex; align-items:center; gap:10px;
+    background:rgba(59,130,246,0.08); border:1.5px solid var(--accent);
+    color:var(--text); font-family:var(--font-head); font-weight:700; font-size:13.5px;
+    letter-spacing:1px; text-transform:uppercase; padding:13px 24px; border-radius:9px;
+    transition:background .2s, box-shadow .2s;
+  }
+  .btn-outline-lg .icon{width:14px;height:14px; fill:currentColor; stroke:none;}
+  .btn-outline-lg:hover{background:var(--accent); box-shadow:0 6px 24px var(--accent-glow);}
+  .btn-hero-sm{ padding:9px 16px; font-size:11.5px; }
+  .btn-hero-sm .icon{ width:11px; height:11px; }
+
+  /* ================= SECTION HEADER ================= */
+  .section{margin-bottom:38px; scroll-margin-top:90px;}
+
+  /* Distinct visual container per sport category, so Football/Darts/etc
+     are clearly separated rather than blending into one continuous page.
+     Each sport gets its own background image + dark overlay for legibility;
+     new sports just need their own .sport-container.<name> rule added here. */
+  .sport-container{
+    border-radius:20px; border:1px solid var(--border); overflow:hidden;
+    padding:28px 24px; margin-bottom:20px;
+    background-size:cover; background-position:center; background-repeat:no-repeat;
+  }
+  .sport-container.football{
+    background-image:
+      linear-gradient(180deg, rgba(6,11,30,0.90) 0%, rgba(6,11,30,0.94) 100%),
+      url('assets/section-bg-football.jpg');
+  }
+  .sport-container.darts{
+    background-image:
+      linear-gradient(180deg, rgba(6,11,30,0.90) 0%, rgba(6,11,30,0.94) 100%),
+      url('assets/darts-background.jpg');
+  }
+  .sport-container.champions-league{
+    background-image:
+      linear-gradient(180deg, rgba(6,11,30,0.90) 0%, rgba(6,11,30,0.94) 100%),
+      url('assets/champions-league-hero.jpg');
+  }
+  .sport-container .section{ margin-bottom:0; }
+  .sport-container .section + .section{ margin-top:34px; }
+  .sport-container-header{ text-align:center; margin-bottom:10px; }
+  .sport-container-header h2{
+    font-family:var(--font-display); font-size:clamp(28px,4vw,40px); font-weight:400;
+    text-transform:uppercase; letter-spacing:0.5px; color:#fff; margin-bottom:6px;
+    text-shadow:0 4px 20px rgba(0,0,0,0.5);
+  }
+  .sport-container-header p{ color:#fff; opacity:0.85; font-size:14px; text-shadow:0 2px 10px rgba(0,0,0,0.6); }
+  .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+  .pl-header-actions{display:flex; align-items:center; gap:18px;}
+  @media (max-width:640px){
+    .section-head{ flex-wrap:wrap; }
+    .section-title-group{
+      flex-basis:100%; justify-content:center; margin-top:14px; text-align:center;
+    }
+    .section-title{ text-align:center; }
+    .pl-header-actions{
+      flex-basis:100%; justify-content:center; margin-top:10px;
+    }
+  }
+  .section-title-group{display:flex; align-items:center; gap:13px;}
+  .section-icon{
+    width:40px;height:40px;border-radius:10px;
+    background:var(--bg-card); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .section-icon .icon{width:19px;height:19px; color:var(--accent-2);}
+  .section-title h2{font-family:var(--font-head); font-size:21px; font-weight:700; letter-spacing:0.3px;}
+  .section-title p{font-size:12.5px; color:var(--text-faint); margin-top:2px;}
+  .view-all{
+    display:flex; align-items:center; gap:5px;
+    font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:0.4px;
+    color:var(--text-dim); text-transform:uppercase; transition:color .2s, gap .2s;
+  }
+  .view-all .icon{width:14px;height:14px;}
+  .view-all:hover{color:var(--accent-2); gap:8px;}
+
+  /* ---- Live PL strip (pulled from GB Fantasy) ---- */
+  .pl-live{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:20px;
+  }
+  .pl-live-status{
+    display:flex; align-items:center; gap:9px; margin-bottom:16px;
+    font-family:var(--font-head); font-size:12.5px; font-weight:700; letter-spacing:.5px;
+    color:var(--text-dim); text-transform:uppercase;
+  }
+  .pl-live-dot{
+    width:7px; height:7px; border-radius:50%; background:#22c55e;
+    box-shadow:0 0 8px rgba(34,197,94,.6); animation:pulse 1.8s ease-in-out infinite; flex:none;
+  }
+  .pl-live-dot.off{background:var(--text-faint); box-shadow:none; animation:none;}
+  .pl-live-sep{color:var(--text-faint);}
+  .pl-live-state{
+    color:var(--text-faint); text-transform:none; font-family:var(--font-body); font-weight:400; font-size:12.5px;
+  }
+  .pl-live-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+  .pl-live-grid-solo{grid-template-columns:1fr;}
+  .pl-live-panel-title{
+    font-family:var(--font-head); font-size:11.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.6px; color:var(--text-faint); margin-bottom:10px;
+  }
+  .pl-live-matches{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; list-style:none; scrollbar-width:none; -ms-overflow-style:none; scroll-behavior:smooth; scroll-snap-type:x proximity; }
+  .pl-live-matches::-webkit-scrollbar{ display:none; }
+  .pl-live-matches-wrap{ position:relative; min-width:0; }
+  .pl-live-col{ min-width:0; }
+  .pl-strip-arrow{ position:absolute; top:50%; transform:translateY(-50%); z-index:5; width:32px; height:32px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; transition:border-color .2s, background .2s; }
+  .pl-strip-arrow:hover{ border-color:var(--border-hover); background:var(--accent-dim); }
+  .pl-strip-arrow.left{ left:-4px; }
+  .pl-strip-arrow.right{ right:-4px; }
+  .pl-strip-arrow i{ font-size:13px; }
+  .pl-live-leaders{display:flex; flex-direction:column; gap:7px; list-style:none;}
+  .pl-fixture-chip{ flex:none; min-width:150px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; text-align:center; scroll-snap-align:start; }
+  .pl-fixture-chip .teams{ font-size:12.5px; font-weight:600; margin-bottom:6px; line-height:1.4; color:var(--text); }
+  .pl-fixture-chip .score{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); font-size:14px; }
+  .pl-fixture-chip .tag{ font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--text-faint); margin-top:4px; display:block; }
+  .pl-fixture-chip .tag.live{color:var(--red);}
+  .pl-fixture-chip .tag.finished{color:var(--green);}
+  .pl-live-match{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:9px 13px; font-size:13px;
+  }
+  .pl-live-match .teams{color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pl-live-match .right{display:flex; align-items:center; gap:9px; flex:none;}
+  .pl-live-match .score{font-family:var(--font-head); font-weight:700; color:var(--accent-2); letter-spacing:.5px;}
+  .pl-live-match .tag{font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.4px;}
+  .pl-live-match .tag.live{background:rgba(239,68,68,.15); color:var(--red);}
+  .pl-live-match .tag.finished{background:rgba(255,255,255,.06); color:var(--text-faint);}
+  .pl-live-match .tag.upcoming{background:rgba(59,130,246,.14); color:var(--accent-2);}
+  .pl-live-leaders li{
+    display:flex; align-items:center; gap:10px;
+    background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:8px 13px; font-size:13px;
+  }
+  .pl-live-leaders .rank{width:16px; font-family:var(--font-head); font-weight:700; color:var(--text-faint);}
+  .pl-live-leaders .name{flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pl-live-leaders .pts{font-family:var(--font-head); font-weight:700; color:var(--gold); letter-spacing:.3px;}
+  .pl-live-empty{color:var(--text-faint); font-size:12.5px; padding:6px 2px;}
+
+  .quick-lb-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
+  .quick-lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .quick-lb-gw{ font-size:11px; color:var(--text-dim); margin:-6px 0 10px; display:flex; align-items:center; gap:5px; }
+  .quick-lb-gw i{ font-size:9px; color:var(--accent-2); }
+
+  /* Winner celebration state - a finished tournament shouldn't just
+     show the same ranked list as a live one with nothing to distinguish
+     it. This deliberately "pops": gold glow on the whole card (now
+     animated, not static), a trophy that scales in, the champion's name
+     big and bold, and the real prize money front and centre when we
+     actually have that figure — never a guessed or fabricated one. */
+  .quick-lb-card.is-finished{
+    background: linear-gradient(160deg, rgba(242,185,61,0.18), var(--bg-panel) 60%);
+    border-color: var(--gold);
+    box-shadow: 0 0 26px rgba(242,185,61,0.3);
+    animation: qlbGlow 2.6s ease-in-out infinite;
+    position:relative; overflow:hidden;
+  }
+  .quick-lb-card.is-finished::before{
+    content:''; position:absolute; top:-60%; left:-20%; width:60%; height:220%;
+    background:linear-gradient(100deg, transparent, rgba(242,185,61,0.14), transparent);
+    transform:rotate(20deg); animation:qlbSheen 4.5s ease-in-out infinite;
+  }
+  @keyframes qlbGlow{
+    0%, 100%{ box-shadow:0 0 22px rgba(242,185,61,0.24); }
+    50%{ box-shadow:0 0 38px rgba(242,185,61,0.45); }
+  }
+  @keyframes qlbSheen{
+    0%{ left:-30%; } 100%{ left:130%; }
+  }
+  .quick-lb-winner{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:10px 4px 4px; list-style:none; position:relative; z-index:1; }
+  .quick-lb-winner .trophy{
+    font-size:38px; color:var(--gold); margin-bottom:6px;
+    text-shadow:0 0 22px rgba(242,185,61,0.75);
+    animation: qlbPop 0.55s cubic-bezier(.34,1.56,.64,1);
+  }
+  .quick-lb-winner .crowns{ font-size:12px; color:var(--gold); margin-bottom:4px; letter-spacing:3px; }
+  .quick-lb-winner .label{
+    font-size:10.5px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
+    color:var(--gold); margin-bottom:6px;
+  }
+  .quick-lb-winner .name{
+    font-family:var(--font-display); font-weight:400; font-size:24px; color:#fff;
+    margin-bottom:8px; letter-spacing:0.5px; line-height:1.1;
+    text-shadow:0 0 14px rgba(255,255,255,0.25);
+  }
+  .quick-lb-winner .prize{
+    display:flex; align-items:center; gap:7px; font-family:var(--font-head);
+    font-weight:700; font-size:20px; color:var(--gold); background:rgba(242,185,61,0.12);
+    border:1px solid rgba(242,185,61,0.4); border-radius:20px; padding:5px 16px; margin-bottom:8px;
+  }
+  .quick-lb-winner .prize i{ font-size:15px; }
+  .quick-lb-winner .sub{ font-size:11px; color:var(--text-dim); }
+  @keyframes qlbPop{
+    0%{ transform:scale(0.4) rotate(-8deg); opacity:0; }
+    65%{ transform:scale(1.2) rotate(4deg); opacity:1; }
+    100%{ transform:scale(1) rotate(0deg); }
+  }
+  .quick-lb-title{ font-family:var(--font-head); font-weight:700; font-size:14.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .quick-lb-tname{ font-weight:500; color:var(--text-dim); font-size:12.5px; margin-left:-2px; }
+  .quick-lb-tname:not(:empty)::before{ content:'— '; }
+  @media (max-width:1080px){ .quick-lb-grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:640px){ .quick-lb-grid{ grid-template-columns:1fr; } }
+  @media (max-width:760px){ .pl-live-grid{grid-template-columns:1fr;} }
+  @media (max-width:640px){ .pl-fixture-chip{ min-width:calc(50% - 5px); } }
+
+  /* ================= TOURNAMENT CARDS ================= */
+  .card-row{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+  .card-row-3{grid-template-columns:repeat(3,1fr);}
+  /* Scoped specifically to the sport sections' status blocks - cards
+     center themselves on the page regardless of how many there are,
+     instead of grid's default left-aligned tracks leaving a visibly
+     empty gap on the right whenever there are fewer than a full row's
+     worth (confirmed: 2 live cards out of 4 possible columns sat
+     bunched to the left with dead space next to them). */
+  .sport-container .card-row{ display:flex; flex-wrap:wrap; justify-content:center; }
+  .sport-container .card-row > .t-card{ flex:0 1 calc(25% - 13.5px); min-width:260px; }
+  @media (max-width:640px){
+    .sport-container .card-row > .t-card{ flex:0 1 calc(50% - 9px); min-width:140px; }
+  }
+
+  /* Registering row is scoped separately from every other .card-row on
+     the page, deliberately - the count here varies (0 to however many
+     sports currently have something upcoming), so it needs to center
+     whatever's left over on the last line instead of always filling a
+     fixed 4-column grid. flex-wrap does this for free: each row wraps
+     independently and justify-content:center re-centers whatever's on
+     it, whether that's 1 card alone, a full row of 4, or a lone 5th
+     card by itself underneath. flex:0 (no grow) keeps cards at a
+     consistent width instead of stretching to fill a partial row. */
+  #registeringCardRow{ display:flex; flex-wrap:wrap; justify-content:center; gap:18px; }
+  #registeringCardRow .t-card{ flex:0 1 calc(25% - 13.5px); min-width:240px; }
+  @media (max-width:900px){
+    #registeringCardRow{ gap:12px; }
+    #registeringCardRow .t-card{ flex:0 1 calc(50% - 6px); min-width:150px; }
+  }
+  .t-card{
+    position:relative; background:rgba(13,23,48,0.82); backdrop-filter:blur(4px);
+    border:1.5px solid rgba(59,130,246,0.6);
+    border-radius:var(--radius); overflow:hidden;
+    transition:border-color .25s, transform .25s, box-shadow .25s;
+    display:flex; flex-direction:column; min-height:400px;
+  }
+  .t-card-bottom{ margin-top:auto; }
+  .t-card:hover{border-color:var(--border-hover); transform:translateY(-5px); box-shadow:0 16px 36px -10px var(--accent-glow);}
+  .t-card.t-card-live{ border-color:#15803d; }
+  .t-card.t-card-registering{ border-color:#a16207; }
+  .t-card.t-card-registering:hover{ border-color:#eab308; }
+  .t-card.t-card-finished{ border-color:#991b1b; }
+  .t-card.t-card-finished:hover{ border-color:#dc2626; }
+  .t-card.t-card-live:hover{ border-color:#1eae52; }
+  .mini-card.mini-coming-soon{ opacity:0.5; cursor:default; }
+  .mini-card.mini-coming-soon .mini-sub{ color:var(--text-faint); }
+  /* Real fix here: football sports used a 220px-tall image box while
+     Champions League and Darts used 132px, on top of those two also
+     having extra description text the other four don't - both stacked
+     up to genuinely different total card heights across sports, not
+     just a same-row alignment issue. One consistent image height for
+     every sport removes the main driver of that mismatch. */
+  .t-card-media{height:180px; position:relative; border-bottom:1px solid var(--border); overflow:hidden;}
+  .t-card-media.large-image{height:180px;}
+  @media (max-width:480px){ .t-card-media.large-image{height:170px;} }
+  .featured-badge{
+    position:absolute; top:12px; left:12px; z-index:3;
+    background:var(--accent); color:#fff; font-family:var(--font-head);
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    padding:5px 11px; border-radius:20px; box-shadow:0 0 16px var(--accent-glow);
+  }
+  .registering-badge{
+    position:absolute; top:12px; left:12px; z-index:3;
+    background:#22c55e; color:#04140a; font-family:var(--font-head);
+    font-size:10.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
+    padding:5px 11px; border-radius:20px; box-shadow:0 0 16px rgba(34,197,94,0.5);
+    display:flex; align-items:center; gap:5px;
+  }
+  .registering-badge .dot{ width:6px; height:6px; border-radius:50%; background:#04140a; }
+  .sport-container.registering{
+    background-image:
+      linear-gradient(180deg, rgba(6,11,30,0.90) 0%, rgba(6,11,30,0.94) 100%),
+      radial-gradient(ellipse 80% 100% at 50% 0%, rgba(34,197,94,0.16) 0%, transparent 60%);
+    border-color:rgba(34,197,94,0.35);
+  }
+  .sport-container.registering .sport-container-header h2{ color:#eafff2; }
+
+  /* ---------- Per-sport status blocks (Registering / Live / Finished) ----------
+     Each sport section now organizes its own tournaments by real current
+     status instead of one flat row - a live tournament, one still open
+     for entries, and one that just finished are three different moments
+     for a visitor and shouldn't compete for attention as identical cards. */
+  .status-block{ margin-bottom:30px; }
+  .status-block:last-child{ margin-bottom:0; }
+
+  /* Each status section gets its own distinct, consistent container
+     treatment - same three colours everywhere (Football, Champions
+     League, Darts alike), on both mobile and desktop, so a visitor
+     learns the pattern once and it applies everywhere on the page. */
+  .status-block-live, .status-block-registering, .status-block-finished{
+    border-radius:14px; padding:16px 16px 4px; border:1px solid;
+  }
+  .status-block-live{ border-color:rgba(21,128,61,0.4); background:rgba(21,128,61,0.05); }
+  .status-block-registering{ border-color:rgba(161,98,7,0.4); background:rgba(161,98,7,0.05); }
+  .status-block-finished{ border-color:rgba(153,27,27,0.4); background:rgba(153,27,27,0.05); }
+
+  .status-block-head{
+    display:flex; align-items:center; gap:9px; margin-bottom:14px;
+    font-family:var(--font-head); font-weight:700; font-size:14px;
+    letter-spacing:0.5px; text-transform:uppercase; color:var(--text-dim);
+  }
+  .status-block-head .live-dot{
+    width:8px; height:8px; border-radius:50%; background:#22c55e;
+    box-shadow:0 0 8px rgba(34,197,94,0.8); animation:sbPulse 1.6s ease-in-out infinite;
+  }
+  .status-block-head .registering-dot{
+    width:8px; height:8px; border-radius:50%; background:#eab308;
+    box-shadow:0 0 8px rgba(234,179,8,0.8); animation:sbPulse 1.6s ease-in-out infinite;
+  }
+  .status-block-head.live-head{ color:#eafff2; }
+  .status-block-head.registering-head{ color:#fde68a; }
+  .status-block-head.finished-head{ color:var(--gold); }
+  @keyframes sbPulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  /* Compact card row for Registering/Finished - smaller than the full
+     live t-card, since there's less real information to show (no
+     live entries count worth showing yet, or nothing left to enter). */
+  .card-row-compact{ display:flex; flex-wrap:wrap; justify-content:center; gap:14px; }
+  .card-row-compact > .mini-card{ flex:0 1 calc(25% - 10.5px); min-width:220px; }
+  @media (max-width:900px){
+    .card-row-compact > .mini-card{ flex:0 1 calc(50% - 7px); min-width:200px; }
+  }
+  @media (max-width:640px){
+    .card-row-compact > .mini-card{ flex:0 1 100%; }
+  }
+
+  .mini-card{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+    padding:0; display:flex; align-items:stretch; gap:14px; text-decoration:none; color:inherit;
+    overflow:hidden; min-height:102px; position:relative;
+  }
+  .mini-card .mini-thumb{ width:82px; height:auto; border-radius:0; object-fit:cover; background:#0a1226; flex-shrink:0; align-self:stretch; }
+  .mini-card .mini-body{ flex:1; min-width:0; padding:14px 14px 14px 0; display:flex; flex-direction:column; justify-content:center; }
+  /* Real fix here: the mobile thumbnail was a narrow 82px-wide crop of
+     a full landscape branded image, cutting off the tournament name and
+     most of the artwork - not just tight, genuinely squashed and
+     trimmed. On mobile specifically, the card now stacks: the full
+     image across the whole width up top, all the text below it,
+     instead of cramming a wide image into a slim strip beside the text.
+     Cards get taller as a direct result - that's the trade-off for the
+     image actually being visible properly. */
+  @media (max-width:480px){
+    /* condensed: no gap between the picture and the details */
+    .mini-card{ flex-direction:column; min-height:0; gap:0; }
+    /* object-fit:contain instead of cover - cover was scaling the image
+       up to fill a much wider/flatter container than the image's own
+       shape, cropping out roughly a third of its height in the process
+       (title text included). contain guarantees the whole image is
+       always visible, at the cost of a little empty space above/below
+       on sports whose image isn't exactly this shape - a trade worth
+       making since the actual ask was "stop cutting it off". */
+    /* Real fix here: object-fit:contain inside a FIXED height meant an
+       image whose own shape was less wide relative to its height (like
+       Champions League, genuinely a different aspect ratio to the
+       others) rendered narrower than a full-width image, leaving empty
+       side gaps instead of filling the card. Switching to a natural
+       height instead of a fixed one guarantees every image fills the
+       full card width regardless of its own proportions - the only
+       trade-off is cards can be very slightly different heights from
+       each other depending on each image's real shape, which is a
+       fair trade for every one of them genuinely being full width. */
+    .mini-card .mini-thumb{ width:100%; height:auto; align-self:auto; object-fit:cover; }
+    .mini-card .mini-body{ padding:8px 12px 9px; justify-content:flex-start; }
+    .mini-card .mini-title{ margin-bottom:1px; line-height:1.2; }
+    .mini-card .mini-sub{ line-height:1.3; }
+    .mini-card .mini-sub-secondary{ margin-top:1px; }
+    .mini-card .mini-countdown{
+      position:absolute; top:10px; right:10px; margin-right:0; z-index:2;
+      background:rgba(4,8,18,0.85);
+    }
+  }
+  .mini-card .mini-title{
+    font-family:var(--font-head); font-weight:700; font-size:15.5px; margin-bottom:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .mini-card .mini-sub{ font-size:11px; color:var(--text-faint); }
+  .mini-card .mini-sub-secondary{ margin-top:3px; color:var(--text-faint); opacity:0.85; }
+  .mini-card.mini-registering .mini-sub{ color:#4ade80; }
+  .mini-card .mini-countdown{
+    flex-shrink:0; align-self:center; text-align:center; padding:6px 9px; margin-right:10px;
+    background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); border-radius:8px;
+  }
+  .mini-card .mini-countdown-value{ font-family:var(--font-head); font-weight:700; font-size:13.5px; color:#fde68a; white-space:nowrap; }
+  .mini-card .mini-countdown-label{ font-size:8px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.3px; }
+  .mini-card.mini-registering .mini-body .mini-sub{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .needs-action-line{ color:var(--red) !important; font-weight:700; }
+  .picks-done-line{ color:var(--green) !important; font-weight:600; }
+  .entered-line{ color:var(--accent-2) !important; font-weight:600; }
+  .card-status-line{ font-size:12.5px; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .register-now-line{ color:var(--accent-2) !important; font-weight:700; margin-top:2px; }
+  .needs-action-banner{
+    display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700;
+    color:#fff; background:linear-gradient(90deg, rgba(239,68,68,0.9), rgba(239,68,68,0.7));
+    padding:8px 12px; border-radius:8px; margin:8px 0;
+  }
+  .picks-done-banner{
+    display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600;
+    color:#fff; background:linear-gradient(90deg, rgba(34,197,94,0.85), rgba(34,197,94,0.6));
+    padding:8px 12px; border-radius:8px; margin:8px 0;
+  }
+
+  /* ---------- Registering ticker, under the hero ---------- */
+  .reg-ticker-heading{ text-align:center; margin:8px 20px 12px; }
+  .reg-ticker-heading h2{ font-family:var(--font-head); font-size:22px; margin-bottom:4px; }
+  .reg-ticker-heading p{ font-size:13px; color:var(--text-dim); }
+  /* Real replacement for the old auto-scrolling text marquee - a proper
+     swipeable card carousel instead. scroll-snap gives native, buttery
+     swipe-to-next-slide behaviour on touch devices for free, no custom
+     drag JS needed; the user moves at their own pace instead of text
+     scrolling past on a timer. Each slide auto-populates from whichever
+     sport currently has a real tournament in 'upcoming' status - create
+     a new one and it just appears here next load, same as the old
+     ticker did, no wiring needed per tournament. */
+  .reg-carousel-wrap{ margin:0 0 24px; }
+  .reg-carousel-track{
+    position:relative; /* makes slide offsetLeft measure from the track, so dots + auto-advance line up */
+    display:flex; gap:14px; overflow-x:auto; scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch; padding:4px 20px 10px; scrollbar-width:none;
+    /* Real fix here: with only a couple of slides (not enough to fill
+       the row), flex's default left-alignment left them stuck to the
+       left edge instead of sitting centred on the page. justify-content
+       center fixes that - and still scrolls normally once there are
+       enough slides to actually overflow the row, tested both ways. */
+    justify-content:center;
+  }
+  .reg-carousel-track::-webkit-scrollbar{ display:none; }
+  .reg-carousel-slide{
+    scroll-snap-align:center; flex:0 0 min(340px, 84vw); position:relative;
+    border-radius:16px; overflow:hidden; height:170px; text-decoration:none;
+    background-size:cover; background-position:center; border:1px solid rgba(234,179,8,0.3);
+  }
+  .reg-carousel-slide::before{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(0deg, rgba(4,8,18,0.92) 10%, rgba(4,8,18,0.35) 55%, rgba(4,8,18,0.55) 100%);
+  }
+  .reg-carousel-slide-content{ position:relative; z-index:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; padding:16px; }
+  .reg-carousel-badge{
+    position:absolute; top:12px; left:12px; z-index:2; display:flex; align-items:center; gap:6px;
+    background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.4); color:#fde68a;
+    font-family:var(--font-head); font-weight:700; font-size:10.5px; letter-spacing:0.6px;
+    text-transform:uppercase; padding:4px 10px; border-radius:20px;
+  }
+  .reg-carousel-sport{ font-size:11.5px; color:#fde68a; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+  .reg-carousel-name{ font-family:var(--font-head); font-weight:700; font-size:18px; color:#fff; margin-bottom:6px; line-height:1.15; }
+  .reg-carousel-meta{ display:flex; align-items:center; gap:10px; font-size:12.5px; color:#e5e7eb; }
+  .reg-carousel-fee{ color:#4ade80; font-weight:700; }
+  .reg-carousel-dots{ display:flex; justify-content:center; gap:6px; margin-top:2px; }
+  .reg-carousel-dot{ width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s, width .2s; }
+  .reg-carousel-dot.active{ background:#eab308; width:18px; border-radius:4px; }
+  /* Mobile: exactly one full card on screen at a time. Before, slides
+     were 84vw wide, so the next card peeked in as a half card. Now each
+     slide is the full visible width of the track, and the 16px gap
+     pushes the next one just past the screen edge. snap-stop:always
+     means a fast flick moves one card, never skips past one.
+     justify-content switches to flex-start here because centred flex
+     content that overflows gets clipped on the left and the first
+     slide becomes unreachable. */
+  @media (max-width:640px){
+    .reg-carousel-track{
+      gap:16px; padding:4px 16px 10px; scroll-padding-inline:16px;
+      justify-content:flex-start;
+    }
+    .reg-carousel-slide{
+      flex:0 0 100%; scroll-snap-align:center; scroll-snap-stop:always;
+    }
+  }
+
+  .mini-card.mini-registering{ border-color:#a16207; border-width:1.5px; }
+  .mini-card.mini-live{ border-color:#15803d; border-width:1.5px; }
+  .mini-card.mini-live .mini-sub{ color:var(--text-dim); display:flex; align-items:center; gap:5px; }
+  .mini-card.mini-finished{
+    border-color:#991b1b; border-width:1.5px;
+    background:linear-gradient(135deg, rgba(153,27,27,0.12), var(--bg-card) 65%);
+  }
+  .mini-card.mini-finished .mini-trophy{ color:var(--gold); font-size:20px; flex-shrink:0; }
+  .mini-card.mini-finished .mini-sub{ color:var(--gold); font-weight:600; }
+  .t-card-body{padding:16px 18px 18px; flex:1; display:flex; flex-direction:column;}
+  .t-card-body h3{font-family:var(--font-head); font-size:16.5px; font-weight:700; margin-bottom:4px; letter-spacing:0.2px;}
+  .t-card-body .desc{font-size:12.5px; color:var(--text-faint); margin-bottom:16px; line-height:1.4; min-height:32px;}
+  .t-card-stats{display:flex; justify-content:space-between; margin-bottom:16px;}
+  .stat-label{font-family:var(--font-head); font-size:10px; color:var(--text-faint); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; font-weight:600;}
+  .stat-value{font-family:var(--font-head); font-size:18px; font-weight:700; color:var(--text);}
+  .stat-value.prize{color:var(--accent-2);}
+  .stat-value.starts{color:#4ade80;}
+  .btn-enter{
+    width:100%; padding:11px; border-radius:9px; border:1.5px solid var(--accent);
+    color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:12.5px;
+    letter-spacing:0.6px; text-transform:uppercase; background:rgba(59,130,246,0.06);
+    transition:background .2s, color .2s; margin-top:auto;
+  }
+  .btn-enter:hover{background:var(--accent); color:#fff;}
+
+  /* ---- card media graphics wrappers ---- */
+  .media-svg{width:100%; height:100%; display:block;}
+  .media-shield{background:radial-gradient(ellipse at 50% 30%, rgba(59,130,246,0.22), transparent 70%), linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-fixture{background:linear-gradient(160deg,#101c34,#0a1226);}
+  .media-podium{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-champion{background:radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.28), transparent 65%), linear-gradient(160deg,#160f2c,#0a1226);}
+  .media-goal{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-assist{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-cleansheet{background:linear-gradient(160deg,#0e1830,#0a1226);}
+  .media-breakout{background:radial-gradient(ellipse at 50% 35%, rgba(242,185,61,0.18), transparent 65%), linear-gradient(160deg,#0e1830,#0a1226);}
+
+  /* ================= BOTTOM SPORT GRID ================= */
+  .sport-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px;}
+  .sport-tile{
+    background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; transition:border-color .25s, transform .25s;
+  }
+  .sport-tile:hover{border-color:var(--border-hover); transform:translateY(-5px);}
+  .sport-tile-head{display:flex; align-items:flex-start; gap:12px; margin-bottom:14px;}
+  .sport-tile-icon{
+    width:36px;height:36px;border-radius:9px; flex-shrink:0;
+    background:rgba(59,130,246,0.1); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .sport-tile-icon .icon{width:17px;height:17px;color:var(--accent-2);}
+  .sport-tile h3{font-family:var(--font-head); font-size:15px; font-weight:700; margin-bottom:3px;}
+  .sport-tile p{font-size:11.5px; color:var(--text-faint); line-height:1.4;}
+  .sport-tile-media{height:112px; border-radius:10px; margin-bottom:14px; border:1px solid var(--border); overflow:hidden; position:relative;}
+
+  /* ================= LEADERBOARD STRIP ================= */
+  .leaderboard-strip{
+    display:flex; align-items:center; justify-content:space-between;
+    background:linear-gradient(120deg,#0a1120, #0f1c38);
+    border:1px solid var(--border); border-radius:var(--radius); padding:24px 32px;
+  }
+  .lb-left{display:flex; align-items:center; gap:16px;}
+  .lb-icon{
+    width:50px;height:50px;border-radius:12px;
+    background:rgba(242,185,61,0.12); border:1px solid rgba(242,185,61,0.3);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lb-icon .icon{width:23px;height:23px; color:var(--gold);}
+  .lb-left h3{font-family:var(--font-head); font-size:16.5px; font-weight:700;}
+  .lb-left p{font-size:12.5px; color:var(--text-faint); margin-top:2px;}
+  .lb-mid{text-align:center;}
+  .lb-mid .stat-label{margin-bottom:5px;}
+  .lb-mid .amount{font-family:var(--font-display); font-size:32px; font-weight:400; color:var(--gold);}
+  .btn-outline{
+    padding:13px 24px; border-radius:9px; border:1.5px solid var(--accent);
+    color:var(--text); font-family:var(--font-head); font-weight:700; font-size:13px;
+    letter-spacing:0.5px; text-transform:uppercase;
+    background:rgba(59,130,246,0.08); transition:background .2s;
+  }
+  .btn-outline:hover{background:var(--accent);}
+
+  /* ================= RESPONSIVE ================= */
+  @media (max-width:1100px){
+    .card-row, .card-row-3, .sport-grid{grid-template-columns:repeat(2,1fr);}
+    .hero h1{font-size:58px;}
+    .hero-brand-heading{font-size:58px;}
+  }
+  @media (max-width:860px){
+    .nav-links{display:none;}
+    .menu-toggle{display:flex;}
+    .sidebar{
+      display:block;
+      position:fixed; left:0; top:69px; z-index:90; height:calc(100vh - 69px);
+      transform:translateX(-100%); transition:transform .25s ease;
+      width:222px; min-width:222px; padding:22px 14px;
+    }
+    .sidebar.mobile-open{transform:translateX(0); width:100%; min-width:100%; padding:24px 20px; background:var(--bg); z-index:96;}
+    .sidebar.collapsed{width:222px; min-width:222px; padding:22px 14px;}
+    .sidebar.collapsed .sport-label, .sidebar.collapsed .sidebar-section-label, .sidebar.collapsed .toggle-label{display:block;}
+    .main-content{padding:0 20px 20px;}
+    /* Same full-bleed treatment as the hero below - the sport container
+       (and everything inside it) should reach the screen edges on
+       mobile, not sit inset within main-content's own side padding. */
+    .sport-container{
+      border-radius:0; margin-left:-20px; margin-right:-20px; width:auto;
+      padding:22px 10px;
+    }
+    /* Real width fix: the status-block's own padding was compounding
+       with sport-container's padding (10px + 16px = 26px eaten from
+       each side before the card even starts, on top of main-content's
+       own edge padding) - noticeably narrowing cards on a phone screen
+       for no real benefit. Shrunk right down so the colored border is
+       still clearly visible but cards actually use the width available. */
+    .status-block-live, .status-block-registering, .status-block-finished{
+      padding:10px 6px 2px;
+    }
+    /* Full-bleed to the screen edges — breaks out of main-content's own
+       side padding with matching negative margins — and sits directly
+       under the navbar instead of leaving a gap above it. */
+    .hero{
+      border-radius:0; min-height:300px;
+      margin-left:-20px; margin-right:-20px; margin-top:0; margin-bottom:0; width:auto;
+    }
+    .hero-slide{ padding:18px 24px; align-items:flex-start; }
+    .hero-slide .hero-brand-heading{ margin-top:0; }
+    .btn-hero-sm{ padding:6px 14px; }
+    .hero h1{font-size:44px;}
+    .hero-brand-heading{font-size:44px;}
+    .hero-brand-heading.size-md{font-size:32px;}
+    .hero-graphic{width:70%; opacity:0.5;}
+    .slide-1 .hero-desc, .slide-2 .hero-desc{ color:#fff; }
+    /* Same full-bleed treatment for the nav bar directly below the hero —
+       flush against it, no gap, no rounded corners, edge to edge. */
+    .mobile-cat-strip{
+      margin-left:-20px; margin-right:-20px; width:auto; margin-top:0;
+    }
+  }
+  @media (max-width:640px){
+    .card-row, .card-row-3, .sport-grid{grid-template-columns:repeat(2,1fr);}
+    #champions-league .card-row{ grid-template-columns:1fr; }
+    .featured-badge{ display:none; }
+    .leaderboard-strip{flex-direction:column; gap:18px; text-align:center;}
+    .lb-left{flex-direction:column; text-align:center;}
+    .navbar{padding:12px 16px; flex-wrap:nowrap;}
+    .hero-graphic{display:none;}
+    #plLive{display:none;}
+    .view-all{display:none;}
+    .section-icon{display:none;}
+
+    /* Single compact mobile header row: logo, then login/avatar right next
+       to it (no longer pushed off to a second row), then bell + hamburger
+       pinned to the right. My Tournaments moved into the category carousel
+       below (it's just a link to everything the user's entered, same as
+       any other category). Log Out stays reachable via the hamburger's
+       drawer (sidebar-menu-mobile), so the separate logout icon here is
+       redundant and hidden. */
+    .nav-left{ display:contents; }
+    .nav-right{ display:contents; }
+    .nav-links{ display:none; }
+    .logo{ order:1; gap:8px; }
+    .logo-mark{ width:32px; height:32px; }
+    .logo-text{ font-size:14px; }
+    .logo-text .sub{ font-size:9px; letter-spacing:2px; }
+    .avatar-btn{ margin-left:10px; padding:2px; }
+    .avatar-btn.logged-in #navAuthLabel{ display:none !important; }
+    .avatar-btn.logged-in .chev{ display:none !important; }
+    .avatar-btn .avatar{ width:34px; height:34px; }
+    .wallet-icon-link{ margin-left:8px; }
+    .navbar .icon-btn[title="Notifications"]{ margin-left:8px; }
+    #logoutBtn{ display:none !important; }
+    .my-tournaments-btn{ display:none !important; }
+    .navbar-row-break{ display:none; }
+    #mobileMenuBtn{ margin-left:auto; }
+
+    /* Navbar is one compact row again here, so anchors/sidebar/carousel
+       need a shorter offset than before. */
+    .section, .sport-tile{ scroll-margin-top:118px; }
+    .sidebar{ top:66px; height:calc(100vh - 66px); }
+    .mobile-cat-strip{ top:66px; }
+  }
+
+  /* ===== Top bar — the same on every screen size =====
+     Desktop shows exactly what phones show: GB Hub logo, profile photo
+     and name, wallet, notifications and the menu button. All the page
+     links live in the menu. */
+  .navbar .nav-links, .hub-navbar .hub-nav-links,
+  .navbar .my-tournaments-btn, .navbar #logoutBtn{ display:none !important; }
+  .navbar #mobileMenuBtn, .hub-navbar #mobileMenuBtn{ display:flex !important; }
+  @media (min-width:861px){ .navbar > .nav-right{ margin-left:auto; } }
+  .navbar .tourney-home-link{ display:flex !important; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); }
+</style>
+</head>
+<body>
+
+<!-- ============ SVG ICON SPRITE ============ -->
+<svg style="display:none">
+<defs>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4z"/><path d="M7 5H4a3 3 0 0 0 3 3"/><path d="M17 5h3a3 3 0 0 1-3 3"/><path d="M12 12v3"/><path d="M9 19h6"/><path d="M10 16h4l1 3H9l1-3z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.3"/><path d="M5 20c0-3.6 3-6.2 7-6.2s7 2.6 7 6.2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.4"/><rect x="13" y="4" width="7" height="7" rx="1.4"/><rect x="4" y="13" width="7" height="7" rx="1.4"/><rect x="13" y="13" width="7" height="7" rx="1.4"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V11"/><path d="M12 20V4"/><path d="M19 20v-7"/><path d="M3 20h18"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="8.5" cy="8" r="3"/><circle cx="16" cy="9.2" r="2.3"/><path d="M2.5 20c0-3.3 2.7-5.6 6-5.6s6 2.3 6 5.6"/><path d="M14.7 14.6c2.1.5 3.6 2.1 3.8 4.3"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1.3"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="11" rx="1.4"/><path d="M4 13h16"/><path d="M12 9v11"/><path d="M12 9C9 9 8 6.4 9.6 5 11 3.6 12 6.2 12 9z"/><path d="M12 9c3 0 4-2.6 2.4-4C13 3.6 12 6.2 12 9z"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.2l3.4 2.5-1.3 4H9.9l-1.3-4L12 7.2z"/><path d="M12 3v4.2M12 20.8V17M4.3 8.6l4-1.3M19.7 8.6l-4-1.3M4.8 16l3.8 1M19.2 16l-3.8 1"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4l9 3.4L6 10.8"/><ellipse cx="6" cy="21" rx="4" ry="1"/></symbol>
+  <symbol id="i-horseshoe" viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7v3a2 2 0 0 0 2 2h1v-5a4 4 0 0 1 8 0v5h1a2 2 0 0 0 2-2v-3a7 7 0 0 0-7-7z"/><circle cx="8.5" cy="19" r="1.2"/><circle cx="15.5" cy="19" r="1.2"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9"/><path d="M15 7h5v5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.9 6.4.6-4.9 4.3 1.5 6.3L12 17l-5.6 3.1 1.5-6.3-4.9-4.3 6.4-.6L12 3z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-boot" viewBox="0 0 24 24"><path d="M5 4v9l-2 3v3h17c0-3-2-4-5-4.5S9 13 8 11.5 7 4 7 4H5z"/><path d="M5 8h4"/></symbol>
+  <symbol id="i-glove" viewBox="0 0 24 24"><path d="M6 10V6a1.5 1.5 0 0 1 3 0v4"/><path d="M9 9V5a1.5 1.5 0 0 1 3 0v4"/><path d="M12 9V5.5a1.5 1.5 0 0 1 3 0V10"/><path d="M15 10V7a1.5 1.5 0 0 1 3 0v6.5c0 3-2 5.5-5 5.5H9c-2.2 0-4-1.8-4-4v-3.5L6 10"/></symbol>
+</defs>
+</svg>
+
+<div class="bg-glow"></div>
+
+<!-- ================= NAVBAR ================= -->
+<header class="navbar">
+  <div class="nav-left">
+    <div class="logo">
+      <div class="logo-mark"><svg class="icon"><use href="#i-trophy"/></svg></div>
+      <div class="logo-text">GB HUB<span class="sub">CLICK HERE</span></div>
+    </div>
+    <nav class="nav-links">
+      <a href="/" class="active">GB Hub</a>
+      <a href="/fixtures">Prem Fixtures</a>
+      <a href="/forum">Forum</a>
+      <a href="#">My Leagues</a>
+      <a href="/wallet">Wallet</a>
+      <a href="#">Rewards</a>
+    </nav>
+  </div>
+  <div class="nav-right">
+    <a class="icon-btn wallet-icon-link" href="/wallet" title="Wallet"><svg class="icon"><use href="#i-wallet"/></svg></a>
+    <button class="icon-btn" title="Notifications" id="notifBtn"><svg class="icon"><use href="#i-bell"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span></button>
+    <button class="icon-btn menu-toggle" id="mobileMenuBtn" title="Menu"><svg class="icon"><use href="#i-menu"/></svg></button>
+    <a class="avatar-btn" id="navAuthBtn" href="/login?redirect=%2F" title="Log in">
+      <div class="avatar" id="navAvatar"><svg class="icon"><use href="#i-user"/></svg></div>
+      <span id="navAuthLabel" style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-dim);">Log In</span>
+      <svg class="icon chev"><use href="#i-chevron"/></svg>
+    </a>
+    <a class="my-tournaments-btn" href="/my-tournaments" title="My Tournaments">
+      <svg class="icon"><use href="#i-trophy"/></svg><span>My Tournaments</span>
+    </a>
+    <button class="icon-btn" title="Log Out" id="logoutBtn" style="display:none;"><svg class="icon"><use href="#i-logout"/></svg></button>
+  </div>
+  <div class="navbar-row-break"></div>
+</header>
+
+<!-- Notification panel — toggled by the bell button -->
+<div class="notif-overlay" id="notifOverlay"></div>
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-header">
+    <span>Notifications</span>
+    <button id="notifCloseBtn" title="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+  </div>
+  <div class="notif-panel-body" id="notifBody">
+    <div class="notif-empty">Loading…</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle">
+      <svg class="icon arrow"><use href="#i-arrow" style="transform:rotate(180deg)"/></svg><span class="toggle-label">Collapse</span>
+    </button>
+    <div class="sidebar-section-label sidebar-menu-mobile">Menu</div>
+    <a class="sport-item sidebar-menu-mobile" href="/"><svg class="icon"><use href="#i-home"/></svg><span class="sport-label">GB Hub</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/my-tournaments"><svg class="icon"><use href="#i-trophy"/></svg><span class="sport-label">My Tournaments</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/fixtures"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Prem Fixtures</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/wallet"><svg class="icon"><use href="#i-wallet"/></svg><span class="sport-label">Wallet</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="#"><svg class="icon"><use href="#i-gift"/></svg><span class="sport-label">Rewards</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="/admin" id="adminSidebarLink" style="display:none;"><svg class="icon"><use href="#i-cog"/></svg><span class="sport-label">Admin</span></a>
+    <a class="sport-item sidebar-menu-mobile" href="#" id="logoutLink" style="display:none; color:var(--red);"><svg class="icon"><use href="#i-close"/></svg><span class="sport-label">Log Out</span></a>
+    <div class="sidebar-divider sidebar-menu-mobile"></div>
+    <div class="sidebar-section-label">Sport Categories</div>
+    <a class="sport-item active" href="#pl-predictions"><svg class="icon"><use href="#i-ball"/></svg><span class="sport-label">Football (Premier League)</span></a>
+    <a class="sport-item" href="#darts"><svg class="icon"><use href="#i-target"/></svg><span class="sport-label">Darts</span></a>
+    <a class="sport-item" href="#champions-league"><svg class="icon"><use href="#i-target"/></svg><span class="sport-label">Champions League</span></a>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main-content">
+
+    <!-- ================= HERO ================= -->
+    <section class="hero">
+      <div class="hero-slide slide-1 active">
+        <div class="hero-graphic">
+          <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+            <defs>
+              <radialGradient id="ringGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="boltGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#93c5fd"/>
+                <stop offset="100%" stop-color="#3b82f6"/>
+              </linearGradient>
+            </defs>
+            <circle cx="380" cy="200" r="230" fill="url(#ringGlow)"/>
+            <circle cx="400" cy="210" r="150" fill="none" stroke="#1d3a63" stroke-width="2"/>
+            <circle cx="400" cy="210" r="115" fill="none" stroke="#28466f" stroke-width="10"/>
+            <circle cx="400" cy="210" r="80" fill="none" stroke="#1d3a63" stroke-width="2"/>
+            <circle cx="400" cy="210" r="45" fill="none" stroke="#3b82f6" stroke-width="8" opacity="0.55"/>
+            <circle cx="400" cy="210" r="14" fill="#3b82f6" opacity="0.85"/>
+            <g opacity="0.9">
+              <polyline points="120,10 90,150 130,150 70,380" fill="none" stroke="url(#boltGrad)" stroke-width="5" stroke-linejoin="round"/>
+            </g>
+            <g opacity="0.5">
+              <polyline points="200,0 175,110 210,110 160,300" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linejoin="round"/>
+            </g>
+            <circle cx="70" cy="60" r="16" fill="none" stroke="#3b82f6" stroke-width="2.5" opacity="0.7"/>
+            <circle cx="70" cy="60" r="4" fill="#60a5fa" opacity="0.9"/>
+          </svg>
+        </div>
+        <div class="hero-content">
+          <div class="hero-brand-heading size-md">GB Tournaments</div>
+          <div class="hero-eyebrow"><span class="dot"></span>Live Tournaments Running Now</div>
+          <div class="hero-sub">Compete. Predict. Win.</div>
+          <p class="hero-desc">Choose your arena and prove you're the best. Football, darts, golf, stocks and more — enter, predict, and climb the leaderboard.</p>
+          <div class="hero-btn-row" style="display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:10px;">
+            <a href="/register" class="btn-outline-lg btn-hero-sm" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Create Account</a>
+            <a href="/how-it-works" class="btn-outline-lg btn-hero-sm"><svg class="icon"><use href="#i-play"/></svg>How It Works</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-slide slide-2">
+        <div class="hero-content">
+          <div class="hero-brand-heading size-md">Predict Team Wins &amp; Scores</div>
+          <div class="hero-eyebrow"><span class="dot"></span>Premier League Predictions</div>
+          <div class="hero-sub">Earn Points</div>
+          <p class="hero-desc">Compete against other players. Win cash prizes.</p>
+          <div class="hero-btn-row" style="display:flex; flex-direction:column; align-items:flex-start; gap:10px;">
+            <a href="/register" class="btn-outline-lg btn-hero-sm" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Create Account</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-slide slide-3">
+        <div class="hero-content">
+          <div class="hero-brand-heading size-md">Play on Mobile Or Desktop</div>
+          <div class="hero-eyebrow"><span class="dot"></span>Anywhere, Anytime</div>
+          <div class="hero-sub">Use Your Device to Enter and Predict Events</div>
+          <p class="hero-desc">Challenge your friends.</p>
+          <div class="hero-btn-row" style="display:flex; flex-direction:column; align-items:flex-start; gap:10px;">
+            <a href="/register" class="btn-outline-lg btn-hero-sm" style="background:var(--accent); border-color:var(--accent);"><svg class="icon"><use href="#i-play"/></svg>Create Account</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Auto-scrolling ticker of currently-registering tournaments across
+         every sport, right under the hero - the one place on the page
+         that answers "what can I still join right now" at a glance,
+         without needing to scroll through each sport section. Hidden
+         entirely when nothing is genuinely open for registration. -->
+    <div class="reg-ticker-heading" id="regTickerHeading" style="display:none;">
+      <h2>Join a Tournament</h2>
+      <p>Below are the tournaments currently registering — get in before they start.</p>
+    </div>
+    <div class="reg-carousel-wrap" id="regTicker" style="display:none;">
+      <div class="reg-carousel-track" id="regTickerTrack"></div>
+      <div class="reg-carousel-dots" id="regCarouselDots"></div>
+    </div>
+
+    <!-- Mobile-only quick category strip (sidebar is hidden below 860px) —
+         sits directly under the hero; sticks under the navbar once
+         scrolled past it, thanks to position:sticky. -->
+    <!-- Mobile-only quick nav bar (sidebar is hidden below 860px) — sits
+         directly under the hero; sticks under the navbar once scrolled
+         past it, thanks to position:sticky. Plain links, not a scrolling
+         carousel — only 3 items, so it never needs to scroll. -->
+    <nav class="mobile-cat-strip" id="mobileCatStrip" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+      <a href="/my-tournaments" class="mobile-cat-item" style="flex:none;">My Tournaments</a>
+      <a href="#pl-predictions" class="mobile-cat-item active" style="flex:none;">Football</a>
+      <a href="#darts" class="mobile-cat-item" style="flex:none;">Darts</a>
+      <a href="#champions-league" class="mobile-cat-item" style="flex:none;">Champions</a>
+    </nav>
+
+    <!-- ================= FOOTBALL ================= -->
+    <div class="sport-container football">
+    <div class="sport-container-header">
+      <h2>Football Tournaments</h2>
+      <p>Join below and start predicting.</p>
+    </div>
+    <section class="section" id="pl-predictions">
+      <div class="section-head">
+        <div class="section-title-group">
+          <div class="section-icon"><svg class="icon"><use href="#i-ball"/></svg></div>
+          <div class="section-title">
+            <h2>Premier League</h2>
+            <p>Premier League &amp; European prediction tournaments.</p>
+          </div>
+        </div>
+        <div class="pl-header-actions">
+          <div id="pl-deadline-timer" style="display:none; align-items:center; gap:8px; padding:8px 16px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border);">
+            <svg class="icon" style="width:15px;height:15px;color:var(--accent-2);"><use href="#i-clock"/></svg>
+            <span style="font-size:12px; color:var(--text-faint); font-family:var(--font-head); font-weight:600; text-transform:uppercase; letter-spacing:.4px;" id="pl-deadline-label">Next Deadline</span>
+            <span style="font-family:var(--font-head); font-weight:700; font-size:14px; color:var(--accent-2);" id="pl-deadline-value">--</span>
+          </div>
+          <a class="view-all" href="/fixtures" id="pl-view-all">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
+        </div>
+      </div>
+
+      <!-- Live strip: pulled from the GB Fantasy PL app at request time -->
+      <div class="pl-live" id="plLive">
+        <div class="pl-live-status">
+          <span class="pl-live-dot" id="plLiveDot"></span>
+          <span id="plGwLabel">Gameweek --</span>
+          <span class="pl-live-sep">·</span>
+          <span class="pl-live-state" id="plLiveState">Connecting to GB Fantasy…</span>
+        </div>
+        <div class="pl-live-grid pl-live-grid-solo">
+          <div class="pl-live-col">
+            <div class="pl-live-panel-title">This Gameweek</div>
+            <div class="pl-live-matches-wrap">
+              <button class="pl-strip-arrow left" onclick="document.getElementById('plMatches').scrollBy({left:-320})"><i class="fas fa-chevron-left"></i></button>
+              <div class="pl-live-matches" id="plMatches">
+                <div class="pl-live-empty">Loading fixtures…</div>
+              </div>
+              <button class="pl-strip-arrow right" onclick="document.getElementById('plMatches').scrollBy({left:320})"><i class="fas fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-block status-block-live" id="footballLiveBlock" style="display:none;">
+        <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
+        <div class="card-row" id="footballLiveRow"></div>
+      </div>
+
+      <div class="status-block status-block-registering" id="footballRegisteringBlock" style="display:none;">
+        <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
+        <div class="card-row-compact" id="footballRegisteringRow"></div>
+      </div>
+
+      <div class="status-block status-block-finished" id="footballFinishedBlock" style="display:none;">
+        <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
+        <div class="card-row-compact" id="footballFinishedRow"></div>
+      </div>
+    </section>
+    </div>
+
+    <div class="sport-container champions-league">
+    <div class="sport-container-header">
+      <h2>Champions League</h2>
+      <p>36 teams, 8 matchdays, then a real knockout to the final.</p>
+    </div>
+    <section class="section" id="champions-league">
+      <div class="section-head" style="justify-content:flex-end;">
+        <a class="view-all" href="/champions-league-how-it-works">How It Works<svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="status-block status-block-live" id="clLiveBlock" style="display:none;">
+        <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
+        <div class="card-row" id="clLiveRow"></div>
+      </div>
+
+      <div class="status-block status-block-registering" id="clRegisteringBlock" style="display:none;">
+        <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
+        <div class="card-row-compact" id="clRegisteringRow"></div>
+      </div>
+
+      <div class="status-block status-block-finished" id="clFinishedBlock" style="display:none;">
+        <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
+        <div class="card-row-compact" id="clFinishedRow"></div>
+      </div>
+    </section>
+    </div>
+
+
+    <!-- ================= DARTS ================= -->
+    <div class="sport-container darts">
+    <div class="sport-container-header">
+      <h2>Darts Tournaments</h2>
+      <p>Join below and start predicting.</p>
+    </div>
+    <section class="section" id="darts">
+      <div class="section-head" style="justify-content:flex-end;">
+        <a class="view-all" href="#">View All<svg class="icon"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="status-block status-block-live" id="dartsLiveBlock" style="display:none;">
+        <div class="status-block-head live-head"><i class="fas fa-circle live-dot"></i> Live Now</div>
+        <div class="card-row" id="dartsLiveRow"></div>
+      </div>
+
+      <div class="status-block status-block-registering" id="dartsRegisteringBlock" style="display:none;">
+        <div class="status-block-head registering-head"><i class="fas fa-circle registering-dot"></i> Registration Open - Join Now</div>
+        <div class="card-row-compact" id="dartsRegisteringRow"></div>
+      </div>
+
+      <div class="status-block status-block-finished" id="dartsFinishedBlock" style="display:none;">
+        <div class="status-block-head finished-head"><i class="fas fa-trophy"></i> Recently Finished</div>
+        <div class="card-row-compact" id="dartsFinishedRow"></div>
+      </div>
+
+      <div class="status-block" style="display:none;">
+        <div class="status-block-head" style="color:var(--text-faint);"><i class="fas fa-hourglass"></i> Coming Soon</div>
+        <div class="card-row-compact">
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="Premier League Darts">
+            <div class="mini-body">
+              <div class="mini-title">Premier League Darts</div>
+              <div class="mini-sub">Predict every night of the league</div>
+            </div>
+          </div>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="Grand Slam of Darts">
+            <div class="mini-body">
+              <div class="mini-title">Grand Slam of Darts</div>
+              <div class="mini-sub">The group-stage major</div>
+            </div>
+          </div>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="World Cup of Darts">
+            <div class="mini-body">
+              <div class="mini-title">World Cup of Darts</div>
+              <div class="mini-sub">Nations go head to head</div>
+            </div>
+          </div>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="UK Open">
+            <div class="mini-body">
+              <div class="mini-title">UK Open</div>
+              <div class="mini-sub">Anyone can enter, anyone can win</div>
+            </div>
+          </div>
+          <div class="mini-card mini-coming-soon">
+            <img class="mini-thumb" src="assets/darts-generic.jpg" alt="World Championship">
+            <div class="mini-body">
+              <div class="mini-title">World Championship</div>
+              <div class="mini-sub">The biggest stage, at Ally Pally</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    </div>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="live-poll.js"></script>
+<script>
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+
+  sidebarToggle.addEventListener('click', () => {
+    if (window.innerWidth <= 860) {
+      sidebar.classList.remove('mobile-open');
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  });
+
+  mobileMenuBtn.addEventListener('click', () => {
+    if (window.innerWidth <= 860) {
+      sidebar.classList.toggle('mobile-open');
+    } else {
+      // Desktop: open the side panel (if collapsed) and show the menu in it
+      sidebar.classList.remove('collapsed');
+      sidebar.classList.toggle('menu-open');
+    }
+  });
+  // Desktop menu: close when clicking anywhere outside it
+  document.addEventListener('click', (e) => {
+    if (!sidebar.classList.contains('menu-open')) return;
+    if (sidebar.contains(e.target) || mobileMenuBtn.contains(e.target)) return;
+    sidebar.classList.remove('menu-open');
+  });
+
+  document.querySelectorAll('.sport-item, .mobile-cat-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const href = item.getAttribute('href');
+      document.querySelectorAll('.sport-item, .mobile-cat-item').forEach(i => {
+        i.classList.toggle('active', i.getAttribute('href') === href);
+      });
+      if (window.innerWidth <= 860) sidebar.classList.remove('mobile-open');
+      sidebar.classList.remove('menu-open');
+    });
+  });
+
+  // ---- Live PL data, pulled straight from the GB Fantasy PL app ----
+  // No new API needed: these three endpoints already do public, no-auth GET reads
+  // with open CORS, so the hub can call them directly.
+  const PL_BASE = '/api'; // same origin now — no CORS needed
+
+  function plEsc(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  let deadlineTickInterval = null;
+
+  function updateDeadlineTimer(matches){
+    const wrap = document.getElementById('pl-deadline-timer');
+    const label = document.getElementById('pl-deadline-label');
+    const value = document.getElementById('pl-deadline-value');
+    if (!wrap) return;
+
+    if (deadlineTickInterval) { clearInterval(deadlineTickInterval); deadlineTickInterval = null; }
+
+    if (!matches || matches.length === 0) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    const kickoffs = matches
+      .map(m => m.kickoff_time ? new Date(m.kickoff_time).getTime() : null)
+      .filter(t => t !== null);
+
+    if (kickoffs.length === 0) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    const earliestMs = Math.min(...kickoffs);
+    const isFuture = earliestMs > Date.now();
+
+    if (!isFuture) {
+      // Deadline already passed — gameweek is live or finished, no countdown to show
+      wrap.style.display = 'none';
+      return;
+    }
+
+    wrap.style.display = 'inline-flex';
+    label.textContent = 'First Kickoff In';
+
+    function tick(){
+      const remainingMs = earliestMs - Date.now();
+      if (remainingMs <= 0) {
+        value.textContent = 'Kicking off…';
+        clearInterval(deadlineTickInterval);
+        deadlineTickInterval = null;
+        return;
+      }
+      const totalSeconds = Math.floor(remainingMs / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      if (days > 0) value.textContent = `${days}d ${hours}h ${minutes}m`;
+      else if (hours > 0) value.textContent = `${hours}h ${minutes}m ${seconds}s`;
+      else value.textContent = `${minutes}m ${seconds}s`;
+    }
+
+    tick();
+    deadlineTickInterval = setInterval(tick, 1000);
+  }
+
+  function renderPLMatches(matches){
+    const el = document.getElementById('plMatches');
+    if (!matches || matches.length === 0){
+      el.innerHTML = '<div class="pl-live-empty">No fixtures found for this gameweek yet.</div>';
+      return;
+    }
+    el.innerHTML = matches.map(m => {
+      const status = (m.status || 'upcoming').toLowerCase();
+      const hasScore = m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined;
+      const scoreOrTime = hasScore
+        ? `${m.home_score} - ${m.away_score}`
+        : (m.kickoff_time ? new Date(m.kickoff_time).toLocaleDateString('en-GB', { weekday:'short', hour:'2-digit', minute:'2-digit' }) : 'TBC');
+      const tagLabel = status === 'live' ? 'Live' : status === 'finished' ? 'Finished' : 'Upcoming';
+      return `
+        <div class="pl-fixture-chip">
+          <div class="teams">${plEsc(m.home_team)}<br>v ${plEsc(m.away_team)}</div>
+          <div class="score">${plEsc(scoreOrTime)}</div>
+          <span class="tag ${status}">${tagLabel}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function qlbMoney(pence){
+    return `£${(pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  async function loadPLLive(){
+    const dotEl = document.getElementById('plLiveDot');
+    const stateEl = document.getElementById('plLiveState');
+    const gwLabelEl = document.getElementById('plGwLabel');
+
+    try{
+      const gwRes = await fetch(`${PL_BASE}/current-gameweek`);
+      const gwData = await gwRes.json();
+
+      const gwNum = gwData.current_gameweek;
+      gwLabelEl.textContent = gwNum ? `Gameweek ${gwNum}` : 'Gameweek —';
+
+      if (gwNum){
+        const mRes = await fetch(`${PL_BASE}/predictions?gameweek=${gwNum}`);
+        const mData = await mRes.json();
+        renderPLMatches(mData.matches);
+        updateDeadlineTimer(mData.matches);
+      } else {
+        document.getElementById('plMatches').innerHTML = '<div class="pl-live-empty">Gameweek not set yet.</div>';
+      }
+
+      stateEl.textContent = 'Live from GB Fantasy';
+    } catch (err){
+      console.error('PL live fetch failed:', err);
+      dotEl.classList.add('off');
+      stateEl.textContent = 'GB Fantasy is unreachable right now';
+      document.getElementById('plMatches').innerHTML = '<div class="pl-live-empty">Couldn\'t load fixtures right now.</div>';
+    }
+  }
+
+  // ---- Login state, shared with the rest of the site (same origin now) ----
+  (function initAuthButton() {
+    const token = localStorage.getItem('gbf_token');
+    const userJson = localStorage.getItem('gbf_user');
+    const btn = document.getElementById('navAuthBtn');
+    const label = document.getElementById('navAuthLabel');
+    const avatar = document.getElementById('navAvatar');
+    if (!btn) return;
+
+    if (token && userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        const name = user.display_name || user.username || 'Account';
+        label.textContent = name;
+        label.style.display = 'inline';
+        avatar.textContent = name.substring(0, 2).toUpperCase();
+        avatar.style.cssText += 'display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:12px;font-weight:700;color:var(--accent-2);';
+
+        // Profile photo (same rule as the profile page): shown over the
+        // initials; if it can't load it removes itself and initials stay.
+        const setNavPhoto = (u) => {
+          avatar.querySelectorAll('img.nav-avatar-img').forEach(i => i.remove());
+          const url = u && u.avatar_type === 'upload' && typeof u.avatar_url === 'string' && /^https:\/\//i.test(u.avatar_url) ? u.avatar_url : '';
+          if (!url) return;
+          avatar.style.position = 'relative';
+          avatar.style.overflow = 'hidden';
+          const img = document.createElement('img');
+          img.className = 'nav-avatar-img';
+          img.alt = '';
+          img.src = url;
+          img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;';
+          img.onerror = () => img.remove();
+          avatar.appendChild(img);
+        };
+        setNavPhoto(user);
+        // The saved login copy can be out of date if the photo was changed
+        // since logging in, so quietly fetch the current one.
+        fetch('/api/tournaments?me=true', { headers: { 'Authorization': `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d && d.user) setNavPhoto(d.user); })
+          .catch(() => {});
+
+        btn.classList.add('logged-in');
+        btn.href = '/profile';
+        btn.title = 'View profile';
+
+        const logoutLink = document.getElementById('logoutLink');
+        if (logoutLink) {
+          logoutLink.style.display = ''; // shown inside the menu (phone + desktop)
+          logoutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('gbf_token');
+            localStorage.removeItem('gbf_refresh');
+            localStorage.removeItem('gbf_user');
+            window.location.href = '/';
+          });
+        }
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+          logoutBtn.style.display = 'flex';
+          logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('gbf_token');
+            localStorage.removeItem('gbf_refresh');
+            localStorage.removeItem('gbf_user');
+            window.location.href = '/';
+          });
+        }
+
+        if (user.is_admin) {
+          const adminSidebarLink = document.getElementById('adminSidebarLink');
+          if (adminSidebarLink) adminSidebarLink.style.display = ''; // shown inside the menu
+        }
+      } catch (e) {
+        // corrupted user JSON — fall through to logged-out state below
+      }
+    }
+  })();
+
+  // ================= NOTIFICATIONS =================
+  function escapeHtmlNotif(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function notifAuthHeaders() {
+    const token = localStorage.getItem('gbf_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  }
+
+  async function loadNotifications() {
+    const body = document.getElementById('notifBody');
+    const dot = document.getElementById('notifDot');
+    const token = localStorage.getItem('gbf_token');
+
+    if (!token) {
+      body.innerHTML = `<div class="notif-empty">Log in to see your notifications.</div>`;
+      dot.style.display = 'none';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/tournaments?notifications=true', { headers: notifAuthHeaders() });
+      const data = await res.json();
+      const adminMessages = data.admin_messages || [];
+      const actionItems = data.action_items || [];
+      const total = adminMessages.length + actionItems.length;
+
+      dot.style.display = total > 0 ? 'block' : 'none';
+
+      if (total === 0) {
+        body.innerHTML = `<div class="notif-empty">You're all caught up! 🎉</div>`;
+        return;
+      }
+
+      const adminHtml = adminMessages.map(m => `
+        <div class="notif-item admin severity-${escapeHtmlNotif(m.severity || 'info')}">
+          <div class="notif-title"><i class="fas fa-bullhorn"></i> Announcement</div>
+          <div class="notif-msg">${escapeHtmlNotif(m.message)}</div>
+        </div>`).join('');
+
+      const actionHtml = actionItems.map(item => `
+        <a class="notif-item action" href="${item.href}">
+          <div class="notif-title"><i class="fas fa-triangle-exclamation"></i> Action Needed</div>
+          <div class="notif-msg">${escapeHtmlNotif(item.message)}</div>
+        </a>`).join('');
+
+      body.innerHTML = adminHtml + actionHtml;
+    } catch (e) {
+      console.error('Failed to load notifications:', e);
+      body.innerHTML = `<div class="notif-empty">Couldn't load notifications right now.</div>`;
+    }
+  }
+
+  function toggleNotifPanel(open) {
+    document.getElementById('notifPanel').classList.toggle('open', open);
+    document.getElementById('notifOverlay').classList.toggle('open', open);
+    if (open) loadNotifications();
+  }
+
+  document.getElementById('notifBtn').addEventListener('click', () => toggleNotifPanel(true));
+  document.getElementById('notifCloseBtn').addEventListener('click', () => toggleNotifPanel(false));
+  document.getElementById('notifOverlay').addEventListener('click', () => toggleNotifPanel(false));
+
+  // ---- Registering section (Hub) ----
+  // Only shows a card for a sport whose real tournament status is
+  // genuinely 'upcoming' — added and not yet started. A sport that's
+  // already live, or has nothing upcoming at all, gets no card here.
+  // If nothing across every sport is upcoming, the whole section hides
+  // rather than showing an empty "Registering Now" header.
+
+  // ---------- Per-sport status sections (Registering / Live / Finished) ----------
+  // Each sport section now shows its own tournaments grouped by their
+  // real current status, replacing the old setup where the same
+  // tournament could appear as a plain entry card in its sport section
+  // AND again in a separate global "Registering Now" strip AND again in
+  // a separate global "Quick Look" leaderboard grid - three different
+  // treatments of the same thing, none of them telling you where to
+  // actually look first.
+  const SPORT_TYPES = {
+    football: ['predictions', 'lms', 'fantasy', 'stockmarket'],
+    cl: ['champions_league'],
+    darts: ['darts']
+  };
+
+  const TYPE_INFO = {
+    predictions: { href:'/predictions', title:'Premier League Score Predictions', sport:'Football', img:'assets/card-predictions.jpg', imgClass:'media-shield large-image' },
+    lms: { href:'/last-man-standing', title:'Last Man Standing', sport:'Football', img:'assets/card-lms.jpg', imgClass:'media-fixture large-image' },
+    fantasy: { href:'/fantasy-manager', title:'Fantasy Manager', sport:'Football', img:'assets/card-fantasy.jpg', imgClass:'media-podium large-image' },
+    stockmarket: { href:'/stock-market', title:'Player Stock Market', sport:'Football', img:'assets/card-stockmarket.jpg', imgClass:'media-goal large-image' },
+    champions_league: { href:'/champions-league', title:'Champions League', sport:'Champions League', desc:'Pick one team to win each matchday. Once used, that team is gone for the rest of the tournament.', img:'assets/card-champions-league-2.jpg', imgClass:'media-fixture' },
+    darts: { href:'/darts', title:'World Grand Prix', sport:'Darts', desc:'32-player knockout bracket. Predict every match, double points each round.', img:'assets/card-darts.jpg', imgClass:'media-fixture' }
+  };
+
+  function sportUserName(userObj){
+    return userObj ? (userObj.display_name || userObj.username) : 'Player';
+  }
+
+  // Real entry + pick status for a logged-in user, returned as one
+  // consistent shape for EVERY sport, not just the four with a weekly
+  // pick concept - confirmed real gap: Fantasy showed nothing at all
+  // for an entered user, since the old version only ever checked entry
+  // as a side effect of checking picks, and Fantasy has no picks to
+  // check. Entry status is now checked generically first, for every
+  // type, via the same my_entry endpoint every sport already supports -
+  // pick-status is layered on top only for the four sports where a
+  // real weekly/round pick concept exists.
+  async function checkEntryAndPickStatus(type, tournamentId){
+    const token = localStorage.getItem('gbf_token');
+    if (!token) return null;
+    try {
+      const entryRes = await fetch(`/api/tournaments?tournament_id=${tournamentId}&my_entry=true&tournament_type=${type}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const entryData = await entryRes.json();
+      if (!entryRes.ok) return null;
+      if (!entryData.entry) return { entered: false };
+
+      if (type === 'darts') {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'darts_get_bracket', tournament_id: tournamentId })
+        });
+        const data = await res.json();
+        if (!res.ok) return { entered: true, pickApplicable: false };
+        const matches = data.matches || [];
+        const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
+        for (const round of rounds) {
+          const pickable = matches.filter(m => m.round === round && m.player1_id && m.player2_id && m.status !== 'finished');
+          if (pickable.length === 0) continue;
+          const picked = (data.my_predictions || []).filter(p => p.round === round).length;
+          return { entered: true, pickApplicable: true, hasPicked: picked >= pickable.length, label: `Round ${round}` };
+        }
+        return { entered: true, pickApplicable: false };
+      }
+      if (type === 'champions_league') {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'cl_get_tournament', tournament_id: tournamentId })
+        });
+        const data = await res.json();
+        if (!res.ok) return { entered: true, pickApplicable: false };
+        const matches = data.matches || [];
+        const matchdays = [...new Set(matches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
+        for (const md of matchdays) {
+          const mdMatches = matches.filter(m => m.matchday === md);
+          const started = mdMatches.some(m => new Date(m.kickoff_time) <= new Date());
+          if (started) continue; // this matchday's deadline has passed, nothing to pick anymore
+          const picked = (data.my_picks || []).filter(p => p.matchday === md).length;
+          return { entered: true, pickApplicable: true, hasPicked: picked >= 3, label: `Matchday ${md}` };
+        }
+        return { entered: true, pickApplicable: false };
+      }
+      if (type === 'lms' || type === 'predictions') {
+        const gwInfo = await getCurrentGameweekInfo();
+        if (!gwInfo || !gwInfo.current_gameweek) return { entered: true, pickApplicable: false };
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ action: 'check_gameweek_pick_status', tournament_type: type, tournament_id: tournamentId, gameweek: gwInfo.current_gameweek })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.pickApplicable) return { entered: true, pickApplicable: false };
+        return { entered: true, pickApplicable: true, hasPicked: data.hasPicked, label: `Gameweek ${gwInfo.current_gameweek}` };
+      }
+
+      // Fantasy, Stock Market, or anything else - genuinely entered,
+      // but no weekly "pick" action to report on. The card still shows
+      // "You're entered", just without a second picks line under it.
+      return { entered: true, pickApplicable: false };
+    } catch (e) {
+      console.error(`Entry/pick status check failed for ${type}:`, e);
+      return null;
+    }
+  }
+
+  // Builds the two separate status lines the hub shows for a logged-in
+  // user on a live tournament card: "You're entered" (or nothing if
+  // they're not), then "Picks submitted"/"Picks needed this week" right
+  // below it when that tournament has a real weekly pick concept.
+  // Genuinely two different facts, shown as two different lines - not
+  // collapsed into one combined message.
+  function entryStatusLines(status, cssClass){
+    if (!status) return '';
+    if (!status.entered) return '';
+    let html = `<div class="${cssClass} entered-line"><i class="fas fa-circle-check"></i> You're entered in this tournament</div>`;
+    if (status.pickApplicable) {
+      html += status.hasPicked
+        ? `<div class="${cssClass} picks-done-line"><i class="fas fa-circle-check"></i> Picks submitted</div>`
+        : `<div class="${cssClass} needs-action-line"><i class="fas fa-circle-xmark"></i> Picks needed this week</div>`;
+    }
+    return html;
+  }
+
+  async function buildLiveCard(type, t){
+    const info = TYPE_INFO[type];
+    const entries = t.current_entries ?? 0;
+    const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
+    const titleBlock = info.desc ? `<h3>${info.title}</h3><p class="desc">${info.desc}</p>` : '';
+    const status = await checkEntryAndPickStatus(type, t.id);
+    const statusBlock = entryStatusLines(status, 'card-status-line');
+    return `
+      <a class="t-card t-card-live" href="${info.href}" style="text-decoration:none;">
+        <div class="t-card-media ${info.imgClass}" ${info.bgImage ? `style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"` : ''}>
+          ${info.bgImage ? '' : `<img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">`}
+        </div>
+        <div class="t-card-body" style="padding:16px 18px 18px;">
+          ${titleBlock}
+          ${statusBlock}
+          <div class="t-card-bottom">
+            <div class="t-card-stats">
+              <div><div class="stat-label">Entries</div><div class="stat-value entries">${entries}</div></div>
+              <div style="text-align:right"><div class="stat-label">Prize Pool</div><div class="stat-value prize">${prize}</div></div>
+            </div>
+            <span class="btn-enter" style="display:block; text-align:center;">Enter Now</span>
+          </div>
+        </div>
+      </a>`;
+  }
+
+  let cachedGameweekInfo = null;
+  async function getCurrentGameweekInfo(){
+    if (cachedGameweekInfo) return cachedGameweekInfo;
+    try {
+      const res = await fetch('/api/current-gameweek');
+      const data = await res.json();
+      cachedGameweekInfo = data;
+      return data;
+    } catch (e) {
+      console.error('Failed to load current gameweek:', e);
+      return null;
+    }
+  }
+
+  // Mobile-only variant of the live card - same small thumb + one-line
+  // style as Registering/Finished, since the full rich card (big banner
+  // image, description, two-column stats) takes up a lot of vertical
+  // space on a phone. Kept as a genuinely separate function rather than
+  // trying to squash the full t-card down with CSS, since the two have
+  // different DOM shapes entirely.
+  async function buildLiveMiniCard(type, t){
+    const info = TYPE_INFO[type];
+    const entries = t.current_entries ?? 0;
+    const prize = typeof t.prize_pool === 'number' ? `£${(t.prize_pool / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '£--';
+
+    // Gameweek info and the entry/pick status check don't depend on
+    // each other, so they fire together rather than one waiting on the
+    // other.
+    const [gwInfo, status] = await Promise.all([
+      t.gameweek ? getCurrentGameweekInfo() : Promise.resolve(null),
+      checkEntryAndPickStatus(type, t.id)
+    ]);
+
+    // Gameweek range + real progress through it - only meaningful for
+    // the four football sports that actually run on the shared PL
+    // gameweek clock (predictions/lms/fantasy/stockmarket). Champions
+    // League and Darts run on matchdays/rounds instead, so t.gameweek
+    // simply won't exist for those and this stays blank.
+    let gwLine = '';
+    if (t.gameweek) {
+      const rangeLabel = `GW ${t.gameweek}${t.end_gameweek ? '–' + t.end_gameweek : ''}`;
+      if (gwInfo && gwInfo.current_gameweek && t.end_gameweek) {
+        gwLine = `<div class="mini-sub mini-sub-secondary"><i class="fas fa-calendar-week"></i> ${rangeLabel} — Gameweek ${gwInfo.current_gameweek} of ${t.end_gameweek} played</div>`;
+      } else {
+        gwLine = `<div class="mini-sub mini-sub-secondary"><i class="fas fa-calendar-week"></i> ${rangeLabel}</div>`;
+      }
+    }
+
+    const statusLines = entryStatusLines(status, 'mini-sub mini-sub-secondary');
+
+    return `
+      <a class="mini-card mini-live" href="${info.href}">
+        ${info.bgImage ? `<div class="mini-thumb" style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"></div>` : `<img class="mini-thumb" src="${info.img}" alt="${info.title}">`}
+        <div class="mini-body">
+          <div class="mini-title">${info.title}</div>
+          <div class="mini-sub"><i class="fas fa-circle" style="font-size:6px; color:#22c55e;"></i> ${entries} entries — ${prize} pool</div>
+          ${gwLine}
+          ${statusLines}
+        </div>
+      </a>`;
+  }
+
+  // Real countdown to a real timestamp - opens_at/starts_at/closes_at
+  // all include an actual time-of-day, not just a date, so this can be
+  // precise down to the hour once it's under a day away, rather than a
+  // vague "today". Computed once at render time, not a ticking live
+  // timer - it refreshes naturally whenever the page's normal periodic
+  // data reload runs, same as everything else on this page.
+  function countdownLabel(targetIso){
+    const diffMs = new Date(targetIso).getTime() - Date.now();
+    if (diffMs <= 0) return 'Starting soon';
+    const totalMins = Math.floor(diffMs / 60000);
+    const days = Math.floor(totalMins / 1440);
+    const hours = Math.floor((totalMins % 1440) / 60);
+    const mins = totalMins % 60;
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  }
+
+  async function buildRegisteringMini(type, t){
+    const info = TYPE_INFO[type];
+    // Real bug fixed here, confirmed against the actual database: for
+    // gameweek-based types (predictions/lms/fantasy), closes_at is just
+    // an arbitrary "7 days after creation" fallback set at admin
+    // creation time - it has nothing to do with when the gameweek
+    // actually kicks off. Confirmed on the real GW6 LMS tournament:
+    // closes_at said 22 Sept, but GW6's real first match doesn't kick
+    // off until 10 Oct - the card was showing a genuinely fake deadline.
+    // Fixed by pulling the real earliest kickoff time for that
+    // gameweek's fixtures instead, for these three types specifically.
+    // Champions League/Darts/Stock Market don't have this problem -
+    // their opens_at/closes_at already reflects a real deadline.
+    let rawDate = t.opens_at || t.starts_at || t.closes_at || null;
+    if (t.gameweek && (type === 'predictions' || type === 'lms' || type === 'fantasy')) {
+      try {
+        const res = await fetch(`${PL_BASE}/predictions?gameweek=${t.gameweek}`);
+        const data = await res.json();
+        const kickoffs = (data.matches || []).map(m => m.kickoff_time).filter(Boolean).sort();
+        if (kickoffs[0]) rawDate = kickoffs[0];
+      } catch (e) {
+        console.error(`Failed to load real GW${t.gameweek} kickoff time for ${type}:`, e);
+      }
+    }
+    const dateLabel = rawDate ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
+    const feeLabel = typeof t.entry_fee === 'number'
+      ? (t.entry_fee > 0 ? `Entry ${qlbMoney(t.entry_fee)}` : 'Free entry')
+      : null;
+    const countdown = rawDate ? countdownLabel(rawDate) : null;
+    // Combined onto one line instead of two, and dropped the redundant
+    // "— Register now" (the section header already says "Registration
+    // Open" and the whole card is a link) - real fix for the card
+    // growing taller than the others: the countdown badge takes a fixed
+    // chunk of the row's width, so cramming two full lines of text plus
+    // the badge into what's left was forcing heavy wrapping.
+    const metaLine = [feeLabel, rawDate ? `Starts ${dateLabel}` : null].filter(Boolean).join(' · ');
+    // Real bug fixed here, confirmed directly from a real screenshot:
+    // this always said "Register Now" regardless of whether the user
+    // was already entered - same class of bug already found and fixed
+    // on the actual LMS/Fantasy pages themselves a while back, but
+    // never applied here on the hub's own registering card. Checks the
+    // same generic entry status used on live cards, so an already-
+    // entered user sees "You're entered" here too, consistently.
+    const status = await checkEntryAndPickStatus(type, t.id);
+    const ctaLine = (status && status.entered)
+      ? `<div class="mini-sub entered-line"><i class="fas fa-circle-check"></i> You're entered</div>`
+      : `<div class="mini-sub register-now-line"><i class="fas fa-arrow-right"></i> Register Now</div>`;
+    return `
+      <a class="mini-card mini-registering" href="${info.href}">
+        ${info.bgImage ? `<div class="mini-thumb" style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"></div>` : `<img class="mini-thumb" src="${info.img}" alt="${info.title}">`}
+        <div class="mini-body">
+          <div class="mini-title">${info.title}</div>
+          ${metaLine ? `<div class="mini-sub" style="color:var(--text-dim);">${metaLine}</div>` : ''}
+          ${ctaLine}
+        </div>
+        ${countdown ? `<div class="mini-countdown"><div class="mini-countdown-value">${plEsc(countdown)}</div><div class="mini-countdown-label">to go</div></div>` : ''}
+      </a>`;
+  }
+
+  // Real gap closed here, confirmed directly from a real screenshot: on
+  // desktop, Live tournaments get the big featured .t-card treatment,
+  // but Registering and Finished always fell back to the small
+  // horizontal mini-card regardless of screen size - so a page could
+  // show one full-size card next to two tiny ones. Same big .t-card
+  // shell as buildLiveCard, same real-deadline-lookup and entry-status
+  // logic already proven in buildRegisteringMini, just rendered into
+  // the bigger layout instead of the compact one.
+  async function buildRegisteringCard(type, t){
+    const info = TYPE_INFO[type];
+    let rawDate = t.opens_at || t.starts_at || t.closes_at || null;
+    if (t.gameweek && (type === 'predictions' || type === 'lms' || type === 'fantasy')) {
+      try {
+        const res = await fetch(`${PL_BASE}/predictions?gameweek=${t.gameweek}`);
+        const data = await res.json();
+        const kickoffs = (data.matches || []).map(m => m.kickoff_time).filter(Boolean).sort();
+        if (kickoffs[0]) rawDate = kickoffs[0];
+      } catch (e) {
+        console.error(`Failed to load real GW${t.gameweek} kickoff time for ${type}:`, e);
+      }
+    }
+    const dateLabel = rawDate ? new Date(rawDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'TBC';
+    const feeLabel = typeof t.entry_fee === 'number' ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free') : '--';
+    const countdown = rawDate ? countdownLabel(rawDate) : null;
+    const status = await checkEntryAndPickStatus(type, t.id);
+    const ctaLine = (status && status.entered)
+      ? `<div class="card-status-line entered-line"><i class="fas fa-circle-check"></i> You're entered</div>`
+      : `<div class="card-status-line register-now-line"><i class="fas fa-arrow-right"></i> Register Now</div>`;
+    return `
+      <a class="t-card t-card-registering" href="${info.href}" style="text-decoration:none;">
+        <div class="t-card-media ${info.imgClass}" ${info.bgImage ? `style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"` : ''}>
+          ${info.bgImage ? '' : `<img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">`}
+        </div>
+        <div class="t-card-body" style="padding:16px 18px 18px;">
+          <h3>${info.title}</h3>
+          <div class="card-status-line" style="color:#eab308;"><i class="fas fa-circle" style="font-size:7px;"></i> Registration open${countdown ? ` — ${plEsc(countdown)} to go` : ''}</div>
+          ${ctaLine}
+          <div class="t-card-bottom">
+            <div class="t-card-stats">
+              <div><div class="stat-label">Entry Fee</div><div class="stat-value entries">${feeLabel}</div></div>
+              <div style="text-align:right"><div class="stat-label">Starts</div><div class="stat-value prize">${dateLabel}</div></div>
+            </div>
+            <span class="btn-enter" style="display:block; text-align:center;">View Tournament</span>
+          </div>
+        </div>
+      </a>`;
+  }
+
+  // Note: finished tournaments show here with no time-based expiry for
+  // now - there's genuinely no "finished_at" timestamp anywhere in the
+  // database to base a fair "hide after N days" rule on, and using
+  // closes_at (the entry deadline, sometimes months earlier for a
+  // season-long tournament) would risk wrongly hiding one that finished
+  // five minutes ago. Worth adding a real finished_at column later if a
+  // rolling window is wanted - not guessing at one with the wrong field now.
+  async function buildFinishedMini(type, t){
+    const info = TYPE_INFO[type];
+    try {
+      let subLine;
+      if (type === 'stockmarket') {
+        // Real difference on purpose: Stock Market is zero-sum and the
+        // whole field plays every gameweek right to the end, so "who
+        // survived to the final week" is the meaningful result here,
+        // not just a single winner the way every other sport treats it.
+        // Each survivor's real final portfolio value shown too - that
+        // value is literally what they "won" (or kept) in this format,
+        // same real number the live card shows week to week.
+        const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
+        const lbData = await lbRes.json();
+        const rows = (lbData.leaderboard || []).filter(r => !r.relegated).sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
+        const parts = rows.map(r => `${plEsc(r.player_name || 'Player')} ${qlbMoney(r.current_value || 0)}`);
+        subLine = parts.length > 0 ? parts.join(', ') : 'No survivors reached the final week';
+      } else {
+        const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${type}`);
+        const lbData = await lbRes.json();
+        const rows = lbData.leaderboard || [];
+        if (rows[0]) {
+          const winnerName = sportUserName(rows[0].users);
+          const prize = rows[0].prize_awarded || rows[0].prize_won || null;
+          // Real prize amount shown whenever the game type actually
+          // tracks one (Predictions/LMS/Fantasy). Champions League and
+          // Darts genuinely have no per-entry prize field in the
+          // database at all - showing a number there would mean
+          // guessing a split of the pool, so it's left as just the
+          // winner's name rather than a fabricated figure.
+          subLine = plEsc(winnerName) + (prize ? ` — ${qlbMoney(prize)}` : '');
+        } else {
+          subLine = 'Player';
+        }
+      }
+      return `
+        <a class="mini-card mini-finished" href="${info.href}">
+          ${info.bgImage ? `<div class="mini-thumb" style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"></div>` : `<img class="mini-thumb" src="${info.img}" alt="${info.title}">`}
+          <div class="mini-body">
+            <div class="mini-title"><i class="fas fa-trophy" style="color:var(--gold); font-size:12px; margin-right:5px;"></i>${info.title}</div>
+            <div class="mini-sub">${subLine}</div>
+          </div>
+        </a>`;
+    } catch (e) {
+      console.error(`Failed building finished mini for ${type}:`, e);
+      return '';
+    }
+  }
+
+  // Same big .t-card shell, desktop-only counterpart to
+  // buildFinishedMini - identical real winner/prize lookup, just
+  // rendered into the full-size layout instead of the compact one.
+  async function buildFinishedCard(type, t){
+    const info = TYPE_INFO[type];
+    try {
+      let subLine;
+      if (type === 'stockmarket') {
+        const lbRes = await fetch(`/api/tournaments?stockmarket_leaderboard=true&tournament_id=${t.id}`);
+        const lbData = await lbRes.json();
+        const rows = (lbData.leaderboard || []).filter(r => !r.relegated).sort((a, b) => (b.current_value || 0) - (a.current_value || 0));
+        const parts = rows.map(r => `${plEsc(r.player_name || 'Player')} ${qlbMoney(r.current_value || 0)}`);
+        subLine = parts.length > 0 ? parts.join(', ') : 'No survivors reached the final week';
+      } else {
+        const lbRes = await fetch(`/api/tournaments?tournament_id=${t.id}&leaderboard=true&tournament_type=${type}`);
+        const lbData = await lbRes.json();
+        const rows = lbData.leaderboard || [];
+        if (rows[0]) {
+          const winnerName = sportUserName(rows[0].users);
+          const prize = rows[0].prize_awarded || rows[0].prize_won || null;
+          subLine = plEsc(winnerName) + (prize ? ` — ${qlbMoney(prize)}` : '');
+        } else {
+          subLine = 'Player';
+        }
+      }
+      return `
+        <a class="t-card t-card-finished" href="${info.href}" style="text-decoration:none;">
+          <div class="t-card-media ${info.imgClass}" ${info.bgImage ? `style="background-image:url('${info.img}'); background-size:cover; background-position:${info.bgPosition || 'center'};"` : ''}>
+            ${info.bgImage ? '' : `<img src="${info.img}" alt="${info.title}" style="width:100%; height:100%; object-fit:contain; display:block; background:#0a1226;">`}
+          </div>
+          <div class="t-card-body" style="padding:16px 18px 18px;">
+            <h3><i class="fas fa-trophy" style="color:var(--gold); font-size:14px; margin-right:6px;"></i>${info.title}</h3>
+            <div class="card-status-line" style="color:var(--gold);">${subLine}</div>
+            <div class="t-card-bottom">
+              <span class="btn-enter" style="display:block; text-align:center;">View Results</span>
+            </div>
+          </div>
+        </a>`;
+    } catch (e) {
+      console.error(`Failed building finished card for ${type}:`, e);
+      return '';
+    }
+  }
+
+  async function renderSportSection(prefix, types){
+    const liveRow = document.getElementById(`${prefix}LiveRow`);
+    if (!liveRow) return;
+    const regRow = document.getElementById(`${prefix}RegisteringRow`);
+    const finRow = document.getElementById(`${prefix}FinishedRow`);
+    const liveBlock = document.getElementById(`${prefix}LiveBlock`);
+    const regBlock = document.getElementById(`${prefix}RegisteringBlock`);
+    const finBlock = document.getElementById(`${prefix}FinishedBlock`);
+
+    // Mobile gets the same compact mini-card treatment for Live as
+    // Registering/Finished already use - same 640px breakpoint the rest
+    // of the page's CSS already switches on, checked once at render
+    // time (matches how the page already behaves - this isn't meant to
+    // hot-swap mid-session if someone resizes, just to pick the right
+    // style for whatever device loaded the page).
+    const isMobile = window.innerWidth <= 640;
+    liveRow.className = isMobile ? 'card-row-compact' : 'card-row';
+    // Real gap closed here: these two rows were hardcoded to the
+    // compact class in the static HTML and never switched the way the
+    // Live row already did, so even once real big cards existed for
+    // them, they'd have been squeezed into the small-card container's
+    // layout instead of getting the grid the big cards are meant for.
+    if (regRow) regRow.className = isMobile ? 'card-row-compact' : 'card-row';
+    if (finRow) finRow.className = isMobile ? 'card-row-compact' : 'card-row';
+
+    // Real fix for a genuine performance bug: this used to check each
+    // type's live status, then (only if not live) its upcoming status,
+    // then (only if not upcoming) its finished status, one type at a
+    // time, each awaited before the next type even started - up to 3
+    // chained round-trips per type, times 4 types for football alone,
+    // all one after another. Every status check for every type now
+    // fires at once instead, so the whole section's data arrives in
+    // roughly the time of one round-trip, not the sum of a dozen+.
+    const results = await Promise.all(types.map(async (type) => {
+      try {
+        const [liveRes, upRes, finRes] = await Promise.all([
+          fetch(`/api/tournaments?tournament_type=${type}&status=live`),
+          fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`),
+          fetch(`/api/tournaments?tournament_type=${type}&status=finished`)
+        ]);
+        const [liveData, upData, finData] = await Promise.all([liveRes.json(), upRes.json(), finRes.json()]);
+        const liveT = (liveData.tournaments || [])[0];
+        if (liveT) return { zone: 'live', type, t: liveT };
+        const upT = (upData.tournaments || [])[0];
+        if (upT) return { zone: 'registering', type, t: upT };
+        const finT = (finData.tournaments || [])[0];
+        if (finT) return { zone: 'finished', type, t: finT };
+        return null;
+      } catch (e) {
+        console.error(`Failed to load ${type} for ${prefix} section:`, e);
+        return null;
+      }
+    }));
+
+    // Card-building for live/finished results also happens in parallel
+    // across types now, not one blocking the next - each of these still
+    // makes its own extra awaited calls internally (gameweek info,
+    // needs-action check, leaderboard lookups).
+    const liveResults = results.filter(r => r && r.zone === 'live');
+    const finResults = results.filter(r => r && r.zone === 'finished');
+    const regResults = results.filter(r => r && r.zone === 'registering');
+
+    const [liveHtmlParts, finHtmlParts, regHtmlParts] = await Promise.all([
+      Promise.all(liveResults.map(r => isMobile ? buildLiveMiniCard(r.type, r.t) : buildLiveCard(r.type, r.t))),
+      Promise.all(finResults.map(r => isMobile ? buildFinishedMini(r.type, r.t) : buildFinishedCard(r.type, r.t))),
+      Promise.all(regResults.map(r => isMobile ? buildRegisteringMini(r.type, r.t) : buildRegisteringCard(r.type, r.t)))
+    ]);
+
+    const liveHtml = liveHtmlParts.join('');
+    const finHtml = finHtmlParts.filter(Boolean).join('');
+    const regHtml = regHtmlParts.join('');
+
+    liveRow.innerHTML = liveHtml;
+    if (regRow) regRow.innerHTML = regHtml;
+    if (finRow) finRow.innerHTML = finHtml;
+    liveBlock.style.display = liveHtml ? 'block' : 'none';
+    if (regBlock) regBlock.style.display = regHtml ? 'block' : 'none';
+    if (finBlock) finBlock.style.display = finHtml ? 'block' : 'none';
+  }
+
+  // Swipeable carousel under the hero - a quick, separate parallel
+  // check across all 6 sport types (independent of whichever sport
+  // sections happen to be doing their own render), since this needs to
+  // answer "what's open right now" before the user has scrolled to any
+  // individual sport section at all. Each slide auto-populates the same
+  // way the old ticker did - create a new tournament and set it to
+  // upcoming, and it just appears here next load, no wiring needed.
+  async function loadRegisteringTicker(){
+    const wrap = document.getElementById('regTicker');
+    const track = document.getElementById('regTickerTrack');
+    const heading = document.getElementById('regTickerHeading');
+    const dotsWrap = document.getElementById('regCarouselDots');
+    if (!wrap || !track) return;
+    const allTypes = ['predictions', 'lms', 'fantasy', 'stockmarket', 'champions_league', 'darts'];
+    try {
+      const results = await Promise.all(allTypes.map(async (type) => {
+        const res = await fetch(`/api/tournaments?tournament_type=${type}&status=upcoming`);
+        const data = await res.json();
+        const t = (data.tournaments || [])[0];
+        return t ? { type, t } : null;
+      }));
+      const items = results.filter(Boolean);
+      if (items.length === 0) {
+        wrap.style.display = 'none';
+        if (heading) heading.style.display = 'none';
+        return;
+      }
+
+      // Real deadline date, same real-fixture-lookup already used
+      // elsewhere on this page for the mini registering cards, rather
+      // than the fake "+7 days from creation" closes_at value.
+      const slideHtml = await Promise.all(items.map(async ({ type, t }) => {
+        const info = TYPE_INFO[type];
+        const feeLabel = typeof t.entry_fee === 'number' ? (t.entry_fee > 0 ? qlbMoney(t.entry_fee) : 'Free Entry') : null;
+        let dateLabel = '';
+        try {
+          if (['predictions', 'lms', 'fantasy'].includes(type) && t.gameweek) {
+            const fixRes = await fetch(`/api/predictions?gameweek=${t.gameweek}`);
+            const fixData = await fixRes.json();
+            const firstKickoff = (fixData.matches || []).map(m => m.kickoff_time).filter(Boolean).sort()[0];
+            if (firstKickoff) dateLabel = new Date(firstKickoff).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          } else if (t.closes_at) {
+            dateLabel = new Date(t.closes_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          }
+        } catch (e) { /* fall through with no date shown */ }
+
+        return `
+          <a class="reg-carousel-slide" href="${info.href}" style="background-image:url('${info.img}');">
+            <span class="reg-carousel-badge"><i class="fas fa-circle" style="font-size:6px;"></i> Registering</span>
+            <div class="reg-carousel-slide-content">
+              <div class="reg-carousel-sport">${plEsc(info.sport)}</div>
+              <div class="reg-carousel-name">${plEsc(info.title)}</div>
+              <div class="reg-carousel-meta">
+                ${feeLabel ? `<span class="reg-carousel-fee">${feeLabel}</span>` : ''}
+                ${dateLabel ? `<span>· Starts ${dateLabel}</span>` : ''}
+              </div>
+            </div>
+          </a>`;
+      }));
+
+      track.innerHTML = slideHtml.join('');
+      wrap.style.display = 'block';
+      if (heading) heading.style.display = 'block';
+
+      // Dot indicators, kept in sync with whichever slide is actually
+      // centred as the user swipes - scroll position drives the dots,
+      // not the other way around, so it always reflects the truth.
+      if (dotsWrap) {
+        dotsWrap.innerHTML = items.map((_, i) => `<span class="reg-carousel-dot ${i === 0 ? 'active' : ''}"></span>`).join('');
+        const slides = track.querySelectorAll('.reg-carousel-slide');
+        const dots = dotsWrap.querySelectorAll('.reg-carousel-dot');
+        let scrollTimeout;
+        let currentIdx = 0;
+        track.addEventListener('scroll', () => {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(() => {
+            const trackCenter = track.scrollLeft + track.clientWidth / 2;
+            let closestIdx = 0, closestDist = Infinity;
+            slides.forEach((slide, i) => {
+              const dist = Math.abs((slide.offsetLeft + slide.offsetWidth / 2) - trackCenter);
+              if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+            });
+            currentIdx = closestIdx;
+            dots.forEach((d, i) => d.classList.toggle('active', i === closestIdx));
+          }, 100);
+        });
+
+        // Auto-advances every 2 seconds, same as any normal slideshow -
+        // but a real user swipe always takes priority: interacting with
+        // the carousel pauses the auto-advance, and it only picks back
+        // up again after a few seconds of the user actually leaving it
+        // alone, so it never fights a swipe in progress or immediately
+        // yanks the slide back after someone's just moved it themselves.
+        let autoAdvanceTimer = null;
+        function startAutoAdvance(){
+          if (slides.length <= 1) return;
+          stopAutoAdvance();
+          autoAdvanceTimer = setInterval(() => {
+            const nextIdx = (currentIdx + 1) % slides.length;
+            track.scrollTo({ left: slides[nextIdx].offsetLeft - (track.clientWidth - slides[nextIdx].offsetWidth) / 2, behavior: 'smooth' });
+          }, 4000);
+        }
+        function stopAutoAdvance(){
+          if (autoAdvanceTimer) { clearInterval(autoAdvanceTimer); autoAdvanceTimer = null; }
+        }
+        let resumeTimeout;
+        ['touchstart', 'mousedown', 'wheel'].forEach(evt => {
+          track.addEventListener(evt, () => {
+            stopAutoAdvance();
+            clearTimeout(resumeTimeout);
+            resumeTimeout = setTimeout(startAutoAdvance, 4000);
+          }, { passive: true });
+        });
+        startAutoAdvance();
+      }
+    } catch (e) {
+      console.error('Failed to load registering carousel:', e);
+      wrap.style.display = 'none';
+      if (heading) heading.style.display = 'none';
+    }
+  }
+
+  function renderAllSportSections(){
+    loadPLLive();
+    loadRegisteringTicker();
+    renderSportSection('football', SPORT_TYPES.football);
+    renderSportSection('cl', SPORT_TYPES.cl);
+    renderSportSection('darts', SPORT_TYPES.darts);
+  }
+  window.addEventListener('gbf-data-refreshed', renderAllSportSections);
+  // Real bug fixed here: renderSportSection decides mobile vs desktop
+  // card style by checking window.innerWidth at the moment it runs.
+  // Calling it immediately, at script-parse time, can run before the
+  // browser has finished its very first layout pass on some mobile
+  // browsers - the viewport can briefly still reflect an earlier/wrong
+  // value at that exact instant, so the first paint used the wrong
+  // (desktop) card style, and only looked right a moment later once
+  // live-poll.js's own immediate first refresh re-ran this and read a
+  // now-settled, correct width. requestAnimationFrame guarantees at
+  // least one real layout pass has completed first, so the very first
+  // render is already correct - not reliant on a lucky second pass.
+  requestAnimationFrame(renderAllSportSections);
+
+  // Safety net: if the viewport crosses the mobile/desktop breakpoint
+  // (device rotation, browser window resize, or any other edge case),
+  // re-render immediately rather than waiting up to 2 minutes for the
+  // next scheduled data refresh to happen to fix the card style.
+  let lastIsMobile = window.innerWidth <= 640;
+  let resizeDebounce;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(() => {
+      const nowMobile = window.innerWidth <= 640;
+      if (nowMobile !== lastIsMobile) {
+        lastIsMobile = nowMobile;
+        renderAllSportSections();
+      }
+    }, 200);
+  });
+
+  // Hero slideshow — cycles through .hero-slide elements every 3s,
+  // cross-fading via the opacity transition already set on .hero-slide.
+  (function initHeroSlideshow(){
+    const slides = document.querySelectorAll('.hero-slide');
+    if (slides.length < 2) return;
+    let current = 0;
+    setInterval(() => {
+      slides[current].classList.remove('active');
+      current = (current + 1) % slides.length;
+      slides[current].classList.add('active');
+    }, 5000);
+  })();
+  loadRealTournamentCardData();
+</script>
+
+  <script src="forum-pill.js"></script>
+</body>
+</html>

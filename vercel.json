@@ -13,8 +13,8 @@
     { "source": "/predictions-stats.html", "destination": "/predictions", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/test-hub.html" },
-    { "source": "/old-home", "destination": "/index.html" },
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/old-home", "destination": "/old-home.html" },
     { "source": "/register", "destination": "/register.html" },
     { "source": "/login", "destination": "/login.html" },
     { "source": "/predictions", "destination": "/predictions-home.html" },
@@ -43,7 +43,7 @@
     { "source": "/stock-market-history", "destination": "/stockmarket-history.html" },
     { "source": "/stock-market-player", "destination": "/stock-market-player.html" },
     { "source": "/stock-market-test", "destination": "/test-stockmarket.html" },
-    { "source": "/hub-test", "destination": "/test-hub.html" },
+    { "source": "/hub-test", "destination": "/index.html" },
     { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
     { "source": "/wallet", "destination": "/wallet.html" },
     { "source": "/how-it-works", "destination": "/how-it-works.html" }
