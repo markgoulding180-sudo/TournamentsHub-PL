@@ -1167,6 +1167,11 @@ async function postJSON(body){
     return r.ok ? await r.json() : null;
   } catch(e){ return null; }
 }
+// Each result has a key: the game type, or 'darts:<id>' for each darts tournament.
+// Darts cards/leaderboards link to their own tournament (?t=<id>).
+function titleOf(r){ return (r.type === 'darts' && r.t && r.t.name) || TYPES[r.type].title; }
+function hrefOf(r){ return r.type === 'darts' && r.t ? `${TYPES.darts.href}?t=${encodeURIComponent(r.t.id)}` : TYPES[r.type].href; }
+function boardOf(r){ return r.type === 'darts' && r.t ? `${TYPES.darts.board}?t=${encodeURIComponent(r.t.id)}` : TYPES[r.type].board; }
 // A tournament can carry its own picture (darts: each event has its own art); otherwise the game's card image.
 function cardImg(r, info){ return (r && r.t && r.t.hero_image) || info.img; }
 // Picks made / picks needed this week — the same checks the main hub does.
@@ -1219,17 +1224,28 @@ async function loadAll(){
     getJSON('/api/current-gameweek'),
     ...Object.keys(TYPES).map(async type => {
       const [live, up, fin] = await Promise.all(['live','upcoming','finished'].map(s => getJSON(`/api/tournaments?tournament_type=${type}&status=${s}`)));
-      const first = d => (d && (Array.isArray(d) ? d : d.tournaments) || [])[0] || null;
+      const list = d => (d && (Array.isArray(d) ? d : d.tournaments) || []);
+      const first = d => list(d)[0] || null;
+      // Darts: every live or registering darts tournament gets its own card
+      // (e.g. Grand Slam and World Cup at the same time). Each card links to
+      // its own darts page and leaderboard.
+      if (type === 'darts') {
+        const running = [...list(live).map(t => ({ type, key:'darts:' + t.id, zone:'live', t })), ...list(up).map(t => ({ type, key:'darts:' + t.id, zone:'open', t }))];
+        if (running.length) return running;
+        const ft = first(fin);
+        return ft ? { type, key:'darts:' + ft.id, zone:'done', t:ft } : { type, key:'darts', zone:'soon', t:null };
+      }
       const lt = first(live), ut = first(up), ft = first(fin);
-      if (lt) return { type, zone:'live', t:lt };
-      if (ut) return { type, zone:'open', t:ut };
-      if (ft) return { type, zone:'done', t:ft };
-      return { type, zone:'soon', t:null };
+      if (lt) return { type, key:type, zone:'live', t:lt };
+      if (ut) return { type, key:type, zone:'open', t:ut };
+      if (ft) return { type, key:type, zone:'done', t:ft };
+      return { type, key:type, zone:'soon', t:null };
     })
   ]);
   STATE.gw = gw && gw.current_gameweek;
   STATE.deadline = gw && gw.deadline || null;   // this gameweek's pick deadline
-  per.forEach(r => { STATE.results[r.type] = r; });
+  STATE.results = {};
+  per.flat().forEach(r => { STATE.results[r.key] = r; });
   render();
   loadMine();
 }
@@ -1273,20 +1289,20 @@ async function loadMine(){
     const url = `/api/tournaments?tournament_id=${r.t.id}&my_entry=true&tournament_type=${r.type}`;
     for (let attempt = 0; attempt < 3; attempt++) {
       const d = await getJSON(url, true);
-      if (d) { if (d.entry) STATE.entries[r.type] = d.entry; return d.entry ? r : null; }
+      if (d) { if (d.entry) STATE.entries[r.key] = d.entry; return d.entry ? r : null; }
       if (STATE.loginExpired) break;
       await new Promise(res => setTimeout(res, 600 * (attempt + 1)));
     }
-    return STATE.mine.some(m => m.type === r.type) ? r : null;   // unknown: keep what we had
+    return STATE.mine.some(m => m.key === r.key) ? r : null;   // unknown: keep what we had
   }));
   STATE.mine = checks.filter(Boolean);
   render();
-  const picks = await Promise.all(STATE.mine.map(async r => [r.type, await pickStatus(r.type, r.t.id)]));
-  picks.forEach(([type, st]) => { if (st) STATE.picks[type] = st; });
+  const picks = await Promise.all(STATE.mine.map(async r => [r.key, await pickStatus(r.type, r.t.id)]));
+  picks.forEach(([key, st]) => { if (st) STATE.picks[key] = st; });
   if (picks.some(([, st]) => st)) render();
   // TEST: your position / points on each card you're in
-  const stats = await Promise.all(STATE.mine.map(async r => [r.type, await myStats(r)]));
-  stats.forEach(([type, st]) => { STATE.stats[type] = st || { html:'' }; });
+  const stats = await Promise.all(STATE.mine.map(async r => [r.key, await myStats(r)]));
+  stats.forEach(([key, st]) => { STATE.stats[key] = st || { html:'' }; });
   render();
 }
 
@@ -1294,7 +1310,7 @@ async function loadMine(){
 // Same numbers as each game's own leaderboard page, so the cards always agree with them.
 function ordinal(n){ const v = n % 100; return n + (['th','st','nd','rd'][(v - 20) % 10] || ['th','st','nd','rd'][v] || 'th'); }
 async function myStats(r){
-  const t = r.t, type = r.type, entry = STATE.entries[type] || {};
+  const t = r.t, type = r.type, entry = STATE.entries[r.key] || {};
   const uid = entry.user_id;
   if (r.zone === 'open') return { html: `<span>You're entered · starts ${t.gameweek ? 'Gameweek ' + t.gameweek : 'soon'}</span>` };
   const rankHtml = (rank, of, extra) => `<span><b>${ordinal(rank)}</b> of ${of}</span>${extra || ''}`;
@@ -1340,7 +1356,7 @@ async function myStats(r){
   return null;
 }
 function deadlineText(r){
-  const pk = STATE.picks[r.type];
+  const pk = STATE.picks[r.key];
   const iso = (pk && pk.deadline) || ((r.type === 'lms' || r.type === 'predictions' || r.type === 'fantasy') && r.zone === 'live' ? STATE.deadline : null)
     || (r.type === 'lms' && r.zone === 'open' ? STATE.deadline : null);
   const left = untilText(iso);
@@ -1348,7 +1364,7 @@ function deadlineText(r){
 }
 
 // ---------- cards ----------
-function isMine(type){ return STATE.mine.some(r => r.type === type); }
+function isMine(key){ return STATE.mine.some(r => r.key === key); }
 function metaLine(t){
   const bits = [];
   if (t.current_entries != null) bits.push(`<span><b>${t.current_entries}</b> ${t.current_entries === 1 ? 'entry' : 'entries'}</span>`);
@@ -1361,27 +1377,27 @@ function zonePill(zone){
 }
 function cardHtml(r){
   const info = TYPES[r.type], t = r.t;
-  const mine = isMine(r.type);
+  const mine = isMine(r.key);
   let foot = '<span></span>';
   if (r.zone === 'open') foot = `<span class="closes">${untilText(t && t.closes_at) ? 'Closes in ' + untilText(t.closes_at) : 'Entries open'}</span>`;
   else if (r.zone === 'live' && STATE.gw && info.league === 'pl') foot = `<span class="closes" style="color:var(--text-dim)">Gameweek ${STATE.gw}</span>`;
   else if (r.zone === 'done') foot = '<span class="closes" style="color:var(--gold)">Final results</span>';
-  const cta = r.zone === 'soon' ? 'Coming soon' : mine ? ((STATE.picks[r.type] && !STATE.picks[r.type].hasPicked) ? 'Make picks' : 'Play') : r.zone === 'open' ? 'Join in' : r.zone === 'done' ? 'Results' : 'View';
+  const cta = r.zone === 'soon' ? 'Coming soon' : mine ? ((STATE.picks[r.key] && !STATE.picks[r.key].hasPicked) ? 'Make picks' : 'Play') : r.zone === 'open' ? 'Join in' : r.zone === 'done' ? 'Results' : 'View';
   const tag = r.zone === 'soon' ? 'div' : 'a';
-  const pk = mine && STATE.picks[r.type];
+  const pk = mine && STATE.picks[r.key];
   const shortLbl = pk ? pk.label.replace('Gameweek ', 'GW').replace('Matchday ', 'MD') : '';
   const pickLine = pk ? (pk.hasPicked
       ? `<div class="pickline ok"><i>✓</i>Picks made · ${esc(shortLbl)}</div>`
       : `<div class="pickline need"><i>✕</i>Picks needed · ${esc(shortLbl)}</div>`) : '';
   // TEST: two fixed-height lines on every card while logged in, so all cards stay the same height
-  const st = mine && STATE.stats[r.type];
+  const st = mine && STATE.stats[r.key];
   const statsBlock = token() ? `<div class="mystats">
           <div class="ms-row">${mine ? (st ? st.html : '<span class="ms-wait">Loading your stats…</span>') : ''}</div>
           <div class="ms-row">${mine ? pickLine + deadlineText(r) : ''}</div>
         </div>` : '';
   const inPill = mine ? (pk && !pk.hasPicked ? '<span class="pill need">Pick now</span>' : '<span class="pill in">You\'re in</span>') : '<span></span>';
-  return `<${tag} class="t-card${r.zone === 'soon' ? ' soon' : ''}" ${tag === 'a' ? `href="${info.href}"` : ''} data-type="${r.type}" data-sport="${info.sport}" data-league="${info.league}" data-zone="${r.zone}">
-      <div class="media frame" style="--img:url('${cardImg(r, info)}')"><img src="${cardImg(r, info)}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${inPill}</div></div>
+  return `<${tag} class="t-card${r.zone === 'soon' ? ' soon' : ''}" ${tag === 'a' ? `href="${hrefOf(r)}"` : ''} data-type="${r.type}" data-key="${esc(r.key)}" data-sport="${info.sport}" data-league="${info.league}" data-zone="${r.zone}">
+      <div class="media frame" style="--img:url('${cardImg(r, info)}')"><img src="${cardImg(r, info)}" alt="${esc(titleOf(r))}" loading="lazy"><div class="badges">${zonePill(r.zone)}${inPill}</div></div>
       <div class="body">
         <div class="sport">${esc(info.sportLabel)}</div>
         <h3>${esc((t && t.name) || info.title)}</h3>
@@ -1416,7 +1432,7 @@ function pillTime(iso){ const l = untilText(iso); return l ? ' · closes in ' + 
 function miniTime(iso){ const l = untilText(iso); return l ? 'Closes in ' + l : 'Entries open'; }
 function regMiniHtml(r){
   const info = TYPES[r.type], t = r.t || {};
-  return `<a class="reg-mini" href="#all" data-go="${r.type}" style="--img:url('${cardImg(r, info)}')">
+  return `<a class="reg-mini" href="#all" data-go="${esc(r.key)}" style="--img:url('${cardImg(r, info)}')">
       <span class="rm-badge"><i></i>Registering</span>
       <span class="rm-sport">${esc(info.sportLabel)}</span>
       <span class="rm-name">${esc(t.name || info.title)}</span>
@@ -1429,7 +1445,7 @@ function regMiniHtml(r){
   e.preventDefault();
   e.stopPropagation();   // don't let the page's general #link handler jump to the top of All Tournaments
   STATE.filter = { kind:'chip', v:'open' }; applyFilter();
-  const card = document.querySelector(`#allCards .t-card[data-type="${a.dataset.go}"]`) || document.getElementById('all');
+  const card = document.querySelector(`#allCards .t-card[data-key="${a.dataset.go}"]`) || document.getElementById('all');
   card.scrollIntoView({ behavior:'smooth', block:'center' });
   if (card.classList.contains('t-card')) { card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash'); }
 }));
@@ -1440,13 +1456,13 @@ setInterval(() => {
 
 function render(){
   const all = Object.values(STATE.results);
-  const sortFn = (a, b) => (isMine(b.type) - isMine(a.type)) || ((b.t.current_entries || 0) - (a.t.current_entries || 0));
+  const sortFn = (a, b) => (isMine(b.key) - isMine(a.key)) || ((b.t.current_entries || 0) - (a.t.current_entries || 0));
   const live = all.filter(r => r.zone === 'live').sort(sortFn);
   const open = all.filter(r => r.zone === 'open').sort(sortFn);
 
   // "● 3 Live  ● 2 Registering" next to the My Tournaments / Welcome heading
   const countsEl = document.getElementById('mineCounts');
-  const names = list => `<span class="mc-names">${list.map(r => esc(TYPES[r.type].title)).join(' · ')}</span>`;
+  const names = list => `<span class="mc-names">${list.map(r => esc(titleOf(r))).join(' · ')}</span>`;
   countsEl.innerHTML = (live.length ? `<button type="button" class="mc-live" data-f="live"><i></i><b>${live.length}</b> Live${names(live)}</button>` : '')
     + (open.length ? `<button type="button" class="mc-open" data-f="open"><i></i><b>${open.length}</b> <span class="l-full">Registering</span><span class="l-short">Reg</span>${names(open)}</button>` : '');
   countsEl.hidden = !(live.length || open.length);
@@ -1464,7 +1480,7 @@ function render(){
     const el = document.getElementById(`bn-${z}`);
     const word = z === 'live' ? 'live' : 'registering';
     el.innerHTML = list.length
-      ? `<span class="long">${list.map(r => esc(TYPES[r.type].title)).join(' · ')}</span><span class="short">${list.length} ${word}</span>`
+      ? `<span class="long">${list.map(r => esc(titleOf(r))).join(' · ')}</span><span class="short">${list.length} ${word}</span>`
       : `<span class="long">Nothing ${word} right now</span><span class="short">None right now</span>`;
     el.closest('.banner').classList.toggle('is-empty', !list.length);
   });
@@ -1472,7 +1488,7 @@ function render(){
   if (!token()) mineEl.innerHTML = '<span class="long">Log in to see your tournaments</span><span class="short">Log in</span>';
   else if (STATE.loginExpired && !STATE.mine.length) mineEl.innerHTML = '<span class="long">Login expired — log in again</span><span class="short">Log in again</span>';
   else mineEl.innerHTML = STATE.mine.length
-    ? `<span class="long">${STATE.mine.map(r => esc(TYPES[r.type].title)).join(' · ')}</span><span class="short">${STATE.mine.length} entered</span>`
+    ? `<span class="long">${STATE.mine.map(r => esc(titleOf(r))).join(' · ')}</span><span class="short">${STATE.mine.length} entered</span>`
     : '<span class="long">You haven\'t entered anything running yet</span><span class="short">None yet</span>';
   mineEl.closest('.banner').classList.toggle('is-empty', !!token() && !STATE.mine.length);
 
@@ -1481,7 +1497,7 @@ function render(){
   // "Registering now" pills: one per tournament taking entries that this user
   // isn't in yet. Tapping one scrolls down to that tournament's card.
   // (Logged out: Create account / Log in sit above them.)
-  const openNotMine = open.filter(r => !isMine(r.type));
+  const openNotMine = open.filter(r => !isMine(r.key));
   const topEl = document.getElementById('mineTop');
   const loggedOut = !token();
   // Logged in but not in anything: My Tournaments already shows the full
@@ -1490,7 +1506,7 @@ function render(){
   // logged-in users who aren't in anything yet; with 'pills' those users get
   // the full-size cards in My Tournaments instead.)
   const fullCardsShown = REG_STYLE !== 'cards' && !loggedOut && !STATE.mine.length;
-  const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="mine-subhead reg"><span class="dot"></span>New Tournaments · Registering Now</div><div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${r.type}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || TYPES[r.type].title)}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
+  const pills = !openNotMine.length || (REG_STYLE === 'cards' && fullCardsShown) ? '' : REG_STYLE === 'cards' ? `<div class="mine-subhead reg"><span class="dot"></span>New Tournaments · Registering Now</div><div class="reg-mini-grid">${openNotMine.map(regMiniHtml).join('')}</div>` : openNotMine.map(r => `<a class="mine-open" href="#all" data-go="${esc(r.key)}"><span class="mo-dot"></span><span class="mo-t"><small>Registering now<span class="mo-time" data-closes="${esc((r.t && r.t.closes_at) || '')}">${pillTime(r.t && r.t.closes_at)}</span></small>${esc((r.t && r.t.name) || titleOf(r))}</span><span class="mo-go">Join <svg class="icon" style="width:12px;height:12px"><use href="#i-arrow"/></svg></span></a>`).join('');
   const btns = loggedOut ? '<div class="wc-btns"><a class="btn btn-primary" href="/register">Create account</a><a class="btn btn-ghost" href="/login?redirect=%2F">Log in</a></div>' : '';
   // Logged in and in some tournaments: "Your Tournaments" first, then the
   // registering ones underneath. Otherwise the registering ones sit at the top.
@@ -1534,7 +1550,7 @@ function render(){
   }
   dots('mineCards', 'mineDots');
   // "You need to add selections…" — only when an entered tournament still needs picks
-  const needPicks = STATE.mine.some(r => STATE.picks[r.type] && !STATE.picks[r.type].hasPicked);
+  const needPicks = STATE.mine.some(r => STATE.picks[r.key] && !STATE.picks[r.key].hasPicked);
   document.getElementById('mineNeed').hidden = !(token() && needPicks);
 
   // All tournaments
@@ -1544,12 +1560,13 @@ function render(){
   applyFilter();
 
   // Leaderboards (menu + phone sheet)
-  const boards = Object.entries(TYPES).filter(([type]) => STATE.results[type] && STATE.results[type].zone !== 'soon');
-  document.getElementById('drawerBoards').innerHTML = boards.map(([, i]) => `<a href="${i.board}"><svg class="icon"><use href="#i-chart"/></svg>${esc(i.title)}</a>`).join('');
-  document.getElementById('sheetBoards').innerHTML = boards.map(([type, i]) => {
-    const r = STATE.results[type];
+  // one leaderboard per tournament (each darts tournament has its own)
+  const typeOrder = Object.keys(TYPES);
+  const boards = Object.values(STATE.results).filter(r => r.zone !== 'soon').sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
+  document.getElementById('drawerBoards').innerHTML = boards.map(r => `<a href="${boardOf(r)}"><svg class="icon"><use href="#i-chart"/></svg>${esc(titleOf(r))}</a>`).join('');
+  document.getElementById('sheetBoards').innerHTML = boards.map(r => {
     const st = r.zone === 'live' ? 'Live' : r.zone === 'open' ? 'Registering' : 'Final results';
-    return `<a href="${i.board}"><img src="${i.img}" alt=""><div><b>${esc(i.title)}</b><span>${st}${r.t && r.t.current_entries ? ' · ' + r.t.current_entries + ' players' : ''}</span></div></a>`;
+    return `<a href="${boardOf(r)}"><img src="${cardImg(r, TYPES[r.type])}" alt=""><div><b>${esc(titleOf(r))}</b><span>${st}${r.t && r.t.current_entries ? ' · ' + r.t.current_entries + ' players' : ''}</span></div></a>`;
   }).join('') || '<div class="now-empty">No leaderboards yet.</div>';
 }
 

@@ -185,8 +185,11 @@
         nav = document.createElement('nav');
         nav.className = 'gbs-tabs';
         nav.style.setProperty('--gbs-n', tabs.length);
+        // darts: several tournaments can run at once, so the tabs stay on this one (?t=<id>)
+        var tParam = CFG.nav === 'darts' ? new URLSearchParams(location.search).get('t') : null;
         nav.innerHTML = tabs.map(function (t) {
-          return '<a class="gbs-tab' + (t[1] === CFG.on ? ' on' : '') + '" href="' + t[1] + '">' + ic(t[2]) + '<span>' + esc(t[0]) + '</span></a>';
+          var href = tParam ? t[1] + '?t=' + encodeURIComponent(tParam) : t[1];
+          return '<a class="gbs-tab' + (t[1] === CFG.on ? ' on' : '') + '" href="' + href + '">' + ic(t[2]) + '<span>' + esc(t[0]) + '</span></a>';
         }).join('');
       }
       // the tab bar sits straight in <body> (not inside the hero block) so it can stick under the top bar while scrolling

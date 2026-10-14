@@ -734,7 +734,7 @@
             ${drawPendingWarning}
             ${t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
-              : `<a href="/login?redirect=%2Fdarts" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`}
+              : `<a href="/login?redirect=${encodeURIComponent(location.pathname + location.search)}" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`}
           </div>`;
         return;
       }
@@ -1240,7 +1240,7 @@
               <i class="fas fa-clock-rotate-left" style="font-size:32px; color:var(--gold); margin-bottom:14px;"></i>
               <h2 style="font-family:var(--font-head); font-size:19px; margin-bottom:8px;">Your session has expired</h2>
               <p style="max-width:400px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">Log back in to keep picking your bracket — nothing you've already submitted is affected.</p>
-              <a href="/login?redirect=%2Fdarts" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
+              <a href="/login?redirect=${encodeURIComponent(location.pathname + location.search)}" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In Again</a>
             </div>`;
           return;
         }
