@@ -17,3 +17,7 @@ create table if not exists darts.group_predictions (
 );
 alter table darts.group_predictions enable row level security;
 grant select, insert, update, delete on darts.group_predictions to service_role;
+
+-- Grand Slam: players confirmed so far, shown on the tournament page until the
+-- group draw is entered ([{ "name": "...", "via": "..." }]). Applied 14 Oct 2026.
+alter table darts.tournaments add column if not exists qualified_players jsonb;

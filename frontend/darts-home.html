@@ -243,6 +243,15 @@
     .gs-rules b{ color:var(--text); }
     .gs-hint, .gs-wait{ font-size:12.5px; color:var(--text-dim); background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:10px 14px; margin:0 0 12px; line-height:1.5; }
     .gs-hint i, .gs-wait i{ color:var(--accent-2); margin-right:4px; }
+    /* Grand Slam: qualified players before the draw */
+    .gs-qual{ text-align:left; margin:14px 0 0; padding:14px 16px; border:1px solid var(--border); border-radius:12px; background:rgba(6,12,26,0.6); }
+    .gs-qual-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-family:var(--font-head); font-weight:700; font-size:16px; }
+    .gs-qual-head b{ font-size:13px; padding:3px 10px; border-radius:999px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.5); color:#4ade80; white-space:nowrap; }
+    .gs-qual-sub{ font-size:12.5px; color:var(--text-dim); margin:4px 0 12px; }
+    .gs-qual-list{ display:grid; grid-template-columns:repeat(auto-fill, minmax(145px, 1fr)); gap:6px; }
+    .gs-qual-p{ padding:7px 10px; border-radius:8px; background:var(--bg-2); border:1px solid var(--border); min-width:0; }
+    .gs-qual-p b{ display:block; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .gs-qual-p small{ display:block; font-size:11px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .gs-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
     .gs-group{ background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:10px; }
     .gs-group-head{ display:flex; align-items:center; justify-content:space-between; font-family:var(--font-head); font-size:15px; margin:0 2px 8px; }
@@ -735,7 +744,7 @@
             ${t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
               : `<a href="/login?redirect=${encodeURIComponent(location.pathname + location.search)}" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`}
-          </div>`;
+          </div>${qualifiedHtml(t)}`;
         return;
       }
 
@@ -750,7 +759,7 @@
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
               : `<button class="btn-primary" id="enterBtn" onclick="enterTournament()"><i class="fas fa-right-to-bracket"></i> Enter Now — £${((t.entry_fee||0)/100).toFixed(2)}</button>`}
             <div class="submit-msg" id="enterMsg"></div>
-          </div>`;
+          </div>${qualifiedHtml(t)}`;
         return;
       }
 
@@ -851,6 +860,20 @@
       return `<div class="gs-group"><div class="gs-group-head"><b>Group ${g}</b>${pts}</div>${rows}</div>`;
     }
 
+    // Grand Slam, before the draw: everyone confirmed so far (admin keeps
+    // tournaments.qualified_players up to date). Disappears once all 48
+    // real names are in the groups.
+    function qualifiedHtml(t) {
+      const q = (t && t.bracket_type === 'grand_slam' && t.draw_finalized === false && Array.isArray(t.qualified_players)) ? t.qualified_players : [];
+      if (!q.length) return '';
+      const total = t.total_players || 48;
+      return `<div class="gs-qual">
+          <div class="gs-qual-head"><span>Qualified so far</span><b>${q.length} / ${total}</b></div>
+          <div class="gs-qual-sub">The rest are decided by 6 November, then the 16 groups are drawn.</div>
+          <div class="gs-qual-list">${q.map(p => `<div class="gs-qual-p"><b>${escapeHtml(p.name || '')}</b>${p.via ? `<small>${escapeHtml(p.via)}</small>` : ''}</div>`).join('')}</div>
+        </div>`;
+    }
+
     function renderGrandSlam(t, locked) {
       const open = groupsOpen(t);
       const letters = groupLetters();
@@ -891,7 +914,7 @@
 
       if (gIsOpen) {
         if (!drawn) {
-          html += rules + `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet (the last places are decided on 6 November). Come back once they're announced to make your group picks.</div>`;
+          html += rules + `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet (the last places are decided on 6 November). Come back once they're announced to make your group picks.</div>${qualifiedHtml(t)}`;
         } else if (open) {
           const done = groupPicksComplete();
           html += rules + `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Tap a player for <b>1st</b>, then another for <b>2nd</b>. Tap a picked player again to clear them.</div>`;
