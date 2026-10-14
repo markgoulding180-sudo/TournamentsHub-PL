@@ -260,6 +260,8 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); gap:20px; align-items:stretch; }
 .t-card{ position:relative; display:flex; flex-direction:column; border-radius:var(--radius); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-2); transition:transform .18s, border-color .2s, box-shadow .2s; }
 .t-card:hover{ transform:translateY(-3px); border-color:var(--accent); box-shadow:0 14px 34px rgba(0,0,0,0.45), 0 0 0 1px rgba(59,130,246,0.25); }
+/* white border on every tournament card (hover still turns it blue) */
+.t-card{ border:1px solid #fff; }
 .t-card .media{ position:relative; background:#081022; }
 
 .t-card .badges{ position:absolute; top:12px; left:12px; right:12px; display:flex; justify-content:space-between; gap:8px; z-index:2; }
