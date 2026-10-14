@@ -3489,15 +3489,53 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
-        const { name, description, entry_fee, closes_at, payment_due_date: dartsDue } = req.body;
+        const { name, description, entry_fee, closes_at, payment_due_date: dartsDue, bracket_type: dartsFormat, round_formats: dartsRoundFormats } = req.body;
         if (!name?.trim() || !closes_at) return res.status(400).json({ error: 'name and closes_at are required' });
+        const isGrandSlam = dartsFormat === 'grand_slam';
 
         try {
+          // Grand Slam: legs, not sets. "First to" legs for the rounds that
+          // ask for a score (Quarter-Finals, Semi-Finals, Final) - defaults
+          // to 16 (best of 31, the 2025 format) and can be changed later.
+          let roundFormats = null;
+          if (isGrandSlam) {
+            roundFormats = {};
+            [3, 4, 5].forEach(r => {
+              const n = parseInt(dartsRoundFormats && (dartsRoundFormats[r] ?? dartsRoundFormats[String(r)]), 10);
+              roundFormats[r] = n >= 1 && n <= 30 ? n : 16;
+            });
+          }
           const { data: tournament, error: tourErr } = await supabaseAdmin
             .schema('darts').from('tournaments')
-            .insert({ name: name.trim(), description: description?.trim() || null, entry_fee: Math.round((entry_fee || 0) * 100), closes_at, payment_due_date: dartsDue || null, status: 'upcoming' })
+            .insert({ name: name.trim(), description: description?.trim() || null, entry_fee: Math.round((entry_fee || 0) * 100), closes_at, payment_due_date: dartsDue || null, status: 'upcoming',
+              ...(isGrandSlam ? { bracket_type: 'grand_slam', total_players: 48, round_formats: roundFormats, hero_image: 'assets/darts-background-hero.jpg' } : {}) })
             .select().single();
           if (tourErr) return res.status(500).json({ error: tourErr.message });
+
+          // Grand Slam of Darts: 48 players in 16 groups of three (A-P),
+          // top two in each group go through to a Last 32 knockout. The
+          // Last 32 pairings depend on how the groups finish, so every
+          // knockout match starts empty and the admin fills in the Last 32
+          // pairs once the groups are done.
+          if (isGrandSlam) {
+            const GROUPS = 'ABCDEFGHIJKLMNOP'.split('');
+            const gsPlayers = [];
+            GROUPS.forEach((g, gi) => {
+              for (let k = 1; k <= 3; k++) {
+                gsPlayers.push({ tournament_id: tournament.id, name: `Group ${g} - Player ${k}`, group_letter: g,
+                  is_seeded: k === 1, seed: k === 1 ? gi + 1 : null, is_placeholder: true });
+              }
+            });
+            const { error: gpErr } = await supabaseAdmin.schema('darts').from('players').insert(gsPlayers);
+            if (gpErr) return res.status(500).json({ error: gpErr.message });
+            const gsMatches = [];
+            [[1, 16], [2, 8], [3, 4], [4, 2], [5, 1]].forEach(([round, count]) => {
+              for (let i = 1; i <= count; i++) gsMatches.push({ tournament_id: tournament.id, round, match_number: i });
+            });
+            const { error: gmErr } = await supabaseAdmin.schema('darts').from('matches').insert(gsMatches);
+            if (gmErr) return res.status(500).json({ error: gmErr.message });
+            return res.status(200).json({ success: true, tournament_id: tournament.id });
+          }
 
           // Same 32-placeholder-player, 31-match bracket structure built
           // manually for the World Grand Prix — automated here so every
@@ -3555,9 +3593,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { data: entry } = await supabaseAdmin
           .schema('darts').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
         let myPredictions = [];
+        let myGroupPredictions = [];
         if (entry) {
           const { data: preds } = await supabaseAdmin.schema('darts').from('predictions').select('*').eq('entry_id', entry.id);
           myPredictions = preds || [];
+          if (tournament.bracket_type === 'grand_slam') {
+            const { data: gpreds } = await supabaseAdmin.schema('darts').from('group_predictions').select('*').eq('entry_id', entry.id);
+            myGroupPredictions = gpreds || [];
+          }
         }
 
         // Same draw_finalized signal as the public endpoints, computed
@@ -3568,7 +3611,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         // screen kept showing even after the field was added elsewhere.
         const drawFinalized = (players || []).every(p => !p.is_placeholder);
 
-        return res.status(200).json({ tournament: { ...tournament, draw_finalized: drawFinalized }, players, matches, my_entry: entry || null, my_predictions: myPredictions });
+        return res.status(200).json({ tournament: { ...tournament, draw_finalized: drawFinalized }, players, matches, my_entry: entry || null, my_predictions: myPredictions, my_group_predictions: myGroupPredictions });
       }
 
       if (action === 'darts_submit_round_picks') {
@@ -3577,22 +3620,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'tournament_id, round, and at least one prediction are required' });
         }
 
-        // Same real World Grand Prix set format used to validate the
-        // admin's actual result - Quarter-Finals, Semi-Finals and the
-        // Final each require a genuine score guess alongside the winner
-        // pick, not just for these three rounds; Last 32/Last 16 don't
-        // use this at all.
-        const VALID_SCORES_BY_ROUND = {
-          3: ['3-0', '3-1', '3-2'],
-          4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
-          5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
-        };
-        const scoreRequiredThisRound = !!VALID_SCORES_BY_ROUND[round];
-
         const { data: tournament, error: tourErr } = await supabaseAdmin
           .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
         if (tourErr) return res.status(500).json({ error: tourErr.message });
         if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+
+        // Quarter-Finals, Semi-Finals and the Final each require a genuine
+        // score guess alongside the winner pick (World Grand Prix sets, or
+        // the tournament's own legs format - see dartsValidScores).
+        const validScoresThisRound = dartsValidScores(tournament, round);
+        const scoreRequiredThisRound = !!validScoresThisRound;
 
         // Real matches for this specific round, used to validate every
         // pick against who's actually playing — simpler than the old
@@ -3616,9 +3653,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           if (p.predicted_winner_id !== match.player1_id && p.predicted_winner_id !== match.player2_id) {
             return res.status(400).json({ error: `Round ${round} match ${p.match_number}: pick must be one of the two real players in that match.` });
           }
-          if (scoreRequiredThisRound && !VALID_SCORES_BY_ROUND[round].includes(p.predicted_score)) {
-            return res.status(400).json({ error: `Round ${round} match ${p.match_number}: a score prediction is required too — must be one of: ${VALID_SCORES_BY_ROUND[round].join(', ')}.` });
+          if (scoreRequiredThisRound && !validScoresThisRound.includes(p.predicted_score)) {
+            return res.status(400).json({ error: `Round ${round} match ${p.match_number}: a score prediction is required too — must be one of: ${validScoresThisRound.join(', ')}.` });
           }
+        }
+
+        // Grand Slam: the Last 32 pairs are filled in by the admin once the
+        // groups finish. Round 1 can't be submitted until all 16 pairs are
+        // in, otherwise someone could lock in a part-filled round.
+        if (tournament.bracket_type === 'grand_slam' && Number(round) === 1 && roundMatches.some(m => !m.player1_id || !m.player2_id)) {
+          return res.status(400).json({ error: "The Last 32 draw isn't complete yet — come back once all 16 matches are set." });
         }
 
         // Real bug fixed here: a partial submission (e.g. 15 of 16
@@ -3645,6 +3689,11 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           let { data: entry } = await supabaseAdmin
             .schema('darts').from('tournament_entries').select('*').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
 
+          // Grand Slam: entries close when the group stage starts - no
+          // joining part-way through via the knockout rounds.
+          if (!entry && tournament.bracket_type === 'grand_slam' && tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime()) {
+            return res.status(403).json({ error: 'Entries closed — this tournament has already started.' });
+          }
           if (!entry) {
             const { data: newEntry, error: entryErr } = await supabaseAdmin
               .schema('darts').from('tournament_entries')
@@ -3748,20 +3797,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           return res.status(400).json({ error: 'tournament_id, round, match_number, and winner_id are all required' });
         }
 
-        // Real World Grand Prix set format, per round - the only valid
-        // winning scores a real result can ever have. Quarter-Finals are
-        // best of 5 sets (first to 3), Semi-Finals best of 9 (first to
-        // 5), Final best of 11 (first to 6); Last 32/Last 16 don't use
-        // this at all, so no score is collected or required for those.
-        const VALID_SCORES_BY_ROUND = {
-          3: ['3-0', '3-1', '3-2'],
-          4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
-          5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
-        };
-        const scoreRequiredThisRound = !!VALID_SCORES_BY_ROUND[round];
+        // The only valid winning scores a real result can have this round
+        // (World Grand Prix sets, or the tournament's own legs format).
+        const { data: resultTournament } = await supabaseAdmin
+          .schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (!resultTournament) return res.status(404).json({ error: 'Tournament not found' });
+        const validScoresThisRound = dartsValidScores(resultTournament, round);
+        const scoreRequiredThisRound = !!validScoresThisRound;
         if (scoreRequiredThisRound) {
-          if (!winning_score || !VALID_SCORES_BY_ROUND[round].includes(winning_score)) {
-            return res.status(400).json({ error: `A real winning score is required for this round — must be one of: ${VALID_SCORES_BY_ROUND[round].join(', ')}.` });
+          if (!winning_score || !validScoresThisRound.includes(winning_score)) {
+            return res.status(400).json({ error: `A real winning score is required for this round — must be one of: ${validScoresThisRound.join(', ')}.` });
           }
         }
 
@@ -3860,6 +3905,177 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           console.error('darts_admin_set_result error:', err);
           return res.status(500).json({ error: err.message });
         }
+      }
+
+      // ---- Grand Slam of Darts: group stage ----
+      // Players pick who finishes 1st and 2nd in every group before the
+      // group stage starts (closes_at). Picks can be changed any time up
+      // to then. Needs an entry first (the normal Enter / join flow).
+      if (action === 'darts_submit_group_picks') {
+        const { tournament_id, picks } = req.body;
+        if (!tournament_id || !Array.isArray(picks) || picks.length === 0) {
+          return res.status(400).json({ error: 'tournament_id and your group picks are required' });
+        }
+        const { data: tournament } = await supabaseAdmin.schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+        if (tournament.bracket_type !== 'grand_slam') return res.status(400).json({ error: 'This tournament has no group stage.' });
+        if (tournament.status === 'finished' || (tournament.closes_at && Date.now() >= new Date(tournament.closes_at).getTime())) {
+          return res.status(403).json({ error: 'Group picks are closed — the group stage has started.' });
+        }
+        const { data: entry } = await supabaseAdmin.schema('darts').from('tournament_entries').select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
+        if (!entry) return res.status(400).json({ error: 'Enter the tournament first, then make your group picks.' });
+
+        const { data: gsPlayers } = await supabaseAdmin.schema('darts').from('players').select('id, group_letter, is_placeholder').eq('tournament_id', tournament_id);
+        if ((gsPlayers || []).some(p => p.is_placeholder)) {
+          return res.status(400).json({ error: "The group draw hasn't been made yet — come back once the 16 groups are announced." });
+        }
+        const groupOf = {};
+        (gsPlayers || []).forEach(p => { groupOf[p.id] = p.group_letter; });
+        const groups = [...new Set((gsPlayers || []).map(p => p.group_letter).filter(Boolean))].sort();
+        const byGroup = {};
+        for (const pk of picks) {
+          if (!pk || !groups.includes(pk.group_letter)) return res.status(400).json({ error: `Unknown group ${pk && pk.group_letter}.` });
+          if (!pk.first_id || !pk.second_id || pk.first_id === pk.second_id) {
+            return res.status(400).json({ error: `Group ${pk.group_letter}: pick two different players, one 1st and one 2nd.` });
+          }
+          if (groupOf[pk.first_id] !== pk.group_letter || groupOf[pk.second_id] !== pk.group_letter) {
+            return res.status(400).json({ error: `Group ${pk.group_letter}: both picks must be players in that group.` });
+          }
+          byGroup[pk.group_letter] = pk;
+        }
+        const missing = groups.filter(g => !byGroup[g]);
+        if (missing.length) {
+          return res.status(400).json({ error: `You still need to pick Group${missing.length > 1 ? 's' : ''} ${missing.join(', ')} — nothing has been saved yet.`, missing_groups: missing });
+        }
+        const nowIso = new Date().toISOString();
+        const rows = groups.map(g => ({ entry_id: entry.id, group_letter: g, first_id: byGroup[g].first_id, second_id: byGroup[g].second_id, points_earned: null, updated_at: nowIso }));
+        const { error: upErr } = await supabaseAdmin.schema('darts').from('group_predictions').upsert(rows, { onConflict: 'entry_id,group_letter' });
+        if (upErr) return res.status(500).json({ error: upErr.message });
+        return res.status(200).json({ success: true, saved: rows.length });
+      }
+
+      // Admin: record how a group finished (1st, 2nd; the other player is
+      // 3rd) and score everyone's picks for that group. Safe to run again
+      // to correct a mistake - points are recalculated, never doubled.
+      if (action === 'darts_admin_set_group_result') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+        const { tournament_id, group_letter, first_id, second_id } = req.body;
+        if (!tournament_id || !group_letter || !first_id || !second_id || first_id === second_id) {
+          return res.status(400).json({ error: 'tournament_id, group_letter and two different players (1st and 2nd) are required' });
+        }
+        try {
+          const { data: groupPlayers } = await supabaseAdmin.schema('darts').from('players').select('id').eq('tournament_id', tournament_id).eq('group_letter', group_letter);
+          const ids = (groupPlayers || []).map(p => p.id);
+          if (ids.length === 0) return res.status(404).json({ error: `Group ${group_letter} not found` });
+          if (!ids.includes(first_id) || !ids.includes(second_id)) return res.status(400).json({ error: `Both players must be in Group ${group_letter}.` });
+          // Once a player is in the Last 32 draw, their group finish can't change.
+          const { data: r1 } = await supabaseAdmin.schema('darts').from('matches').select('player1_id, player2_id').eq('tournament_id', tournament_id).eq('round', 1);
+          const inDraw = new Set((r1 || []).flatMap(m => [m.player1_id, m.player2_id]).filter(Boolean));
+          const positionById = {};
+          ids.forEach(id => { positionById[id] = id === first_id ? 1 : id === second_id ? 2 : 3; });
+          const { data: current } = await supabaseAdmin.schema('darts').from('players').select('id, group_position').in('id', ids);
+          const changesDrawn = (current || []).some(p => p.group_position != null && p.group_position !== positionById[p.id] && inDraw.has(p.id));
+          if (changesDrawn) return res.status(400).json({ error: `Group ${group_letter} players are already in the Last 32 draw — remove them from the draw first, then change the group result.` });
+          for (const id of ids) {
+            const { error: pe } = await supabaseAdmin.schema('darts').from('players').update({ group_position: positionById[id] }).eq('id', id);
+            if (pe) return res.status(500).json({ error: pe.message });
+          }
+          const { data: entries } = await supabaseAdmin.schema('darts').from('tournament_entries').select('id, entry_points').eq('tournament_id', tournament_id);
+          const entryIds = (entries || []).map(e => e.id);
+          const pointsByEntry = {};
+          (entries || []).forEach(e => { pointsByEntry[e.id] = e.entry_points || 0; });
+          const { data: preds } = entryIds.length
+            ? await supabaseAdmin.schema('darts').from('group_predictions').select('*').in('entry_id', entryIds).eq('group_letter', group_letter)
+            : { data: [] };
+          let scored = 0;
+          for (const pred of (preds || [])) {
+            const pts = dartsGroupPickPoints(pred, positionById);
+            const delta = pts - (pred.points_earned || 0);
+            await supabaseAdmin.schema('darts').from('group_predictions').update({ points_earned: pts }).eq('id', pred.id);
+            if (delta !== 0) {
+              pointsByEntry[pred.entry_id] = (pointsByEntry[pred.entry_id] || 0) + delta;
+              await supabaseAdmin.schema('darts').from('tournament_entries').update({ entry_points: pointsByEntry[pred.entry_id] }).eq('id', pred.entry_id);
+            }
+            scored++;
+          }
+          return res.status(200).json({ success: true, scored });
+        } catch (err) {
+          console.error('darts_admin_set_group_result error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Admin: set one Last 32 pair (Grand Slam) once the groups are done.
+      // Only players who finished 1st or 2nd in their group can go in, each
+      // only once, and a pair can't change after anyone has picked it.
+      // Send both player ids as null to clear a pair.
+      if (action === 'darts_admin_set_knockout_pair') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+        const { tournament_id, match_number, player1_id, player2_id } = req.body;
+        if (!tournament_id || !match_number) return res.status(400).json({ error: 'tournament_id and match_number are required' });
+        try {
+          const { data: tournament } = await supabaseAdmin.schema('darts').from('tournaments').select('bracket_type').eq('id', tournament_id).maybeSingle();
+          if (!tournament || tournament.bracket_type !== 'grand_slam') return res.status(400).json({ error: 'Only Grand Slam tournaments have a Last 32 draw to set here.' });
+          const { data: match } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).eq('round', 1).eq('match_number', match_number).maybeSingle();
+          if (!match) return res.status(404).json({ error: `Last 32 match ${match_number} not found` });
+          if (match.status === 'finished') return res.status(400).json({ error: 'That match has already been played.' });
+          const { data: entries } = await supabaseAdmin.schema('darts').from('tournament_entries').select('id').eq('tournament_id', tournament_id);
+          const entryIds = (entries || []).map(e => e.id);
+          if (entryIds.length) {
+            const { data: picked } = await supabaseAdmin.schema('darts').from('predictions').select('id').in('entry_id', entryIds).eq('round', 1).eq('match_number', match_number).limit(1);
+            if (picked && picked.length) return res.status(400).json({ error: 'Players have already picked this match — it can no longer be changed.' });
+          }
+          const clearing = !player1_id && !player2_id;
+          if (!clearing) {
+            if (!player1_id || !player2_id || player1_id === player2_id) return res.status(400).json({ error: 'Pick two different players.' });
+            const { data: two } = await supabaseAdmin.schema('darts').from('players').select('id, name, group_position').eq('tournament_id', tournament_id).in('id', [player1_id, player2_id]);
+            if (!two || two.length !== 2) return res.status(400).json({ error: "Both players must be in this tournament." });
+            const notThrough = two.filter(p => p.group_position !== 1 && p.group_position !== 2);
+            if (notThrough.length) return res.status(400).json({ error: `${notThrough.map(p => p.name).join(' and ')} didn't finish in the top two of their group.` });
+            const { data: r1 } = await supabaseAdmin.schema('darts').from('matches').select('match_number, player1_id, player2_id').eq('tournament_id', tournament_id).eq('round', 1);
+            const used = (r1 || []).filter(m => m.match_number !== Number(match_number)).flatMap(m => [m.player1_id, m.player2_id]);
+            const dupe = two.filter(p => used.includes(p.id));
+            if (dupe.length) return res.status(400).json({ error: `${dupe.map(p => p.name).join(' and ')} ${dupe.length > 1 ? 'are' : 'is'} already in another Last 32 match.` });
+          }
+          const { error: upErr } = await supabaseAdmin.schema('darts').from('matches')
+            .update({ player1_id: clearing ? null : player1_id, player2_id: clearing ? null : player2_id })
+            .eq('id', match.id);
+          if (upErr) return res.status(500).json({ error: upErr.message });
+          return res.status(200).json({ success: true });
+        } catch (err) {
+          console.error('darts_admin_set_knockout_pair error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+      }
+
+      // Admin: change the "first to" legs for the score rounds (the PDC
+      // hasn't confirmed the 2026 match lengths yet). Blocked for a round
+      // once anyone has already guessed a score in it.
+      if (action === 'darts_admin_set_round_formats') {
+        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
+        const { tournament_id, round_formats } = req.body;
+        const { data: tournament } = await supabaseAdmin.schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (!tournament || tournament.bracket_type !== 'grand_slam') return res.status(400).json({ error: 'Only Grand Slam tournaments use legs formats here.' });
+        const next = { ...(tournament.round_formats || {}) };
+        const { data: entries } = await supabaseAdmin.schema('darts').from('tournament_entries').select('id').eq('tournament_id', tournament_id);
+        const entryIds = (entries || []).map(e => e.id);
+        for (const r of [3, 4, 5]) {
+          const n = parseInt(round_formats && (round_formats[r] ?? round_formats[String(r)]), 10);
+          if (!n) continue;
+          if (n < 1 || n > 30) return res.status(400).json({ error: 'First to must be between 1 and 30 legs.' });
+          if (Number(next[r]) === n) continue;
+          if (entryIds.length) {
+            const { data: guessed } = await supabaseAdmin.schema('darts').from('predictions').select('id').in('entry_id', entryIds).eq('round', r).limit(1);
+            if (guessed && guessed.length) return res.status(400).json({ error: `Players have already guessed scores for round ${r} — its format can't change now.` });
+          }
+          next[r] = n;
+        }
+        const { error: fErr } = await supabaseAdmin.schema('darts').from('tournaments').update({ round_formats: next }).eq('id', tournament_id);
+        if (fErr) return res.status(500).json({ error: fErr.message });
+        return res.status(200).json({ success: true, round_formats: next });
       }
 
       if (action === 'darts_get_leaderboard') {
@@ -8956,6 +9172,41 @@ async function applyRelegationStage(supabaseAdmin, tournamentId, stage, currentG
 // fixes it. The UPDATE's WHERE clause is the atomic claim, same pattern
 // as initializeStockMarket, so two near-simultaneous callers can't both
 // "win".
+// ---- Darts helpers ----
+// Valid winning scores for a darts round. A tournament can set its own
+// "first to N legs" per round in round_formats (the Grand Slam, which is
+// played in legs: e.g. {"3":16} = Quarter-Finals first to 16, so 16-0 ...
+// 16-15). With no round_formats, the World Grand Prix set format applies
+// (Quarter-Finals 3-x, Semi-Finals 5-x, Final 6-x). null = no score asked.
+const DARTS_WGP_SCORES = {
+  3: ['3-0', '3-1', '3-2'],
+  4: ['5-0', '5-1', '5-2', '5-3', '5-4'],
+  5: ['6-0', '6-1', '6-2', '6-3', '6-4', '6-5']
+};
+function dartsValidScores(tournament, round) {
+  const fmt = tournament && tournament.round_formats;
+  if (fmt && typeof fmt === 'object') {
+    const n = parseInt(fmt[round] ?? fmt[String(round)], 10);
+    if (!n || n < 1) return null;
+    return Array.from({ length: n }, (_, i) => `${n}-${i}`);
+  }
+  return DARTS_WGP_SCORES[round] || null;
+}
+// Grand Slam group picks: each player picked scores 2 points if they
+// finish in the top two of the group, or 5 points if they finish in the
+// exact place picked (1st or 2nd). So a group is worth up to 10 points.
+const DARTS_GROUP_POINTS_QUALIFIED = 2;
+const DARTS_GROUP_POINTS_EXACT = 5;
+function dartsGroupPickPoints(pred, positionById) {
+  const one = (pid, picked) => {
+    const real = positionById[pid];
+    if (real === picked) return DARTS_GROUP_POINTS_EXACT;
+    if (real === 1 || real === 2) return DARTS_GROUP_POINTS_QUALIFIED;
+    return 0;
+  };
+  return one(pred.first_id, 1) + one(pred.second_id, 2);
+}
+
 async function promoteIfDeadlinePassed(supabaseAdmin, schemaName, tournament) {
   if (!tournament || tournament.status !== 'upcoming' || !tournament.closes_at) return tournament;
   if (new Date(tournament.closes_at).getTime() > Date.now()) return tournament;

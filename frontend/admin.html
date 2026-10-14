@@ -206,6 +206,8 @@
           <option value="">Loading tournaments…</option>
         </select>
       </div>
+      <!-- Grand Slam only: group results, Last 32 draw and legs formats (filled by admin.js) -->
+      <div id="dartsGsTools"></div>
       <select id="dartsRoundSelect" onchange="loadDartsMatches()" style="width:100%; padding:0.6rem; margin-bottom:0.75rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px;">
         <option value="1">Round 1 — Last 32</option>
         <option value="2">Round 2 — Last 16</option>
@@ -497,6 +499,15 @@
             <div>
               <label class="form-label">Registration Closes (predictions lock)</label>
               <input type="datetime-local" id="dartsClosesInput" class="form-input">
+            </div>
+          </div>
+          <!-- Grand Slam only: match lengths for the rounds that ask for a score (legs, "first to") -->
+          <div id="darts-gs-fields" style="display:none;">
+            <div class="text-muted" style="font-size:0.8rem; margin-bottom:0.4rem;">Grand Slam: entries and group picks close at the time above — set it to the start of the group stage. Score rounds are in legs ("first to"). The 2026 lengths aren't confirmed yet — 16 (best of 31) was 2025's; you can change these later.</div>
+            <div class="grid grid-2 mb-2" style="grid-template-columns:repeat(3,1fr);">
+              <div><label class="form-label">Quarter-Finals: first to</label><input type="number" id="dartsGsQf" class="form-input" value="16" min="1" max="30"></div>
+              <div><label class="form-label">Semi-Finals: first to</label><input type="number" id="dartsGsSf" class="form-input" value="16" min="1" max="30"></div>
+              <div><label class="form-label">Final: first to</label><input type="number" id="dartsGsF" class="form-input" value="16" min="1" max="30"></div>
             </div>
           </div>
         </div>

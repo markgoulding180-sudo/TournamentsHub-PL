@@ -27,7 +27,7 @@
     fantasy:     [['Fantasy Manager', '/fantasy-manager', 'home'], ['Leaderboard', '/fantasy-leaderboard', 'chart']],
     stock:       [['Stock Market', '/stock-market', 'home'], ['Draft Squad', '/stock-market-draft', 'box'], ['Injuries', '/injuries', 'plus']],
     cl:          [['Make Your Picks', '/champions-league', 'ball'], ['Leaderboard', '/champions-league-leaderboard', 'chart'], ['How It Works', '/champions-league-how-it-works', 'info']],
-    darts:       [['Bracket', '/darts', 'target'], ['Leaderboard', '/darts-leaderboard', 'chart']],
+    darts:       [['Make Your Picks', '/darts', 'target'], ['Leaderboard', '/darts-leaderboard', 'chart']],
     football:    [['Fixtures', '/fixtures', 'cal'], ['Table', '/table', 'table'], ['Injuries', '/injuries', 'plus'], ['Clubs', '/links', 'shield']],
     account:     [['Profile', '/profile', 'user'], ['My Tournaments', '/my-tournaments', 'trophy'], ['Wallet', '/wallet', 'wallet'], ['All Tournaments', '/tournaments', 'grid']],
     community:   [['Forum', '/forum', 'chat'], ['How It Works', '/how-it-works', 'play'], ['My Tournaments', '/my-tournaments', 'trophy']]
@@ -57,7 +57,7 @@
     'cl-leaderboard': { nav: 'cl', on: '/champions-league-leaderboard', hero: { eyebrow: 'Champions League', title: 'Leaderboard', sub: 'Every entrant, ranked by total points.', art: 'card-champions-league-2.jpg' }, hide: ['.lb-hero'] },
     'cl-how':       { nav: 'cl', on: '/champions-league-how-it-works', hero: { eyebrow: 'Champions League', title: 'How It Works', sub: 'Pick Your Teams. Wisely.', art: 'card-champions-league-2.jpg' }, hide: ['.hiw-hero .hiw-badge', '.hiw-hero h1'] },
     'darts':        { nav: 'darts', on: '/darts', hero: 'own', hide: ['.hero .hero-leaderboard-pill'] },
-    'darts-leaderboard': { nav: 'darts', on: '/darts-leaderboard', hero: { eyebrow: 'Darts', title: 'Leaderboard', sub: 'Every entrant, ranked by total bracket points.', art: 'card-darts.jpg' }, hide: ['.lb-hero'] },
+    'darts-leaderboard': { nav: 'darts', on: '/darts-leaderboard', hero: { eyebrow: 'Darts', title: 'Leaderboard', sub: 'Every entrant, ranked by total points.', art: 'darts-background-hero.jpg' }, hide: ['.lb-hero'] },
     'fixtures':     { nav: 'football', on: '/fixtures', hero: { eyebrow: 'Premier League', title: 'Fixtures', sub: 'Every match, every gameweek.', art: 'card-predictions.jpg' }, hide: ['.page-hero'] },
     'table':        { nav: 'football', on: '/table', hero: { eyebrow: 'Premier League', title: 'League Table', sub: 'Live standings 2025/26.', art: 'card-predictions.jpg' }, hide: ['main > h1:first-of-type', 'main > h1:first-of-type + p'] },
     'injuries':     { nav: 'football', on: '/injuries', hero: { eyebrow: 'Premier League', title: 'Injury Updates', sub: "Who's out, doubtful or on the way back.", art: 'card-predictions.jpg' }, hide: ['main > h1:first-of-type', 'main > h1:first-of-type + p'] },
@@ -77,7 +77,7 @@
     ['Fantasy Manager', '/fantasy-leaderboard', 'card-fantasy.jpg', 'Premier League'],
     ['Player Stock Market', '/stock-market', 'card-stockmarket.jpg', 'Premier League'],
     ['Champions League', '/champions-league-leaderboard', 'card-champions-league-2.jpg', 'Champions League'],
-    ['World Grand Prix', '/darts-leaderboard', 'card-darts.jpg', 'Darts']
+    ['Darts', '/darts-leaderboard', 'darts-background-hero.jpg', 'Darts']
   ];
 
   // ---------- hide the old title bits straight away (no flash) ----------

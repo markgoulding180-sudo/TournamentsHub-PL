@@ -1139,9 +1139,9 @@ const TYPES = {
   fantasy:          { sport:'football', league:'pl', sportLabel:'Premier League',   title:'Fantasy Manager',     href:'/fantasy-manager',   board:'/fantasy-leaderboard',          img:'assets/card-fantasy.jpg' },
   stockmarket:      { sport:'football', league:'pl', sportLabel:'Premier League',   title:'Player Stock Market', href:'/stock-market',      board:'/stock-market',                 img:'assets/card-stockmarket.jpg' },
   champions_league: { sport:'football', league:'cl', sportLabel:'Champions League', title:'Champions League',    href:'/champions-league',  board:'/champions-league-leaderboard', img:'assets/card-champions-league-2.jpg' },
-  darts:            { sport:'darts',    league:'darts', sportLabel:'Darts',         title:'World Grand Prix',    href:'/darts',             board:'/darts-leaderboard',            img:'assets/card-darts.jpg' }
+  darts:            { sport:'darts',    league:'darts', sportLabel:'Darts',         title:'Darts',               href:'/darts',             board:'/darts-leaderboard',            img:'assets/card-darts.jpg' }
 };
-const DARTS_SOON = ['Premier League Darts', 'Grand Slam of Darts', 'World Cup of Darts', 'UK Open', 'World Championship'];
+const DARTS_SOON = ['Premier League Darts', 'World Cup of Darts', 'UK Open', 'World Championship'];
 const STATE = { results:{}, gw:null, deadline:null, mine:[], entries:{}, picks:{}, stats:{}, filter:{ kind:'all' } };
 
 function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1167,10 +1167,18 @@ async function postJSON(body){
     return r.ok ? await r.json() : null;
   } catch(e){ return null; }
 }
+// A tournament can carry its own picture (darts: each event has its own art); otherwise the game's card image.
+function cardImg(r, info){ return (r && r.t && r.t.hero_image) || info.img; }
 // Picks made / picks needed this week — the same checks the main hub does.
 async function pickStatus(type, id){
   if (type === 'darts') {
     const d = await postJSON({ action:'darts_get_bracket', tournament_id:id }); if (!d) return null;
+    // Grand Slam: before the group stage, the picks needed are the 16 groups
+    const gt = d.tournament || {};
+    if (gt.bracket_type === 'grand_slam' && gt.draw_finalized !== false && !(gt.closes_at && Date.now() >= new Date(gt.closes_at).getTime())) {
+      const groups = new Set((d.players || []).map(p => p.group_letter).filter(Boolean)).size;
+      return { hasPicked: (d.my_group_predictions || []).length >= groups, label:'Group picks', deadline: gt.closes_at };
+    }
     const matches = d.matches || [];
     const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
     for (const round of rounds) {
@@ -1373,7 +1381,7 @@ function cardHtml(r){
         </div>` : '';
   const inPill = mine ? (pk && !pk.hasPicked ? '<span class="pill need">Pick now</span>' : '<span class="pill in">You\'re in</span>') : '<span></span>';
   return `<${tag} class="t-card${r.zone === 'soon' ? ' soon' : ''}" ${tag === 'a' ? `href="${info.href}"` : ''} data-type="${r.type}" data-sport="${info.sport}" data-league="${info.league}" data-zone="${r.zone}">
-      <div class="media frame" style="--img:url('${info.img}')"><img src="${info.img}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${inPill}</div></div>
+      <div class="media frame" style="--img:url('${cardImg(r, info)}')"><img src="${cardImg(r, info)}" alt="${esc(info.title)}" loading="lazy"><div class="badges">${zonePill(r.zone)}${inPill}</div></div>
       <div class="body">
         <div class="sport">${esc(info.sportLabel)}</div>
         <h3>${esc((t && t.name) || info.title)}</h3>
@@ -1408,7 +1416,7 @@ function pillTime(iso){ const l = untilText(iso); return l ? ' · closes in ' + 
 function miniTime(iso){ const l = untilText(iso); return l ? 'Closes in ' + l : 'Entries open'; }
 function regMiniHtml(r){
   const info = TYPES[r.type], t = r.t || {};
-  return `<a class="reg-mini" href="#all" data-go="${r.type}" style="--img:url('${info.img}')">
+  return `<a class="reg-mini" href="#all" data-go="${r.type}" style="--img:url('${cardImg(r, info)}')">
       <span class="rm-badge"><i></i>Registering</span>
       <span class="rm-sport">${esc(info.sportLabel)}</span>
       <span class="rm-name">${esc(t.name || info.title)}</span>
