@@ -3508,7 +3508,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const { data: tournament, error: tourErr } = await supabaseAdmin
             .schema('darts').from('tournaments')
             .insert({ name: name.trim(), description: description?.trim() || null, entry_fee: Math.round((entry_fee || 0) * 100), closes_at, payment_due_date: dartsDue || null, status: 'upcoming',
-              ...(isGrandSlam ? { bracket_type: 'grand_slam', total_players: 48, round_formats: roundFormats, hero_image: 'assets/darts-background-hero.jpg' } : {}) })
+              ...(isGrandSlam ? { bracket_type: 'grand_slam', total_players: 48, round_formats: roundFormats, hero_image: 'assets/darts-grand-slam.jpg' } : {}) })
             .select().single();
           if (tourErr) return res.status(500).json({ error: tourErr.message });
 
