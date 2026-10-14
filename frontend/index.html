@@ -765,7 +765,11 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 .mine-stack .sec-sub{ max-width:none; width:100%; line-height:1.45; }
 .mine-id{ display:flex; align-items:center; gap:12px; min-width:0; margin-top:10px; }
 .mine-id[hidden]{ display:none; }
-.mine-id .mine-who{ margin:0; font-size:18px; }
+.mine-id .mine-who{ margin:0; font-size:18px; line-height:1.2; }
+/* name level with the top of the picture, "needs your picks" level with the bottom */
+.mine-idtext{ display:flex; flex-direction:column; justify-content:center; align-self:stretch; min-width:0; padding:3px 0; }
+.mine-idtext:has(.mine-need:not([hidden])){ justify-content:space-between; }
+.mine-idtext .mine-need{ margin-top:0; }
 .mine-head{ display:flex; align-items:center; gap:16px; min-width:0; }
 .mine-head > div:last-child{ min-width:0; }
 .avatar.mine-av{ width:62px; height:62px; flex:none; font-size:20px; border:2px solid var(--accent-2); box-shadow:0 0 0 4px rgba(59,130,246,0.18), 0 0 22px var(--accent-glow); position:relative; overflow:hidden; }
@@ -1056,9 +1060,8 @@ a.np-item:hover{ border-color:var(--accent); }
   <section class="panel s3" id="mineSection" data-nav="My Tournaments" data-nav-icon="i-trophy">
     <div class="sec-head mine-stack">
       <div class="mine-titlerow"><div class="sec-title" id="mineTitle">My tournaments</div><div class="mine-counts" id="mineCounts" hidden></div></div>
-      <div class="mine-id" id="mineId" hidden><div class="avatar mine-av" id="mineAvatar" hidden></div><div class="mine-who" id="mineWho" hidden></div></div>
+      <div class="mine-id" id="mineId" hidden><div class="avatar mine-av" id="mineAvatar" hidden></div><div class="mine-idtext"><div class="mine-who" id="mineWho" hidden></div><div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div></div></div>
       <div class="sec-sub" id="mineSub">Jump straight back in</div>
-      <div class="mine-need" id="mineNeed" hidden><i>!</i>You Need To Add Selections To 1 or More Tournaments</div>
     </div>
     <div class="mine-top" id="mineTop" hidden></div>
     <div class="mine-subhead" id="mineYourHead" hidden><svg class="icon"><use href="#i-trophy"/></svg>Your Tournaments</div>
