@@ -66,6 +66,7 @@
 
     .card-title-sm{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; margin-bottom:14px; color:var(--text-dim); text-transform:uppercase; }
     .slots-panel{ position:sticky; top:90px; }
+    .slots-panel .squad-save{ width:100%; justify-content:center; margin-top:14px; font-size:14px; padding:12px 16px; }
     @media (max-width:860px){ .slots-panel{ position:static; } }
 
     .slot-item{ display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:var(--bg-card); border:1.5px dashed var(--border); margin-bottom:8px; }
@@ -318,6 +319,7 @@
       <div class="card slots-panel" id="slotsPanelCard">
         <div class="card-title-sm">Your Squad</div>
         <div id="slotsList"></div>
+        <button class="btn-primary squad-save" id="saveSquadBtn2" disabled><i class="fas fa-check"></i> Save Squad</button>
       </div>
     </div>
   </main>
@@ -532,6 +534,7 @@
         document.getElementById('preOpenCard').style.display = 'none';
         document.getElementById('pickCard').style.display = 'grid';
         document.getElementById('carouselWrap').style.display = 'flex';
+        document.getElementById('confirmBar').style.display = 'flex';
         renderCard(true);
         renderChecklist();
         renderSlots();
@@ -846,6 +849,10 @@
         if (total < 6) missing.push(`${6 - total} more player${6 - total === 1 ? '' : 's'}`);
         saveBtn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> Need: ${missing.join(', ')}`;
       }
+      // the button under Your Squad mirrors the bottom bar's button
+      const saveBtn2 = document.getElementById('saveSquadBtn2');
+      saveBtn2.disabled = saveBtn.disabled;
+      saveBtn2.innerHTML = saveBtn.innerHTML;
     }
 
     // Swipe support
@@ -863,6 +870,9 @@
 
     async function saveSquad() {
       const btn = document.getElementById('saveSquadBtn');
+      const btn2 = document.getElementById('saveSquadBtn2');
+      if (btn.disabled) return;
+      btn2.disabled = true; btn2.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
 
@@ -882,6 +892,7 @@
           showToast(data.error || 'Failed to save squad', 'error');
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
+          btn2.disabled = false; btn2.innerHTML = btn.innerHTML;
           return;
         }
         clearDraftProgress();
@@ -891,6 +902,7 @@
         showToast("Couldn't save your squad right now.", "error");
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Save Squad';
+        btn2.disabled = false; btn2.innerHTML = btn.innerHTML;
       }
     }
 
@@ -921,6 +933,7 @@
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
 
     document.getElementById('saveSquadBtn').addEventListener('click', saveSquad);
+    document.getElementById('saveSquadBtn2').addEventListener('click', saveSquad);
     document.addEventListener('DOMContentLoaded', initAuthButton);
     document.addEventListener('DOMContentLoaded', checkExistingSquad);
   </script>
