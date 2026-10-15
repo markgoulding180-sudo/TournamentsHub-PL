@@ -49,7 +49,7 @@
     'fantasy-leaderboard': { nav: 'fantasy', on: '/fantasy-leaderboard', hero: { eyebrow: 'Fantasy Manager', title: 'Leaderboard', sub: "Season total points. Captain's points are doubled.", art: 'card-fantasy.jpg' }, hide: ['.lb-hero'] },
     'fantasy-entry-history': { nav: 'fantasy', on: '/fantasy-leaderboard', hero: { eyebrow: 'Fantasy Manager', title: 'Entry History', sub: 'Every gameweek, every player.', art: 'card-fantasy.jpg' } },
     'player':       { nav: 'fantasy', on: '/fantasy-manager', hero: { eyebrow: 'Fantasy Manager', title: 'Player', sub: 'Form, fixtures and points.', art: 'card-fantasy.jpg' }, hide: ['main > .back-link'] },
-    'stock':        { nav: 'stock', on: '/stock-market', hero: 'own', art: 'card-stockmarket.jpg', hide: ['.hero .hero-pill-link[href="/injuries"]'] },
+    'stock':        { nav: 'stock', on: '/stock-market', hero: 'own', art: 'card-stockmarket.jpg', hide: ['#injuriesLink'] },
     'stock-draft':  { nav: 'stock', on: '/stock-market-draft', hero: { eyebrow: 'Player Stock Market', title: 'Draft Your Squad', sub: 'Open a pack. Pick your 6.', art: 'card-stockmarket.jpg' }, hide: ['main > h1:first-of-type'] },
     'stock-history': { nav: 'stock', on: '/stock-market', hero: { eyebrow: 'Player Stock Market', title: 'Gameweek History', sub: 'Every player, every action.', art: 'card-stockmarket.jpg' }, hide: ['main > h1:first-of-type'] },
     'stock-player': { nav: 'stock', on: '/stock-market', hero: { eyebrow: 'Player Stock Market', title: 'Player History', sub: 'Week-by-week breakdown for this entrant.', art: 'card-stockmarket.jpg' } },

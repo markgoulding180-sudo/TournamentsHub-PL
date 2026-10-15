@@ -10,7 +10,9 @@
     { "source": "/last-man-standing-pick", "destination": "/last-man-standing", "permanent": false },
     { "source": "/lms-pick.html", "destination": "/last-man-standing", "permanent": false },
     { "source": "/predictions-stats", "destination": "/predictions", "permanent": false },
-    { "source": "/predictions-stats.html", "destination": "/predictions", "permanent": false }
+    { "source": "/predictions-stats.html", "destination": "/predictions", "permanent": false },
+    { "source": "/stock-market-test", "destination": "/stock-market", "permanent": false },
+    { "source": "/test-stockmarket.html", "destination": "/stock-market", "permanent": false }
   ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
@@ -43,7 +45,6 @@
     { "source": "/stock-market-draft", "destination": "/stockmarket-draft.html" },
     { "source": "/stock-market-history", "destination": "/stockmarket-history.html" },
     { "source": "/stock-market-player", "destination": "/stock-market-player.html" },
-    { "source": "/stock-market-test", "destination": "/test-stockmarket.html" },
     { "source": "/hub-test", "destination": "/index.html" },
     { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
     { "source": "/wallet", "destination": "/wallet.html" },
