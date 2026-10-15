@@ -20,6 +20,7 @@
     { "source": "/predictions", "destination": "/predictions-home.html" },
     { "source": "/predict", "destination": "/predictions.html" },
     { "source": "/leaderboard", "destination": "/leaderboard.html" },
+    { "source": "/predictions-user-history", "destination": "/predictions-user-history.html" },
     { "source": "/profile", "destination": "/profile.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/injuries", "destination": "/injuries.html" },
