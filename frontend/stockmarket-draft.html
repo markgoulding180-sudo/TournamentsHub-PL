@@ -394,8 +394,27 @@
     const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
     const ELEMENT_TYPE_TO_POS = { 1: 'gk', 2: 'def', 3: 'mid', 4: 'fwd' };
 
+    // Enter first, then draft: anyone who hasn't entered the tournament is sent
+    // back to the Stock Market page to enter (the pack stays hidden until this
+    // check is done, so it can't be opened by mistake).
+    function draftGate(icon, text, href, label) {
+      document.getElementById('preOpenCard').innerHTML = `
+        <div class="empty-state">
+          <i class="fas ${icon}" style="color:var(--accent-2);"></i>
+          <p>${text}</p>
+          <a href="${href}" class="btn-primary"><i class="fas fa-right-to-bracket"></i> ${label}</a>
+        </div>`;
+    }
     async function checkExistingSquad() {
-      if (!localStorage.getItem('gbf_token')) return;
+      const card = document.getElementById('preOpenCard');
+      card.style.visibility = 'hidden';
+      try { await checkExistingSquadInner(); } finally { card.style.visibility = ''; }
+    }
+    async function checkExistingSquadInner() {
+      if (!localStorage.getItem('gbf_token')) {
+        draftGate('fa-lock', 'Log in and enter the Stock Market first, then come back here to draft your squad.', '/login?redirect=%2Fstock-market', 'Log In to Enter');
+        return;
+      }
       await ensureTournamentId();
       if (!tournamentId) return;
 
@@ -413,6 +432,10 @@
 
         const data = await res.json();
         const entry = data.entry;
+        if (res.ok && !entry) {
+          draftGate('fa-ticket', "You haven't entered the Stock Market yet. Enter first, then you can draft your squad.", '/stock-market', 'Go to Enter');
+          return;
+        }
         if (!entry || !entry.squad_players || entry.squad_players.length === 0) return;
         clearDraftProgress();
 

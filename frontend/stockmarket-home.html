@@ -933,6 +933,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         const stateData = await stateRes.json();
 
         if (!stateData.entry) {
+          lockDraftTab();
           document.getElementById('enterGate').style.display = 'block';
           document.getElementById('enterDesc').innerHTML = `Entry fee £${((tournament.entry_fee||0)/100).toFixed(2)} · ${tournament.current_entries||0} entered so far.`;
           document.getElementById('enterBtn').onclick = () => enterTournament(tournament);
@@ -2091,6 +2092,25 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       }
     }
 
+    // Not entered yet: the Draft Squad tab in the top nav points back to Enter Now
+    function lockDraftTab() {
+      document.querySelectorAll('.gbs-tab[href="/stock-market-draft"]').forEach(a => {
+        if (a.dataset.locked) return;
+        a.dataset.locked = '1';
+        a.addEventListener('click', e => {
+          if (!a.dataset.locked) return;
+          e.preventDefault();
+          const gate = document.getElementById('enterGate');
+          if (gate) gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const sp = a.querySelector('span');
+          if (!sp || a.dataset.busy) return;
+          const was = sp.textContent; a.dataset.busy = '1';
+          sp.textContent = 'Enter first';
+          setTimeout(() => { sp.textContent = was; delete a.dataset.busy; }, 2200);
+        });
+      });
+    }
+
     async function enterTournament(tournament) {
       const btn = document.getElementById('enterBtn');
       btn.disabled = true;
@@ -2103,8 +2123,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to enter');
-        showToast("You're in! Draft your squad before the deadline.", 'success');
-        await refreshEntryState(tournament);
+        showToast("You're in! Now draft your squad.", 'success');
+        // straight on to the draft - entering is step one, drafting is step two
+        setTimeout(() => { window.location.href = '/stock-market-draft'; }, 900);
       } catch (e) {
         console.error(e);
         btn.disabled = false;
