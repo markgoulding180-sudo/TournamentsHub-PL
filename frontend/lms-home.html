@@ -401,6 +401,18 @@
   }
   /* Eliminated: no more picks, so the "Picks close in" countdown isn't needed - keeps the bar on one line */
   .lms-gwbar:has(#entryStatusBadge.out) .gw-deadline{ display:none; }
+  /* Eliminated view: the team grid becomes a short list of the picks they made */
+  .lms-teams.is-out .pick-cta{ display:none; }
+  .pick-history{ display:flex; flex-direction:column; gap:8px; }
+  .ph-row{ display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:linear-gradient(rgba(6,12,32,0.80), rgba(6,12,32,0.80)), url('assets/card-bg-sports.jpg') center / cover no-repeat; }
+  .ph-row img{ width:40px; height:40px; object-fit:contain; flex:none; }
+  .ph-gw{ flex:none; min-width:42px; font-family:var(--font-head); font-weight:700; font-size:13px; color:var(--text-dim); }
+  .ph-team{ flex:1; min-width:0; font-weight:700; font-size:15px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ph-res{ flex:none; display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
+  .ph-res.win{ color:var(--green); background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.5); }
+  .ph-res.out{ color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.55); }
+  .ph-res.wait{ color:var(--text-dim); background:rgba(255,255,255,0.05); border:1px solid var(--border); }
+  .ph-row.knocked{ border-color:rgba(239,68,68,0.55); }
   .lms-gwbar:has(#entryStatusBadge.out) .status-badge{ margin-left:auto; }
 
   /* Confirm lives on the selected team card now; the old header button stays hidden but still does the saving */
@@ -706,7 +718,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       <!-- Your teams: this week's pick on top, then every team -->
       <section class="card lms-teams">
         <div class="card-title" style="display:flex; align-items:center; justify-content:space-between;">
-          <span><i class="fas fa-shirt" style="color:var(--accent-2);"></i> Your Teams</span>
+          <span><i class="fas fa-shirt" style="color:var(--accent-2);"></i> <span id="teamsTitle">Your Teams</span></span>
           <button class="btn-primary" id="confirmPickBtn" style="display:none; font-size:13px; padding:8px 14px;" disabled><i class="fas fa-check"></i> Confirm Team</button>
         </div>
         <div class="pick-cta" id="pickCta"><div class="loading">Loading…</div></div>
@@ -1255,6 +1267,29 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         if (!canPick) pendingPick = null;
 
         const grid = document.getElementById('teamsGrid');
+        // Eliminated (and not the winner): no team grid - just the picks they made, week by week
+        const showHistory = !!data.is_eliminated && !(prizeAwarded > 0);
+        document.querySelector('.lms-teams').classList.toggle('is-out', showHistory);
+        document.getElementById('teamsTitle').textContent = showHistory ? 'Your Picks' : 'Your Teams';
+        grid.className = showHistory ? 'pick-history' : 'teams-grid';
+        if (showHistory) {
+          grid.innerHTML = picks.length ? picks.slice().sort((a, b) => a.gameweek - b.gameweek).map(p => {
+            const noPick = !p.team || p.team === 'NO_PICK';
+            const r = p.result;
+            const knocked = data.eliminated_gameweek === p.gameweek;
+            const res = r === 'win' ? '<span class="ph-res win"><i class="fas fa-check"></i> Through</span>'
+              : r === 'draw' ? '<span class="ph-res out"><i class="fas fa-xmark"></i> Drew</span>'
+              : r === 'lose' ? '<span class="ph-res out"><i class="fas fa-xmark"></i> Lost</span>'
+              : (r === 'missed' || noPick) ? '<span class="ph-res out"><i class="fas fa-xmark"></i> No pick</span>'
+              : '<span class="ph-res wait"><i class="fas fa-clock"></i> Pending</span>';
+            return `<div class="ph-row${knocked ? ' knocked' : ''}">
+                <span class="ph-gw">GW${p.gameweek}</span>
+                <img src="${shirtSrc(p.team)}" alt="" onerror="this.onerror=null;this.src='${BLANK_IMG}';">
+                <span class="ph-team">${noPick ? 'No pick made' : escapeHtml(p.team)}</span>
+                ${res}
+              </div>`;
+          }).join('') : '<div style="color:var(--text-faint); font-size:14px;">No picks were made.</div>';
+        } else
         grid.innerHTML = ALL_TEAMS.map(team => {
           const usedPick = picks.find(p => p.team === team);
           const isCurrentPick = thisWeekPick && thisWeekPick.team === team;
