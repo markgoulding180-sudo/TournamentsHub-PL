@@ -397,7 +397,11 @@
     .lms-gwbar .pick-header{ flex-wrap:nowrap; }
     .lms-gwbar .pick-gw{ font-size:15px; white-space:nowrap; }
     .lms-gwbar .gw-deadline{ font-size:12.5px; white-space:nowrap; }
+    .lms-gwbar .status-badge{ flex:none; white-space:nowrap; padding:.35rem .8rem; font-size:12.5px; }
   }
+  /* Eliminated: no more picks, so the "Picks close in" countdown isn't needed - keeps the bar on one line */
+  .lms-gwbar:has(#entryStatusBadge.out) .gw-deadline{ display:none; }
+  .lms-gwbar:has(#entryStatusBadge.out) .status-badge{ margin-left:auto; }
 
   /* Confirm lives on the selected team card now; the old header button stays hidden but still does the saving */
   .lms-teams #confirmPickBtn{ display:none !important; }
