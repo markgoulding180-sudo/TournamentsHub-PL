@@ -714,6 +714,12 @@
   .vs-grid #oppSection .vs-strip{ margin-left:6px; }
   .vs-grid #oppSection .empty-note{ margin-left:6px; }
   .vs-grid .list{ display:flex !important; flex-direction:column; align-items:stretch !important; }
+  .vs-grid .list:empty{ display:none !important; }
+  /* matching cards: one grid, two per row; a row is as tall as its taller card and both cards fill it */
+  .pair-grid{ grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:12px; row-gap:8px; padding:10px var(--gutter) 0; align-items:stretch; }
+  .pair-grid > .row{ display:flex; flex-direction:column; min-width:0; }
+  .pair-grid > .row .detail{ flex:1; }
+  .pair-grid > .pair-gap{ min-height:1px; }
   .vs-grid .vs-strip{ min-height:44px; gap:8px; }
   .vs-grid .vs-strip .who{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .my-strip .who b{ color:var(--accent-2) !important; }
@@ -759,6 +765,8 @@
     .vs-grid .detail-inner{ padding:0 8px 8px; }
     .bc{ font-size:11px; }
     .bc-line .k small{ display:none; }
+    .bc-head{ flex-direction:column; gap:1px; }
+    .bc-head > span:first-child{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .vs-grid .row-main > .card-pills{ gap:3px; flex-wrap:nowrap; }
     .vs-grid .row-main > .card-pills .pill{ font-size:8.5px; padding:1px 3px; letter-spacing:-.1px; white-space:nowrap; }
     .vs-grid .vs-strip{ padding:8px 9px; flex-direction:column; align-items:flex-start; gap:2px; }
@@ -933,6 +941,8 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     <div class="list" id="oppList"></div>
     <div class="empty-note" id="oppEmpty" style="display:none;"></div>
     </div>
+    <!-- your player and the opponent's player in the same position share a row, so each pair is always the same size -->
+    <div class="pair-grid" id="pairGrid"></div>
     </div>
 
     <div id="leagueSection">
@@ -2005,6 +2015,25 @@ function fullPills(pos, s){
 }
 const withFullPills = p => (p.empty || p.drafted) ? p : { ...p, statList: fullPills(p.pos, p.stats) };
 // move each card's pills out of the narrow name column onto their own line
+// Moves the two squads' cards into one grid, your player and theirs side by
+// side in squad order, so every pair of cards is always the same height.
+function pairUp(){
+  const mine = [...$('myList').children], theirs = [...$('oppList').children];
+  const grid = $('pairGrid'); grid.innerHTML = '';
+  for (let i = 0; i < Math.max(mine.length, theirs.length); i++) {
+    grid.appendChild(mine[i] || Object.assign(document.createElement('div'), { className: 'pair-gap' }));
+    grid.appendChild(theirs[i] || Object.assign(document.createElement('div'), { className: 'pair-gap' }));
+  }
+}
+// Tapping a card opens (or closes) both cards in that pair together, so they stay level.
+function togglePair(rowId){
+  const rows = [...document.querySelectorAll('#pairGrid > .row')];
+  const idx = rows.findIndex(r => r.dataset.id === rowId);
+  if (idx < 0) return toggleRow(rowId);
+  const pair = idx - (idx % 2);
+  const opening = !rows[idx].classList.contains('open');
+  rows.forEach((r, i) => r.classList.toggle('open', opening && (i === pair || i === pair + 1)));
+}
 function pillsToOwnLine(listId){
   document.querySelectorAll(`#${listId} .row-main`).forEach(rm => { const cp = rm.querySelector('.who .card-pills'); if (cp) rm.appendChild(cp); });
 }
@@ -2048,7 +2077,7 @@ function render(){
 
   // your squad + opponent (hidden once you're knocked out, like the real page)
   const showMatch = !me.relegated || (S.detail && S.detail[me.id]);
-  show('squadSection', !!showMatch); show('oppSection', !!showMatch);
+  show('squadSection', !!showMatch); show('oppSection', !!showMatch); show('pairGrid', !!showMatch);
   if (showMatch) {
     renderList('myList', rowsFor(S, me.id).map(withFullPills), 'mine', { actionHtml: sideInfo });
     pillsToOwnLine('myList');
@@ -2061,6 +2090,7 @@ function render(){
     if (!m || !m.entry_id_2) {
       renderOpponent({ message: S.gw === 0 ? 'You have a bye in Gameweek 1.' : 'No match this week — you had a bye, so your values didn’t move.' });
       document.getElementById('oppList').innerHTML = '';
+      pairUp();
     } else {
       const oppId = m.entry_id_1 === me.id ? m.entry_id_2 : m.entry_id_1;
       const opp = entryIn(S, oppId);
@@ -2076,6 +2106,7 @@ function render(){
       // each strip shows its own side's result: your loss is their win
       const flip = { won: 'lost', lost: 'won' }[resultCls];
       if (flip) { $('vsResult').textContent = resultText.replace(/^(Won|Lost)/, w => w === 'Won' ? 'Lost' : 'Won'); $('vsResult').className = 'vs-result ' + flip; }
+      pairUp();
     }
   }
   renderLeague(S, zone);
@@ -2189,7 +2220,7 @@ function wire(){
     renderLeague(snaps[view], zoneFor(snaps[view]));
   });
   // the real page's rows open with an inline onclick="toggleRow(...)"
-  window.toggleRow = toggleRow;
+  window.toggleRow = id => (id.startsWith('mine-') || id.startsWith('opp-')) ? togglePair(id) : toggleRow(id);
   let tx = null;
   const stage = $('carouselStage');
   stage.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
