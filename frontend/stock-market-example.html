@@ -823,6 +823,17 @@
     }
   }
   .pair-grid .row .detail{ background:transparent; }   /* the background picture carries on behind the opened part too */
+  /* ---------- Knocked out: the top block says so plainly, no money figure ---------- */
+  #heroBlock.is-out{ border-color:rgba(239,68,68,0.6) !important; box-shadow:0 0 0 1px rgba(239,68,68,0.25), 0 10px 30px rgba(239,68,68,0.12);
+    background:linear-gradient(180deg, rgba(60,8,14,0.80), rgba(30,6,12,0.92)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #1a0a10 !important; }
+  #heroBlock.is-out .label{ color:#fca5a5; font-weight:700; letter-spacing:.3px; text-transform:uppercase; font-size:12px; }
+  #heroBlock.is-out .value{ color:var(--red); text-transform:uppercase; text-shadow:0 0 24px rgba(239,68,68,0.45); }
+  #heroBlock.is-out .value i{ margin-right:10px; font-size:.8em; }
+  #heroBlock.is-out .meta-item b{ color:#fca5a5; }
+  #heroBlock.is-out .hero-avatar{ border-color:var(--red); box-shadow:0 0 18px rgba(239,68,68,0.45); }
+  #heroBlock.is-out .hero-avatar-img{ filter:grayscale(0.7); }
+  .hero-avatar-rank.out{ background:var(--red) !important; color:#fff !important; letter-spacing:.5px; }
+  @media (max-width:480px){ #heroBlock.is-out .value{ font-size:32px; white-space:nowrap; } }
   @media (max-width:374px){ .vs-grid .row-main > .card-pills{ flex-wrap:wrap; } }   /* very small phones: let the pills wrap rather than spill out */
   @media (max-width:600px){
     .gw-step button{ padding:7px 10px; }
@@ -2088,6 +2099,23 @@ function cutNote(p){
   return p.cutShare > 0 ? `<div class="bd-note"><i class="fa-solid fa-coins"></i> After this match, <b>+${money(p.cutShare)}</b> was added from the entrants knocked out, so he's now worth <b>${money(p.value)}</b>.</div>` : '';
 }
 
+// Knocked out: the top block shows a plain "You're out" instead of a money
+// figure. meta = e.g. 'Cut after Gameweek 5', place = e.g. 'Finished 19th of 30'.
+function markOut(meta, place){
+  const hb = document.getElementById('heroBlock');
+  hb.classList.add('is-out');
+  hb.querySelector('.label').textContent = 'Your tournament';
+  document.getElementById('heroValue').innerHTML = '<i class="fa-solid fa-circle-xmark"></i>You’re out';
+  const d = document.getElementById('heroDelta'); d.innerHTML = ''; d.className = 'delta';
+  document.getElementById('heroRank').innerHTML = '<b>Relegated</b>';
+  document.getElementById('heroGw').textContent = meta || '';
+  document.getElementById('heroStatus').innerHTML = place || '';
+  document.querySelectorAll('#heroBlock .meta .dot').forEach((dot, i) => { dot.style.display = (i === 0 ? meta : place) ? '' : 'none'; });
+  const rb = document.getElementById('heroAvatarRank');
+  rb.textContent = 'OUT'; rb.className = 'hero-avatar-rank out'; rb.style.display = '';
+}
+function clearOut(){ document.getElementById('heroBlock').classList.remove('is-out'); }
+
 function render(){
   const S = snaps[view];
   const me = S.entries.find(e => e.isYou);
@@ -2110,8 +2138,12 @@ function render(){
     renderHero({ me: ME, value: me.value_at_relegation || 0, delta: null, rankText: '<b>Relegated</b>',
       gwText: `Cut after Gameweek ${me.relegated_at_gameweek}`, statusHtml: S.gw > me.relegated_at_gameweek ? `Now showing <b>GW${S.gw}</b>` : '',
       standings: standings.map(s => ({ ...s, me: false })), zone });
-    document.querySelector('#heroBlock .label').textContent = 'Your squad was worth';
+    // where you finished: everyone still in, plus everyone cut after you or above you in your cut
+    const place = 1 + S.entries.filter(e => e.id !== me.id && (!e.relegated || e.relegated_at_gameweek > me.relegated_at_gameweek
+      || (e.relegated_at_gameweek === me.relegated_at_gameweek && e.value_at_relegation > me.value_at_relegation))).length;
+    markOut(`Cut after Gameweek ${me.relegated_at_gameweek}`, `Finished <b>${ordinal(place)}</b> of ${S.entries.length}`);
   } else {
+    clearOut();
     const prev = view > 0 ? entryIn(snaps[view - 1], me.id) : null;
     const rank = standings.findIndex(s => s.me) + 1;
     renderHero({ me: ME, value: me.current_value, delta: S.gw === 0 ? null : me.current_value - prev.current_value, deltaLabel: 'this week',
@@ -2125,6 +2157,7 @@ function render(){
   // your squad + opponent (hidden once you're knocked out, like the real page)
   const showMatch = !me.relegated || (S.detail && S.detail[me.id]);
   show('squadSection', !!showMatch); show('oppSection', !!showMatch); show('pairGrid', !!showMatch);
+  $('vsGrid').style.display = showMatch ? '' : 'none';   // no VS badge once you're out
   if (showMatch) {
     renderList('myList', rowsFor(S, me.id).map(withFullPills), 'mine', { actionHtml: sideInfo });
     pillsToOwnLine('myList');
@@ -2179,7 +2212,7 @@ function renderNotice(S, me){
   if (S.gw === END_GW) {
     const act = active(S), top = act[0];
     if (me.relegated) {
-      icon = 'fa-flag-checkered'; tone = 'red'; title = 'Tournament over';
+      icon = 'fa-circle-xmark'; tone = 'red'; title = 'Tournament over — you were knocked out';
       parts.push(`You were knocked out after Gameweek ${me.relegated_at_gameweek}. <b>${escapeHtml(top.name)}</b> finished top with <b>${money(top.current_value)}</b>.`);
     } else {
       const place = 1 + act.filter(e => e.current_value > me.current_value).length;

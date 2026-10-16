@@ -591,6 +591,20 @@
 
   /* =================== Side-by-side matchup layout =================== */
   #safeLine{ display:none !important; }   /* leaner top */
+  /* ---------- Knocked out: the top block says so plainly, no money figure ---------- */
+  #heroBlock.is-out{ border-color:rgba(239,68,68,0.6) !important; box-shadow:0 0 0 1px rgba(239,68,68,0.25), 0 10px 30px rgba(239,68,68,0.12);
+    background:linear-gradient(180deg, rgba(60,8,14,0.80), rgba(30,6,12,0.92)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #1a0a10 !important; }
+  #heroBlock.is-out .label{ color:#fca5a5; font-weight:700; letter-spacing:.3px; text-transform:uppercase; font-size:12px; }
+  #heroBlock.is-out .value{ color:var(--red); text-transform:uppercase; text-shadow:0 0 24px rgba(239,68,68,0.45); }
+  #heroBlock.is-out .value i{ margin-right:10px; font-size:.8em; }
+  #heroBlock.is-out .meta-item b{ color:#fca5a5; }
+  #heroBlock.is-out .hero-avatar{ border-color:var(--red); box-shadow:0 0 18px rgba(239,68,68,0.45); }
+  #heroBlock.is-out .hero-avatar-img{ filter:grayscale(0.7); }
+  .hero-avatar-rank.out{ background:var(--red) !important; color:#fff !important; letter-spacing:.5px; }
+  .state-card.out-card{ border-color:rgba(239,68,68,0.6) !important; }
+  .state-card.out-card .state-icon{ color:var(--red); }
+  @media (max-width:480px){ #heroBlock.is-out .value{ font-size:32px; white-space:nowrap; } }
+
   @media (max-width:600px){ .vs-grid .wk-long{ display:none; } }   /* phones: just "Opponent", so it clears the VS badge */
   .vs-grid .section-head > a{ display:none; }   /* per-player History buttons stay in each card */
   /* ---------- Your squad and your opponent side by side (same layout as the practice page) ----------
@@ -1787,6 +1801,8 @@ async function loadPage(){
       gwText: data.relegated_at_gameweek ? `Cut after Gameweek ${data.relegated_at_gameweek}` : '', statusHtml: '',
       standings: standings.map(s => ({ ...s, me: false })), zone });
     document.querySelector('#heroBlock .label').textContent = 'Your squad was worth';
+    markOut(data.relegated_at_gameweek ? `Cut after Gameweek ${data.relegated_at_gameweek}` : 'Cut at a relegation stage', '');
+    document.getElementById('stateCard').classList.add('out-card');
     show('squadSection', false); show('oppSection', false);
     show('leagueBar', false);
     showLeagueSection(t, lb);
@@ -2099,6 +2115,25 @@ renderOpponent = function (o) {
     v.className = 'vs-result ' + flip;
   }
 };
+// Knocked out: the top block shows a plain "You're out" instead of a money
+// figure. meta = e.g. 'Cut after Gameweek 5', place = e.g. 'Finished 19th of 30'.
+function markOut(meta, place){
+  const hb = document.getElementById('heroBlock');
+  hb.classList.add('is-out');
+  hb.querySelector('.label').textContent = 'Your tournament';
+  document.getElementById('heroValue').innerHTML = '<i class="fa-solid fa-circle-xmark"></i>You’re out';
+  const d = document.getElementById('heroDelta'); d.innerHTML = ''; d.className = 'delta';
+  document.getElementById('heroRank').innerHTML = '<b>Relegated</b>';
+  document.getElementById('heroGw').textContent = meta || '';
+  document.getElementById('heroStatus').innerHTML = place || '';
+  document.querySelectorAll('#heroBlock .meta .dot').forEach((dot, i) => { dot.style.display = (i === 0 ? meta : place) ? '' : 'none'; });
+  const rb = document.getElementById('heroAvatarRank');
+  rb.textContent = 'OUT'; rb.className = 'hero-avatar-rank out'; rb.style.display = '';
+}
+function clearOut(){ document.getElementById('heroBlock').classList.remove('is-out'); document.getElementById('stateCard').classList.remove('out-card'); }
+// Every other view starts from the normal top block.
+const _renderHero = renderHero;
+renderHero = function (m) { clearOut(); _renderHero(m); };
 // The side-by-side block shows whenever your squad does.
 const _show = show;
 show = function (id, on) {
