@@ -4118,8 +4118,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (!rawTournament) return res.status(404).json({ error: 'Tournament not found' });
         const tournament = await promoteIfDeadlinePassed(supabaseAdmin, 'champions_league', rawTournament);
 
-        const { data: teams } = await supabaseAdmin.schema('champions_league').from('teams').select('*').eq('tournament_id', tournament_id);
+        const { data: allTeams } = await supabaseAdmin.schema('champions_league').from('teams').select('*').eq('tournament_id', tournament_id);
         const { data: matches } = await supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament_id);
+        // Only offer teams that are actually in this tournament's fixtures.
+        // Confirmed live (Oct 2026): spare copies of teams, and clubs not in
+        // this season's competition, sat in the teams table and showed in
+        // the pick list - a pick on a spare copy was never scored. Before
+        // any fixtures exist (pre-draw) the full list is returned as before.
+        const teamsInFixtures = new Set();
+        (matches || []).forEach(m => { teamsInFixtures.add(m.home_team_id); teamsInFixtures.add(m.away_team_id); });
+        const teams = teamsInFixtures.size ? (allTeams || []).filter(t => teamsInFixtures.has(t.id)) : (allTeams || []);
 
         let myEntry = null, myPicks = [];
         if (user) {
@@ -4194,7 +4202,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // again. Checked against every one of this entry's own prior
           // picks, not just the current matchday/round.
           const { data: allPicks } = await supabaseAdmin.schema('champions_league').from('picks').select('team_id').eq('entry_id', entry.id);
-          if ((allPicks || []).some(p => p.team_id === team_id)) {
+          // Compared by the real club (external_team_id), not just the row
+          // id, so two copies of the same club can never both be picked.
+          const pickedIds = (allPicks || []).map(p => p.team_id);
+          const { data: clubRows } = await supabaseAdmin.schema('champions_league').from('teams')
+            .select('id, external_team_id').in('id', [team_id, ...pickedIds]);
+          const clubOf = {};
+          (clubRows || []).forEach(t => { clubOf[t.id] = t.external_team_id || t.id; });
+          const thisClub = clubOf[team_id] || team_id;
+          if ((allPicks || []).some(p => p.team_id === team_id || (clubOf[p.team_id] || p.team_id) === thisClub)) {
             return res.status(403).json({ error: 'You have already used this team earlier in the tournament — each team can only be picked once.' });
           }
 
@@ -4414,8 +4430,22 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             return res.status(200).json({ success: true, message: 'No real teams available yet — league phase draw likely hasn\'t happened.', ...results });
           }
 
-          const { data: existingTeams } = await supabaseAdmin.schema('champions_league').from('teams').select('id, name, external_team_id').eq('tournament_id', tournament.id);
-          const existingByExternalId = new Map((existingTeams || []).filter(t => t.external_team_id).map(t => [t.external_team_id, t]));
+          const { data: existingTeams } = await supabaseAdmin.schema('champions_league').from('teams').select('id, name, external_team_id').eq('tournament_id', tournament.id).order('id', { ascending: true });
+          // Real fix, confirmed live (Oct 2026): every club had ended up with
+          // two rows, and this map used to keep whichever row the database
+          // happened to return last - so a later sync could switch a club's
+          // fixtures over to its other row, and picks saved against the
+          // first row then never got scored. A club now always maps to the
+          // row its fixtures already use (or the first row by id if it has
+          // no fixtures yet), so the mapping can never flip.
+          const { data: fixtureTeamRows } = await supabaseAdmin.schema('champions_league').from('matches').select('home_team_id, away_team_id').eq('tournament_id', tournament.id);
+          const usedByFixtures = new Set();
+          (fixtureTeamRows || []).forEach(m => { usedByFixtures.add(m.home_team_id); usedByFixtures.add(m.away_team_id); });
+          const existingByExternalId = new Map();
+          (existingTeams || []).filter(t => t.external_team_id).forEach(t => {
+            const current = existingByExternalId.get(t.external_team_id);
+            if (!current || (!usedByFixtures.has(current.id) && usedByFixtures.has(t.id))) existingByExternalId.set(t.external_team_id, t);
+          });
           const placeholderTeams = (existingTeams || []).filter(t => t.name.startsWith('Team ') && !t.external_team_id);
           const teamIdMap = new Map();
 
