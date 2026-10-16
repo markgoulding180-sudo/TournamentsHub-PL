@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en" data-gbs="stock-example">
+<head>
+  <meta charset="UTF-8">
+  <script src="/gb-domain.js"></script>
+  <link rel="stylesheet" href="/gb-shell.css">
+  <script src="/gb-shell.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Try the Stock Market - GB Tournaments</title>
+  <meta name="description" content="A free practice version of the GB Hub Player Stock Market. Draft a squad and step through real gameweek results. Play money only.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --border:#131f35; --border-hover:#3b82f6;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8a97b0; --text-faint:#4d5972;
+      --gold:#f2b93d; --silver:#c0c8d6; --bronze:#d97757; --red:#ef4444; --green:#22c55e; --amber:#f5b83d;
+      --radius:14px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{ overflow-x:hidden; }
+    html, body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
+    body{ color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; min-height:100vh; }
+    a{color:inherit;text-decoration:none;}
+    button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+
+    main{ position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:20px 32px 120px; }
+    @media (max-width:899px){ main{ padding:14px 12px 120px; } }
+
+    .card{ background:rgba(10,18,38,0.92); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:18px; }
+    @media (max-width:640px){ .card{ padding:16px 14px; } }
+    .card-title{ font-family:var(--font-head); font-weight:700; font-size:18px; letter-spacing:.3px; margin-bottom:12px; display:flex; align-items:center; gap:9px; }
+    .card-title i{ color:var(--accent-2); }
+    .card-title-sm{ font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; margin-bottom:12px; color:var(--text-dim); text-transform:uppercase; }
+    .muted{ color:var(--text-dim); }
+    .faint{ color:var(--text-faint); }
+    .pos{ color:var(--green); } .neg{ color:#f87171; }
+
+    .practice-bar{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; margin-bottom:18px; border-radius:12px;
+      background:rgba(245,184,61,0.08); border:1px solid rgba(245,184,61,0.35); font-size:13.5px; }
+    .practice-bar i{ color:var(--amber); }
+    .practice-bar b{ color:var(--amber); }
+    .practice-bar a{ margin-left:auto; color:var(--accent-2); font-weight:600; white-space:nowrap; }
+
+    .btn-primary{ display:inline-flex; align-items:center; justify-content:center; gap:9px; background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:.4px; padding:13px 26px; border-radius:10px; box-shadow:0 6px 20px rgba(59,130,246,0.25); }
+    .btn-primary:disabled{ opacity:0.4; cursor:not-allowed; box-shadow:none; }
+    .btn-ghost{ display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--bg-card); border:1px solid var(--border); color:var(--text-dim); font-family:var(--font-head); font-weight:700; font-size:14px; padding:10px 16px; border-radius:10px; }
+    .btn-ghost:hover:not(:disabled){ border-color:var(--border-hover); color:var(--text); }
+    .btn-ghost:disabled{ opacity:.35; cursor:not-allowed; }
+
+    /* ---------- intro ---------- */
+    .intro-grid{ display:grid; grid-template-columns:1.25fr 1fr; gap:22px; align-items:start; }
+    @media (max-width:860px){ .intro-grid{ grid-template-columns:1fr; } }
+    .steps{ list-style:none; display:flex; flex-direction:column; gap:12px; margin:4px 0 20px; }
+    .steps li{ display:flex; gap:12px; font-size:14px; line-height:1.5; color:var(--text-dim); }
+    .steps li b{ color:var(--text); }
+    .steps .n{ flex:none; width:26px; height:26px; border-radius:50%; background:rgba(59,130,246,0.15); border:1px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; }
+    .facts{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .fact{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:11px 13px; }
+    .fact .l{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); font-weight:700; }
+    .fact .v{ font-family:var(--font-head); font-weight:700; font-size:17px; margin-top:2px; }
+    .fact.wide{ grid-column:1 / -1; }
+    .stage-list{ display:flex; flex-direction:column; gap:5px; margin-top:6px; font-size:13px; }
+    .stage-list div{ display:flex; justify-content:space-between; gap:10px; }
+    .stage-list span:last-child{ color:var(--amber); font-weight:700; }
+
+    /* ---------- draft (same look as the real draft page) ---------- */
+    .pick-layout{ display:grid; grid-template-columns:1fr 320px; gap:18px; align-items:start; min-width:0; }
+    .pick-layout > *{ min-width:0; }
+    @media (max-width:860px){ .pick-layout{ grid-template-columns:1fr; } }
+    .slots-panel{ position:sticky; top:84px; }
+    @media (max-width:860px){ .slots-panel{ position:static; } }
+    .slot-item{ display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background:var(--bg-card); border:1.5px dashed var(--border); margin-bottom:8px; }
+    .slot-item.filled{ border-style:solid; border-color:var(--accent); background:rgba(59,130,246,0.06); }
+    .slot-photo{ width:42px; height:42px; border-radius:8px; background:var(--bg-panel); display:flex; align-items:center; justify-content:center; flex:none; overflow:hidden; border:2px solid transparent; }
+    .slot-photo.rarity-Bronze{ border-color:var(--bronze); } .slot-photo.rarity-Silver{ border-color:var(--silver); } .slot-photo.rarity-Gold{ border-color:var(--gold); }
+    .slot-photo img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+    .slot-photo i{ color:var(--text-faint); font-size:16px; }
+    .slot-info{ flex:1; min-width:0; }
+    .slot-pos-label{ font-size:10px; text-transform:uppercase; letter-spacing:.3px; color:var(--text-faint); font-weight:700; }
+    .slot-name{ font-family:var(--font-head); font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .slot-empty-text{ font-size:12.5px; color:var(--text-faint); font-style:italic; }
+    .slot-remove{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--bg-panel); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:11px; }
+    .slot-remove:hover{ border-color:var(--red); color:#fca5a5; }
+    .lock-btn{ width:100%; margin-top:12px; }
+
+    .pack-intro{ text-align:center; padding:20px 10px 6px; }
+    .pack-intro p{ color:var(--text-dim); font-size:14px; max-width:460px; margin:0 auto 6px; line-height:1.5; }
+    .pack-stack{ position:relative; height:220px; display:flex; align-items:center; justify-content:center; margin:10px 0 18px; cursor:pointer; }
+    .pack-back{ position:absolute; width:130px; height:180px; border-radius:14px; background:linear-gradient(150deg, var(--accent-2), var(--accent-dim)); border:2px solid rgba(255,255,255,0.25); box-shadow:0 10px 30px rgba(59,130,246,0.35); display:flex; align-items:center; justify-content:center; }
+    .pack-back i{ font-size:34px; color:rgba(255,255,255,0.85); }
+    .pack-back:nth-child(1){ transform:rotate(-8deg) translateX(-14px); z-index:1; }
+    .pack-back:nth-child(2){ transform:rotate(4deg) translateX(10px); z-index:2; }
+    .pack-back:nth-child(3){ z-index:3; }
+    .pack-stack:hover .pack-back{ transition:transform .25s ease; }
+    .pack-stack:hover .pack-back:nth-child(1){ transform:rotate(-11deg) translateX(-20px); }
+    .pack-stack:hover .pack-back:nth-child(2){ transform:rotate(6deg) translateX(16px); }
+    .rarity-legend{ display:flex; gap:14px; justify-content:center; margin-top:6px; font-size:11px; color:var(--text-faint); flex-wrap:wrap; }
+    .rarity-legend span{ display:inline-flex; align-items:center; gap:5px; }
+    .rarity-dot{ width:9px;height:9px;border-radius:50%; }
+
+    .carousel-wrap{ display:flex; flex-direction:column; align-items:center; padding:6px 0 10px; }
+    .carousel-stage{ position:relative; width:260px; height:340px; perspective:1000px; touch-action:pan-y; }
+    .player-card{ position:absolute; inset:0; border-radius:18px; overflow:hidden; background-size:cover; background-position:center; border:2px solid #fff; transition:transform .35s ease, opacity .35s ease; cursor:pointer; }
+    .player-card.rarity-Bronze{ background-image:url('assets/card-bg-bronze.png?v=2'); box-shadow:0 0 30px rgba(217,119,87,0.25); }
+    .player-card.rarity-Silver{ background-image:url('assets/card-bg-silver.png?v=2'); box-shadow:0 0 30px rgba(192,200,214,0.2); }
+    .player-card.rarity-Gold{ background-image:url('assets/card-bg-gold.png?v=2'); box-shadow:0 0 40px rgba(242,185,61,0.4); }
+    .player-card.flip-in{ animation:cardFlipIn .5s ease forwards; }
+    @keyframes cardFlipIn{ 0%{ transform:rotateY(90deg) scale(0.9); opacity:0; } 100%{ transform:rotateY(0) scale(1); opacity:1; } }
+    @keyframes cardShake{ 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-8px); } 75%{ transform:translateX(8px); } }
+    .player-card.selected{ border-color:var(--green); box-shadow:0 0 30px rgba(34,197,94,0.45); }
+    .card-rarity-tag{ position:absolute; top:12px; left:12px; z-index:3; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; padding:4px 10px; border-radius:20px; color:#000; }
+    .card-rarity-tag.Bronze{ background:var(--bronze); } .card-rarity-tag.Silver{ background:var(--silver); } .card-rarity-tag.Gold{ background:var(--gold); }
+    .card-selected-badge{ position:absolute; top:12px; right:12px; z-index:3; width:26px; height:26px; border-radius:50%; background:var(--green); display:none; align-items:center; justify-content:center; color:#fff; font-size:12px; }
+    .player-card.selected .card-selected-badge{ display:flex; }
+    .card-photo-wrap{ height:58%; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+    .card-photo-wrap img{ height:100%; object-fit:contain; filter:drop-shadow(0 8px 12px rgba(0,0,0,0.5)); }
+    .card-body{ padding:12px 16px; text-align:center; background:linear-gradient(180deg, rgba(4,8,18,0.55), rgba(4,8,18,0.85)); height:42%; }
+    .card-name{ font-family:var(--font-display); font-size:19px; letter-spacing:.3px; margin-bottom:2px; }
+    .card-meta{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px; margin-bottom:10px; }
+    .card-stats{ display:flex; justify-content:center; gap:16px; }
+    .card-stat .val{ font-family:var(--font-head); font-weight:700; font-size:16px; color:var(--accent-2); }
+    .card-stat .lbl{ font-size:9px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.3px; }
+    .carousel-nav{ display:flex; align-items:center; gap:20px; margin-top:14px; }
+    .carousel-arrow{ width:40px;height:40px;border-radius:50%; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+    .carousel-arrow:hover{ border-color:var(--border-hover); }
+    .carousel-position{ font-size:12px; color:var(--text-faint); font-family:var(--font-head); }
+    .carousel-hint{ font-size:11px; color:var(--text-faint); margin-top:10px; text-align:center; }
+    .tap-select-btn{ margin-top:14px; display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1.5px solid var(--accent); color:var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:13px; padding:9px 20px; border-radius:10px; }
+    .tap-select-btn:disabled{ border-color:var(--border); color:var(--text-faint); opacity:0.6; cursor:not-allowed; }
+    .tap-select-btn.is-selected{ background:rgba(34,197,94,0.12); border-color:var(--green); color:var(--green); }
+    .comp-checklist{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; justify-content:center; }
+    .comp-item{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; background:var(--bg-card); border:1px solid var(--border); font-size:12px; color:var(--text-dim); }
+    .comp-item.met{ border-color:var(--green); color:var(--green); }
+    .comp-item i{ font-size:11px; }
+
+    /* ---------- gameweek stepper ---------- */
+    .gw-bar{ position:sticky; top:60px; z-index:40; display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:16px; border-radius:14px;
+      background:rgba(6,12,32,0.94); border:1px solid var(--border); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+    .gw-bar .gw-label{ flex:1; text-align:center; min-width:0; }
+    .gw-bar .gw-label b{ display:block; font-family:var(--font-display); font-weight:400; font-size:22px; letter-spacing:.5px; line-height:1.05; }
+    .gw-bar .gw-label span{ font-size:12px; color:var(--text-dim); }
+    .gw-dots{ display:flex; gap:5px; justify-content:center; margin-top:5px; }
+    .gw-dots i{ width:7px; height:7px; border-radius:50%; background:var(--border); }
+    .gw-dots i.done{ background:var(--accent); } .gw-dots i.now{ background:var(--accent-2); box-shadow:0 0 8px var(--accent-glow); }
+    .gw-next{ padding:12px 18px; }
+    @media (max-width:640px){
+      .gw-bar{ gap:6px; padding:8px; }
+      .gw-bar .btn-ghost .txt{ display:none; }
+      .gw-bar .btn-ghost{ padding:11px 13px; }
+      .gw-bar .btn-primary{ padding:11px 12px; font-size:13px; gap:6px; }
+      .gw-bar .gw-label b{ font-size:18px; }
+    }
+
+    .tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+    @media (max-width:760px){ .tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+    .tile{ background:rgba(10,18,38,0.92); border:1px solid var(--border); border-radius:12px; padding:12px 14px; min-width:0; }
+    .tile .l{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); font-weight:700; }
+    .tile .v{ font-family:var(--font-head); font-weight:700; font-size:22px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tile .s{ font-size:12px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .notice{ display:flex; gap:12px; align-items:flex-start; padding:13px 16px; border-radius:12px; margin-bottom:12px; font-size:13.5px; line-height:1.5; border:1px solid var(--border); background:var(--bg-card); }
+    .notice > i{ margin-top:3px; }
+    .notice b{ color:var(--text); }
+    .notice.red{ border-color:rgba(239,68,68,0.45); background:rgba(239,68,68,0.08); } .notice.red > i{ color:var(--red); }
+    .notice.amber{ border-color:rgba(245,184,61,0.4); background:rgba(245,184,61,0.07); } .notice.amber > i{ color:var(--amber); }
+    .notice.green{ border-color:rgba(34,197,94,0.4); background:rgba(34,197,94,0.07); } .notice.green > i{ color:var(--green); }
+    .notice.blue{ border-color:rgba(59,130,246,0.45); background:rgba(59,130,246,0.07); } .notice.blue > i{ color:var(--accent-2); }
+
+    /* ---------- matchup ---------- */
+    .vs-head{ display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; margin-bottom:14px; }
+    .vs-side{ min-width:0; }
+    .vs-side.right{ text-align:right; }
+    .vs-name{ font-family:var(--font-head); font-weight:700; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .vs-gain{ font-family:var(--font-display); font-size:26px; letter-spacing:.3px; }
+    .vs-mid{ font-family:var(--font-display); color:var(--text-faint); font-size:18px; }
+    .vs-result{ text-align:center; font-family:var(--font-head); font-weight:700; font-size:14px; padding:8px; border-radius:10px; margin-bottom:14px; }
+    .vs-result.win{ background:rgba(34,197,94,0.1); color:var(--green); border:1px solid rgba(34,197,94,0.35); }
+    .vs-result.loss{ background:rgba(239,68,68,0.08); color:#f87171; border:1px solid rgba(239,68,68,0.35); }
+    .vs-result.draw{ background:var(--bg-card); color:var(--text-dim); border:1px solid var(--border); }
+    .vs-cols{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:760px){ .vs-cols{ grid-template-columns:1fr; } }
+    .squad-label{ font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px; display:flex; justify-content:space-between; }
+    .prow{ display:flex; gap:10px; padding:10px; border-radius:10px; background:var(--bg-card); border:1px solid var(--border); margin-bottom:8px; }
+    .prow.frozen{ opacity:.72; }
+    .prow .slot-photo{ width:40px; height:40px; }
+    .prow .pinfo{ flex:1; min-width:0; }
+    .prow .pname{ font-family:var(--font-head); font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .prow .pmeta{ font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.3px; font-weight:700; }
+    .chips{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+    .chip{ font-size:11px; font-weight:600; padding:2px 7px; border-radius:6px; background:var(--bg-panel); border:1px solid var(--border); color:var(--text-dim); white-space:nowrap; }
+    .chip.up{ color:#86efac; border-color:rgba(34,197,94,0.35); }
+    .chip.down{ color:#fca5a5; border-color:rgba(239,68,68,0.35); }
+    .chip.lock{ color:var(--text-faint); }
+    .flow{ font-size:11px; color:var(--text-faint); margin-top:5px; line-height:1.45; }
+    .flow b{ font-weight:600; }
+    .prow .pval{ text-align:right; flex:none; }
+    .prow .pval .now{ font-family:var(--font-head); font-weight:700; font-size:16px; }
+    .prow .pval .was{ font-size:11px; color:var(--text-faint); }
+    .prow .pval .d{ font-size:12px; font-weight:700; }
+    .squad-total{ display:flex; justify-content:space-between; font-family:var(--font-head); font-weight:700; font-size:14px; padding:4px 4px 0; }
+
+    /* ---------- league table ---------- */
+    .tbl-wrap{ overflow-x:auto; margin:0 -4px; }
+    table.league{ width:100%; border-collapse:collapse; font-size:13.5px; min-width:520px; }
+    table.league th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); font-weight:700; padding:8px 8px; border-bottom:1px solid var(--border); }
+    table.league td{ padding:9px 8px; border-bottom:1px solid rgba(19,31,53,0.7); white-space:nowrap; }
+    table.league th.r, table.league td.r{ text-align:right; }
+    table.league tr.me td{ background:rgba(59,130,246,0.1); }
+    table.league tr.me td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+    table.league tr.zone td{ background:rgba(239,68,68,0.06); }
+    table.league tr.zone.me td{ background:rgba(239,68,68,0.12); }
+    table.league tr.out td{ color:var(--text-faint); }
+    table.league tr.cutline td{ padding:0; border-bottom:2px dashed rgba(239,68,68,0.55); }
+    table.league tr.entrant{ cursor:pointer; }
+    table.league tr.entrant:hover td{ background:rgba(59,130,246,0.06); }
+    table.league tr.detail td{ background:var(--bg-panel); white-space:normal; padding:10px 12px; }
+    .ename{ font-weight:600; }
+    .tag{ font-size:10px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:2px 7px; border-radius:6px; margin-left:6px; vertical-align:1px; }
+    .tag.you{ background:var(--accent); color:#fff; }
+    .tag.rel{ background:rgba(239,68,68,0.15); color:#fca5a5; }
+    .mini-squad{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px; }
+    .mini-squad div{ display:flex; justify-content:space-between; gap:8px; font-size:12px; padding:5px 8px; border-radius:7px; background:var(--bg-card); }
+
+    .rules-table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .rules-table td{ padding:7px 6px; border-bottom:1px solid rgba(19,31,53,0.7); }
+    .rules-table td.r{ text-align:right; font-weight:700; font-family:var(--font-head); font-size:14px; }
+    .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    @media (max-width:860px){ .two-col{ grid-template-columns:1fr; } }
+    .explain{ font-size:13.5px; color:var(--text-dim); line-height:1.6; }
+    .explain p + p{ margin-top:8px; }
+    .explain b{ color:var(--text); }
+
+    .loading{ text-align:center; padding:50px 20px; color:var(--text-faint); }
+    .hidden{ display:none !important; }
+  </style>
+</head>
+<body>
+  <div class="gbs-top">
+    <section class="gbs-hero">
+      <div class="gbs-hero-art" style="background-image:url('/assets/card-stockmarket.jpg')"></div>
+      <div class="gbs-hero-body">
+        <div class="gbs-eyebrow"><i></i>Player Stock Market · Practice</div>
+        <h1 class="gbs-title">Try It Out</h1>
+        <div class="gbs-sub">Real results from GW1–6. Play money. No risk.</div>
+      </div>
+    </section>
+  </div>
+
+  <main>
+    <div class="practice-bar">
+      <i class="fas fa-flask"></i>
+      <span><b>Practice game.</b> Play money only. Nothing is saved, and it never touches a real tournament.</span>
+      <a href="/stock-market">Real Stock Market <i class="fas fa-arrow-right"></i></a>
+    </div>
+
+    <div id="loadingCard" class="card loading"><i class="fas fa-spinner fa-spin"></i> Loading the example…</div>
+    <div id="errorCard" class="card loading hidden"></div>
+
+    <!-- ============ STEP 1: ENTER ============ -->
+    <section id="stepEnter" class="hidden">
+      <div class="card">
+        <div class="intro-grid">
+          <div>
+            <div class="card-title"><i class="fas fa-circle-info"></i> How this example works</div>
+            <ol class="steps">
+              <li><span class="n">1</span><span><b>Enter and open a pack.</b> You get 24 players and pick 6: 1 goalkeeper, at least 1 defender, 1 midfielder and 1 forward, and 2 more outfield players of your choice.</span></li>
+              <li><span class="n">2</span><span><b>Every player starts at £4.00.</b> Your £24 entry is split across your 6 players. 29 other entrants do the same.</span></li>
+              <li><span class="n">3</span><span><b>Press Next to play a gameweek.</b> Each week you face one other entrant. When your player scores, assists, keeps a clean sheet or makes saves, the money comes from your opponent's players. Cards and goals conceded pay money to them.</span></li>
+              <li><span class="n">4</span><span><b>Survive the cuts.</b> The bottom entrants are knocked out at set points. Their money is shared among everyone left, and each action is then worth more.</span></li>
+            </ol>
+            <button class="btn-primary" id="enterBtn"><i class="fas fa-right-to-bracket"></i> Enter the Example Tournament</button>
+          </div>
+          <div>
+            <div class="card-title-sm">This example tournament</div>
+            <div class="facts">
+              <div class="fact"><div class="l">Entrants</div><div class="v">30</div></div>
+              <div class="fact"><div class="l">Entry</div><div class="v">£24 <span class="faint" style="font-size:12px;">play money</span></div></div>
+              <div class="fact"><div class="l">Squad</div><div class="v">6 × £4.00</div></div>
+              <div class="fact"><div class="l">Gameweeks</div><div class="v">GW1 – GW6</div></div>
+              <div class="fact wide"><div class="l">Relegation cuts</div><div class="stage-list" id="stageList"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STEP 2: DRAFT ============ -->
+    <section id="stepDraft" class="hidden">
+      <div class="pick-layout">
+        <div class="card">
+          <div id="packIntro" class="pack-intro">
+            <div class="card-title" style="justify-content:center;"><i class="fas fa-box-open" style="color:var(--gold);"></i> Open your starter pack</div>
+            <p>The pack mixes Bronze, Silver and Gold players, exactly like the real draft. Tap the pack to open it, then browse and pick your 6.</p>
+            <div class="pack-stack" id="packStack">
+              <div class="pack-back"></div>
+              <div class="pack-back"></div>
+              <div class="pack-back"><i class="fas fa-box-open"></i></div>
+            </div>
+            <div class="rarity-legend">
+              <span><span class="rarity-dot" style="background:var(--bronze);"></span> Bronze</span>
+              <span><span class="rarity-dot" style="background:var(--silver);"></span> Silver</span>
+              <span><span class="rarity-dot" style="background:var(--gold);"></span> Gold</span>
+            </div>
+          </div>
+          <div id="carouselBox" class="hidden">
+            <div class="comp-checklist" id="compChecklist"></div>
+            <div class="carousel-wrap">
+              <div class="carousel-stage" id="carouselStage"></div>
+              <button class="tap-select-btn" id="tapSelectBtn"><i class="fas fa-plus"></i> Add to Squad</button>
+              <div class="carousel-nav">
+                <button class="carousel-arrow" id="prevCardBtn" aria-label="Previous player"><i class="fas fa-chevron-left"></i></button>
+                <span class="carousel-position" id="carouselPosition">1 / 24</span>
+                <button class="carousel-arrow" id="nextCardBtn" aria-label="Next player"><i class="fas fa-chevron-right"></i></button>
+              </div>
+              <div class="carousel-hint">Swipe or use the arrows to browse. Tap the card to add or remove it.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card slots-panel">
+          <div class="card-title-sm">Your Squad</div>
+          <div id="slotsList"></div>
+          <button class="btn-primary lock-btn" id="lockBtn" disabled><i class="fas fa-lock"></i> Lock In Squad</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STEP 3: PLAY ============ -->
+    <section id="stepPlay" class="hidden">
+      <div class="gw-bar">
+        <button class="btn-ghost" id="prevGwBtn"><i class="fas fa-chevron-left"></i><span class="txt">Prev</span></button>
+        <div class="gw-label"><b id="gwTitle">Before GW1</b><span id="gwSub"></span><div class="gw-dots" id="gwDots"></div></div>
+        <button class="btn-primary gw-next" id="nextGwBtn"><span class="txt" id="nextGwTxt">Play GW1</span><i class="fas fa-chevron-right"></i></button>
+      </div>
+
+      <div class="tiles" id="tiles"></div>
+      <div id="notices"></div>
+
+      <div class="card" id="matchCard"></div>
+
+      <div class="card">
+        <div class="card-title"><i class="fas fa-table-list"></i> League Table <span class="faint" style="font-size:12px; font-weight:600; margin-left:auto;">Tap an entrant to see their squad</span></div>
+        <div class="tbl-wrap"><table class="league" id="leagueTable"></table></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-coins"></i> What each action is worth <span class="faint" id="multNote" style="font-size:12px; font-weight:600; margin-left:auto;"></span></div>
+          <table class="rules-table" id="rulesTable"></table>
+        </div>
+        <div class="card">
+          <div class="card-title"><i class="fas fa-scale-balanced"></i> Where the money goes</div>
+          <div class="explain">
+            <p><b>Nothing is created or destroyed.</b> When one of your players earns money, it is taken from your opponent's players who played that week, split evenly between them.</p>
+            <p><b>Bad events pay the other side.</b> A card or a goal conceded takes money off that player and shares it among the opponent's players who played.</p>
+            <p><b>Didn't play? Value locked.</b> A player with 0 minutes doesn't move at all that week: he doesn't earn, pay or receive anything.</p>
+            <p><b>Goals come first.</b> If an opponent runs out of money, goals are paid first, then assists, saves and clean sheets.</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:6px;">
+        <button class="btn-ghost" id="restartBtn"><i class="fas fa-rotate-left"></i> Start again with a new pack</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    // =================================================================
+    // EXAMPLE ENGINE - runs only in this browser tab.
+    // The money rules below are copied word for word from the real Stock
+    // Market engine (api/tournaments.js): FLAT_REWARDS,
+    // computePlayerEventBreakdown, prepSquadForSettlement and
+    // settleUnified. Pairing and relegation follow
+    // ensureMatchupsForGameweek and applyRelegationStage step for step,
+    // just without a database. Nothing here talks to the server.
+    // =================================================================
+    const FLAT_REWARDS = {
+      goal: 300, assist: 150, yellow_card: -150, red_card: -300,
+      clean_sheet: 125, save: 30, save_cap: 5,
+      gk_goal_conceded: -75, gk_goal_conceded_cap: 4,
+      outfield_goal_conceded: -75, outfield_goal_conceded_cap: 4
+    };
+
+    function computePlayerEventBreakdown(position, stats, costMultiplier, rewardsOverride) {
+      const R = rewardsOverride || FLAT_REWARDS;
+      const mult = costMultiplier || 1;
+      const goals = Math.min(stats.goals_scored || 0, 99);
+      const assists = Math.min(stats.assists || 0, 99);
+      const goalRate = R.goal;
+      const assistRate = R.assist;
+      const goalAmt = Math.round(goals * goalRate * mult);
+      const assistAmt = Math.round(assists * assistRate * mult);
+      const yellowAmt = Math.round((stats.yellow_cards || 0) * R.yellow_card * mult);
+      const redAmt = Math.round((stats.red_cards || 0) * R.red_card * mult);
+      let cleanSheetAmt = 0, saveAmt = 0, concededAmt = 0;
+      if (position === 'gk') {
+        if ((stats.clean_sheets || 0) > 0) cleanSheetAmt = Math.round(R.clean_sheet * mult);
+        const cappedSaves = Math.min(stats.saves || 0, R.save_cap);
+        saveAmt = Math.round(cappedSaves * R.save * mult);
+        const cappedConceded = Math.min(stats.goals_conceded || 0, R.gk_goal_conceded_cap);
+        concededAmt = Math.round(cappedConceded * R.gk_goal_conceded * mult);
+      } else {
+        const cappedTeamConceded = Math.min(stats.team_goals_conceded || 0, R.outfield_goal_conceded_cap);
+        concededAmt = Math.round(cappedTeamConceded * R.outfield_goal_conceded * mult);
+      }
+      return { goalAmt, assistAmt, saveAmt, cleanSheetAmt, yellowAmt, redAmt, concededAmt };
+    }
+
+    function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplier, rewardsOverride, opts) {
+      return squad.filter(s => !s.empty).map(s => {
+        const stats = statsByPid[s.player_id] || {};
+        const didNotPlay = !((stats.minutes || 0) > 0);
+        const frozen = !!s.is_sub || didNotPlay;
+        const effectiveTeam = stats.team || s.team;
+        const teamConceded = concededByTeam[effectiveTeam] || 0;
+        const events = frozen
+          ? { goalAmt: 0, assistAmt: 0, saveAmt: 0, cleanSheetAmt: 0, yellowAmt: 0, redAmt: 0, concededAmt: 0 }
+          : computePlayerEventBreakdown(s.position, { ...stats, team_goals_conceded: teamConceded }, costMultiplier, rewardsOverride);
+        return {
+          ...s, liveValue: Math.round(s.value || 0), events,
+          gwStats: {
+            goals: stats.goals_scored || 0, assists: stats.assists || 0, yellow_cards: stats.yellow_cards || 0,
+            red_cards: stats.red_cards || 0, clean_sheets: stats.clean_sheets || 0,
+            goals_conceded: s.position === 'gk' ? (stats.goals_conceded || 0) : teamConceded, saves: stats.saves || 0,
+            minutes: stats.minutes || 0,
+            frozen
+          },
+          received: 0, paid: 0, shortBy: 0, benched: !!s.is_sub, frozen,
+          ownEventReceived: 0, ownEventPaid: 0
+        };
+      });
+    }
+
+    function settleUnified(provA, provB) {
+      const distributeExact = (funders, amount) => {
+        const n = funders.length;
+        if (n === 0 || amount === 0) return;
+        if (amount > 0) {
+          const debit = new Map(funders.map(o => [o, 0]));
+          let remaining = amount;
+          let active = funders.slice();
+          while (remaining > 0 && active.length > 0) {
+            const m = active.length;
+            const base = Math.floor(remaining / m);
+            const rem = remaining - base * m;
+            const next = [];
+            let taken = 0;
+            active.forEach((o, i) => {
+              const want = base + (i < rem ? 1 : 0);
+              const left = Math.max(0, Math.round(o.liveValue) - debit.get(o));
+              const d = Math.min(want, left);
+              debit.set(o, debit.get(o) + d);
+              taken += d;
+              if (left - d > 0) next.push(o);
+            });
+            remaining -= taken;
+            active = next;
+            if (taken === 0) break;
+          }
+          if (remaining > 0) {
+            const b = Math.trunc(remaining / n), r = remaining - b * n;
+            funders.forEach((o, i) => debit.set(o, debit.get(o) + b + (i < r ? 1 : 0)));
+          }
+          funders.forEach(o => {
+            const d = debit.get(o);
+            o.liveValue = Math.round(o.liveValue - d);
+            if (d > 0) o.paid = (o.paid || 0) + d;
+            else o.received = (o.received || 0);
+          });
+          return;
+        }
+        const base = Math.trunc(amount / n);
+        const remainder = amount - base * n;
+        const sign = remainder > 0 ? 1 : (remainder < 0 ? -1 : 0);
+        funders.forEach((o, i) => {
+          const extra = i < Math.abs(remainder) ? sign : 0;
+          const debit = base + extra;
+          o.liveValue = Math.round(o.liveValue - debit);
+          if (debit > 0) o.paid = (o.paid || 0) + debit;
+          else o.received = (o.received || 0) + (-debit);
+        });
+      };
+
+      const poolA = provA.filter(p => !p.frozen);
+      const poolB = provB.filter(p => !p.frozen);
+      let capacityA = poolA.reduce((s, p) => s + p.liveValue, 0);
+      let capacityB = poolB.reduce((s, p) => s + p.liveValue, 0);
+
+      const fundEvent = (p, amt, opponentPool, getOppCapacity, setOppCapacity) => {
+        const actual = Math.min(amt, Math.max(0, getOppCapacity()));
+        if (actual > 0) {
+          p.liveValue = Math.round(p.liveValue + actual);
+          p.received = (p.received || 0) + actual;
+          p.ownEventReceived = (p.ownEventReceived || 0) + actual;
+          distributeExact(opponentPool, actual);
+          setOppCapacity(getOppCapacity() - actual);
+        }
+        if (actual < amt) p.shortBy += (amt - actual);
+      };
+
+      const priorityKeys = ['goalAmt', 'assistAmt', 'saveAmt', 'cleanSheetAmt'];
+      for (const key of priorityKeys) {
+        provA.forEach(p => {
+          const amt = p.events[key];
+          if (!amt || amt <= 0) return;
+          fundEvent(p, amt, poolB, () => capacityB, (v) => { capacityB = v; });
+        });
+        provB.forEach(p => {
+          const amt = p.events[key];
+          if (!amt || amt <= 0) return;
+          fundEvent(p, amt, poolA, () => capacityA, (v) => { capacityA = v; });
+        });
+      }
+
+      const applyNegative = (mySide, otherPool) => {
+        if (otherPool.length === 0) return;
+        mySide.forEach(p => {
+          const negTotal = (p.events.yellowAmt || 0) + (p.events.redAmt || 0) + (p.events.concededAmt || 0);
+          if (negTotal >= 0) return;
+          const actualLoss = Math.min(-negTotal, p.liveValue);
+          p.liveValue = Math.round(p.liveValue - actualLoss);
+          p.paid = (p.paid || 0) + actualLoss;
+          p.ownEventPaid = (p.ownEventPaid || 0) + actualLoss;
+          distributeExact(otherPool, -actualLoss);
+        });
+      };
+      applyNegative(provA, poolB);
+      applyNegative(provB, poolA);
+    }
+
+    // ---- seeded random numbers, so Prev/Next always replays the same season ----
+    function makeRng(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function shuffleWith(rng, arr) {
+      const out = [...arr];
+      for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+      }
+      return out;
+    }
+
+    // ---- starter pack: same mix as the real one (STARTER_PACK_MATRIX) ----
+    const STARTER_PACK_MATRIX = {
+      Bronze: { gk: 2, def: 2, mid: 2, fwd: 1 },
+      Silver: { gk: 1, def: 3, mid: 3, fwd: 2 },
+      Gold: { gk: 1, def: 1, mid: 1, fwd: 1 }
+    };
+    function openStarterPack(pool, rng) {
+      const picked = [];
+      for (const rarity of ['Bronze', 'Silver', 'Gold']) {
+        const matrix = STARTER_PACK_MATRIX[rarity];
+        for (const pos of ['gk', 'def', 'mid', 'fwd']) {
+          const needed = matrix[pos] || 0;
+          if (needed === 0) continue;
+          const eligible = pool.filter(p => p.rarity === rarity && p.position === pos);
+          shuffleWith(rng, eligible).slice(0, needed).forEach(p => picked.push(p));
+        }
+      }
+      return picked;
+    }
+    // A computer entrant drafts like a person would: the 4 required
+    // positions first, then 2 more outfield players from the same pack.
+    function autoDraft(pack, rng) {
+      const order = shuffleWith(rng, pack);
+      const squad = [];
+      for (const pos of ['gk', 'def', 'mid', 'fwd']) squad.push(order.find(p => p.position === pos));
+      const rest = order.filter(p => p.position !== 'gk' && !squad.includes(p));
+      squad.push(rest[0], rest[1]);
+      return squad;
+    }
+
+    // ---- pairing: same steps as ensureMatchupsForGameweek ----
+    function pairGameweek(T, gameweek) {
+      const rng = T.rng;
+      const entries = T.entries.filter(e => !e.relegated);
+      let pool = entries.map(e => e.id);
+      let byeEntryId = null;
+      if (pool.length % 2 === 1) {
+        const byeIndex = Math.floor(rng() * pool.length);
+        byeEntryId = pool[byeIndex];
+        pool = pool.filter((_, i) => i !== byeIndex);
+      }
+      const playedPairs = new Set();
+      T.matchups.filter(m => m.gameweek < gameweek).forEach(m => {
+        if (m.entry_id_2) {
+          playedPairs.add(`${m.entry_id_1}|${m.entry_id_2}`);
+          playedPairs.add(`${m.entry_id_2}|${m.entry_id_1}`);
+        }
+      });
+      const hasPlayed = (a, b) => playedPairs.has(`${a}|${b}`);
+      function tryZeroRepeatPairing() {
+        const order = shuffleWith(rng, pool);
+        const used = new Set();
+        const pairs = [];
+        for (let i = 0; i < order.length; i++) {
+          const a = order[i];
+          if (used.has(a)) continue;
+          let partner = null;
+          for (let j = i + 1; j < order.length; j++) {
+            const b = order[j];
+            if (!used.has(b) && !hasPlayed(a, b)) { partner = b; break; }
+          }
+          if (partner === null) return null;
+          used.add(a); used.add(partner);
+          pairs.push([a, partner]);
+        }
+        return pairs;
+      }
+      let pairs = null;
+      const MAX_ATTEMPTS = 200;
+      for (let attempt = 0; attempt < MAX_ATTEMPTS && !pairs; attempt++) pairs = tryZeroRepeatPairing();
+      if (!pairs) {
+        let best = null, bestRepeats = Infinity;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          const order = shuffleWith(rng, pool);
+          const candidate = [];
+          for (let i = 0; i < order.length - 1; i += 2) candidate.push([order[i], order[i + 1]]);
+          const repeats = candidate.filter(([a, b]) => hasPlayed(a, b)).length;
+          if (repeats < bestRepeats) { bestRepeats = repeats; best = candidate; if (repeats === 0) break; }
+        }
+        pairs = best;
+      }
+      pairs.forEach(([a, b]) => T.matchups.push({ gameweek, entry_id_1: a, entry_id_2: b, settled: false }));
+      if (byeEntryId) T.matchups.push({ gameweek, entry_id_1: byeEntryId, entry_id_2: null, settled: true });
+    }
+
+    // ---- one gameweek's settlement: same steps as processHeadToHeadGameweek ----
+    function settleGameweek(T, gameweek, gwData) {
+      const entries = T.entries.filter(e => !e.relegated);
+      const costMultiplier = T.cost_multiplier || 1;
+      const statsByPid = gwData.statsByPid;
+      const concededByTeam = gwData.concededByTeam;
+      const preppedByEntry = {};
+      entries.forEach(e => {
+        preppedByEntry[e.id] = prepSquadForSettlement(e.squad_players || [], statsByPid, concededByTeam, costMultiplier, undefined, { final: true });
+      });
+      for (const row of T.matchups.filter(m => m.gameweek === gameweek && !m.settled)) {
+        if (!row.entry_id_2) continue;
+        const provA = preppedByEntry[row.entry_id_1];
+        const provB = preppedByEntry[row.entry_id_2];
+        if (!provA || !provB) continue;
+        settleUnified(provA, provB);
+        const totalA = provA.reduce((s, p) => s + p.liveValue, 0);
+        const totalB = provB.reduce((s, p) => s + p.liveValue, 0);
+        const startA = provA.reduce((s, p) => s + (p.value || 0), 0);
+        const startB = provB.reduce((s, p) => s + (p.value || 0), 0);
+        const gapA = totalA - startA, gapB = totalB - startB;
+        Object.assign(row, {
+          raw_total_1: gapA, raw_total_2: gapB, gap: Math.abs(gapA - gapB),
+          winner_entry_id: gapA === gapB ? null : (gapA > gapB ? row.entry_id_1 : row.entry_id_2),
+          settled: true
+        });
+      }
+      const detail = {};
+      for (const entry of entries) {
+        const settled = preppedByEntry[entry.id];
+        if (!settled) continue;
+        detail[entry.id] = settled.map(p => ({ ...p, startValue: p.value || 0, endValue: Math.round(p.liveValue) }));
+        entry.squad_players = (entry.squad_players || []).map(s => {
+          if (s.empty) return s;
+          const updated = settled.find(sl => sl.player_id === s.player_id);
+          if (!updated) return s;
+          return { ...s, value: updated.liveValue };
+        });
+        const newTotal = Math.round(entry.squad_players.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
+        entry.last_week_value = entry.current_value;
+        entry.current_value = newTotal;
+      }
+      return detail;
+    }
+
+    // ---- relegation: same steps as applyRelegationStage ----
+    function applyRelegationStage(T, stage, currentGW) {
+      const activeEntries = T.entries.filter(e => !e.relegated).slice()
+        .sort((a, b) => (a.current_value - b.current_value) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      const result = { stage, cut: [], pot: 0, perSlot: 0, skipped: false };
+      if (activeEntries.length === 0) return result;
+      const cutCount = Math.min(Math.max(stage.relegate_count || 0, 0), activeEntries.length);
+      if (cutCount > 0) {
+        let actualCutCount = cutCount;
+        if (cutCount < activeEntries.length) {
+          const boundaryValue = activeEntries[cutCount - 1].current_value;
+          while (actualCutCount < activeEntries.length && activeEntries[actualCutCount].current_value === boundaryValue) actualCutCount++;
+        }
+        if (actualCutCount >= activeEntries.length) { result.skipped = true; return result; }
+        const relegatedEntries = activeEntries.slice(0, actualCutCount);
+        const survivors = activeEntries.slice(actualCutCount);
+        const pot = relegatedEntries.reduce((s, e) => s + Math.round(e.current_value || 0), 0);
+        result.pot = pot;
+        if (pot > 0 && survivors.length > 0) {
+          const slotRefs = [];
+          survivors.forEach(e => {
+            e.squad_players = (e.squad_players || []).map(p => ({ ...p }));
+            e.squad_players.forEach((p, idx) => { if (!p.empty) slotRefs.push({ e, idx }); });
+          });
+          if (slotRefs.length > 0) {
+            const base = Math.floor(pot / slotRefs.length);
+            const remainder = pot - base * slotRefs.length;
+            result.perSlot = base;
+            slotRefs.forEach((ref, i) => {
+              const amount = base + (i < remainder ? 1 : 0);
+              const slot = ref.e.squad_players[ref.idx];
+              slot.value = Math.round((slot.value || 0) + amount);
+            });
+            survivors.forEach(e => {
+              e.current_value = Math.round(e.squad_players.reduce((s, p) => s + (p.empty ? (p.reserved_value || 0) : (p.value || 0)), 0));
+            });
+          }
+        }
+        relegatedEntries.forEach(e => {
+          e.relegated = true; e.relegated_at_gameweek = currentGW; e.value_at_relegation = e.current_value; e.current_value = 0;
+        });
+        result.cut = relegatedEntries.map(e => e.id);
+      }
+      if (stage.cost_multiplier) T.cost_multiplier = stage.cost_multiplier;
+      return result;
+    }
+
+    // ================= PAGE =================
+    const FPL_PHOTO_URL = 'https://resources.premierleague.com/premierleague/photos/players/250x250/p';
+    const ENTRY_FEE = 2400;                 // £24 play money, split over 6 players
+    const SLOT_VALUE = ENTRY_FEE / 6;       // £4.00 each
+    const END_GW = 6;
+    const STAGES = [
+      { stage_number: 1, trigger_gameweek: 2, relegate_count: 6, cost_multiplier: 1.5 },
+      { stage_number: 2, trigger_gameweek: 4, relegate_count: 6, cost_multiplier: 2 },
+      { stage_number: 3, trigger_gameweek: 5, relegate_count: 6, cost_multiplier: 3 }
+    ];
+    // the 29 computer entrants
+    const RIVAL_NAMES = [
+      'Real Ale Madrid', 'Inter Ya Nan', 'Borussia Teeth', 'Athletico Mince', 'Lokomotiv Loco',
+      'Dynamo Kiev Lagers', 'Sporting Chance', 'Bayern Bru', 'Ajax Trax', 'Fiorentina Turner',
+      'Paris Saint Germs', 'Aston Vanilla', 'Norwich Pity', 'Hull Raisers', 'Wolverhamsters',
+      'Partick Whistle', 'Stanley Cupcake', 'Tottenham Hotspurt', 'Newcastle Brown', 'Leeds Speed',
+      'Sheffield Thursday', 'Bristol Rovers Return', 'Queens Park Strangers', 'Forest Gump', 'Brighton Early',
+      'Everton Mints', 'Dinamo Kebab', 'Inter Mittens', 'Crouch End Athletic'
+    ];
+
+    const posLabel = { gk: 'GK', def: 'DEF', mid: 'MID', fwd: 'FWD' };
+    const posName = { gk: 'Goalkeeper', def: 'Defender', mid: 'Midfielder', fwd: 'Forward', flex: 'Flex' };
+    const rarityIcon = { Bronze: 'fa-medal', Silver: 'fa-medal', Gold: 'fa-crown' };
+    const $ = id => document.getElementById(id);
+    function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+    function money(p) { return (p < 0 ? '−' : '') + '£' + (Math.abs(p) / 100).toFixed(2); }
+    function signed(p) { return p === 0 ? '£0.00' : (p > 0 ? '+' : '−') + '£' + (Math.abs(p) / 100).toFixed(2); }
+    function cls(p) { return p > 0 ? 'pos' : p < 0 ? 'neg' : 'faint'; }
+    function multText(m) { return '×' + (Math.round(m * 100) / 100); }
+
+    // ---- shirts, same fallback as the real draft page ----
+    const SHIRTS = {
+      'Arsenal': 'arsenal', 'Aston Villa': 'aston villa', 'Bournemouth': 'bournmouth', 'Brentford': 'brentford', 'Brighton': 'brighton',
+      'Burnley': 'burnley', 'Chelsea': 'chelsea', 'Crystal Palace': 'crystal', 'Everton': 'everton', 'Fulham': 'fullham', 'Leeds': 'leeds',
+      'Liverpool': 'liverpool', 'Man City': 'man city', 'Man Utd': 'man u', 'Newcastle': 'new castle', "Nott'm Forest": 'nots forest',
+      'Spurs': 'spurs', 'West Ham': 'west ham', 'Wolves': 'wovles temp', 'Sunderland': 'sunderland', 'Coventry City': 'coventry city',
+      'Hull City': 'hull city', 'Ipswich Town': 'ipswich town'
+    };
+    const BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    function shirtSrc(team) { return team ? `shirts/${SHIRTS[team] || team.toLowerCase()}.webp` : BLANK_IMG; }
+    window.__exShirt = function (img, team) {
+      img.onerror = function () { this.onerror = null; this.src = BLANK_IMG; };
+      img.src = shirtSrc(team); img.style.objectFit = 'contain'; img.style.padding = '4px';
+    };
+    function photoHtml(p, alt) {
+      const team = esc(p.team).replace(/&#39;/g, "\\'");
+      return p.photo
+        ? `<img src="${esc(p.photo)}" alt="${esc(alt || '')}" loading="lazy" onerror="window.__exShirt(this, '${team}')">`
+        : `<img src="${esc(shirtSrc(p.team))}" alt="" style="object-fit:contain;padding:4px;" onerror="this.onerror=null;this.src='${BLANK_IMG}'">`;
+    }
+
+    // ---- data ----
+    let DATA = null, POOL = [], SEASON_PTS = {};
+    function gwData(gw) {
+      const statsByPid = {};
+      (DATA.stats[gw] || []).forEach(s => {
+        statsByPid[s[0]] = { player_id: s[0], goals_scored: s[1], assists: s[2], yellow_cards: s[3], red_cards: s[4], clean_sheets: s[5], goals_conceded: s[6], saves: s[7], minutes: s[8], team: DATA.teams[s[9]] };
+      });
+      return { statsByPid, concededByTeam: DATA.conceded[gw] || {} };
+    }
+    function photoUrl(code) { return !code ? null : /^https:\/\//.test(code) ? code : FPL_PHOTO_URL + code + '.png'; }
+
+    // ---- who's playing ----
+    function myName() {
+      try {
+        const u = localStorage.getItem('gbf_token') ? JSON.parse(localStorage.getItem('gbf_user') || 'null') : null;
+        const n = u && (u.display_name || u.username);
+        return n ? String(n).slice(0, 30) : 'You';
+      } catch (e) { return 'You'; }
+    }
+
+    // ================= STEP 1 =================
+    function showStep(id) {
+      ['loadingCard', 'stepEnter', 'stepDraft', 'stepPlay'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+    }
+    function renderStageList() {
+      $('stageList').innerHTML = STAGES.map(s =>
+        `<div><span>After GW${s.trigger_gameweek}: bottom ${s.relegate_count} knocked out</span><span>actions ${multText(s.cost_multiplier)}</span></div>`).join('') +
+        `<div><span>After GW${END_GW}: finish. Survivors keep what their squad is worth</span><span></span></div>`;
+    }
+
+    // ================= STEP 2: DRAFT =================
+    let seed = 0, rng = null, pack = [], cardIdx = 0;
+    let slots = [];
+    function freshSlots() {
+      return [{ type: 'gk', player: null }, { type: 'def', player: null }, { type: 'mid', player: null }, { type: 'fwd', player: null }, { type: 'flex', player: null }, { type: 'flex', player: null }];
+    }
+    function startDraft() {
+      seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
+      rng = makeRng(seed);
+      slots = freshSlots(); pack = []; cardIdx = 0;
+      $('packIntro').classList.remove('hidden');
+      $('carouselBox').classList.add('hidden');
+      renderSlots(); renderChecklist();
+      showStep('stepDraft');
+      window.scrollTo({ top: 0 });
+    }
+    function openPack() {
+      if (pack.length) return;
+      pack = openStarterPack(POOL, rng);
+      $('packIntro').classList.add('hidden');
+      $('carouselBox').classList.remove('hidden');
+      cardIdx = 0; renderCard(true); renderChecklist();
+    }
+    const slotOf = id => slots.find(s => s.player && s.player.id === id);
+    const openSlot = pos => slots.find(s => s.type === pos && !s.player);
+    function targetSlot(c) { return c.position === 'gk' ? openSlot('gk') : (openSlot(c.position) || openSlot('flex')); }
+    function renderCard(flip) {
+      const c = pack[cardIdx]; if (!c) return;
+      const sel = !!slotOf(c.id);
+      const pts = SEASON_PTS[c.id] || { apps: 0 };
+      $('carouselStage').innerHTML = `
+        <div class="player-card rarity-${c.rarity} ${sel ? 'selected' : ''} ${flip ? 'flip-in' : ''}">
+          <div class="card-rarity-tag ${c.rarity}"><i class="fas ${rarityIcon[c.rarity]}"></i> ${esc(c.rarity)}</div>
+          <div class="card-selected-badge"><i class="fas fa-check"></i></div>
+          <div class="card-photo-wrap">${c.photo ? `<img src="${esc(c.photo)}" alt="${esc(c.name)}" onerror="window.__exShirt(this, '${esc(c.team).replace(/&#39;/g, "\\'")}'); this.style.height='80%';">` : `<img src="${esc(shirtSrc(c.team))}" alt="" style="height:80%;">`}</div>
+          <div class="card-body">
+            <div class="card-name">${esc(c.name)}</div>
+            <div class="card-meta">${posLabel[c.position]} · ${esc(c.team)}</div>
+            <div class="card-stats">
+              <div class="card-stat"><div class="val">£4.00</div><div class="lbl">Start value</div></div>
+              <div class="card-stat"><div class="val">${pts.apps}</div><div class="lbl">Apps</div></div>
+            </div>
+          </div>
+        </div>`;
+      $('carouselStage').querySelector('.player-card').addEventListener('click', toggleSelect);
+      $('carouselPosition').textContent = `${cardIdx + 1} / ${pack.length}`;
+      const btn = $('tapSelectBtn');
+      btn.classList.toggle('is-selected', sel);
+      if (sel) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Added — tap to remove'; }
+      else if (!targetSlot(c)) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-ban"></i> No room for this position'; }
+      else { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Add to Squad'; }
+    }
+    function navCard(d) { if (!pack.length) return; cardIdx = (cardIdx + d + pack.length) % pack.length; renderCard(false); }
+    function toggleSelect() {
+      const c = pack[cardIdx]; if (!c) return;
+      const ex = slotOf(c.id);
+      if (ex) ex.player = null;
+      else {
+        const t = targetSlot(c);
+        if (!t) {
+          const el = document.querySelector('#carouselStage .player-card');
+          if (el) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = 'cardShake .3s ease'; }
+          return;
+        }
+        t.player = c;
+      }
+      renderCard(false); renderSlots(); renderChecklist();
+    }
+    function removePlayer(id) { const s = slotOf(id); if (s) { s.player = null; renderSlots(); renderChecklist(); if (pack.length) renderCard(false); } }
+    function renderSlots() {
+      $('slotsList').innerHTML = slots.map(s => {
+        if (!s.player) return `<div class="slot-item"><div class="slot-photo"><i class="fas ${s.type === 'gk' ? 'fa-hand' : s.type === 'flex' ? 'fa-star' : 'fa-user'}"></i></div>
+          <div class="slot-info"><div class="slot-pos-label">${posName[s.type]}${s.type === 'flex' ? ' (any outfield)' : ''}</div><div class="slot-empty-text">Empty slot</div></div></div>`;
+        const p = s.player;
+        return `<div class="slot-item filled"><div class="slot-photo rarity-${p.rarity}">${photoHtml(p, p.name)}</div>
+          <div class="slot-info"><div class="slot-pos-label">${posName[s.type]} · ${esc(p.rarity)}</div><div class="slot-name">${esc(p.name)}</div></div>
+          <button class="slot-remove" data-remove="${p.id}" title="Remove"><i class="fas fa-xmark"></i></button></div>`;
+      }).join('');
+    }
+    function composition() { const c = { gk: 0, def: 0, mid: 0, fwd: 0 }; slots.forEach(s => { if (s.player) c[s.player.position]++; }); return c; }
+    function renderChecklist() {
+      const comp = composition(), total = slots.filter(s => s.player).length;
+      const rules = [['Goalkeeper', comp.gk === 1], ['Defender', comp.def >= 1], ['Midfielder', comp.mid >= 1], ['Forward', comp.fwd >= 1], ['6 total', total === 6]];
+      $('compChecklist').innerHTML = rules.map(([l, ok]) => `<div class="comp-item ${ok ? 'met' : ''}"><i class="fas ${ok ? 'fa-check-circle' : 'fa-circle'}"></i> ${l}</div>`).join('');
+      const ok = rules.every(r => r[1]);
+      const btn = $('lockBtn');
+      btn.disabled = !ok;
+      btn.innerHTML = ok ? '<i class="fas fa-lock"></i> Lock In Squad & Start'
+        : (pack.length ? `<i class="fas fa-circle-info"></i> Pick ${6 - total} more player${6 - total === 1 ? '' : 's'}` : '<i class="fas fa-box-open"></i> Open your pack first');
+    }
+
+    // ================= STEP 3: THE TOURNAMENT =================
+    let T = null;            // live tournament state (only ever moves forward)
+    let snaps = [];          // a frozen copy after each gameweek: snaps[0] = before GW1
+    let view = 0;            // which snapshot is on screen
+    const clone = o => JSON.parse(JSON.stringify(o));
+
+    function lockSquad() {
+      if ($('lockBtn').disabled) return;
+      const mine = slots.map(s => s.player);
+      const names = shuffleWith(rng, RIVAL_NAMES);
+      // the person's place in the list is random too, so tie-breaks favour nobody
+      const youAt = Math.floor(rng() * 30);
+      const entries = [];
+      let r = 0;
+      for (let i = 0; i < 30; i++) {
+        const isYou = i === youAt;
+        const squad = isYou ? mine : autoDraft(openStarterPack(POOL, rng), rng);
+        entries.push({
+          id: 'e' + String(i + 1).padStart(2, '0'), name: isYou ? myName() : names[r++], isYou,
+          relegated: false, current_value: ENTRY_FEE, last_week_value: ENTRY_FEE,
+          squad_players: squad.map(p => ({ player_id: p.id, name: p.name, position: p.position, team: p.team, rarity: p.rarity, photo: p.photo, value: SLOT_VALUE }))
+        });
+      }
+      T = { rng, entries, matchups: [], cost_multiplier: 1 };
+      pairGameweek(T, 1);    // like the real game: you see your GW1 opponent before it's played
+      snaps = [snapshot(0, null, [])];
+      view = 0;
+      showStep('stepPlay');
+      render();
+      window.scrollTo({ top: 0 });
+    }
+    function snapshot(gw, detail, stageResults) {
+      return { gw, entries: clone(T.entries), matchups: clone(T.matchups), mult: T.cost_multiplier, detail: detail ? clone(detail) : null, stages: clone(stageResults) };
+    }
+    function playNext() {
+      if (view < snaps.length - 1) { view++; render(); return; }
+      const gw = snaps.length;            // the next gameweek to play
+      if (gw > END_GW) return;
+      const detail = settleGameweek(T, gw, gwData(gw));
+      const stageResults = STAGES.filter(s => s.trigger_gameweek === gw).map(s => applyRelegationStage(T, s, gw));
+      if (gw < END_GW) pairGameweek(T, gw + 1);
+      snaps.push(snapshot(gw, detail, stageResults));
+      view = snaps.length - 1;
+      render();
+    }
+    function goPrev() { if (view > 0) { view--; render(); } }
+
+    // ---- helpers over a snapshot ----
+    function ranked(S) {
+      const act = S.entries.filter(e => !e.relegated).sort((a, b) => (b.current_value - a.current_value) || (a.id < b.id ? -1 : 1));
+      const out = S.entries.filter(e => e.relegated).sort((a, b) => (b.relegated_at_gameweek - a.relegated_at_gameweek) || (b.value_at_relegation - a.value_at_relegation));
+      return { act, out };
+    }
+    // tied values share a place ("=3"), so nobody looks ahead of an equal squad
+    function placeOf(act, e) { return 1 + act.filter(x => x.current_value > e.current_value).length; }
+    function placeText(act, e) { const n = placeOf(act, e); return (act.filter(x => x.current_value === e.current_value).length > 1 ? '=' : '') + n; }
+    function record(S, id) {
+      let w = 0, d = 0, l = 0;
+      S.matchups.filter(m => m.settled && m.entry_id_2 && m.gameweek <= S.gw && (m.entry_id_1 === id || m.entry_id_2 === id)).forEach(m => {
+        if (!m.winner_entry_id) d++; else if (m.winner_entry_id === id) w++; else l++;
+      });
+      return { w, d, l };
+    }
+    const byId = (S, id) => S.entries.find(e => e.id === id);
+    function matchFor(S, gw, id) { return S.matchups.find(m => m.gameweek === gw && (m.entry_id_1 === id || m.entry_id_2 === id)); }
+    const prevSnap = S => snaps[Math.max(0, S.gw - 1)];
+
+    // ---- page ----
+    function render() {
+      const S = snaps[view];
+      const me = S.entries.find(e => e.isYou);
+      const last = snaps.length - 1;
+      const finished = S.gw === END_GW;
+
+      $('gwTitle').textContent = S.gw === 0 ? 'Before GW1' : `Gameweek ${S.gw}`;
+      $('gwSub').textContent = S.gw === 0 ? 'Squads locked · everyone starts at £24.00' : (finished ? 'Final results' : `Results in · action values ${multText(prevSnap(S).mult)}`);
+      $('gwDots').innerHTML = Array.from({ length: END_GW }, (_, i) => `<i class="${i + 1 < S.gw ? 'done' : i + 1 === S.gw ? 'now' : ''}"></i>`).join('');
+      $('prevGwBtn').disabled = view === 0;
+      const nb = $('nextGwBtn');
+      nb.disabled = S.gw >= END_GW;
+      $('nextGwTxt').textContent = S.gw >= END_GW ? 'Finished' : (view < last ? `Show GW${S.gw + 1}` : `Play GW${S.gw + 1}`);
+
+      renderTiles(S, me);
+      renderNotices(S, me);
+      renderMatch(S, me);
+      renderLeague(S, me);
+      renderRules(S);
+    }
+
+    function renderTiles(S, me) {
+      const { act } = ranked(S);
+      const prev = prevSnap(S).entries.find(e => e.id === me.id);
+      const val = me.relegated ? me.value_at_relegation : me.current_value;
+      const prevVal = prev.relegated ? prev.value_at_relegation : prev.current_value;
+      const change = S.gw === 0 ? 0 : val - prevVal;
+      const rec = record(S, me.id);
+      const pot = act.reduce((s, e) => s + e.current_value, 0);
+      const nextStage = STAGES.find(s => s.trigger_gameweek > S.gw);
+      $('tiles').innerHTML = `
+        <div class="tile"><div class="l">${me.relegated ? 'Value when knocked out' : 'Your squad value'}</div><div class="v">${money(val)}</div>
+          <div class="s ${cls(change)}">${S.gw === 0 ? 'Started at £24.00' : signed(change) + ' this gameweek'}</div></div>
+        <div class="tile"><div class="l">Position</div><div class="v">${me.relegated ? 'Out' : placeText(act, me) + ' <span class="faint" style="font-size:14px;">of ' + act.length + '</span>'}</div>
+          <div class="s">${me.relegated ? 'Knocked out after GW' + me.relegated_at_gameweek : 'Played ' + (rec.w + rec.d + rec.l) + ' · W' + rec.w + ' D' + rec.d + ' L' + rec.l}</div></div>
+        <div class="tile"><div class="l">Action values</div><div class="v">${multText(S.mult)}</div>
+          <div class="s">${S.gw >= END_GW ? 'Tournament over' : 'for GW' + (S.gw + 1)}</div></div>
+        <div class="tile"><div class="l">Money in play</div><div class="v">${money(pot)}</div>
+          <div class="s">${nextStage ? 'Next cut after GW' + nextStage.trigger_gameweek : 'No more cuts'}</div></div>`;
+    }
+
+    function renderNotices(S, me) {
+      const out = [];
+      if (S.gw === 0) {
+        out.push(`<div class="notice blue"><i class="fas fa-circle-play"></i><div>Your squad is locked in. Press <b>Play GW1</b> to run the first gameweek with the real results, then keep pressing to work through to GW${END_GW}.</div></div>`);
+      }
+      (S.stages || []).forEach(r => {
+        if (r.skipped) {
+          out.push(`<div class="notice amber"><i class="fas fa-scale-balanced"></i><div>Cut ${r.stage.stage_number} was skipped. Everyone was level, so there was nobody to knock out.</div></div>`);
+          return;
+        }
+        const names = r.cut.map(id => byId(S, id)).map(e => e.isYou ? '<b>you</b>' : esc(e.name));
+        const youOut = r.cut.includes(me.id);
+        out.push(`<div class="notice ${youOut ? 'red' : 'amber'}"><i class="fas fa-user-slash"></i><div>
+          <b>Cut ${r.stage.stage_number}: ${r.cut.length} knocked out</b>${r.cut.length > r.stage.relegate_count ? ' (more than ' + r.stage.relegate_count + ' because of a tie on the line)' : ''}: ${names.join(', ')}.
+          Their ${money(r.pot)} was shared out evenly across every player left in the tournament: about <b>+${money(r.perSlot)}</b> each.
+          From now on every action is worth <b>${multText(r.stage.cost_multiplier)}</b>.</div></div>`);
+      });
+      if (S.gw === END_GW) {
+        const { act } = ranked(S);
+        const top = act[0];
+        if (me.relegated) {
+          out.push(`<div class="notice red"><i class="fas fa-flag-checkered"></i><div><b>Tournament over.</b> You were knocked out after GW${me.relegated_at_gameweek}. ${esc(top.name)} finished top with ${money(top.current_value)}.</div></div>`);
+        } else {
+          const rank = placeOf(act, me);
+          out.push(`<div class="notice green"><i class="fas fa-trophy"></i><div><b>Tournament over. You survived and finished ${placeText(act, me).startsWith('=') ? 'joint ' : ''}${ordinal(rank)} of ${act.length}</b> with ${money(me.current_value)}${rank === 1 ? '. Top of the pile!' : '. ' + esc(top.name) + ' finished top with ' + money(top.current_value) + '.'}
+            In a real tournament, every survivor takes home what their squad is worth at the end.</div></div>`);
+        }
+        out.push(`<div class="notice blue"><i class="fas fa-rotate-left"></i><div>Want another go? <b>Start again</b> at the bottom of the page for a new pack and new opponents.</div></div>`);
+      } else if (me.relegated && !(S.stages || []).some(r => r.cut.includes(me.id))) {
+        out.push(`<div class="notice"><i class="fas fa-eye"></i><div>You're out, but you can keep pressing Next to see how the rest of the tournament plays out.</div></div>`);
+      }
+      $('notices').innerHTML = out.join('');
+    }
+    function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+    // one player's row in the matchup
+    function playerRow(p, isPreview) {
+      const pl = { team: p.team, photo: p.photo };
+      if (isPreview) {
+        return `<div class="prow"><div class="slot-photo rarity-${p.rarity}">${photoHtml(pl, p.name)}</div>
+          <div class="pinfo"><div class="pname">${esc(p.name)}</div><div class="pmeta">${posLabel[p.position]} · ${esc(p.team)}</div></div>
+          <div class="pval"><div class="now">${money(p.value)}</div></div></div>`;
+      }
+      const st = p.gwStats, ev = p.events, chips = [];
+      if (p.frozen) chips.push(`<span class="chip lock"><i class="fas fa-lock"></i> Didn't play · value locked</span>`);
+      else {
+        chips.push(`<span class="chip">${st.minutes}'</span>`);
+        if (st.goals) chips.push(`<span class="chip up">⚽ ${st.goals > 1 ? st.goals + ' goals' : 'Goal'} ${signed(ev.goalAmt)}</span>`);
+        if (st.assists) chips.push(`<span class="chip up">${st.assists > 1 ? st.assists + ' assists' : 'Assist'} ${signed(ev.assistAmt)}</span>`);
+        if (ev.saveAmt) chips.push(`<span class="chip up">${st.saves} save${st.saves === 1 ? '' : 's'}${st.saves > 5 ? ' (max 5)' : ''} ${signed(ev.saveAmt)}</span>`);
+        if (ev.cleanSheetAmt) chips.push(`<span class="chip up">Clean sheet ${signed(ev.cleanSheetAmt)}</span>`);
+        if (st.yellow_cards) chips.push(`<span class="chip down">🟨 Yellow ${signed(ev.yellowAmt)}</span>`);
+        if (st.red_cards) chips.push(`<span class="chip down">🟥 Red ${signed(ev.redAmt)}</span>`);
+        if (ev.concededAmt) chips.push(`<span class="chip down">${p.position === 'gk' ? '' : 'Team '}conceded ${st.goals_conceded}${st.goals_conceded > 4 ? ' (max 4)' : ''} ${signed(ev.concededAmt)}</span>`);
+        if (chips.length === 1) chips.push(`<span class="chip">No actions</span>`);
+      }
+      const own = (p.ownEventReceived || 0) - (p.ownEventPaid || 0);
+      const fundIn = (p.received || 0) - (p.ownEventReceived || 0);
+      const fundOut = (p.paid || 0) - (p.ownEventPaid || 0);
+      const flow = [];
+      if (!p.frozen) {
+        if (own) flow.push(`His actions <b class="${cls(own)}">${signed(own)}</b>`);
+        if (fundOut) flow.push(`paid for opponent's actions <b class="neg">${signed(-fundOut)}</b>`);
+        if (fundIn) flow.push(`received from opponent's mistakes <b class="pos">${signed(fundIn)}</b>`);
+        if (p.shortBy) flow.push(`<span class="neg">${money(p.shortBy)} not paid: opponent ran out of money</span>`);
+      }
+      const d = p.endValue - p.startValue;
+      return `<div class="prow ${p.frozen ? 'frozen' : ''}"><div class="slot-photo rarity-${p.rarity}">${photoHtml(pl, p.name)}</div>
+        <div class="pinfo"><div class="pname">${esc(p.name)}</div><div class="pmeta">${posLabel[p.position]} · ${esc(p.team)}</div>
+          <div class="chips">${chips.join('')}</div>${flow.length ? `<div class="flow">${flow.join(' · ')}</div>` : ''}</div>
+        <div class="pval"><div class="now">${money(p.endValue)}</div><div class="d ${cls(d)}">${d ? signed(d) : 'no change'}</div><div class="was">was ${money(p.startValue)}</div></div></div>`;
+    }
+
+    function renderMatch(S, me) {
+      const box = $('matchCard');
+      // Before a gameweek is played (or between weeks): show who's next
+      if (S.gw === 0) {
+        const m = matchFor(S, 1, me.id);
+        box.innerHTML = previewHtml(S, me, m, 1);
+        return;
+      }
+      const m = matchFor(S, S.gw, me.id);
+      if (!m) {
+        // knocked out earlier - show the top two's match instead so there's still something to watch
+        const { act } = ranked(S);
+        const leader = act[0];
+        const lm = matchFor(S, S.gw, leader.id);
+        box.innerHTML = `<div class="card-title"><i class="fas fa-binoculars"></i> GW${S.gw}: the leader's match</div>` +
+          (lm && lm.entry_id_2 ? resultHtml(S, leader, lm) : `<div class="muted">${esc(leader.name)} had a bye this week.</div>`);
+        return;
+      }
+      if (!m.entry_id_2) {
+        box.innerHTML = `<div class="card-title"><i class="fas fa-mug-hot"></i> GW${S.gw}: you had a bye</div><div class="muted">With an odd number left, one entrant sits the week out. Your values didn't move.</div>` + nextPreview(S, me);
+        return;
+      }
+      box.innerHTML = `<div class="card-title"><i class="fas fa-people-arrows"></i> GW${S.gw}: your match</div>` + resultHtml(S, me, m) + cutShareNote(S, me) + nextPreview(S, me);
+    }
+    function cutShareNote(S, me) {
+      if (me.relegated) return '';
+      if (!(S.stages || []).some(r => r.pot > 0) || !S.detail || !S.detail[me.id]) return '';
+      const share = me.current_value - S.detail[me.id].reduce((s, p) => s + p.endValue, 0);
+      return `<div class="notice amber" style="margin:14px 0 0;"><i class="fas fa-coins"></i><div>The values above are from the match. After it, your squad also got <b>+${money(share)}</b> from the money of the entrants knocked out, so it is now worth <b>${money(me.current_value)}</b>.</div></div>`;
+    }
+    function nextPreview(S, me) {
+      if (S.gw >= END_GW || me.relegated) return '';
+      const nm = matchFor(S, S.gw + 1, me.id);
+      if (!nm) return '';
+      if (!nm.entry_id_2) return `<div class="notice" style="margin:14px 0 0;"><i class="fas fa-forward"></i><div>Next up, GW${S.gw + 1}: you have a bye.</div></div>`;
+      const opp = byId(S, nm.entry_id_1 === me.id ? nm.entry_id_2 : nm.entry_id_1);
+      return `<div class="notice" style="margin:14px 0 0;"><i class="fas fa-forward"></i><div>Next up, GW${S.gw + 1}: you play <b>${esc(opp.name)}</b> (${money(opp.current_value)}).</div></div>`;
+    }
+    function previewHtml(S, me, m, gw) {
+      if (!m || !m.entry_id_2) return `<div class="card-title"><i class="fas fa-mug-hot"></i> GW${gw}: you have a bye</div>`;
+      const opp = byId(S, m.entry_id_1 === me.id ? m.entry_id_2 : m.entry_id_1);
+      return `<div class="card-title"><i class="fas fa-people-arrows"></i> GW${gw}: your first match</div>
+        <div class="vs-head"><div class="vs-side"><div class="vs-name">${esc(me.name)} <span class="tag you">You</span></div><div class="muted" style="font-size:13px;">${money(me.current_value)}</div></div>
+          <div class="vs-mid">VS</div>
+          <div class="vs-side right"><div class="vs-name">${esc(opp.name)}</div><div class="muted" style="font-size:13px;">${money(opp.current_value)}</div></div></div>
+        <div class="vs-cols">
+          <div><div class="squad-label"><span>Your squad</span></div>${me.squad_players.map(p => playerRow(p, true)).join('')}</div>
+          <div><div class="squad-label"><span>${esc(opp.name)}</span></div>${opp.squad_players.map(p => playerRow(p, true)).join('')}</div>
+        </div>`;
+    }
+    function resultHtml(S, a, m) {
+      const bId = m.entry_id_1 === a.id ? m.entry_id_2 : m.entry_id_1;
+      const b = byId(S, bId);
+      const da = S.detail[a.id], db = S.detail[bId];
+      const gain = rows => rows.reduce((s, p) => s + p.endValue - p.startValue, 0);
+      const ga = gain(da), gb = gain(db);
+      const res = !m.winner_entry_id ? 'draw' : m.winner_entry_id === a.id ? 'win' : 'loss';
+      const label = a.isYou
+        ? (res === 'win' ? `<i class="fas fa-trophy"></i> You won by ${money(m.gap)}` : res === 'loss' ? `You lost by ${money(m.gap)}` : 'A draw: both squads moved the same')
+        : (res === 'draw' ? 'A draw' : `${esc(byId(S, m.winner_entry_id).name)} won by ${money(m.gap)}`);
+      const tot = rows => rows.reduce((s, p) => s + p.endValue, 0);
+      return `
+        <div class="vs-head">
+          <div class="vs-side"><div class="vs-name">${esc(a.name)}${a.isYou ? ' <span class="tag you">You</span>' : ''}</div><div class="vs-gain ${cls(ga)}">${signed(ga)}</div></div>
+          <div class="vs-mid">VS</div>
+          <div class="vs-side right"><div class="vs-name">${esc(b.name)}</div><div class="vs-gain ${cls(gb)}">${signed(gb)}</div></div>
+        </div>
+        <div class="vs-result ${res}">${label}</div>
+        <div class="vs-cols">
+          <div><div class="squad-label"><span>${a.isYou ? 'Your squad' : esc(a.name)}</span><span>now ${money(tot(da))}</span></div>${da.map(p => playerRow(p)).join('')}</div>
+          <div><div class="squad-label"><span>${esc(b.name)}</span><span>now ${money(tot(db))}</span></div>${db.map(p => playerRow(p)).join('')}</div>
+        </div>`;
+    }
+
+    let openRow = null;
+    function renderLeague(S, me) {
+      const { act, out } = ranked(S);
+      const prev = prevSnap(S);
+      const nextStage = STAGES.find(s => s.trigger_gameweek > S.gw);
+      const allLevel = act.every(e => e.current_value === act[0].current_value);
+      const cutAt = nextStage && !allLevel ? Math.max(0, act.length - nextStage.relegate_count) : -1;
+      let html = `<thead><tr><th>#</th><th>Entrant</th><th class="r">Value</th><th class="r">This GW</th><th class="r">W-D-L</th></tr></thead><tbody>`;
+      act.forEach((e, i) => {
+        if (i === cutAt && cutAt > 0) html += `<tr class="cutline"><td colspan="5"></td></tr>`;
+        const pe = prev.entries.find(x => x.id === e.id);
+        const ch = S.gw === 0 ? 0 : e.current_value - (pe.relegated ? 0 : pe.current_value);
+        const rec = record(S, e.id);
+        const zone = cutAt > 0 && i >= cutAt;
+        html += `<tr class="entrant ${e.isYou ? 'me' : ''} ${zone ? 'zone' : ''}" data-entry="${e.id}"><td>${placeText(act, e)}</td>
+          <td><span class="ename">${esc(e.name)}</span>${e.isYou ? '<span class="tag you">You</span>' : ''}</td>
+          <td class="r"><b>${money(e.current_value)}</b></td><td class="r ${cls(ch)}">${S.gw === 0 ? '–' : signed(ch)}</td>
+          <td class="r">${rec.w}-${rec.d}-${rec.l}</td></tr>`;
+        if (openRow === e.id) html += detailRow(e);
+      });
+      out.forEach(e => {
+        const rec = record(S, e.id);
+        html += `<tr class="entrant out ${e.isYou ? 'me' : ''}" data-entry="${e.id}"><td>–</td>
+          <td><span class="ename">${esc(e.name)}</span>${e.isYou ? '<span class="tag you">You</span>' : ''}<span class="tag rel">Out GW${e.relegated_at_gameweek}</span></td>
+          <td class="r">${money(e.value_at_relegation)}</td><td class="r faint">shared out</td><td class="r">${rec.w}-${rec.d}-${rec.l}</td></tr>`;
+        if (openRow === e.id) html += detailRow(e);
+      });
+      html += '</tbody>';
+      $('leagueTable').innerHTML = html;
+    }
+    function detailRow(e) {
+      return `<tr class="detail"><td colspan="5"><div class="mini-squad">${e.squad_players.map(p =>
+        `<div><span>${esc(p.name)} <span class="faint">${posLabel[p.position]}</span></span><b>${money(p.value)}</b></div>`).join('')}</div>
+        ${e.relegated ? '<div class="faint" style="font-size:12px; margin-top:6px;">Values when knocked out. Their total was shared among the survivors.</div>' : ''}</td></tr>`;
+    }
+
+    function renderRules(S) {
+      const m = S.mult;
+      const R = FLAT_REWARDS;
+      const row = (l, v, extra) => `<tr><td>${l}${extra ? ' <span class="faint">' + extra + '</span>' : ''}</td><td class="r ${cls(v)}">${signed(Math.round(v * m))}</td></tr>`;
+      $('multNote').textContent = S.gw >= END_GW ? `final rate ${multText(m)}` : `GW${S.gw + 1} rate ${multText(m)}`;
+      $('rulesTable').innerHTML =
+        row('Goal', R.goal) + row('Assist', R.assist) + row('Clean sheet', R.clean_sheet, '(goalkeeper)') +
+        row('Save', R.save, '(goalkeeper, max ' + R.save_cap + ')') + row('Yellow card', R.yellow_card) + row('Red card', R.red_card) +
+        row('Goal conceded', R.gk_goal_conceded, '(goalkeeper, max ' + R.gk_goal_conceded_cap + ')') +
+        row('Team goal conceded', R.outfield_goal_conceded, '(outfield, max ' + R.outfield_goal_conceded_cap + ')');
+    }
+
+    // ================= wiring =================
+    function wire() {
+      $('enterBtn').addEventListener('click', startDraft);
+      $('packStack').addEventListener('click', openPack);
+      $('tapSelectBtn').addEventListener('click', toggleSelect);
+      $('prevCardBtn').addEventListener('click', () => navCard(-1));
+      $('nextCardBtn').addEventListener('click', () => navCard(1));
+      $('slotsList').addEventListener('click', e => { const b = e.target.closest('[data-remove]'); if (b) removePlayer(Number(b.getAttribute('data-remove'))); });
+      $('lockBtn').addEventListener('click', lockSquad);
+      $('nextGwBtn').addEventListener('click', playNext);
+      $('prevGwBtn').addEventListener('click', goPrev);
+      $('restartBtn').addEventListener('click', () => { T = null; snaps = []; openRow = null; startDraft(); });
+      $('leagueTable').addEventListener('click', e => {
+        const tr = e.target.closest('tr[data-entry]'); if (!tr) return;
+        const id = tr.getAttribute('data-entry');
+        openRow = openRow === id ? null : id;
+        renderLeague(snaps[view], snaps[view].entries.find(x => x.isYou));
+      });
+      let tx = null;
+      const stage = $('carouselStage');
+      stage.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+      stage.addEventListener('touchend', e => { if (tx === null) return; const d = e.changedTouches[0].clientX - tx; if (Math.abs(d) > 40) navCard(d > 0 ? -1 : 1); tx = null; }, { passive: true });
+      document.addEventListener('keydown', e => {
+        if ($('stepPlay').classList.contains('hidden')) return;
+        if (e.key === 'ArrowRight' && !$('nextGwBtn').disabled) playNext();
+        if (e.key === 'ArrowLeft' && view > 0) goPrev();
+      });
+    }
+
+    async function init() {
+      wire();
+      renderStageList();
+      try {
+        const res = await fetch('/assets/stockmarket-example-data.json', { cache: 'force-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        DATA = await res.json();
+      } catch (e) {
+        $('loadingCard').classList.add('hidden');
+        $('errorCard').classList.remove('hidden');
+        $('errorCard').innerHTML = `<i class="fas fa-triangle-exclamation" style="color:var(--red);"></i> Couldn't load the example right now. Please refresh the page to try again.`;
+        return;
+      }
+      POOL = DATA.players.map(p => ({ id: p[0], name: p[1], position: p[2], team: DATA.teams[p[3]], rarity: p[4], photo: photoUrl(p[5]) }));
+      Object.values(DATA.stats).forEach(rows => rows.forEach(s => {
+        const t = SEASON_PTS[s[0]] = SEASON_PTS[s[0]] || { apps: 0 };
+        t.apps++;
+      }));
+      showStep('stepEnter');
+    }
+    init();
+  })();
+  </script>
+</body>
+</html>
