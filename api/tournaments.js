@@ -2352,9 +2352,15 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
             if (smEntry && smEntry.squad_locked && smEntry.squad_players) {
               const emptySlots = smEntry.squad_players.filter(s => s.empty);
-              if (emptySlots.length > 0) {
-                const posNames = emptySlots.map(s => ({ 1: 'Goalkeeper', 2: 'Defender', 3: 'Midfielder', 4: 'Forward' }[s.position] || 'player').toLowerCase());
-                actionItems.push({ type: 'stockmarket', href: '/stock-market', message: `You have an empty ${posNames.join(', ')} slot to fill in Stock Market.` });
+              // Positions are stored as gk/def/mid/fwd (older rows may use 1-4).
+              const posWord = p => ({ gk: 'goalkeeper', def: 'defender', mid: 'midfielder', fwd: 'forward', 1: 'goalkeeper', 2: 'defender', 3: 'midfielder', 4: 'forward' }[p] || 'player');
+              emptySlots.filter(s => s.force_sold_reason === 'left_premier_league').forEach(s => {
+                actionItems.push({ type: 'stockmarket', href: '/stock-market',
+                  message: `${s.force_sold_player_name || 'One of your players'} left the Premier League — pick a free ${s.force_sold_tier ? s.force_sold_tier + ' ' : ''}${posWord(s.position)} in Stock Market.` });
+              });
+              const sold = emptySlots.filter(s => s.force_sold_reason !== 'left_premier_league');
+              if (sold.length > 0) {
+                actionItems.push({ type: 'stockmarket', href: '/stock-market', message: `You have an empty ${sold.map(s => posWord(s.position)).join(', ')} slot${sold.length === 1 ? '' : 's'} to fill in Stock Market.` });
               }
             }
           }
@@ -5512,6 +5518,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
                 await applyDueStages(supabaseAdmin, t.id, leavingGw);
                 await checkAndFinishStockMarketTournament(supabaseAdmin, t.id, leavingGw);
                 await forceSellDepartedPlayers(supabaseAdmin, masterDb, t.id, leavingGw);
+                await unlockMidweekReplacements(supabaseAdmin, t.id, leavingGw);
                 stockMarketSettled++;
               }
 
@@ -6805,12 +6812,12 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // opt-in test bypass as sell — off by default.
           const { data: clockForDeadline } = await masterDb.from('master_clock').select('current_gameweek').eq('id', 'current').maybeSingle();
           const currentGWForDeadline = clockForDeadline ? clockForDeadline.current_gameweek : null;
-          if (currentGWForDeadline) {
-            const windowCheckBuy = await isStockMarketTransferWindowOpen(masterDb, supabaseAdmin, tournament_id, currentGWForDeadline);
-            if (!windowCheckBuy.open) {
-              return res.status(403).json({ error: windowCheckBuy.reason });
-            }
-          }
+          // Worked out here, enforced further down once we know which slot
+          // is being filled: a free replacement for a player who left the
+          // Premier League is allowed at any time (per request, Oct 2026).
+          const windowCheckBuy = currentGWForDeadline
+            ? await isStockMarketTransferWindowOpen(masterDb, supabaseAdmin, tournament_id, currentGWForDeadline)
+            : { open: true };
 
           const squad = entry.squad_players || [];
           // Captured immediately, before any mutation — used as the
@@ -6837,6 +6844,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // whole point of this mechanic is it costs the user nothing.
           const isForceSoldSlot = squad[emptyIdx].force_sold_reason === 'left_premier_league';
           const packFee = isForceSoldSlot ? 0 : packPriceFor(config, pack_type);
+          if (!windowCheckBuy.open && !isForceSoldSlot) {
+            return res.status(403).json({ error: windowCheckBuy.reason });
+          }
+          // A free replacement bought after this gameweek's matches have
+          // started has his value locked until the gameweek is over -
+          // otherwise someone could wait and pick a player who has already
+          // scored this week. Unlocked at the gameweek rollover.
+          const lockForThisGameweek = isForceSoldSlot && !windowCheckBuy.open;
 
           // Real enforcement, not just a frontend suggestion — the
           // replacement must match the departed player's own rarity.
@@ -6868,7 +6883,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             team: teamName,
             value: Math.max(0, reservedValue - packFee),
             acquired_gameweek: currentGW,
-            is_sub: false
+            is_sub: false,
+            ...(lockForThisGameweek ? { locked_this_gameweek: currentGW } : {})
           };
 
           // If the reserve didn't cover the fee, the shortfall comes out
@@ -8269,7 +8285,9 @@ function prepSquadForSettlement(squad, statsByPid, concededByTeam, costMultiplie
   return squad.filter(s => !s.empty).map(s => {
     const stats = statsByPid[s.player_id] || {};
     const didNotPlay = !((stats.minutes || 0) > 0);
-    const frozen = !!s.is_sub || didNotPlay;
+    // locked_this_gameweek: a free replacement signed mid-gameweek (see
+    // stockmarket_buy_replacement) sits the rest of that gameweek out.
+    const frozen = !!s.is_sub || didNotPlay || !!s.locked_this_gameweek;
     // Prefer the team snapshotted at the moment these stats were synced
     // (immune to any later transfer) — fall back to the squad's own
     // stored team only for older rows synced before this snapshot existed.
@@ -8796,6 +8814,26 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
 // and is locked to the same rarity the departed player had — defaults
 // to Bronze only if we genuinely never rated them, since there's
 // nothing real to lock to in that case.
+// Free replacements signed after a gameweek had already started are
+// locked for that gameweek (locked_this_gameweek). Once that gameweek has
+// been settled and the clock moves on, they play normally again.
+async function unlockMidweekReplacements(supabaseAdmin, tournamentId, finishedGw) {
+  const { data: entries } = await supabaseAdmin
+    .schema('stockmarket').from('tournament_entries')
+    .select('id, squad_players').eq('tournament_id', tournamentId);
+  for (const e of (entries || [])) {
+    const squad = e.squad_players || [];
+    if (!squad.some(s => s && s.locked_this_gameweek && s.locked_this_gameweek <= finishedGw)) continue;
+    const next = squad.map(s => {
+      if (!s || !s.locked_this_gameweek || s.locked_this_gameweek > finishedGw) return s;
+      const { locked_this_gameweek, ...rest } = s;
+      return rest;
+    });
+    const { error } = await supabaseAdmin.schema('stockmarket').from('tournament_entries').update({ squad_players: next }).eq('id', e.id);
+    if (error) console.error('unlockMidweekReplacements failed for entry', e.id, error.message);
+  }
+}
+
 async function forceSellDepartedPlayers(supabaseAdmin, masterDb, tournamentId, gameweek) {
   const { data: entries } = await supabaseAdmin
     .schema('stockmarket').from('tournament_entries')
