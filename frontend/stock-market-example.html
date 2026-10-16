@@ -749,7 +749,7 @@
   /* the two strips mirror each other: yours reads from the left, your opponent's from the right */
   .vs-grid #oppSection .vs-strip{ flex-direction:row-reverse; text-align:right; }
   .vs-grid #oppSection .vs-strip .who b{ color:var(--text); }
-  @media (max-width:899px){ .vs-grid .section-head span{ display:none; } }
+  .vs-grid .section-head > span{ display:none; }   /* "Tap to expand" hints would sit under the VS badge */
   @media (max-width:600px){
     .vs-grid .row-main{ padding:9px 9px; gap:6px; }
     .vs-grid .player-name{ font-size:13px; }
@@ -776,6 +776,31 @@
     .vs-grid .who-value{ font-size:14px; }
     .vs-grid .section-head{ padding-top:16px; }
     .vs-grid .section-head h2{ font-size:14.5px; white-space:nowrap; }
+  }
+
+  /* ---------- VS badge and centre divider ---------- */
+  .vs-grid{ position:relative; }
+  .vs-grid::before{ content:''; position:absolute; left:50%; top:30px; bottom:0; width:1px; transform:translateX(-50%); pointer-events:none;
+    background:linear-gradient(180deg, rgba(96,165,250,0) 0, rgba(96,165,250,0.55) 40px, rgba(96,165,250,0.35) 70%, rgba(96,165,250,0)); }
+  .vs-badge{ position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:3; width:40px; height:40px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:16px; letter-spacing:.5px; color:#fff;
+    background:radial-gradient(circle at 35% 30%, #3b82f6, #1d4ed8); border:2px solid rgba(255,255,255,0.85); box-shadow:0 0 18px var(--accent-glow), 0 0 0 4px rgba(5,10,26,0.9); }
+  /* the opponent's heading mirrors yours, reading from the right, so the VS badge sits between them */
+  .vs-grid #oppSection .section-head{ flex-direction:row-reverse; }
+  .vs-grid #oppSection .section-head h2{ display:flex; flex-direction:row-reverse; align-items:baseline; gap:7px; }
+  .vs-grid #oppSection .section-head h2 i{ margin-right:0; }
+  .vs-grid .section-head h2 span{ font-size:inherit; color:var(--text); }
+  .vs-grid .section-head{ padding-top:24px; }
+  @media (max-width:600px){
+    /* phones: use the full screen width - small outer edge, the gap in the middle is the divider */
+    .vs-grid #squadSection .section-head{ padding-left:8px; padding-right:28px; }
+    .vs-grid #oppSection .section-head{ padding-right:8px; padding-left:28px; }
+    .vs-grid #squadSection .vs-strip{ margin-left:8px; margin-right:7px; }
+    .vs-grid #oppSection .vs-strip{ margin-right:8px; margin-left:7px; }
+    .vs-grid #oppSection .empty-note{ margin-right:8px; margin-left:7px; }
+    .pair-grid{ padding:8px 8px 0; column-gap:14px; }
+    .vs-badge{ width:34px; height:34px; font-size:14px; top:12px; }
+    .vs-grid .section-head{ padding-top:20px; }
   }
   @media (max-width:374px){ .vs-grid .row-main > .card-pills{ flex-wrap:wrap; } }   /* very small phones: let the pills wrap rather than spill out */
   @media (max-width:600px){
@@ -914,6 +939,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
     <!-- TEST layout: your squad and your opponent's side by side -->
     <div class="vs-grid" id="vsGrid">
+    <div class="vs-badge" aria-hidden="true">VS</div>
     <div id="squadSection">
     <div class="section-head">
       <h2><i class="fa-solid fa-users"></i>Your Squad</h2>
