@@ -716,7 +716,11 @@
   .vs-grid .vs-strip{ min-height:44px; gap:8px; }
   .vs-grid .vs-strip .who{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .my-strip .who b{ color:var(--accent-2) !important; }
-  .vs-grid .who .status-text, .vs-grid .card-pills, .vs-grid .spark{ display:none !important; }
+  .vs-grid .who .status-text, .vs-grid .spark{ display:none !important; }
+  /* the stat pills sit on their own line across the bottom of the main card */
+  .vs-grid .row-main{ flex-wrap:wrap; row-gap:7px; }
+  .vs-grid .row-main > .card-pills{ flex-basis:100%; display:flex; flex-wrap:wrap; gap:4px; margin-top:0; }
+  .vs-grid .row-main > .card-pills .pill{ font-size:10px; padding:2px 6px; }
   .vs-grid .who{ min-width:0; }
   .vs-grid .who .sub{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .vs-grid .player-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -724,7 +728,6 @@
   .vs-grid .bd-section.more{ order:-1; }
   .bd-section.more .bd-head .st{ font-size:10.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; }
   .bd-section.more .bd-head .st.played{ color:var(--green); } .bd-section.more .bd-head .st.benched{ color:var(--red); } .bd-section.more .bd-head .st.upcoming{ color:var(--text-dim); }
-  .bd-section.more .card-pills{ display:flex !important; margin:2px 0 8px; }
   .more-hist{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--text-dim); line-height:1.4; }
   .more-hist .spark{ display:block !important; flex-shrink:0; }
   .more-hist b{ color:var(--text); }
@@ -750,6 +753,8 @@
     .vs-grid .bd-total{ font-size:13px; padding:7px 8px; }
     .vs-grid .bd-why{ display:none; }
     .vs-grid .more-hist .spark{ display:none !important; }
+    .vs-grid .row-main > .card-pills{ gap:3px; flex-wrap:nowrap; }
+    .vs-grid .row-main > .card-pills .pill{ font-size:8.5px; padding:1px 3px; letter-spacing:-.1px; white-space:nowrap; }
     .vs-grid .vs-strip{ padding:8px 9px; flex-direction:column; align-items:flex-start; gap:2px; }
     .vs-grid .vs-strip .who{ font-size:12px; white-space:normal; }
     .vs-grid .vs-result{ margin-left:0; display:inline-block; margin-top:2px; }
@@ -757,6 +762,7 @@
     .vs-grid .section-head{ padding-top:16px; }
     .vs-grid .section-head h2{ font-size:14.5px; white-space:nowrap; }
   }
+  @media (max-width:374px){ .vs-grid .row-main > .card-pills{ flex-wrap:wrap; } }   /* very small phones: let the pills wrap rather than spill out */
   @media (max-width:600px){
     .gw-step button{ padding:7px 10px; }
     .gw-step .gw-now{ padding:0 4px; font-size:12.5px; }
@@ -1960,20 +1966,28 @@ function rowsFor(S, entryId){
 // extra line under a player's breakdown when a cut paid him a share
 function moreInfo(p){
   if (p.empty) return '';
-  const pills = (p.statList || []).map(([label, val, good]) => {
-    const cls = val === '0' ? '' : (good ? 'hot' : 'bad');
-    const tip = STAT_TIPS[label] || label;
-    return `<span class="pill ${cls}" data-tip="${escapeHtml(tip)}" title="${escapeHtml(tip)}" tabindex="0">${label} ${val}</span>`;
-  }).join('');
   const hist = p.hist || [];
   const trail = hist.length > 1 ? hist.map((v, i) => i === hist.length - 1 ? `<b>${money(v)}</b>` : money(v)).join(' → ') : `<b>${money(p.value)}</b>`;
   return `<div class="bd-section more">
     <div class="bd-head"><span>${escapeHtml(p.pos)} · ${escapeHtml(p.team)}</span><span class="st ${p.status}">${escapeHtml(p.statusLabel)}</span></div>
-    ${p.drafted ? '' : `<div class="card-pills">${pills}</div>`}
     <div class="more-hist">${hist.length > 1 ? sparkline(hist, p.delta) : ''}<span>Value by gameweek: ${trail}</span></div>
   </div>`;
 }
 const sideInfo = p => moreInfo(p) + cutNote(p);
+// Side-by-side cards show 5 stats on the main card:
+// outfield GL AS YC RC GC, goalkeepers SV CS YC RC GC.
+function fullPills(pos, s){
+  s = s || {};
+  const keys = pos === 'GK'
+    ? [['SV','saves',true],['CS','clean_sheets',true],['YC','yellow_cards',false],['RC','red_cards',false],['GC','goals_conceded',false]]
+    : [['GL','goals',true],['AS','assists',true],['YC','yellow_cards',false],['RC','red_cards',false],['GC','goals_conceded',false]];
+  return keys.map(([lbl, k, good]) => [lbl, String(s[k] || 0), good]);
+}
+const withFullPills = p => (p.empty || p.drafted) ? p : { ...p, statList: fullPills(p.pos, p.stats) };
+// move each card's pills out of the narrow name column onto their own line
+function pillsToOwnLine(listId){
+  document.querySelectorAll(`#${listId} .row-main`).forEach(rm => { const cp = rm.querySelector('.who .card-pills'); if (cp) rm.appendChild(cp); });
+}
 function cutNote(p){
   return p.cutShare > 0 ? `<div class="bd-note"><i class="fa-solid fa-coins"></i> After this match, <b>+${money(p.cutShare)}</b> was added from the entrants knocked out, so he's now worth <b>${money(p.value)}</b>.</div>` : '';
 }
@@ -2016,7 +2030,8 @@ function render(){
   const showMatch = !me.relegated || (S.detail && S.detail[me.id]);
   show('squadSection', !!showMatch); show('oppSection', !!showMatch);
   if (showMatch) {
-    renderList('myList', rowsFor(S, me.id), 'mine', { actionHtml: sideInfo });
+    renderList('myList', rowsFor(S, me.id).map(withFullPills), 'mine', { actionHtml: sideInfo });
+    pillsToOwnLine('myList');
     $('myStripName').textContent = me.isYou ? ME.name : me.name;
     $('myStripValue').textContent = money(me.relegated ? me.value_at_relegation : me.current_value);
     const gw = S.gw === 0 ? 1 : S.gw;
@@ -2035,7 +2050,8 @@ function render(){
         else { const won = m.winner_entry_id === me.id; resultText = `${won ? 'Won' : 'Lost'} by ${money(Math.abs(m.gap || 0))}`; resultCls = won ? 'won' : 'lost'; }
       }
       renderOpponent({ name: opp.name, value: opp.relegated ? opp.value_at_relegation : opp.current_value, resultText, resultCls });
-      renderList('oppList', rowsFor(S, oppId), 'opp', { actionHtml: sideInfo });
+      renderList('oppList', rowsFor(S, oppId).map(withFullPills), 'opp', { actionHtml: sideInfo });
+      pillsToOwnLine('oppList');
       $('myResult').textContent = resultText; $('myResult').className = 'vs-result ' + resultCls;
     }
   }
