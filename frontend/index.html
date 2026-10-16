@@ -919,6 +919,31 @@ a.np-item:hover{ border-color:var(--accent); }
     padding-bottom:env(safe-area-inset-bottom); transform:translateY(105%); opacity:1; transition:transform .25s ease; }
   .hpop.open{ transform:none; }
 }
+/* ---------- Coming soon: Player Stock Market (links to the practice page) ---------- */
+.soon-panel{ position:relative; overflow:hidden; padding:0; background:#01061a; border-color:var(--border-2); }
+.soon-panel::before{ content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:linear-gradient(90deg, rgba(1,6,26,0.95) 0%, rgba(1,6,26,0.85) 45%, rgba(1,6,26,0.35) 100%), url('assets/card-stockmarket.jpg') right center / cover no-repeat; }
+.soon-inner{ position:relative; z-index:1; padding:26px 28px 28px; max-width:720px; }
+.soon-tags{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.soon-tag{ font-family:var(--font-head); font-weight:700; font-size:12px; letter-spacing:1.6px; text-transform:uppercase; padding:4px 11px; border-radius:20px; }
+.soon-tag.new{ background:var(--accent); color:#fff; box-shadow:0 0 14px var(--accent-glow); }
+.soon-tag.when{ background:rgba(245,184,61,0.12); border:1px solid rgba(245,184,61,0.5); color:var(--amber); }
+.soon-panel .sec-title{ font-size:34px; margin-bottom:8px; }
+.soon-lead{ color:var(--text-dim); font-size:14.5px; line-height:1.55; margin-bottom:16px; max-width:600px; }
+.soon-points{ list-style:none; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin-bottom:20px; }
+.soon-points li{ background:rgba(15,29,69,0.75); border:1px solid var(--border); border-radius:12px; padding:11px 13px; font-size:13px; color:var(--text-dim); line-height:1.45; }
+.soon-points b{ display:block; color:var(--text); font-family:var(--font-head); font-size:15px; letter-spacing:.3px; margin-bottom:2px; }
+.soon-row{ display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.soon-row .btn-outline-lg{ background:var(--accent); border-color:var(--accent); box-shadow:0 6px 20px rgba(59,130,246,0.35); }
+.soon-note{ font-size:12.5px; color:var(--text-faint); }
+@media (max-width:899px){
+  .soon-panel::before{ background:linear-gradient(180deg, rgba(1,6,26,0.55) 0%, rgba(1,6,26,0.9) 38%, rgba(1,6,26,0.97) 100%), url('assets/card-stockmarket.jpg') center top / cover no-repeat; }
+  .soon-inner{ padding:90px 14px 18px; }
+  .soon-panel .sec-title{ font-size:24px; }
+  .soon-lead{ font-size:13.5px; }
+  .soon-points{ grid-template-columns:1fr; gap:8px; }
+  .soon-row .btn-outline-lg{ width:100%; justify-content:center; }
+}
 </style>
 </head>
 <body>
@@ -1076,6 +1101,24 @@ a.np-item:hover{ border-color:var(--accent); }
       <button class="banner" data-zone="live" style="background-image:url('assets/section-bg-football.jpg')"><div class="bt"><span class="live-dot"></span><span>Live<span class="sep"> · </span><span class="t2">In-Play</span></span></div><div class="bs" id="bn-live">–</div></button>
       <button class="banner" data-zone="open" style="background-image:url('images/football-banner.webp')"><div class="bt"><span class="reg-dot"></span><span>Registering<span class="sep"> · </span><span class="t2">Join Now</span></span></div><div class="bs" id="bn-open">–</div></button>
       <button class="banner" data-zone="mine" style="background-image:url('assets/champions-league-hero.jpg')"><div class="bt"><span class="mine-dot"></span><span>My<span class="sep"> </span><span class="t2">Tournaments</span></span></div><div class="bs" id="bn-mine">–</div></button>
+    </div>
+  </section>
+
+  <!-- ===== NEW TOURNAMENT COMING SOON: Player Stock Market (Try It Now opens the practice page) ===== -->
+  <section class="panel soon-panel" id="stockSoon">
+    <div class="soon-inner">
+      <div class="soon-tags"><span class="soon-tag new">New Tournament</span><span class="soon-tag when">Coming Soon</span></div>
+      <div class="sec-title">Player Stock Market</div>
+      <p class="soon-lead">Draft 6 Premier League players and treat them like shares. Their value goes up and down with what they do on the pitch, and you go head to head with another entrant every week.</p>
+      <ul class="soon-points">
+        <li><b>Goals make money</b>Goals, assists, saves and clean sheets earn your player money.</li>
+        <li><b>Your opponent pays</b>That money comes straight from your opponent's players. Cards and goals conceded pay them back.</li>
+        <li><b>Survive the cuts</b>The bottom entrants get knocked out along the way. Their money is shared among everyone left.</li>
+      </ul>
+      <div class="soon-row">
+        <a href="/stock-market-example" class="btn-outline-lg"><svg class="icon"><use href="#i-play"/></svg>Try It Now</a>
+        <span class="soon-note">Free practice game with real results. No account needed.</span>
+      </div>
     </div>
   </section>
 
