@@ -802,6 +802,27 @@
     .vs-badge{ width:34px; height:34px; font-size:14px; top:12px; }
     .vs-grid .section-head{ padding-top:20px; }
   }
+
+  /* ---------- player cards: the default background picture, darkened, behind the team shirt ---------- */
+  .pair-grid .row.has-shirt{
+    background:
+      linear-gradient(90deg, rgba(13,23,48,0.96) 0%, rgba(13,23,48,0.80) 38%, rgba(13,23,48,0.55) 62%, rgba(13,23,48,0.88) 88%),
+      var(--shirt) no-repeat 64% -18px / auto 190px,   /* fixed size: the shirt stays at the top when the card opens */
+      linear-gradient(180deg, rgba(4,9,30,0.84), rgba(4,9,30,0.90)),
+      url('assets/card-bg-sports.jpg') center 40% / cover no-repeat,
+      #0b1430;
+  }
+  @media (max-width:600px){
+    .pair-grid .row.has-shirt{
+      background:
+        linear-gradient(90deg, rgba(13,23,48,0.97) 0%, rgba(13,23,48,0.93) 50%, rgba(13,23,48,0.70) 72%, rgba(13,23,48,0.78) 100%),
+        var(--shirt) no-repeat 106% -6px / auto 130px,
+        linear-gradient(180deg, rgba(4,9,30,0.84), rgba(4,9,30,0.90)),
+        url('assets/card-bg-sports.jpg') center 40% / cover no-repeat,
+        #0b1430;
+    }
+  }
+  .pair-grid .row .detail{ background:transparent; }   /* the background picture carries on behind the opened part too */
   @media (max-width:374px){ .vs-grid .row-main > .card-pills{ flex-wrap:wrap; } }   /* very small phones: let the pills wrap rather than spill out */
   @media (max-width:600px){
     .gw-step button{ padding:7px 10px; }
