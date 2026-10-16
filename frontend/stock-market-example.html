@@ -700,6 +700,63 @@
   .comp-item{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; background:var(--bg-card); border:1px solid var(--border); font-size:12px; color:var(--text-dim); }
   .comp-item.met{ border-color:var(--green); color:var(--green); }
   .comp-item i{ font-size:11px; }
+  /* ---------- TEST: the two squads side by side ----------
+     Each column is one card wide. The main card keeps the essentials
+     (name, photo, position, value, change); everything else - team,
+     minutes, stat pills and the value trend - moves into the expanded
+     card, at the top. */
+  .vs-grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; }
+  .vs-grid > div{ min-width:0; }
+  .vs-grid #squadSection .section-head, .vs-grid #squadSection .list{ padding-right:6px; }
+  .vs-grid #oppSection .section-head, .vs-grid #oppSection .list{ padding-left:6px; }
+  .vs-grid #squadSection .vs-strip{ margin-right:6px; }
+  .vs-grid #oppSection .vs-strip{ margin-left:6px; }
+  .vs-grid #oppSection .empty-note{ margin-left:6px; }
+  .vs-grid .list{ display:flex !important; flex-direction:column; }
+  .vs-grid .vs-strip{ min-height:44px; gap:8px; }
+  .vs-grid .vs-strip .who{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .my-strip .who b{ color:var(--accent-2) !important; }
+  .vs-grid .who .status-text, .vs-grid .card-pills, .vs-grid .spark{ display:none !important; }
+  .vs-grid .who{ min-width:0; }
+  .vs-grid .who .sub{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .vs-grid .player-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vs-grid .detail-inner{ display:flex; flex-direction:column; }
+  .vs-grid .bd-section.more{ order:-1; }
+  .bd-section.more .bd-head .st{ font-size:10.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; }
+  .bd-section.more .bd-head .st.played{ color:var(--green); } .bd-section.more .bd-head .st.benched{ color:var(--red); } .bd-section.more .bd-head .st.upcoming{ color:var(--text-dim); }
+  .bd-section.more .card-pills{ display:flex !important; margin:2px 0 8px; }
+  .more-hist{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--text-dim); line-height:1.4; }
+  .more-hist .spark{ display:block !important; flex-shrink:0; }
+  .more-hist b{ color:var(--text); }
+  @media (max-width:899px){ .vs-grid .section-head span{ display:none; } }
+  @media (max-width:600px){
+    .vs-grid .row-main{ padding:9px 9px; gap:6px; }
+    .vs-grid .player-name{ font-size:13px; }
+    .vs-grid .photo-wrap{ padding:2px; }
+    .vs-grid .photo{ width:30px; height:30px; }
+    .vs-grid .player-row{ gap:7px; }
+    .vs-grid .who .sub{ font-size:10.5px; }
+    .vs-grid .who .sub{ font-size:0; }   /* team name hidden on phones (it's in the expanded card); position tag stays */
+    .vs-grid .row.has-shirt .numbers{ min-width:0 !important; }
+    .vs-grid .numbers .value{ font-size:13.5px; }
+    .vs-grid .numbers .delta{ font-size:10.5px; }
+    .vs-grid .row.has-shirt .chevron{ right:5px; bottom:4px; }
+    .vs-grid .detail-inner{ padding:4px 8px 12px; }
+    .vs-grid .bd-section{ padding:8px 8px; }
+    .vs-grid .bd-line{ gap:5px; font-size:11.5px; flex-wrap:wrap; }
+    .vs-grid .ev-icons{ display:none; }
+    .vs-grid .bd-x{ display:block; margin-left:0; }
+    .vs-grid .bd-head{ font-size:12px; flex-wrap:wrap; gap:4px; }
+    .vs-grid .bd-total{ font-size:13px; padding:7px 8px; }
+    .vs-grid .bd-why{ display:none; }
+    .vs-grid .more-hist .spark{ display:none !important; }
+    .vs-grid .vs-strip{ padding:8px 9px; flex-direction:column; align-items:flex-start; gap:2px; }
+    .vs-grid .vs-strip .who{ font-size:12px; white-space:normal; }
+    .vs-grid .vs-result{ margin-left:0; display:inline-block; margin-top:2px; }
+    .vs-grid .who-value{ font-size:14px; }
+    .vs-grid .section-head{ padding-top:16px; }
+    .vs-grid .section-head h2{ font-size:14.5px; white-space:nowrap; }
+  }
   @media (max-width:600px){
     .gw-step button{ padding:7px 10px; }
     .gw-step .gw-now{ padding:0 4px; font-size:12.5px; }
@@ -834,10 +891,16 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       </aside>
     </div>
 
+    <!-- TEST layout: your squad and your opponent's side by side -->
+    <div class="vs-grid" id="vsGrid">
     <div id="squadSection">
     <div class="section-head">
       <h2><i class="fa-solid fa-users"></i>Your Squad</h2>
-      <span id="squadHint">Tap a player to expand</span>
+      <span id="squadHint">Tap to expand</span>
+    </div>
+    <div class="vs-strip my-strip">
+      <div class="who"><b id="myStripName">You</b> <span class="vs-result" id="myResult"></span></div>
+      <div class="vs-right"><div class="who-value" id="myStripValue">--</div></div>
     </div>
     <div class="list" id="myList"></div>
     </div>
@@ -845,7 +908,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     <div id="oppSection">
     <div class="section-head">
       <h2><i class="fa-solid fa-shield-halved"></i><span id="oppHeading">This Week's Opponent</span></h2>
-      <span>Tap to see their breakdown</span>
+      <span>Tap to expand</span>
     </div>
     <div class="vs-strip">
       <div class="who">Facing <b id="oppName">--</b> <span class="vs-result" id="vsResult"></span></div>
@@ -856,6 +919,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     </div>
     <div class="list" id="oppList"></div>
     <div class="empty-note" id="oppEmpty" style="display:none;"></div>
+    </div>
     </div>
 
     <div id="leagueSection">
@@ -1894,6 +1958,22 @@ function rowsFor(S, entryId){
   });
 }
 // extra line under a player's breakdown when a cut paid him a share
+function moreInfo(p){
+  if (p.empty) return '';
+  const pills = (p.statList || []).map(([label, val, good]) => {
+    const cls = val === '0' ? '' : (good ? 'hot' : 'bad');
+    const tip = STAT_TIPS[label] || label;
+    return `<span class="pill ${cls}" data-tip="${escapeHtml(tip)}" title="${escapeHtml(tip)}" tabindex="0">${label} ${val}</span>`;
+  }).join('');
+  const hist = p.hist || [];
+  const trail = hist.length > 1 ? hist.map((v, i) => i === hist.length - 1 ? `<b>${money(v)}</b>` : money(v)).join(' → ') : `<b>${money(p.value)}</b>`;
+  return `<div class="bd-section more">
+    <div class="bd-head"><span>${escapeHtml(p.pos)} · ${escapeHtml(p.team)}</span><span class="st ${p.status}">${escapeHtml(p.statusLabel)}</span></div>
+    ${p.drafted ? '' : `<div class="card-pills">${pills}</div>`}
+    <div class="more-hist">${hist.length > 1 ? sparkline(hist, p.delta) : ''}<span>Value by gameweek: ${trail}</span></div>
+  </div>`;
+}
+const sideInfo = p => moreInfo(p) + cutNote(p);
 function cutNote(p){
   return p.cutShare > 0 ? `<div class="bd-note"><i class="fa-solid fa-coins"></i> After this match, <b>+${money(p.cutShare)}</b> was added from the entrants knocked out, so he's now worth <b>${money(p.value)}</b>.</div>` : '';
 }
@@ -1936,10 +2016,13 @@ function render(){
   const showMatch = !me.relegated || (S.detail && S.detail[me.id]);
   show('squadSection', !!showMatch); show('oppSection', !!showMatch);
   if (showMatch) {
-    renderList('myList', rowsFor(S, me.id), 'mine', { actionHtml: cutNote });
+    renderList('myList', rowsFor(S, me.id), 'mine', { actionHtml: sideInfo });
+    $('myStripName').textContent = me.isYou ? ME.name : me.name;
+    $('myStripValue').textContent = money(me.relegated ? me.value_at_relegation : me.current_value);
     const gw = S.gw === 0 ? 1 : S.gw;
     const m = matchFor(S, gw, me.id);
     $('oppHeading').textContent = S.gw === 0 ? 'Your GW1 Opponent' : `GW${S.gw} Opponent`;
+    $('myResult').textContent = ''; $('myResult').className = 'vs-result';
     if (!m || !m.entry_id_2) {
       renderOpponent({ message: S.gw === 0 ? 'You have a bye in Gameweek 1.' : 'No match this week — you had a bye, so your values didn’t move.' });
       document.getElementById('oppList').innerHTML = '';
@@ -1952,7 +2035,8 @@ function render(){
         else { const won = m.winner_entry_id === me.id; resultText = `${won ? 'Won' : 'Lost'} by ${money(Math.abs(m.gap || 0))}`; resultCls = won ? 'won' : 'lost'; }
       }
       renderOpponent({ name: opp.name, value: opp.relegated ? opp.value_at_relegation : opp.current_value, resultText, resultCls });
-      renderList('oppList', rowsFor(S, oppId), 'opp', { actionHtml: cutNote });
+      renderList('oppList', rowsFor(S, oppId), 'opp', { actionHtml: sideInfo });
+      $('myResult').textContent = resultText; $('myResult').className = 'vs-result ' + resultCls;
     }
   }
   renderLeague(S, zone);
