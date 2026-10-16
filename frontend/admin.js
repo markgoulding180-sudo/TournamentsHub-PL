@@ -1312,7 +1312,7 @@ async function adminEnsureTestUsers() {
 
 async function adminGetLiveTournamentId(tournamentType) {
   const token = localStorage.getItem('gbf_token');
-  const response = await fetch(`/api/tournaments?status=live&tournament_type=${tournamentType}`, {
+  const response = await fetch(`/api/tournaments?status=live&tournament_type=${tournamentType}&include_test=true`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   const data = await response.json();
@@ -1481,7 +1481,7 @@ async function adminSeedFantasyEntries() {
 async function adminGetStockMarketTournamentId() {
   const token = localStorage.getItem('gbf_token');
   for (const status of ['upcoming', 'live']) {
-    const response = await fetch(`/api/tournaments?status=${status}&tournament_type=stockmarket`, {
+    const response = await fetch(`/api/tournaments?status=${status}&tournament_type=stockmarket&include_test=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await response.json();
@@ -1901,7 +1901,7 @@ async function loadStockMarketTournamentList() {
   const auditSelect = document.getElementById('auditTournamentSelect');
   try {
     const [listResponse, gwResponse] = await Promise.all([
-      fetch('/api/tournaments?tournament_type=stockmarket'),
+      fetch('/api/tournaments?tournament_type=stockmarket&include_test=true'),
       fetch('/api/tournaments?stockmarket_current_gameweek=true')
     ]);
     const data = await listResponse.json();

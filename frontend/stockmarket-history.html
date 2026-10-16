@@ -165,7 +165,7 @@
   </main>
 
   <script>
-    let tournamentId = null;
+    let tournamentId = new URLSearchParams(location.search).get('tournament_id');   // a specific (e.g. test) tournament, else the current one
     let historyData = null;
 
     function authHeaders() {

@@ -2338,7 +2338,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // ---- Stock Market: entered, still drafting, no squad saved yet ----
           const { data: smTournament } = await supabaseAdmin
             .schema('stockmarket').from('tournaments')
-            .select('id, status, closes_at').in('status', ['upcoming', 'live']).limit(1).maybeSingle();
+            .select('id, status, closes_at').in('status', ['upcoming', 'live']).or('is_test.is.null,is_test.eq.false').limit(1).maybeSingle();
 
           if (smTournament) {
             const draftOpen = smTournament.status !== 'live' || (smTournament.closes_at && Date.now() < new Date(smTournament.closes_at).getTime());
@@ -2562,6 +2562,14 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
       if (status) {
         query = query.eq('status', status);
+      }
+
+      // Stock Market test tournaments (is_test) stay out of every public
+      // list (hub cards, /stock-market, profile, history...). Admin asks
+      // for them with include_test=true; the test itself is viewed at
+      // /stock-market?t=<id>.
+      if (schemaName === 'stockmarket' && params.get('include_test') !== 'true') {
+        query = query.or('is_test.is.null,is_test.eq.false');
       }
 
       if (gameweek) {
@@ -3159,7 +3167,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // background poll directly, so it fires automatically on any page.
       if (action === 'stockmarket_check_deadline') {
         const { data: smTournament } = await supabaseAdmin
-          .schema('stockmarket').from('tournaments').select('id').eq('status', 'upcoming').limit(1).maybeSingle();
+          .schema('stockmarket').from('tournaments').select('id').eq('status', 'upcoming').or('is_test.is.null,is_test.eq.false').limit(1).maybeSingle();
         if (!smTournament) return res.status(200).json({ success: true, message: 'No upcoming Stock Market tournament to check.' });
 
         const lockStatus = await getStockMarketLockStatus(masterDb, supabaseAdmin, smTournament.id);

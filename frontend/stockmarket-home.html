@@ -1299,7 +1299,15 @@ function setView(key){
 let tournamentId = null;
 let pollTimer = null;
 
+// ?t=<id> opens one specific tournament (used for the private test
+// tournament, which is kept out of the public lists).
+const PRIVATE_T = new URLSearchParams(location.search).get('t');
+const histUrl = () => '/stock-market-history' + (PRIVATE_T ? `?tournament_id=${encodeURIComponent(PRIVATE_T)}` : '');
 async function findTournament(){
+  if (PRIVATE_T) {
+    const d = await getJSON(`/api/tournaments?tournament_id=${encodeURIComponent(PRIVATE_T)}&tournament_type=stockmarket`);
+    return (d && d.tournament) || null;
+  }
   for (const status of ['live', 'upcoming', 'finished']) {
     const d = await getJSON(`/api/tournaments?status=${status}&tournament_type=stockmarket`);
     const t = d && (d.tournaments || [])[0];
@@ -1396,7 +1404,7 @@ const mineAction = p => {
   const sell = closed
     ? `<div class="act-note"><i class="fa-solid fa-lock"></i> Transfers are closed until Gameweek ${TD.current_gameweek} finishes</div>`
     : `<button type="button" class="btn" data-pid="${p.playerId}" data-name="${escapeHtml(p.name)}" onclick="event.stopPropagation(); sellPlayer(this)"><i class="fa-solid fa-right-from-bracket"></i>Sell ${escapeHtml(p.name)}</button>`;
-  return `<div class="actions">${sell}<a class="btn btn-link btn-small" href="/stock-market-history" onclick="event.stopPropagation()"><i class="fa-solid fa-clock-rotate-left"></i>History</a></div>`;
+  return `<div class="actions">${sell}<a class="btn btn-link btn-small" href="${histUrl()}" onclick="event.stopPropagation()"><i class="fa-solid fa-clock-rotate-left"></i>History</a></div>`;
 };
 
 // Empty slot: pick a pack (Bronze / Silver / Gold), or a free same-tier
@@ -1532,7 +1540,7 @@ async function renderFinished(t){
     <p class="state-text">Finished after Gameweek ${d.end_gameweek || '?'}. A new Stock Market will open here soon.</p>
     <ol class="results-list">${rows}</ol>
     ${rel ? `<div class="results-sub">Relegated</div><ol class="results-list">${rel}</ol>` : ''}
-    <a class="state-btn" href="/stock-market-history"><i class="fa-solid fa-clock-rotate-left"></i> Full gameweek history</a>
+    <a class="state-btn" href="${histUrl()}"><i class="fa-solid fa-clock-rotate-left"></i> Full gameweek history</a>
   </div>`);
   return true;
 }
@@ -1667,7 +1675,7 @@ async function loadPage(){
     rank: (standings.findIndex(s => s.me) + 1) || null, total: standings.length,
     gwText: data.gameweek ? `Gameweek ${data.gameweek}` : '', statusHtml, standings, zone
   });
-  show('squadSection', true); show('myHistory', true);
+  show('squadSection', true); show('myHistory', true); document.getElementById('myHistory').href = histUrl();
   renderList('myList', mine, 'mine', { actionHtml: mineAction, emptyToolsHtml: emptyTools });
 
   show('leagueBar', false);
