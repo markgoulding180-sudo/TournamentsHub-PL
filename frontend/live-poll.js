@@ -48,7 +48,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const REFRESH_INTERVAL_MS = 600000; // 10 minutes — session refresh (well under the ~1hr expiry)
   let pollTimer = null;
   let refreshTimer = null;
-  let supabaseClient = null;
   let lastPollAt = 0;
   let lastRefreshAt = 0;
   let polling = false;
@@ -57,61 +56,11 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     return typeof document === 'undefined' || document.visibilityState !== 'hidden';
   }
 
-  function getClient() {
-    if (supabaseClient) return supabaseClient;
-    if (typeof window !== 'undefined' && window.supabase) {
-      // Only used to renew the login we keep in gbf_token / gbf_refresh. It must NOT keep
-      // its own copy or renew by itself in the background — that hidden extra renewal
-      // used up the saved refresh token, so the next renewal failed ("Refresh Token Not
-      // Found") and pages acted as if the user had no entries.
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-    }
-    return supabaseClient;
-  }
-
-  // The old setup let Supabase keep its own copy of the login under this key and
-  // renew it by itself, so the newest working refresh token can be sitting here.
-  const OLD_SB_KEY = 'sb-liuuzvboeesimvovnooh-auth-token';
-  function oldSavedRefresh() {
-    try {
-      const v = JSON.parse(localStorage.getItem(OLD_SB_KEY) || 'null');
-      const t = v && (v.refresh_token || v.currentSession?.refresh_token || v.session?.refresh_token);
-      return t && t !== localStorage.getItem('gbf_refresh') ? t : null;
-    } catch (e) { return null; }
-  }
-
+  // Renewing the login is done in ONE place for the whole site now (gb-domain.js),
+  // only when the pass is nearly up and one tab at a time. This just asks it.
   async function refreshSessionToken() {
     lastRefreshAt = Date.now();
-    const saved = localStorage.getItem('gbf_refresh');
-    const spare = oldSavedRefresh();
-    if (!saved && !spare) return;
-
-    const client = getClient();
-    if (!client) {
-      console.warn('[live-poll] supabase-js not loaded on this page — cannot refresh session');
-      return;
-    }
-
-    try {
-      // Try the saved refresh token, then the spare copy the old background
-      // renewal left behind (often the only one that still works).
-      let data = null, error = null;
-      for (const rt of [saved, spare]) {
-        if (!rt) continue;
-        ({ data, error } = await client.auth.refreshSession({ refresh_token: rt }));
-        if (!error && data?.session) break;
-      }
-      if (error || !data?.session) {
-        console.warn('[live-poll] Session refresh failed:', error?.message);
-        return;
-      }
-      localStorage.setItem('gbf_token', data.session.access_token);
-      localStorage.setItem('gbf_refresh', data.session.refresh_token);
-      try { localStorage.removeItem(OLD_SB_KEY); } catch (e) {}
-      console.log('[live-poll] Session token refreshed');
-    } catch (e) {
-      console.error('[live-poll] Session refresh error:', e);
-    }
+    if (window.gbAuth) { try { await window.gbAuth.renew(); } catch (e) {} }
   }
 
   async function pollAll() {

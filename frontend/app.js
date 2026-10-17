@@ -41,37 +41,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function initApp() {
-  // Refresh token client-side using Supabase - no API endpoint needed
-  const refreshToken = localStorage.getItem('gbf_refresh');
-  // The old setup let Supabase keep its own copy of the login (and renew it by
-  // itself), so the newest working refresh token can be sitting in this key.
-  const OLD_SB_KEY = 'sb-liuuzvboeesimvovnooh-auth-token';
-  let spare = null;
-  try {
-    const v = JSON.parse(localStorage.getItem(OLD_SB_KEY) || 'null');
-    spare = v && (v.refresh_token || v.currentSession?.refresh_token || v.session?.refresh_token);
-    if (spare === refreshToken) spare = null;
-  } catch (e) {}
-  if ((refreshToken || spare) && supabase && supabase.auth) {
-    try {
-      let data = null;
-      for (const rt of [refreshToken, spare]) {
-        if (!rt) continue;
-        ({ data } = await supabase.auth.refreshSession({ refresh_token: rt }));
-        if (data?.session) break;
-      }
-      if (data?.session) {
-        localStorage.setItem('gbf_token', data.session.access_token);
-        localStorage.setItem('gbf_refresh', data.session.refresh_token);
-        try { localStorage.removeItem(OLD_SB_KEY); } catch (e) {}
-        authToken = data.session.access_token;
-        console.log('Token refreshed successfully');
-      } else {
-        console.log('Refresh failed, user needs to log in again');
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-    }
+  // Renew the login only if it's nearly up - done in one place for the whole
+  // site (gb-domain.js), so it can't clash with another tab or page.
+  if (window.gbAuth) {
+    try { await window.gbAuth.renew(); } catch (e) {}
+    authToken = localStorage.getItem('gbf_token') || null;
   }
   
   // Check for existing session
@@ -111,8 +85,9 @@ async function validateSession() {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
     
-    if (!response.ok) {
-      // Token invalid, clear it
+    // Only a real "not logged in" answer logs you out - a slow or broken
+    // server reply must never throw away a good login.
+    if (response.status === 401) {
       logout();
     }
   } catch (error) {

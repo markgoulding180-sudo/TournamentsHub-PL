@@ -1772,62 +1772,12 @@ window.addEventListener('scroll', () => {
   document.getElementById('tabHome').classList.toggle('active', !inAll);
 }, { passive:true });
 
-// ---------- keep the login fresh (same as the main hub's live-poll.js) ----------
-// Supabase logins expire after ~1 hour. Without renewing, "which tournaments
-// am I in" gets rejected and the page wrongly shows you haven't entered any.
-const HUB_SUPABASE_URL = 'https://liuuzvboeesimvovnooh.supabase.co';
-const HUB_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpdXV6dmJvZWVzaW12b3Zub29oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTA1MjYsImV4cCI6MjA5ODc2NjUyNn0.rfV-5DZ-06GIQ5vJcT0rCzmruSjXdCOP__XhhPv7jDs';
-let hubSb = null, refreshing = null;
-// Seconds until the saved login token expires (from the token itself).
-function tokenSecondsLeft(){
-  try { const p = JSON.parse(atob(token().split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); return p.exp - Date.now() / 1000; }
-  catch(e){ return -1; }
-}
-// Renew the login. Only one renewal at a time (several at once would each
-// use up the same one-time refresh token), and only when it's actually
-// needed. The Supabase client is told NOT to store its own copy or renew
-// by itself in the background — that hidden extra renewal is what made the
-// site's saved refresh token go stale ("Refresh Token Not Found").
-// The old setup let Supabase keep its own copy of the login under this key and
-// renew it by itself, so the newest working refresh token can be sitting here.
-const OLD_SB_KEY = 'sb-liuuzvboeesimvovnooh-auth-token';
-function oldSavedRefresh(){
-  try {
-    const v = JSON.parse(localStorage.getItem(OLD_SB_KEY) || 'null');
-    const t = v && (v.refresh_token || (v.currentSession && v.currentSession.refresh_token) || (v.session && v.session.refresh_token));
-    return t && t !== localStorage.getItem('gbf_refresh') ? t : null;
-  } catch(e){ return null; }
-}
-function refreshLogin(force){
-  if (refreshing) return refreshing;
-  if (!force && token() && tokenSecondsLeft() > 300) return Promise.resolve(true);
-  refreshing = (async () => {
-    let rt = null;
-    try { rt = localStorage.getItem('gbf_refresh'); } catch(e){}
-    const spare = oldSavedRefresh();
-    if ((!rt && !spare) || !window.supabase) return false;
-    try {
-      hubSb = hubSb || window.supabase.createClient(HUB_SUPABASE_URL, HUB_SUPABASE_KEY, {
-        auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false }
-      });
-      // Try the site's saved refresh token first, then the spare copy the old
-      // background renewal left behind (that one is often the only live one).
-      for (const cand of [rt, spare]) {
-        if (!cand) continue;
-        const { data, error } = await hubSb.auth.refreshSession({ refresh_token: cand });
-        if (error || !data || !data.session) continue;
-        localStorage.setItem('gbf_token', data.session.access_token);
-        localStorage.setItem('gbf_refresh', data.session.refresh_token);
-        try { localStorage.removeItem(OLD_SB_KEY); } catch(e){}
-        STATE.loginExpired = false;
-        return true;
-      }
-      // Another open tab may have renewed it a moment ago — use theirs.
-      if (localStorage.getItem('gbf_refresh') !== rt && tokenSecondsLeft() > 60) { STATE.loginExpired = false; return true; }
-      return false;
-    } catch(e){ return false; }
-  })().finally(() => { setTimeout(() => { refreshing = null; }, 0); });
-  return refreshing;
+// ---------- keep the login fresh ----------
+// Renewing the login is done in ONE place for the whole site (gb-domain.js):
+// only when the pass is nearly up, one tab at a time, never in a hidden tab.
+function refreshLogin(){
+  if (!window.gbAuth) return Promise.resolve(false);
+  return window.gbAuth.renew().then(ok => { if (ok) STATE.loginExpired = false; return ok; }, () => false);
 }
 
 // ---------- always open at the top ----------
@@ -1939,7 +1889,6 @@ async function loadNotifs(){
   }
   initMe();
   loadAll();
-  setInterval(() => refreshLogin(), 5 * 60 * 1000);  // renews only when close to expiring
 })();
 </script>
 <script>
