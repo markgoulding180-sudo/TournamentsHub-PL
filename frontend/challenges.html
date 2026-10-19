@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en" data-gbs="challenges">
+<head>
+  <meta charset="UTF-8">
+  <script src="/gb-domain.js"></script>
+  <link rel="stylesheet" href="/gb-shell.css">
+  <script src="/gb-shell.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bet Challenges - GB Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{
+      --bg:#060b1e; --bg-panel:#0a1226; --bg-card:#0d1730;
+      --border:#1a2a4d; --border-2:#243a66;
+      --accent:#3b82f6; --accent-2:#60a5fa; --accent-glow:rgba(59,130,246,0.45); --accent-dim:#1d4ed8;
+      --text:#f1f5fc; --text-dim:#8fa0bf; --text-faint:#5b6987;
+      --gold:#f2b93d; --red:#ef4444; --green:#22c55e;
+      --radius:16px;
+      --font-display:'Anton','Rajdhani',sans-serif; --font-head:'Rajdhani',sans-serif; --font-body:'Inter',sans-serif;
+    }
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    html{ overflow-x:hidden; }
+    body{ background:var(--bg); color:var(--text); font-family:var(--font-body); -webkit-font-smoothing:antialiased; min-height:100vh; }
+    a{ color:inherit; text-decoration:none; }
+    button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+    input, textarea{ font-family:inherit; }
+
+    main{ padding:18px 32px 60px; }   /* same width as the hero and tab bar above */
+    @media (max-width:899px){ main{ padding:14px 12px 40px; } }
+
+    /* ---------- top strip ---------- */
+    .ch-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+    .ch-top h2{ font-family:var(--font-head); font-size:22px; font-weight:700; letter-spacing:.3px; }
+    .ch-top p{ color:var(--text-dim); font-size:13px; margin-top:2px; }
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:var(--font-head); font-weight:700; font-size:15px; letter-spacing:.4px;
+      padding:11px 20px; border-radius:12px; transition:filter .15s, transform .15s; white-space:nowrap; }
+    .btn:active{ transform:scale(.97); }
+    .btn-primary{ background:linear-gradient(135deg, var(--accent), var(--accent-dim)); color:#fff; box-shadow:0 6px 18px rgba(59,130,246,0.35); }
+    .btn-ghost{ background:rgba(255,255,255,0.04); border:1px solid var(--border-2); color:var(--text); }
+    .btn-green{ background:rgba(34,197,94,0.14); border:1px solid var(--green); color:var(--green); }
+    .btn-red{ background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; }
+    .btn-sm{ padding:7px 12px; font-size:13.5px; border-radius:10px; }
+    .btn[disabled]{ opacity:.55; pointer-events:none; }
+    .note18{ font-size:11.5px; color:var(--text-faint); margin:4px 0 16px; }
+    .note18 b{ color:var(--text-dim); }
+
+    /* ---------- challenge cards ---------- */
+    .ch-list{ display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:14px; }
+    @media (max-width:599px){ .ch-list{ grid-template-columns:1fr; gap:12px; } }
+    .ch-card{ position:relative; display:flex; flex-direction:column; gap:12px; padding:16px; border-radius:var(--radius); border:1px solid var(--border-2); cursor:pointer;
+      background:linear-gradient(180deg, rgba(4,9,30,0.86), rgba(4,9,30,0.94)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, var(--bg-card);
+      transition:border-color .2s, transform .15s; }
+    .ch-card:hover{ border-color:var(--accent); }
+    .ch-card:active{ transform:scale(.99); }
+    .ch-card.won{ border-color:rgba(34,197,94,0.55); }
+    .ch-card.lost{ border-color:rgba(239,68,68,0.45); }
+    .ch-head{ display:flex; align-items:center; gap:10px; }
+    .av{ width:38px; height:38px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; overflow:hidden;
+      background:linear-gradient(150deg,#2c3d5c,#161f33); border:1.5px solid var(--accent-2); font-family:var(--font-head); font-weight:700; font-size:14px; color:var(--accent-2); }
+    .av img{ width:100%; height:100%; object-fit:cover; }
+    .ch-who{ min-width:0; flex:1; }
+    .ch-who b{ display:block; font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ch-who span{ font-size:12px; color:var(--text-dim); }
+    .pill{ display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; flex:none; }
+    .pill.live{ background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.6); color:var(--green); }
+    .pill.live i{ font-size:7px; animation:pulse 1.4s ease-in-out infinite; }
+    .pill.won{ background:rgba(242,185,61,0.14); border:1px solid var(--gold); color:var(--gold); }
+    .pill.lost{ background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; }
+    .pill.ended{ background:rgba(148,163,184,0.1); border:1px solid rgba(148,163,184,0.5); color:var(--text-dim); }
+    .pill.pending{ background:rgba(148,163,184,0.1); border:1px solid rgba(148,163,184,0.5); color:var(--text-dim); }
+    .pill.void{ background:rgba(148,163,184,0.1); border:1px solid rgba(148,163,184,0.5); color:var(--text-dim); }
+    @keyframes pulse{ 50%{ opacity:.25; } }
+    .ch-title{ font-family:var(--font-display); font-size:28px; line-height:1; letter-spacing:.4px; text-transform:uppercase; }
+    .ch-title small{ display:block; font-family:var(--font-body); font-size:12px; color:var(--text-dim); letter-spacing:0; text-transform:none; margin-top:6px; }
+
+    /* progress */
+    .prog{ position:relative; }
+    .prog-bar{ height:10px; border-radius:999px; background:rgba(255,255,255,0.07); overflow:hidden; border:1px solid rgba(255,255,255,0.06); }
+    .prog-fill{ height:100%; border-radius:999px; background:linear-gradient(90deg, var(--accent-dim), var(--accent-2)); box-shadow:0 0 12px var(--accent-glow); transition:width .5s; }
+    .won .prog-fill{ background:linear-gradient(90deg, #b8860b, var(--gold)); box-shadow:0 0 12px rgba(242,185,61,0.5); }
+    .lost .prog-fill{ background:linear-gradient(90deg, #7f1d1d, var(--red)); box-shadow:none; }
+    .prog-nums{ display:flex; justify-content:space-between; align-items:baseline; margin-top:7px; font-size:12px; color:var(--text-dim); }
+    .prog-nums b{ font-family:var(--font-head); font-size:20px; color:var(--text); font-weight:700; }
+    .won .prog-nums b{ color:var(--gold); }
+    .lost .prog-nums b{ color:#fca5a5; }
+
+    .ch-latest{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:12px; background:rgba(255,255,255,0.035); border:1px solid var(--border); min-height:54px; }
+    .ch-latest .thumb{ width:40px; height:40px; border-radius:8px; object-fit:cover; flex:none; border:1px solid var(--border-2); }
+    .ch-latest .ico{ width:40px; height:40px; border-radius:8px; flex:none; display:flex; align-items:center; justify-content:center; background:rgba(59,130,246,0.1); color:var(--accent-2); }
+    .ch-latest .txt{ min-width:0; flex:1; }
+    .ch-latest .txt b{ display:block; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ch-latest .txt span{ font-size:12px; color:var(--text-dim); }
+    .ch-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; color:var(--text-dim); }
+    .follow-btn{ display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:10px; font-family:var(--font-head); font-weight:700; font-size:13.5px;
+      border:1px solid var(--accent); color:var(--accent-2); background:rgba(59,130,246,0.1); }
+    .follow-btn.on{ background:var(--accent); color:#fff; }
+
+    .empty{ text-align:center; padding:40px 18px; color:var(--text-dim); border:1px dashed var(--border-2); border-radius:var(--radius); }
+    .empty i{ font-size:30px; color:var(--accent-2); margin-bottom:10px; display:block; }
+    .empty b{ display:block; color:var(--text); font-size:16px; margin-bottom:6px; font-family:var(--font-head); }
+    .loading{ text-align:center; padding:40px; color:var(--text-dim); }
+    .section-label{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-faint); margin:22px 0 10px; }
+
+    /* ---------- one challenge ---------- */
+    .back{ display:inline-flex; align-items:center; gap:8px; color:var(--text-dim); font-size:14px; font-weight:600; margin-bottom:12px; padding:6px 0; }
+    .detail-head{ padding:18px; border-radius:var(--radius); border:1px solid var(--border-2);
+      background:linear-gradient(180deg, rgba(4,9,30,0.80), rgba(4,9,30,0.94)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, var(--bg-card); }
+    .detail-head .ch-title{ font-size:36px; margin:12px 0 14px; }
+    @media (max-width:599px){ .detail-head .ch-title{ font-size:30px; } }
+    .owner-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+    .steps{ display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+    .step{ position:relative; padding:14px; border-radius:14px; border:1px solid var(--border); background:var(--bg-panel); }
+    .step.won{ border-color:rgba(34,197,94,0.45); }
+    .step.lost{ border-color:rgba(239,68,68,0.45); }
+    .step.pending{ border-color:var(--accent); box-shadow:0 0 0 1px rgba(59,130,246,0.25); }
+    .step-top{ display:flex; align-items:center; gap:10px; }
+    .step-num{ width:32px; height:32px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700;
+      background:rgba(59,130,246,0.12); border:1px solid var(--accent); color:var(--accent-2); }
+    .step.won .step-num{ background:rgba(34,197,94,0.14); border-color:var(--green); color:var(--green); }
+    .step.lost .step-num{ background:rgba(239,68,68,0.12); border-color:var(--red); color:#fca5a5; }
+    .step-money{ flex:1; min-width:0; font-size:13px; color:var(--text-dim); }
+    .step-money b{ color:var(--text); font-family:var(--font-head); font-size:17px; }
+    .step-sel{ margin-top:10px; font-size:14.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+    .step-meta{ margin-top:6px; font-size:12px; color:var(--text-faint); }
+    .slip{ margin-top:10px; display:block; max-width:100%; max-height:340px; border-radius:10px; border:1px solid var(--border-2); cursor:zoom-in; object-fit:contain; background:#000; }
+    .share-link{ margin-top:10px; display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; font-size:13px; font-weight:600;
+      background:rgba(59,130,246,0.1); border:1px solid var(--border-2); color:var(--accent-2); max-width:100%; }
+    .share-link span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .settle{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+    .settle .lbl{ width:100%; font-size:12px; color:var(--text-dim); }
+
+    /* ---------- pop-up sheets (start / add bet) ---------- */
+    .sheet-bg{ position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); display:none; align-items:flex-end; justify-content:center; }
+    .sheet-bg.open{ display:flex; }
+    @media (min-width:600px){ .sheet-bg{ align-items:center; } }
+    .sheet{ width:100%; max-width:520px; max-height:92vh; overflow:auto; background:#0a1430; border:1px solid var(--border-2); border-radius:20px 20px 0 0; padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+      box-shadow:0 -10px 40px rgba(0,0,0,0.5); }
+    @media (min-width:600px){ .sheet{ border-radius:20px; } }
+    .sheet h3{ font-family:var(--font-head); font-size:22px; font-weight:700; display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+    .sheet h3 button{ font-size:20px; color:var(--text-dim); padding:4px 8px; }
+    .sheet .sub{ font-size:13px; color:var(--text-dim); margin-bottom:14px; }
+    .field{ margin-bottom:14px; }
+    .field label{ display:block; font-size:12.5px; font-weight:700; color:var(--text-dim); margin-bottom:6px; letter-spacing:.3px; }
+    .field label small{ font-weight:500; color:var(--text-faint); }
+    .inp{ width:100%; padding:12px 13px; border-radius:11px; background:rgba(255,255,255,0.05); border:1px solid var(--border-2); color:var(--text); font-size:16px; outline:none; }
+    .inp:focus{ border-color:var(--accent); }
+    textarea.inp{ min-height:76px; resize:vertical; }
+    .money-inp{ position:relative; }
+    .money-inp span{ position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-dim); font-weight:700; }
+    .money-inp .inp{ padding-left:28px; }
+    .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+    .chip{ padding:8px 12px; border-radius:999px; border:1px solid var(--border-2); background:rgba(255,255,255,0.04); font-size:13.5px; font-weight:700; color:var(--text); }
+    .chip.on{ border-color:var(--accent); background:rgba(59,130,246,0.18); color:#fff; }
+    .stake-box{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border-radius:12px; background:rgba(59,130,246,0.08); border:1px solid var(--border-2); margin-bottom:14px; }
+    .stake-box div{ font-size:12px; color:var(--text-dim); }
+    .stake-box b{ display:block; font-family:var(--font-head); font-size:22px; color:var(--text); }
+    .stake-box .ret b{ color:var(--green); text-align:right; }
+    .upload{ display:flex; gap:10px; align-items:center; }
+    .upload-btn{ flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:14px; border-radius:12px; border:1.5px dashed var(--border-2); color:var(--accent-2); font-weight:700; font-size:14px; background:rgba(59,130,246,0.05); }
+    .preview{ position:relative; margin-top:10px; display:none; max-width:100%; }
+    .preview.show{ display:inline-block; }
+    .preview img{ max-width:100%; max-height:220px; border-radius:10px; border:1px solid var(--border-2); display:block; }
+    .preview button{ position:absolute; top:6px; right:6px; width:30px; height:30px; border-radius:50%; background:rgba(0,0,0,0.7); color:#fff; }
+    .paste-row{ display:flex; gap:8px; }
+    .paste-row .inp{ flex:1; }
+    .err{ color:#fca5a5; font-size:13px; min-height:18px; margin:-4px 0 10px; }
+    .how-mini{ font-size:12.5px; color:var(--text-dim); line-height:1.5; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); margin-bottom:14px; }
+
+    /* zoomed slip */
+    .zoom{ position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; padding:16px; }
+    .zoom.open{ display:flex; }
+    .zoom img{ max-width:100%; max-height:100%; border-radius:8px; }
+    .toast{ position:fixed; left:50%; bottom:calc(80px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px); opacity:0; z-index:2200; background:#0f1d45; border:1px solid var(--border-2);
+      color:var(--text); padding:10px 16px; border-radius:12px; font-size:14px; font-weight:600; transition:opacity .2s, transform .2s; pointer-events:none; max-width:90vw; text-align:center; }
+    .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+    .toast.bad{ border-color:var(--red); color:#fca5a5; }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="listView">
+      <div class="ch-top">
+        <div>
+          <h2 id="listTitle">Live Challenges</h2>
+          <p id="listSub">Follow a challenge to get a notification every time a new bet goes up.</p>
+        </div>
+        <button class="btn btn-primary" id="startBtn"><i class="fas fa-plus"></i> Start a Challenge</button>
+      </div>
+      <div class="note18"><b>18+ · Just for fun.</b> No money goes through GB Hub — bets are placed on your own betting site. Please gamble responsibly · <a href="https://www.begambleaware.org" target="_blank" rel="noopener" style="text-decoration:underline;">BeGambleAware.org</a></div>
+      <div id="list"><div class="loading">Loading challenges…</div></div>
+    </div>
+
+    <div id="detailView" hidden>
+      <a href="/challenges" class="back" id="backLink"><i class="fas fa-arrow-left"></i> All challenges</a>
+      <div id="detail"><div class="loading">Loading…</div></div>
+    </div>
+  </main>
+
+  <!-- Start a challenge -->
+  <div class="sheet-bg" id="startSheet">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="startH">
+      <h3 id="startH">Start a Challenge <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
+      <div class="sub">Pick where you start and where you want to get to.</div>
+      <div class="how-mini">You post one bet at a time. If it wins, <b>all the winnings roll into the next bet</b>. Hit your target and you've done it — lose one and it's over.</div>
+      <div class="field">
+        <label>Quick pick</label>
+        <div class="chips" id="presetChips">
+          <button type="button" class="chip on" data-s="10" data-t="500">£10 → £500</button>
+          <button type="button" class="chip" data-s="5" data-t="100">£5 → £100</button>
+          <button type="button" class="chip" data-s="10" data-t="1000">£10 → £1,000</button>
+          <button type="button" class="chip" data-s="20" data-t="1000">£20 → £1,000</button>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Start with</label><div class="money-inp"><span>£</span><input class="inp" id="startAmt" type="number" inputmode="decimal" min="1" step="1" value="10"></div></div>
+        <div class="field"><label>Target</label><div class="money-inp"><span>£</span><input class="inp" id="targetAmt" type="number" inputmode="decimal" min="2" step="1" value="500"></div></div>
+      </div>
+      <div class="field"><label>Name it <small>(optional)</small></label><input class="inp" id="chName" maxlength="60" placeholder="e.g. Weekend Acca Run"></div>
+      <div class="err" id="startErr"></div>
+      <button class="btn btn-primary" id="startGo" style="width:100%;"><i class="fas fa-flag-checkered"></i> Start Challenge</button>
+    </div>
+  </div>
+
+  <!-- Add the next bet -->
+  <div class="sheet-bg" id="betSheet">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="betH">
+      <h3 id="betH"><span>Add Bet <span id="betStepNo"></span></span> <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
+      <div class="sub">Place it on your betting site first, then post it here.</div>
+      <div class="stake-box">
+        <div>Stake (your running total)<b id="betStake">£0</b></div>
+        <div class="ret">Returns if it wins<b id="betReturn">—</b></div>
+      </div>
+      <div class="field">
+        <label>Odds</label>
+        <div class="chips" id="oddsChips">
+          <button type="button" class="chip" data-o="1/2">1/2</button>
+          <button type="button" class="chip" data-o="Evens">Evens</button>
+          <button type="button" class="chip" data-o="5/4">5/4</button>
+          <button type="button" class="chip" data-o="2/1">2/1</button>
+          <button type="button" class="chip" data-o="3/1">3/1</button>
+        </div>
+        <input class="inp" id="betOdds" placeholder="e.g. 5/4, Evens or 2.25" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>What's the bet?</label>
+        <textarea class="inp" id="betSel" maxlength="300" placeholder="e.g. Arsenal to win & both teams to score"></textarea>
+      </div>
+      <div class="field">
+        <label>Bet slip picture <small>(screenshot from your betting app)</small></label>
+        <div class="upload">
+          <label class="upload-btn" for="betImg"><i class="fas fa-image"></i> Add picture</label>
+          <input type="file" id="betImg" accept="image/*" hidden>
+        </div>
+        <div class="preview" id="betPreview"><img id="betPreviewImg" alt="Bet slip"><button type="button" id="betImgClear" aria-label="Remove picture"><i class="fas fa-xmark"></i></button></div>
+      </div>
+      <div class="field">
+        <label>Share link <small>(from your betting app's "Share bet" button)</small></label>
+        <div class="paste-row">
+          <input class="inp" id="betLink" placeholder="https://…" inputmode="url" autocomplete="off">
+          <button type="button" class="btn btn-ghost btn-sm" id="pasteBtn"><i class="fas fa-paste"></i> Paste</button>
+        </div>
+      </div>
+      <div class="err" id="betErr"></div>
+      <button class="btn btn-primary" id="betGo" style="width:100%;"><i class="fas fa-paper-plane"></i> Post Bet</button>
+    </div>
+  </div>
+
+  <!-- Mark a bet as won (optional actual returns) -->
+  <div class="sheet-bg" id="wonSheet">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="wonH">
+      <h3 id="wonH">It won! 🎉 <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
+      <div class="sub">Check the returns — change them if you had a boost or cashed out.</div>
+      <div class="field"><label>Returns (stake included)</label><div class="money-inp"><span>£</span><input class="inp" id="wonAmt" type="number" inputmode="decimal" step="0.01"></div></div>
+      <div class="err" id="wonErr"></div>
+      <button class="btn btn-green" id="wonGo" style="width:100%;"><i class="fas fa-check"></i> Mark as Won</button>
+    </div>
+  </div>
+
+  <div class="zoom" id="zoom"><img id="zoomImg" alt="Bet slip"></div>
+  <div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const token = () => { try { return localStorage.getItem('gbf_token'); } catch (e) { return null; } };
+  const money = (p) => { p = Number(p) || 0; const v = p / 100; return '£' + (v % 1 ? v.toFixed(2) : v.toLocaleString('en-GB')); };
+  const initials = (n) => String(n || '?').split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+  const avatar = (o) => `<div class="av">${o && o.avatar ? `<img src="${esc(o.avatar)}" alt="" onerror="this.remove()">` : ''}${o && o.avatar ? '' : esc(initials(o && o.name))}</div>`;
+  const ago = (iso) => {
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    const d = Math.floor(s / 86400); return d === 1 ? 'yesterday' : d < 7 ? d + ' days ago' : new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
+  const STATUS = { active: ['live', '<i class="fas fa-circle"></i> Live'], won: ['won', '<i class="fas fa-trophy"></i> Target hit'], lost: ['lost', '<i class="fas fa-xmark"></i> Bust'], ended: ['ended', 'Ended'] };
+  const BET = { pending: ['pending', '<i class="fas fa-clock"></i> Waiting'], won: ['won', '<i class="fas fa-check"></i> Won'], lost: ['lost', '<i class="fas fa-xmark"></i> Lost'], void: ['void', 'Void'] };
+  function toast(msg, bad) { const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (bad ? ' bad' : ''); clearTimeout(toast.t); toast.t = setTimeout(() => { t.className = 'toast'; }, 2600); }
+  function loginFirst(msg) { toast(msg || 'Log in first'); setTimeout(() => { location.href = '/login?redirect=' + encodeURIComponent(location.pathname + location.search); }, 900); }
+  async function api(params) {
+    const h = token() ? { Authorization: 'Bearer ' + token() } : {};
+    const r = await fetch('/api/tournaments?' + new URLSearchParams(params), { headers: h });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(d.error || 'Something went wrong'), { status: r.status });
+    return d;
+  }
+  async function post(body) {
+    if (!token()) { loginFirst(); throw new Error('Log in first'); }
+    const r = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) { loginFirst('Your login has expired — log in again'); throw new Error('Log in again'); }
+    if (!r.ok) throw new Error(d.error || 'Something went wrong');
+    return d;
+  }
+  function progress(c) {
+    // log scale feels fairer: each win moves the bar a similar amount
+    const s = Math.max(1, c.start_amount), t = Math.max(s + 1, c.target_amount), cur = Math.max(0, c.current_amount);
+    const pct = c.status === 'won' ? 100 : c.status === 'lost' ? 100 : cur <= s ? 3 : Math.min(100, Math.max(3, Math.log(cur / s) / Math.log(t / s) * 100));
+    const left = c.status === 'lost' ? 'Bust' : c.status === 'won' ? 'Done it!' : `${money(Math.max(0, c.target_amount - c.current_amount))} to go`;
+    return `<div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="prog-nums"><span><b>${money(c.status === 'lost' ? 0 : c.current_amount)}</b> of ${money(c.target_amount)}</span><span>${left}</span></div></div>`;
+  }
+  function followBtn(c) {
+    if (c.is_owner) return '<span style="font-size:12px;color:var(--text-faint);">Your challenge</span>';
+    if (c.status !== 'active' && !c.following) return '';
+    return `<button class="follow-btn${c.following ? ' on' : ''}" data-follow="${esc(c.id)}">${c.following ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-bell"></i> Follow'}</button>`;
+  }
+
+  // ---------- which view ----------
+  const qs = new URLSearchParams(location.search);
+  const VIEW = ['following', 'mine'].includes(qs.get('view')) ? qs.get('view') : 'all';
+  // light up the right tab in the bar under the hero
+  function markTab() {
+    document.querySelectorAll('.gbs-tab').forEach(a => {
+      const v = new URL(a.href, location.href).searchParams.get('view') || 'all';
+      a.classList.toggle('on', !new URLSearchParams(location.search).get('c') && v === VIEW);
+    });
+  }
+
+  // ---------- list ----------
+  async function loadList() {
+    $('listTitle').textContent = VIEW === 'mine' ? 'My Challenges' : VIEW === 'following' ? 'Following' : 'Live Challenges';
+    $('listSub').textContent = VIEW === 'mine' ? 'Every challenge you\'ve started.' : VIEW === 'following' ? 'Challenges you get notified about.' : 'Follow a challenge to get a notification every time a new bet goes up.';
+    if (VIEW !== 'all' && !token()) {
+      $('list').innerHTML = `<div class="empty"><i class="fas fa-right-to-bracket"></i><b>Log in to see ${VIEW === 'mine' ? 'your challenges' : 'who you follow'}</b><a class="btn btn-primary" style="margin-top:10px;" href="/login?redirect=${encodeURIComponent(location.pathname + location.search)}">Log In</a></div>`;
+      return;
+    }
+    try {
+      const d = await api({ challenges: VIEW });
+      const list = d.challenges || [];
+      if (!list.length) {
+        $('list').innerHTML = VIEW === 'following'
+          ? '<div class="empty"><i class="fas fa-bell"></i><b>You\'re not following anyone yet</b>Open a challenge and tap Follow to get a notification for every new bet.</div>'
+          : '<div class="empty"><i class="fas fa-flag-checkered"></i><b>No challenges yet</b>Be the first — tap <b style="display:inline;font-size:inherit;">Start a Challenge</b> and post your first bet.</div>';
+        return;
+      }
+      const live = list.filter(c => c.status === 'active'), done = list.filter(c => c.status !== 'active');
+      const cards = (arr) => `<div class="ch-list">${arr.map(cardHtml).join('')}</div>`;
+      $('list').innerHTML = (live.length ? cards(live) : '<div class="empty" style="padding:24px;">No live challenges right now.</div>')
+        + (done.length ? `<div class="section-label">Finished</div>${cards(done)}` : '');
+    } catch (e) {
+      $('list').innerHTML = `<div class="empty"><i class="fas fa-triangle-exclamation"></i><b>Couldn't load challenges</b>${esc(e.message)}</div>`;
+    }
+  }
+  function cardHtml(c) {
+    const st = STATUS[c.status] || STATUS.ended;
+    const lb = c.latest_bet;
+    const latest = lb
+      ? `<div class="ch-latest">${lb.image_url ? `<img class="thumb" src="${esc(lb.image_url)}" alt="" loading="lazy">` : '<div class="ico"><i class="fas fa-receipt"></i></div>'}
+          <div class="txt"><b>Bet ${lb.step}: ${esc(lb.selection || 'See the bet slip')}</b><span>${money(lb.stake)} @ ${esc(lb.odds_text)} · ${ago(lb.created_at)}</span></div>
+          <span class="pill ${BET[lb.status][0]}">${BET[lb.status][1]}</span></div>`
+      : `<div class="ch-latest"><div class="ico"><i class="fas fa-hourglass-start"></i></div><div class="txt"><b>No bets yet</b><span>First bet coming soon</span></div></div>`;
+    return `<article class="ch-card ${esc(c.status)}" data-open="${esc(c.id)}">
+      <div class="ch-head">${avatar(c.owner)}<div class="ch-who"><b>${esc(c.owner.name)}</b><span>Started ${ago(c.created_at)}</span></div><span class="pill ${st[0]}">${st[1]}</span></div>
+      <div class="ch-title">${esc(c.title)}<small>${money(c.start_amount)} → ${money(c.target_amount)} · ${c.bets} bet${c.bets === 1 ? '' : 's'} · ${c.wins} won</small></div>
+      ${progress(c)}
+      ${latest}
+      <div class="ch-foot"><span><i class="fas fa-users"></i> ${c.followers} follower${c.followers === 1 ? '' : 's'}</span>${followBtn(c)}</div>
+    </article>`;
+  }
+
+  // ---------- one challenge ----------
+  let CUR = null;
+  async function loadDetail(id) {
+    $('listView').hidden = true; $('detailView').hidden = false;
+    try {
+      const d = await api({ challenge: id });
+      CUR = d;
+      renderDetail();
+    } catch (e) {
+      $('detail').innerHTML = `<div class="empty"><i class="fas fa-triangle-exclamation"></i><b>${e.status === 404 ? 'That challenge has gone' : "Couldn't load it"}</b>${esc(e.message)}</div>`;
+    }
+  }
+  function renderDetail() {
+    const c = CUR.challenge, bets = CUR.bets, st = STATUS[c.status] || STATUS.ended;
+    const latest = bets[bets.length - 1];
+    const canAdd = c.is_owner && c.status === 'active' && (!latest || latest.status !== 'pending');
+    const actions = [];
+    if (canAdd) actions.push(`<button class="btn btn-primary" id="addBetBtn"><i class="fas fa-plus"></i> Add Bet ${bets.length + 1} · ${money(c.current_amount)}</button>`);
+    if (c.can_manage && c.status === 'active' && (!latest || latest.status !== 'pending') && bets.length) actions.push('<button class="btn btn-ghost btn-sm" id="endBtn"><i class="fas fa-flag"></i> End challenge</button>');
+    if ((c.is_owner && !bets.length) || CUR.is_admin) actions.push('<button class="btn btn-red btn-sm" id="delChBtn"><i class="fas fa-trash"></i> Delete</button>');
+    $('detail').innerHTML = `
+      <section class="detail-head ${esc(c.status)}">
+        <div class="ch-head">${avatar(c.owner)}<div class="ch-who"><b>${esc(c.owner.name)}</b><span>Started ${ago(c.created_at)} · ${c.followers} follower${c.followers === 1 ? '' : 's'}</span></div><span class="pill ${st[0]}">${st[1]}</span></div>
+        <div class="ch-title">${esc(c.title)}<small>${money(c.start_amount)} → ${money(c.target_amount)} · every win rolls into the next bet</small></div>
+        ${progress(c)}
+        <div class="owner-actions">${c.is_owner ? '' : followBtn(c)}${actions.join('')}</div>
+      </section>
+      <div class="steps">${bets.length ? bets.slice().reverse().map(stepHtml).join('') : `<div class="empty"><i class="fas fa-hourglass-start"></i><b>No bets yet</b>${c.is_owner ? 'Tap <b style="display:inline;font-size:inherit;">Add Bet 1</b> once you\'ve placed it on your betting site.' : 'Follow to get a notification when the first bet goes up.'}</div>`}</div>`;
+    const ab = $('addBetBtn'); if (ab) ab.onclick = openBet;
+    const eb = $('endBtn'); if (eb) eb.onclick = endChallenge;
+    const db = $('delChBtn'); if (db) db.onclick = deleteChallenge;
+  }
+  function stepHtml(b) {
+    const c = CUR.challenge, bs = BET[b.status];
+    const isLatest = b.id === CUR.bets[CUR.bets.length - 1].id;
+    const ret = b.status === 'won' ? `won <b style="color:var(--green)">${money(b.actual_return || b.potential_return)}</b>` : b.status === 'lost' ? 'lost' : b.status === 'void' ? 'void — stake back' : `to return <b>${money(b.potential_return)}</b>`;
+    let host = ''; try { host = b.share_url ? new URL(b.share_url).hostname.replace(/^www\.|^m\./, '') : ''; } catch (e) {}
+    let settle = '';
+    if (isLatest && c.can_manage && (b.status === 'pending' || CUR.is_admin)) {
+      settle = `<div class="settle"><div class="lbl">${b.status === 'pending' ? 'How did it go?' : 'Admin: change the result'}</div>
+        ${b.status !== 'won' ? `<button class="btn btn-green btn-sm" data-won="${esc(b.id)}"><i class="fas fa-check"></i> Won</button>` : ''}
+        ${b.status !== 'lost' ? `<button class="btn btn-red btn-sm" data-res="lost" data-bet="${esc(b.id)}"><i class="fas fa-xmark"></i> Lost</button>` : ''}
+        ${b.status !== 'void' ? `<button class="btn btn-ghost btn-sm" data-res="void" data-bet="${esc(b.id)}">Void</button>` : ''}
+        ${b.status !== 'pending' && CUR.is_admin ? `<button class="btn btn-ghost btn-sm" data-res="pending" data-bet="${esc(b.id)}"><i class="fas fa-rotate-left"></i> Reopen</button>` : ''}
+        ${b.status === 'pending' || CUR.is_admin ? `<button class="btn btn-ghost btn-sm" data-delbet="${esc(b.id)}" style="margin-left:auto;"><i class="fas fa-trash"></i> Remove</button>` : ''}
+      </div>`;
+    }
+    return `<div class="step ${bs[0]}">
+      <div class="step-top"><div class="step-num">${b.step}</div>
+        <div class="step-money"><b>${money(b.stake)}</b> @ <b>${esc(b.odds_text)}</b> · ${ret}</div>
+        <span class="pill ${bs[0]}">${bs[1]}</span></div>
+      ${b.selection ? `<div class="step-sel">${esc(b.selection)}</div>` : ''}
+      ${b.image_url ? `<img class="slip" src="${esc(b.image_url)}" alt="Bet slip" loading="lazy" data-zoom>` : ''}
+      ${b.share_url ? `<a class="share-link" href="${esc(b.share_url)}" target="_blank" rel="noopener nofollow"><i class="fas fa-arrow-up-right-from-square"></i><span>Open the bet${host ? ' on ' + esc(host) : ''}</span></a>` : ''}
+      <div class="step-meta">Posted ${ago(b.created_at)}${b.bookmaker && !host ? ' · ' + esc(b.bookmaker) : ''}</div>
+      ${settle}
+    </div>`;
+  }
+
+  // ---------- clicks ----------
+  document.addEventListener('click', async (e) => {
+    const f = e.target.closest('[data-follow]');
+    if (f) {
+      e.stopPropagation();
+      if (!token()) return loginFirst('Log in to follow challenges');
+      const on = f.classList.contains('on');
+      f.disabled = true;
+      try {
+        await post({ action: 'challenge_follow', challenge_id: f.dataset.follow, follow: !on });
+        toast(on ? 'Unfollowed' : "Following — you'll get a notification for every new bet");
+        if (CUR && CUR.challenge.id === f.dataset.follow) { CUR.challenge.following = !on; CUR.challenge.followers += on ? -1 : 1; renderDetail(); }
+        else { f.classList.toggle('on', !on); f.innerHTML = !on ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-bell"></i> Follow'; }
+      } catch (err) { toast(err.message, true); }
+      f.disabled = false;
+      return;
+    }
+    const z = e.target.closest('[data-zoom]');
+    if (z) { $('zoomImg').src = z.src; $('zoom').classList.add('open'); return; }
+    if (e.target.closest('#zoom')) { $('zoom').classList.remove('open'); return; }
+    const won = e.target.closest('[data-won]');
+    if (won) { openWon(won.dataset.won); return; }
+    const r = e.target.closest('[data-res]');
+    if (r) {
+      const word = { lost: 'Lost', void: 'Void', pending: 'Reopen' }[r.dataset.res];
+      if (r.dataset.res === 'lost' && !confirm('Mark this bet as lost? That ends the challenge.')) return;
+      await settle(r.dataset.bet, r.dataset.res, null, word);
+      return;
+    }
+    const del = e.target.closest('[data-delbet]');
+    if (del) {
+      if (!confirm('Remove this bet?')) return;
+      try { await post({ action: 'challenge_delete_bet', bet_id: del.dataset.delbet }); toast('Bet removed'); loadDetail(CUR.challenge.id); } catch (err) { toast(err.message, true); }
+      return;
+    }
+    const open = e.target.closest('[data-open]');
+    if (open) { history.pushState({}, '', '/challenges?c=' + open.dataset.open); route(); }
+  });
+
+  async function settle(betId, result, actual, word) {
+    try {
+      await post({ action: 'challenge_settle', bet_id: betId, result, actual_return: actual });
+      toast(result === 'won' ? 'Nice one! Winnings rolled into the next bet' : result === 'lost' ? 'Unlucky — challenge over' : word + ' saved');
+      loadDetail(CUR.challenge.id);
+    } catch (err) { toast(err.message, true); }
+  }
+
+  // ---------- sheets ----------
+  function openSheet(id) { $(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeSheets() { document.querySelectorAll('.sheet-bg').forEach(s => s.classList.remove('open')); document.body.style.overflow = ''; }
+  document.querySelectorAll('.sheet-bg').forEach(s => s.addEventListener('click', e => { if (e.target === s || e.target.closest('[data-close]')) closeSheets(); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSheets(); $('zoom').classList.remove('open'); } });
+
+  // start
+  $('startBtn').onclick = () => { if (!token()) return loginFirst('Log in to start a challenge'); $('startErr').textContent = ''; openSheet('startSheet'); };
+  $('presetChips').addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return;
+    document.querySelectorAll('#presetChips .chip').forEach(x => x.classList.toggle('on', x === c));
+    $('startAmt').value = c.dataset.s; $('targetAmt').value = c.dataset.t;
+  });
+  ['startAmt', 'targetAmt'].forEach(id => $(id).addEventListener('input', () => document.querySelectorAll('#presetChips .chip').forEach(x => x.classList.toggle('on', x.dataset.s === $('startAmt').value && x.dataset.t === $('targetAmt').value))));
+  $('startGo').onclick = async () => {
+    const s = Math.round(parseFloat($('startAmt').value) * 100), t = Math.round(parseFloat($('targetAmt').value) * 100);
+    if (!(s >= 100)) return $('startErr').textContent = 'Start with at least £1';
+    if (!(t > s)) return $('startErr').textContent = 'The target has to be more than you start with';
+    $('startGo').disabled = true;
+    try {
+      const d = await post({ action: 'challenge_create', start_amount: s, target_amount: t, title: $('chName').value.trim() });
+      closeSheets(); toast('Challenge started — now add your first bet');
+      history.pushState({}, '', '/challenges?c=' + d.challenge.id); route();
+    } catch (err) { $('startErr').textContent = err.message; }
+    $('startGo').disabled = false;
+  };
+
+  // add bet
+  let IMG = null;   // { base64, ext }
+  function parseOdds(v) {
+    const s = String(v || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (['evens', 'evs', 'even', '1/1'].includes(s)) return 2;
+    const f = s.match(/^(\d+(?:\.\d+)?)[\/-](\d+(?:\.\d+)?)$/);
+    if (f && +f[1] > 0 && +f[2] > 0) return 1 + f[1] / f[2];
+    if (/^\d+(\.\d+)?$/.test(s) && +s > 1) return +s;
+    return null;
+  }
+  function updateReturn() {
+    const o = parseOdds($('betOdds').value);
+    $('betReturn').textContent = o ? money(Math.round(CUR.challenge.current_amount * o)) : '—';
+    document.querySelectorAll('#oddsChips .chip').forEach(x => x.classList.toggle('on', x.dataset.o.toLowerCase() === $('betOdds').value.trim().toLowerCase()));
+  }
+  function openBet() {
+    IMG = null; $('betImg').value = ''; $('betPreview').classList.remove('show');
+    ['betOdds', 'betSel', 'betLink'].forEach(id => $(id).value = '');
+    $('betErr').textContent = '';
+    $('betStepNo').textContent = CUR.bets.length + 1;
+    $('betStake').textContent = money(CUR.challenge.current_amount);
+    updateReturn();
+    openSheet('betSheet');
+  }
+  $('oddsChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; $('betOdds').value = c.dataset.o; updateReturn(); });
+  $('betOdds').addEventListener('input', updateReturn);
+  // shrink the picture on the phone before sending (fast upload, small file)
+  $('betImg').addEventListener('change', () => {
+    const file = $('betImg').files[0]; if (!file) return;
+    if (!/^image\//.test(file.type)) { $('betErr').textContent = 'That file isn\'t a picture'; return; }
+    const img = new Image();
+    img.onload = () => {
+      const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const url = cv.toDataURL('image/jpeg', 0.82);
+      IMG = { base64: url.split(',')[1], ext: 'jpg' };
+      $('betPreviewImg').src = url; $('betPreview').classList.add('show');
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => { $('betErr').textContent = "Couldn't read that picture"; };
+    img.src = URL.createObjectURL(file);
+  });
+  $('betImgClear').onclick = () => { IMG = null; $('betImg').value = ''; $('betPreview').classList.remove('show'); };
+  $('pasteBtn').onclick = async () => {
+    try {
+      const t = (await navigator.clipboard.readText() || '').trim();
+      const m = t.match(/https?:\/\/[^\s"'<>]+/i);
+      if (m) { $('betLink').value = m[0]; if (!$('betSel').value.trim()) { const rest = t.replace(m[0], '').trim(); if (rest) $('betSel').value = rest.slice(0, 300); } }
+      else toast('No link found — copy the share link from your betting app first', true);
+    } catch (e) { toast('Long-press the box and choose Paste', true); $('betLink').focus(); }
+  };
+  $('betGo').onclick = async () => {
+    const odds = $('betOdds').value.trim();
+    if (!parseOdds(odds)) return $('betErr').textContent = 'Enter the odds — like 5/4, Evens or 2.25';
+    if (!$('betSel').value.trim() && !IMG && !$('betLink').value.trim()) return $('betErr').textContent = 'Say what the bet is, add a picture, or paste the share link';
+    $('betGo').disabled = true; $('betGo').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
+    try {
+      await post({ action: 'challenge_add_bet', challenge_id: CUR.challenge.id, odds, selection: $('betSel').value.trim(), share_url: $('betLink').value.trim(),
+        image_base64: IMG ? IMG.base64 : undefined, file_ext: IMG ? IMG.ext : undefined });
+      closeSheets(); toast('Bet posted — your followers have been notified');
+      loadDetail(CUR.challenge.id);
+    } catch (err) { $('betErr').textContent = err.message; }
+    $('betGo').disabled = false; $('betGo').innerHTML = '<i class="fas fa-paper-plane"></i> Post Bet';
+  };
+
+  // won
+  let WON_BET = null;
+  function openWon(betId) {
+    WON_BET = CUR.bets.find(b => b.id === betId);
+    $('wonAmt').value = (WON_BET.potential_return / 100).toFixed(2);
+    $('wonErr').textContent = '';
+    openSheet('wonSheet');
+  }
+  $('wonGo').onclick = async () => {
+    const v = Math.round(parseFloat($('wonAmt').value) * 100);
+    if (!(v > WON_BET.stake)) return $('wonErr').textContent = 'The returns have to be more than the stake';
+    $('wonGo').disabled = true;
+    closeSheets();
+    await settle(WON_BET.id, 'won', v);
+    $('wonGo').disabled = false;
+  };
+
+  async function endChallenge() {
+    if (!confirm('End this challenge here? It will show as Ended.')) return;
+    try { await post({ action: 'challenge_end', challenge_id: CUR.challenge.id }); toast('Challenge ended'); loadDetail(CUR.challenge.id); } catch (e) { toast(e.message, true); }
+  }
+  async function deleteChallenge() {
+    if (!confirm('Delete this challenge for good?')) return;
+    try { await post({ action: 'challenge_delete', challenge_id: CUR.challenge.id }); toast('Deleted'); history.pushState({}, '', '/challenges'); route(); } catch (e) { toast(e.message, true); }
+  }
+
+  // ---------- routing ----------
+  function route() {
+    const p = new URLSearchParams(location.search);
+    markTab();
+    if (p.get('c')) loadDetail(p.get('c'));
+    else { CUR = null; $('detailView').hidden = true; $('listView').hidden = false; loadList(); }
+    window.scrollTo(0, 0);
+  }
+  $('backLink').onclick = (e) => { e.preventDefault(); history.pushState({}, '', VIEW === 'all' ? '/challenges' : '/challenges?view=' + VIEW); route(); };
+  window.addEventListener('popstate', route);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', route); else route();
+  // live-ish: refresh what's on screen every 2 minutes
+  setInterval(() => { if (document.visibilityState !== 'visible' || document.querySelector('.sheet-bg.open')) return; const p = new URLSearchParams(location.search); if (p.get('c')) loadDetail(p.get('c')); else loadList(); }, 120000);
+})();
+</script>
+</body>
+</html>

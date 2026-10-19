@@ -85,6 +85,84 @@ module.exports = async (req, res) => {
     try {
       const params = new URLSearchParams(req.query);
 
+      // ---- Bet Challenges (e.g. "£10 to £500") ----
+      // Anyone can look; being logged in adds "following" / "mine".
+      if (params.get('challenges') || params.get('challenge')) {
+        let me = null;
+        try {
+          const h = req.headers.authorization;
+          if (h) { const { data } = await supabaseAdmin.auth.getUser(h.replace('Bearer ', '')); me = (data && data.user) || null; }
+        } catch (e) { me = null; }
+        let meAdmin = false;
+        if (me) { const { data: mu } = await supabaseAdmin.from('users').select('is_admin').eq('id', me.id).maybeSingle(); meAdmin = !!(mu && mu.is_admin); }
+
+        // ---- one challenge, with every bet ----
+        if (params.get('challenge')) {
+          const id = params.get('challenge');
+          const { data: ch } = await supabaseAdmin.from('bet_challenges').select('*').eq('id', id).maybeSingle();
+          if (!ch) return res.status(404).json({ error: 'Challenge not found' });
+          const [{ data: bets }, { data: owner }, { count: followers }] = await Promise.all([
+            supabaseAdmin.from('bet_challenge_bets').select('*').eq('challenge_id', id).order('step', { ascending: true }),
+            supabaseAdmin.from('users').select('id, username, display_name, avatar_url, avatar_type').eq('id', ch.user_id).maybeSingle(),
+            supabaseAdmin.from('bet_challenge_follows').select('user_id', { count: 'exact', head: true }).eq('challenge_id', id)
+          ]);
+          let following = false;
+          if (me) {
+            const { data: f } = await supabaseAdmin.from('bet_challenge_follows').select('user_id').eq('challenge_id', id).eq('user_id', me.id).maybeSingle();
+            following = !!f;
+            // opening it counts as having seen the latest bet (clears the notification)
+            if (f) await supabaseAdmin.from('bet_challenge_follows').update({ last_seen_at: new Date().toISOString() }).eq('challenge_id', id).eq('user_id', me.id);
+          }
+          return res.status(200).json({
+            challenge: { ...ch, owner: { name: pickDisplayName(owner || {}), avatar: pickAvatarUrl(owner) }, followers: followers || 0, following,
+              is_owner: !!(me && me.id === ch.user_id), can_manage: !!(me && (me.id === ch.user_id || meAdmin)) },
+            bets: bets || [], is_admin: meAdmin, logged_in: !!me
+          });
+        }
+
+        // ---- the list: all / following / mine ----
+        const view = params.get('challenges');
+        let rows = [];
+        if (view === 'mine') {
+          if (!me) return res.status(401).json({ error: 'Log in to see your challenges' });
+          ({ data: rows } = await supabaseAdmin.from('bet_challenges').select('*').eq('user_id', me.id).order('updated_at', { ascending: false }).limit(50));
+        } else if (view === 'following') {
+          if (!me) return res.status(401).json({ error: 'Log in to see who you follow' });
+          const { data: fl } = await supabaseAdmin.from('bet_challenge_follows').select('challenge_id').eq('user_id', me.id);
+          const ids = (fl || []).map(f => f.challenge_id);
+          if (ids.length) ({ data: rows } = await supabaseAdmin.from('bet_challenges').select('*').in('id', ids).order('updated_at', { ascending: false }));
+        } else {
+          const [{ data: live }, { data: done }] = await Promise.all([
+            supabaseAdmin.from('bet_challenges').select('*').eq('status', 'active').order('updated_at', { ascending: false }).limit(60),
+            supabaseAdmin.from('bet_challenges').select('*').neq('status', 'active').order('finished_at', { ascending: false }).limit(20)
+          ]);
+          rows = [...(live || []), ...(done || [])];
+        }
+        rows = rows || [];
+        const ids = rows.map(r => r.id);
+        const ownerIds = [...new Set(rows.map(r => r.user_id))];
+        const [{ data: allBets }, { data: owners }, { data: follows }] = ids.length ? await Promise.all([
+          supabaseAdmin.from('bet_challenge_bets').select('challenge_id, step, status, stake, odds_text, selection, image_url, potential_return, created_at').in('challenge_id', ids),
+          supabaseAdmin.from('users').select('id, username, display_name, avatar_url, avatar_type').in('id', ownerIds),
+          supabaseAdmin.from('bet_challenge_follows').select('challenge_id, user_id').in('challenge_id', ids)
+        ]) : [{ data: [] }, { data: [] }, { data: [] }];
+        const ownerById = {}; (owners || []).forEach(o => { ownerById[o.id] = o; });
+        const list = rows.map(r => {
+          const b = (allBets || []).filter(x => x.challenge_id === r.id).sort((x, y) => x.step - y.step);
+          const latest = b[b.length - 1] || null;
+          const f = (follows || []).filter(x => x.challenge_id === r.id);
+          return {
+            id: r.id, title: r.title, start_amount: r.start_amount, target_amount: r.target_amount, current_amount: r.current_amount,
+            status: r.status, created_at: r.created_at, updated_at: r.updated_at, finished_at: r.finished_at,
+            owner: { name: pickDisplayName(ownerById[r.user_id] || {}), avatar: pickAvatarUrl(ownerById[r.user_id]) },
+            bets: b.length, wins: b.filter(x => x.status === 'won').length,
+            latest_bet: latest ? { step: latest.step, status: latest.status, stake: latest.stake, odds_text: latest.odds_text, selection: latest.selection, image_url: latest.image_url, potential_return: latest.potential_return, created_at: latest.created_at } : null,
+            followers: f.length, following: !!(me && f.some(x => x.user_id === me.id)), is_owner: !!(me && me.id === r.user_id)
+          };
+        });
+        return res.status(200).json({ challenges: list, logged_in: !!me, is_admin: meAdmin });
+      }
+
       // ---- News feed (Sky Sports football headlines) ----
       // Public, read-only. The feed is fetched from Sky at most once every
       // 30 minutes and saved, so 1 visitor or 1,000 makes no difference.
@@ -2365,6 +2443,27 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             }
           }
         } catch (e) { console.error('notifications: stockmarket check failed', e); }
+
+        try {
+          // ---- Bet Challenges: a challenge you follow has posted a new bet ----
+          const { data: myFollows } = await supabaseAdmin.from('bet_challenge_follows').select('challenge_id, last_seen_at').eq('user_id', user.id);
+          if (myFollows && myFollows.length) {
+            const fIds = myFollows.map(f => f.challenge_id);
+            const [{ data: fChs }, { data: fBets }] = await Promise.all([
+              supabaseAdmin.from('bet_challenges').select('id, title, user_id, status').in('id', fIds),
+              supabaseAdmin.from('bet_challenge_bets').select('challenge_id, step, created_at').in('challenge_id', fIds).eq('status', 'pending')
+            ]);
+            const fOwnerIds = [...new Set((fChs || []).map(c => c.user_id))];
+            const { data: fOwners } = fOwnerIds.length ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', fOwnerIds) : { data: [] };
+            (fBets || []).forEach(b => {
+              const f = myFollows.find(x => x.challenge_id === b.challenge_id);
+              const c = (fChs || []).find(x => x.id === b.challenge_id);
+              if (!f || !c || c.status !== 'active' || new Date(b.created_at) <= new Date(f.last_seen_at)) return;
+              const who = pickDisplayName((fOwners || []).find(o => o.id === c.user_id) || {});
+              actionItems.push({ type: 'challenge', href: `/challenges?c=${c.id}`, message: `${who} posted bet ${b.step} in "${c.title}" — tap to see it.` });
+            });
+          }
+        } catch (e) { console.error('notifications: challenges check failed', e); }
 
         return res.status(200).json({ admin_messages: adminMessages || [], action_items: actionItems });
       }
@@ -6588,6 +6687,141 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
       // back), but self-service: any logged-in user can set their own,
       // scoped to their own user_id so uploads can never collide with
       // or overwrite anyone else's.
+      // ================= Bet Challenges =================
+      // Tracking only - no money moves through GB Hub. The owner posts each
+      // bet (the whole running amount rolls into the next one) and marks it
+      // won / lost; an admin can fix any result or remove anything.
+      if (typeof action === 'string' && action.indexOf('challenge_') === 0) {
+        try {
+          const { data: meRow } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
+          const isAdmin = !!(meRow && meRow.is_admin);
+          const body = req.body || {};
+          const getCh = async (id) => { const { data } = await supabaseAdmin.from('bet_challenges').select('*').eq('id', id).maybeSingle(); return data; };
+          const getBets = async (id) => { const { data } = await supabaseAdmin.from('bet_challenge_bets').select('*').eq('challenge_id', id).order('step', { ascending: true }); return data || []; };
+          const pounds = (p) => '£' + (p / 100).toFixed(p % 100 ? 2 : 0);
+
+          if (action === 'challenge_create') {
+            const start = Math.round(Number(body.start_amount));
+            const target = Math.round(Number(body.target_amount));
+            if (!Number.isFinite(start) || start < 100 || start > 100000) return res.status(400).json({ error: 'Starting amount must be between £1 and £1,000' });
+            if (!Number.isFinite(target) || target <= start || target > 10000000) return res.status(400).json({ error: 'The target must be more than the starting amount (up to £100,000)' });
+            const { count: active } = await supabaseAdmin.from('bet_challenges').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active');
+            if ((active || 0) >= 3) return res.status(400).json({ error: 'You already have 3 challenges running — finish or end one first' });
+            const title = String(body.title || '').trim().slice(0, 60) || `${pounds(start)} to ${pounds(target)}`;
+            const { data: ch, error } = await supabaseAdmin.from('bet_challenges')
+              .insert({ user_id: user.id, title, start_amount: start, target_amount: target, current_amount: start }).select().single();
+            if (error) return res.status(500).json({ error: 'Could not start the challenge', detail: error.message });
+            return res.status(200).json({ ok: true, challenge: ch });
+          }
+
+          const chId = body.challenge_id;
+          let ch = chId ? await getCh(chId) : null;
+          let bet = null;
+          if (body.bet_id) {
+            const { data } = await supabaseAdmin.from('bet_challenge_bets').select('*').eq('id', body.bet_id).maybeSingle();
+            bet = data;
+            if (!bet) return res.status(404).json({ error: 'Bet not found' });
+            ch = await getCh(bet.challenge_id);
+          }
+          if (!ch) return res.status(404).json({ error: 'Challenge not found' });
+          const isOwner = ch.user_id === user.id;
+
+          if (action === 'challenge_follow') {
+            if (isOwner) return res.status(400).json({ error: "You can't follow your own challenge" });
+            if (body.follow === false) {
+              await supabaseAdmin.from('bet_challenge_follows').delete().eq('challenge_id', ch.id).eq('user_id', user.id);
+              return res.status(200).json({ ok: true, following: false });
+            }
+            await supabaseAdmin.from('bet_challenge_follows').upsert({ challenge_id: ch.id, user_id: user.id, last_seen_at: new Date().toISOString() }, { onConflict: 'challenge_id,user_id' });
+            return res.status(200).json({ ok: true, following: true });
+          }
+
+          if (!isOwner && !isAdmin) return res.status(403).json({ error: 'Only the person who started this challenge can change it' });
+          const bets = await getBets(ch.id);
+          const latest = bets[bets.length - 1] || null;
+
+          if (action === 'challenge_add_bet') {
+            if (!isOwner) return res.status(403).json({ error: 'Only the person who started this challenge can add bets' });
+            if (ch.status !== 'active') return res.status(400).json({ error: 'This challenge has finished' });
+            if (latest && latest.status === 'pending') return res.status(400).json({ error: 'Mark your last bet as won or lost before adding the next one' });
+            const odds = parseBetOdds(body.odds);
+            if (!odds) return res.status(400).json({ error: 'Enter the odds like 5/4, Evens or 2.25' });
+            const selection = String(body.selection || '').trim().slice(0, 300);
+            let shareUrl = String(body.share_url || '').trim();
+            if (shareUrl && !/^https?:\/\/[^\s"'<>]{3,500}$/i.test(shareUrl)) return res.status(400).json({ error: "That share link doesn't look right — it should start with https://" });
+            shareUrl = shareUrl ? shareUrl.replace(/^http:/i, 'https:') : null;
+            if (!selection && !body.image_base64 && !shareUrl) return res.status(400).json({ error: 'Add what the bet is, a picture of the slip, or a share link' });
+            let bookmaker = String(body.bookmaker || '').trim().slice(0, 40);
+            if (!bookmaker && shareUrl) { try { bookmaker = new URL(shareUrl).hostname.replace(/^www\.|^m\./, ''); } catch (e) {} }
+            const step = (latest ? latest.step : 0) + 1;
+            let imageUrl = null;
+            if (body.image_base64) {
+              const ext = String(body.file_ext || 'jpg').replace(/[^a-z]/gi, '').toLowerCase();
+              const okExt = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }[ext];
+              if (!okExt) return res.status(400).json({ error: 'The picture must be a JPG, PNG or WebP' });
+              const buf = Buffer.from(String(body.image_base64), 'base64');
+              if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Picture too large (5MB max)' });
+              const path = `${ch.id}/${step}-${Date.now()}.${ext === 'jpeg' ? 'jpg' : ext}`;
+              const { error: upErr } = await supabaseAdmin.storage.from('bet-slips').upload(path, buf, { contentType: okExt, upsert: false });
+              if (upErr) return res.status(500).json({ error: 'Picture upload failed', detail: upErr.message });
+              imageUrl = supabaseAdmin.storage.from('bet-slips').getPublicUrl(path).data.publicUrl;
+            }
+            const stake = ch.current_amount;
+            const { data: nb, error } = await supabaseAdmin.from('bet_challenge_bets').insert({
+              challenge_id: ch.id, user_id: user.id, step, stake, odds_text: odds.text, odds_decimal: odds.decimal,
+              potential_return: Math.round(stake * odds.decimal), selection: selection || null, bookmaker: bookmaker || null, share_url: shareUrl, image_url: imageUrl
+            }).select().single();
+            if (error) return res.status(500).json({ error: 'Could not save the bet', detail: error.message });
+            await supabaseAdmin.from('bet_challenges').update({ updated_at: new Date().toISOString() }).eq('id', ch.id);
+            return res.status(200).json({ ok: true, bet: nb });
+          }
+
+          if (action === 'challenge_settle') {
+            if (!bet) return res.status(400).json({ error: 'bet_id is required' });
+            if (!latest || bet.id !== latest.id) return res.status(400).json({ error: 'Only the latest bet can be changed' });
+            if (bet.status !== 'pending' && !isAdmin) return res.status(400).json({ error: 'This bet has already been settled — ask the admin to change it' });
+            const result = body.result;
+            if (!['won', 'lost', 'void', 'pending'].includes(result)) return res.status(400).json({ error: 'Result must be won, lost or void' });
+            if (result === 'pending' && !isAdmin) return res.status(403).json({ error: 'Only the admin can reopen a bet' });
+            let actual = null;
+            if (result === 'won') {
+              actual = body.actual_return != null && body.actual_return !== '' ? Math.round(Number(body.actual_return)) : bet.potential_return;
+              if (!Number.isFinite(actual) || actual <= bet.stake || actual > bet.stake * 1000) return res.status(400).json({ error: 'The returns must be more than the stake' });
+            }
+            await supabaseAdmin.from('bet_challenge_bets').update({ status: result, actual_return: actual, settled_at: result === 'pending' ? null : new Date().toISOString() }).eq('id', bet.id);
+            const state = await recomputeBetChallenge(supabaseAdmin, ch);
+            return res.status(200).json({ ok: true, challenge: state });
+          }
+
+          if (action === 'challenge_delete_bet') {
+            if (!bet) return res.status(400).json({ error: 'bet_id is required' });
+            if (!latest || bet.id !== latest.id) return res.status(400).json({ error: 'Only the latest bet can be removed' });
+            if (bet.status !== 'pending' && !isAdmin) return res.status(400).json({ error: 'A settled bet can only be removed by the admin' });
+            await supabaseAdmin.from('bet_challenge_bets').delete().eq('id', bet.id);
+            const state = await recomputeBetChallenge(supabaseAdmin, ch);
+            return res.status(200).json({ ok: true, challenge: state });
+          }
+
+          if (action === 'challenge_end') {
+            if (ch.status !== 'active') return res.status(400).json({ error: 'This challenge has already finished' });
+            if (latest && latest.status === 'pending') return res.status(400).json({ error: 'Settle or remove the last bet first' });
+            await supabaseAdmin.from('bet_challenges').update({ status: 'ended', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', ch.id);
+            return res.status(200).json({ ok: true });
+          }
+
+          if (action === 'challenge_delete') {
+            if (!isAdmin && bets.length) return res.status(403).json({ error: 'A challenge with bets can only be deleted by the admin' });
+            await supabaseAdmin.from('bet_challenges').delete().eq('id', ch.id);
+            return res.status(200).json({ ok: true });
+          }
+
+          return res.status(400).json({ error: 'Unknown challenge action' });
+        } catch (err) {
+          console.error('challenge error:', err);
+          return res.status(500).json({ error: 'Something went wrong', detail: err.message });
+        }
+      }
+
       if (action === 'upload_avatar') {
         try {
           const authHeader = req.headers.authorization;
@@ -8098,6 +8332,45 @@ const STARTER_PACK_MATRIX = {
 function pickDisplayName(u) {
   if (!u) return 'Player';
   return u.display_name || u.username || 'Player';
+}
+
+// ================= Bet Challenges helpers =================
+// Odds as people type them: 5/4, 11-10, Evens / Evs, or decimal 2.25.
+function parseBetOdds(v) {
+  const s = String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, '');
+  if (!s) return null;
+  if (s === 'evens' || s === 'evs' || s === 'even' || s === '1/1') return { text: 'Evens', decimal: 2 };
+  const f = s.match(/^(\d+(?:\.\d+)?)[\/-](\d+(?:\.\d+)?)$/);
+  if (f) {
+    const a = Number(f[1]), b = Number(f[2]);
+    if (!(a > 0 && b > 0)) return null;
+    const d = Math.round((1 + a / b) * 1000) / 1000;
+    return d > 1 && d <= 1001 ? { text: `${f[1]}/${f[2]}`, decimal: d } : null;
+  }
+  if (/^\d+(\.\d+)?$/.test(s)) {
+    const d = Number(s);
+    return d > 1 && d <= 1001 ? { text: String(d), decimal: Math.round(d * 1000) / 1000 } : null;
+  }
+  return null;
+}
+
+// Works the running amount and the result out again from the bets, in order:
+// a win rolls its returns into the next bet, a void changes nothing, the first
+// loss ends it, and reaching the target wins it.
+async function recomputeBetChallenge(db, ch) {
+  const { data: bets } = await db.from('bet_challenge_bets').select('step, status, stake, potential_return, actual_return').eq('challenge_id', ch.id).order('step', { ascending: true });
+  let current = ch.start_amount, status = 'active', pending = false;
+  for (const b of bets || []) {
+    if (b.status === 'pending') { pending = true; break; }
+    if (b.status === 'lost') { status = 'lost'; current = 0; break; }
+    if (b.status === 'won') current = b.actual_return || b.potential_return;
+  }
+  if (status === 'active' && !pending && current >= ch.target_amount) status = 'won';
+  if (status === 'active' && ch.status === 'ended') status = 'ended';
+  const now = new Date().toISOString();
+  const upd = { current_amount: current, status, updated_at: now, finished_at: status === 'active' ? null : (ch.finished_at || now) };
+  await db.from('bet_challenges').update(upd).eq('id', ch.id);
+  return { ...ch, ...upd };
 }
 
 // A user's profile photo for leaderboards: only when they've uploaded one

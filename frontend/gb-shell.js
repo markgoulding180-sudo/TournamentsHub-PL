@@ -30,6 +30,7 @@
     darts:       [['Make Your Picks', '/darts', 'target'], ['Leaderboard', '/darts-leaderboard', 'chart']],
     football:    [['Fixtures', '/fixtures', 'cal'], ['Table', '/table', 'table'], ['Injuries', '/injuries', 'plus'], ['Clubs', '/links', 'shield']],
     account:     [['Profile', '/profile', 'user'], ['My Tournaments', '/my-tournaments', 'trophy'], ['Wallet', '/wallet', 'wallet'], ['All Tournaments', '/tournaments', 'grid']],
+    challenges:  [['All Challenges', '/challenges', 'stats'], ['Following', '/challenges?view=following', 'users'], ['My Challenges', '/challenges?view=mine', 'user']],
     community:   [['Forum', '/forum', 'chat'], ['How It Works', '/how-it-works', 'play'], ['My Tournaments', '/my-tournaments', 'trophy']]
   };
 
@@ -67,6 +68,7 @@
     'wallet':       { nav: 'account', on: '/wallet', hero: { eyebrow: 'Your Account', title: 'Wallet', sub: "Entry fees, payments and what's due.", art: 'hero-gb-app.jpg' }, hide: ['.wallet-hero'] },
     'tournaments':  { nav: 'account', on: '/tournaments', hero: { eyebrow: 'GB Hub', title: 'All Tournaments', sub: 'Every live tournament in one place.', art: 'hero-gb-tournaments.jpg' }, hide: ['main > h1:first-of-type', 'main > h1:first-of-type + .subtitle'] },
     'forum':        { nav: 'community', on: '/forum', hero: 'own' },
+    'challenges':   { nav: 'challenges', on: '/challenges', hero: { eyebrow: 'GB Hub · Football', title: 'Bet Challenges', sub: '£10 to £500. Post your bets. Follow the best.', art: 'section-bg-football.jpg' } },
     'how-it-works': { nav: 'community', on: '/how-it-works', hero: { eyebrow: 'GB Hub', title: 'How It Works', sub: 'Compete. Predict. Win.', art: 'hero-gb-tournaments.jpg' }, hide: ['.hiw-hero .hiw-badge', '.hiw-hero h1'] }
   };
   var CFG = PAGES[KEY] || {};
@@ -225,6 +227,7 @@
         '<a href="/wallet">' + ic('wallet') + 'Wallet</a>' +
         '<a href="/how-it-works">' + ic('play') + 'How It Works</a>' +
         '<a href="/forum">' + ic('chat') + 'Forum</a>' +
+        '<a href="/challenges">' + ic('stats') + 'Bet Challenges</a>' +
         (u && u.is_admin ? '<a href="/admin">' + ic('cog') + 'Admin</a>' : '') +
         '<div class="gbs-drawer-label">Leaderboards</div>' +
         BOARDS.map(function (b) { return '<a href="' + b[1] + '">' + ic('chart') + esc(b[0]) + '</a>'; }).join('') +

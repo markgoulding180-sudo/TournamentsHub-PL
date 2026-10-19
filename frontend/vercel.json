@@ -36,6 +36,7 @@
     { "source": "/fantasy-leaderboard", "destination": "/fantasy-leaderboard.html" },
     { "source": "/last-man-standing", "destination": "/lms-home.html" },
     { "source": "/forum", "destination": "/forum.html" },
+    { "source": "/challenges", "destination": "/challenges.html" },
     { "source": "/darts", "destination": "/darts-home.html" },
     { "source": "/darts-leaderboard", "destination": "/darts-leaderboard.html" },
     { "source": "/champions-league", "destination": "/champions-league.html" },
