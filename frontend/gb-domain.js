@@ -27,13 +27,13 @@
       var payload = hp.get('gbmove'), origHash = hp.get('gbhash') || '';
       try {
         var data = JSON.parse(b64decode(payload));
-        var existing = localStorage.getItem('gbf_token');
-        var existingUser = null, incomingUser = null;
-        try { existingUser = JSON.parse(localStorage.getItem('gbf_user') || 'null'); } catch (e) {}
-        try { incomingUser = JSON.parse(data.gbf_user || 'null'); } catch (e) {}
-        // Don't replace someone who is already logged in here as a different person
-        var sameOrEmpty = !existing || (existingUser && incomingUser && existingUser.id === incomingUser.id);
-        if (data && data.gbf_token && sameOrEmpty) {
+        // Only use the login brought across if there is NO login saved here yet.
+        // A login carried over from the old address is frozen at the day of the
+        // move (10 Oct), so it must never replace a newer one saved here -
+        // doing that is what kept logging people out (the old renewal key gets
+        // used again and Supabase cancels the login as "stolen").
+        var hasLoginHere = !!(localStorage.getItem('gbf_refresh') || localStorage.getItem('gbf_token'));
+        if (data && data.gbf_token && !hasLoginHere) {
           Object.keys(data).forEach(function (k) { if (k.indexOf('gbf_') === 0 && typeof data[k] === 'string') localStorage.setItem(k, data[k]); });
         }
       } catch (e) { /* bad or partial link - just carry on, they can log in normally */ }
@@ -56,6 +56,9 @@
       }
       if (bundle.gbf_token) {
         target += '#gbmove=' + b64encode(JSON.stringify(bundle)) + (location.hash ? '&gbhash=' + encodeURIComponent(location.hash) : '');
+        // Carry it across once, then forget it here, so an old bookmark or
+        // home-screen icon can't keep sending the same out-of-date login.
+        Object.keys(bundle).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
       } else if (location.hash) {
         target += location.hash;
       }
