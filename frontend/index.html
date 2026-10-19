@@ -530,6 +530,12 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   #mineSection{ margin:0 calc(-1 * var(--gutter)); border-radius:0; border-left:none; border-right:none; }
   #mineCards{ overscroll-behavior-x:contain; }
   #mineCards .t-card{ scroll-snap-stop:always; }
+  /* Phones, 2+ tournaments: "cover flow" - the middle card is full size, the ones either
+     side sit smaller behind it and grow to full size as you swipe them into the middle */
+  #mineCards{ position:relative; }
+  #mineCards.cf{ gap:0; align-items:center; scroll-padding:0; padding-top:6px; padding-bottom:10px; }
+  #mineCards.cf .t-card{ flex:0 0 min(66vw, 300px); scroll-snap-align:center; transform-origin:center center; will-change:transform;
+    transition:border-color .2s, box-shadow .2s; }
 
   /* Card rows swipe sideways */
   .cards, .cards.small{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding:0 14px; scrollbar-width:none; margin:0 -14px; padding:0 14px 4px; align-items:stretch; }
@@ -1465,6 +1471,54 @@ function cardHtml(r){
         <div class="foot">${foot}<span class="cta">${cta} ${r.zone === 'soon' ? '' : '<svg class="icon" style="width:15px;height:15px"><use href="#i-arrow"/></svg>'}</span></div>
       </div></${tag}>`;
 }
+// Cover-flow swipe for a card row (phones only, 2+ cards). Returns a function to
+// call after the cards change. Each card is sized and faded by how far it is from
+// the middle, every frame while swiping. Tapping a side card brings it to the middle.
+let mineFlow = null;
+function coverFlow(grid){
+  if (!grid) return () => {};
+  const phone = matchMedia('(max-width:899px)');
+  const list = () => Array.from(grid.querySelectorAll('.t-card'));
+  let raf = 0;
+  function paint(){
+    raf = 0;
+    if (!grid.classList.contains('cf')) return;
+    const mid = grid.scrollLeft + grid.clientWidth / 2;
+    list().forEach(c => {
+      const w = c.offsetWidth || 1;
+      const d = (c.offsetLeft + w / 2 - mid) / w;        // 0 = in the middle, ±1 = one card away
+      const a = Math.min(Math.abs(d), 1);
+      c.style.transform = `translateX(${(-Math.sign(d) * a * w * 0.16).toFixed(1)}px) scale(${(1 - 0.3 * a).toFixed(3)})`;
+      c.style.opacity = (1 - 0.35 * a).toFixed(3);
+      c.style.zIndex = String(10 - Math.round(Math.min(Math.abs(d), 4) * 2));
+    });
+  }
+  function layout(){
+    const cards = list();
+    const on = phone.matches && cards.length > 1;
+    grid.classList.toggle('cf', on);
+    if (!on){
+      grid.style.paddingLeft = grid.style.paddingRight = '';
+      cards.forEach(c => { c.style.transform = c.style.opacity = c.style.zIndex = ''; });
+      return;
+    }
+    const pad = Math.max(0, (grid.clientWidth - cards[0].offsetWidth) / 2);
+    grid.style.paddingLeft = grid.style.paddingRight = pad + 'px';
+    paint();
+  }
+  grid.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive:true });
+  addEventListener('resize', layout);
+  grid.addEventListener('click', e => {
+    const c = e.target.closest('.t-card');
+    if (!c || !grid.classList.contains('cf')) return;
+    const off = c.offsetLeft + c.offsetWidth / 2 - (grid.scrollLeft + grid.clientWidth / 2);
+    if (Math.abs(off) > c.offsetWidth * 0.3){
+      e.preventDefault(); e.stopPropagation();
+      grid.scrollTo({ left: grid.scrollLeft + off, behavior:'smooth' });
+    }
+  }, true);
+  return layout;
+}
 function dots(gridId, dotsId){
   const grid = document.getElementById(gridId), wrap = document.getElementById(dotsId);
   if (!grid || !wrap) return;
@@ -1612,6 +1666,8 @@ function render(){
     mineCards.innerHTML = '<div class="empty-card">Pick a tournament below and join in.</div>';
   }
   dots('mineCards', 'mineDots');
+  if (!mineFlow) mineFlow = coverFlow(document.getElementById('mineCards'));
+  mineFlow();
   // "You need to add selections…" — only when an entered tournament still needs picks
   const needN = STATE.mine.filter(r => STATE.picks[r.key] && !STATE.picks[r.key].hasPicked).length;
   const needEl = document.getElementById('mineNeed');
