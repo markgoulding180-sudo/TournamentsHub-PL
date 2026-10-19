@@ -102,6 +102,10 @@
 
     .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
     .out-banner{ display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid var(--red); color:#fca5a5; border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; }
+    /* TRIAL (Last Man Standing only for now): new background image on the nav bars */
+    html[data-gbs] .gbs-topbar{ background:linear-gradient(rgba(2,4,24,0.25), rgba(2,4,24,0.25)), url('assets/nav-bg.jpg') center 20% / cover no-repeat, #020322 !important; }
+    html[data-gbs] .gbs-tabs{ background:linear-gradient(rgba(2,4,24,0.2), rgba(2,4,24,0.2)), url('assets/nav-bg.jpg') center / cover no-repeat, #020322 !important; }
+    html[data-gbs] .gbs-bottombar{ background:linear-gradient(rgba(2,4,24,0.25), rgba(2,4,24,0.25)), url('assets/nav-bg.jpg') center 80% / cover no-repeat, #020322 !important; }
     /* Knocked out: same "You're out" card as the Stock Market */
     .out-banner.lms-out{ align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; color:var(--text);
       border:1px solid rgba(239,68,68,0.6); box-shadow:0 0 0 1px rgba(239,68,68,0.25), 0 10px 30px rgba(239,68,68,0.12);
@@ -246,6 +250,16 @@
     .survivor-row.alive .s-avatar{ border-color:var(--green); color:var(--green); }
     .survivor-row .s-name{ flex:1; font-size:13.5px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .survivor-row .s-status{ font-size:11px; text-transform:uppercase; letter-spacing:.3px; font-weight:700; flex:none; }
+    /* Survivors: how each player's pick did - updates as matches finish (page refreshes every 2 min) */
+    .s-res{ display:inline-flex; align-items:center; justify-content:center; gap:4px; flex:none; height:18px; min-width:18px; padding:0 6px; border-radius:999px;
+      font-size:10.5px; font-weight:800; letter-spacing:.3px; text-transform:uppercase; line-height:1; }
+    .s-res i{ font-size:10px; }
+    .s-res.win{ background:rgba(34,197,94,0.16); border:1px solid var(--green); color:var(--green); }
+    .s-res.lose{ background:rgba(239,68,68,0.16); border:1px solid var(--red); color:#fca5a5; }
+    .s-res.live{ background:rgba(242,185,61,0.14); border:1px solid var(--gold); color:var(--gold); }
+    .s-res.live i{ font-size:7px; animation:sResPulse 1.2s ease-in-out infinite; }
+    @keyframes sResPulse{ 50%{ opacity:.25; } }
+    @media (max-width:599px){ .s-res{ padding:0; width:18px; } .s-res b{ display:none; } .s-res.live{ width:auto; padding:0 5px; } }
     .survivor-row.alive .s-status{ color:var(--green); }
     .survivor-row.out .s-status{ color:var(--text-faint); }
     .survivor-row.out .s-name{ color:var(--text-faint); }
@@ -1503,6 +1517,34 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           finalCard.style.display = 'none';
         }
 
+        // This week's matches, so each pick can show Won / Lost / Live as games finish
+        if (rows.some(r => r.last_pick && r.last_pick.gameweek === currentGw)) await ensurePickGwMatches();
+        const resBadge = (cls, icon, text) => `<span class="s-res ${cls}" title="${text}"><i class="fas ${icon}"></i><b>${text}</b></span>`;
+        const pickResult = (r) => {
+          const lp = r.last_pick;
+          if (!lp || !lp.team) return '';
+          const noPick = lp.team === 'NO_PICK';
+          if (r.is_eliminated && !((r.prize_awarded || 0) > 0)) {
+            // their last pick is the one that knocked them out
+            if (noPick || (r.eliminated_gameweek && lp.gameweek !== r.eliminated_gameweek)) return resBadge('lose', 'fa-xmark', 'No pick');
+            const st = lp.gameweek === currentGw ? pickResultState(lp.team) : null;
+            return resBadge('lose', 'fa-xmark', st && st.state === 'draw' ? 'Drew' : 'Lost');
+          }
+          if (noPick) return '';
+          if (lp.gameweek !== currentGw) return resBadge('win', 'fa-check', 'Won');   // an earlier week they got through
+          const st = pickResultState(lp.team);
+          if (!st) return '';
+          if (st.state === 'win') return resBadge('win', 'fa-check', 'Won');
+          if (st.state === 'lose') return resBadge('lose', 'fa-xmark', 'Lost');
+          if (st.state === 'draw') return resBadge('lose', 'fa-xmark', 'Drew');
+          if (st.state === 'live') {
+            const m = st.match, home = m.home_team === lp.team;
+            const sc = (m.home_score != null && m.away_score != null) ? (home ? `${m.home_score}-${m.away_score}` : `${m.away_score}-${m.home_score}`) : '';
+            return `<span class="s-res live" title="In play"><i class="fas fa-circle"></i>${sc || 'Live'}</span>`;
+          }
+          return '';   // not kicked off yet
+        };
+
         body.innerHTML = rows.map(r => {
           const name = r.users?.display_name || r.users?.username || 'Player';
           const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -1524,6 +1566,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           const currentPickShirt = (r.last_pick && r.last_pick.team)
             ? `<span class="s-pick" style="display:inline-flex; align-items:center; gap:5px; flex:none;">
                  <img src="${shirtSrc(r.last_pick.team)}" alt="${escapeHtml(r.last_pick.team)}" title="${escapeHtml(r.last_pick.team)}" onerror="this.onerror=null;this.src='${BLANK_IMG}';" style="width:22px; height:22px; object-fit:contain; flex:none;">
+                 ${pickResult(r)}
                  <span style="font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(r.last_pick.team)}</span>
                </span>`
             : '<span class="s-pick" style="flex:none;"></span>';
