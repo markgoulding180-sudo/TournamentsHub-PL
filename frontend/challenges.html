@@ -28,6 +28,14 @@
     button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
     input, textarea{ font-family:inherit; }
 
+    /* Hero: the Bet Challenge banner already has the title in it, so it is shown whole
+       (no text on top). Wide screens: the banner sits in the middle with a blurred copy behind it. */
+    html[data-gbs] .gbs-hero{ width:100%; box-sizing:border-box; height:auto !important; aspect-ratio:1697 / 927; max-height:var(--gbs-hero-h); padding:0 !important; background:#01061a; }
+    html[data-gbs] .gbs-hero::before{ background:url('/assets/hero-bet-challenge.jpg') center / cover no-repeat !important; filter:blur(18px) brightness(.55); transform:scale(1.1); z-index:0 !important; }
+    html[data-gbs] .gbs-hero-art{ background-image:url('/assets/hero-bet-challenge.jpg') !important; background-size:contain !important; background-position:center !important;
+      -webkit-mask-image:none !important; mask-image:none !important; z-index:1 !important; }
+    html[data-gbs] .gbs-hero-body{ position:absolute !important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+    @media (max-width:899px){ html[data-gbs] .gbs-hero{ max-height:none; } html[data-gbs] .gbs-hero-art{ background-size:cover !important; } }
     main{ padding:18px 32px 60px; }   /* same width as the hero and tab bar above */
     @media (max-width:899px){ main{ padding:14px 12px 40px; } }
 

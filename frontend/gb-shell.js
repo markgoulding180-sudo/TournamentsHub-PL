@@ -68,7 +68,7 @@
     'wallet':       { nav: 'account', on: '/wallet', hero: { eyebrow: 'Your Account', title: 'Wallet', sub: "Entry fees, payments and what's due.", art: 'hero-gb-app.jpg' }, hide: ['.wallet-hero'] },
     'tournaments':  { nav: 'account', on: '/tournaments', hero: { eyebrow: 'GB Hub', title: 'All Tournaments', sub: 'Every live tournament in one place.', art: 'hero-gb-tournaments.jpg' }, hide: ['main > h1:first-of-type', 'main > h1:first-of-type + .subtitle'] },
     'forum':        { nav: 'community', on: '/forum', hero: 'own' },
-    'challenges':   { nav: 'challenges', on: '/challenges', hero: { eyebrow: 'GB Hub · Football', title: 'Bet Challenges', sub: '£10 to £500. Post your bets. Follow the best.', art: 'section-bg-football.jpg' } },
+    'challenges':   { nav: 'challenges', on: '/challenges', hero: { eyebrow: 'GB Hub · Football', title: 'Bet Challenges', sub: '£10 to £500. Post your bets. Follow the best.', art: 'hero-bet-challenge.jpg' } },
     'how-it-works': { nav: 'community', on: '/how-it-works', hero: { eyebrow: 'GB Hub', title: 'How It Works', sub: 'Compete. Predict. Win.', art: 'hero-gb-tournaments.jpg' }, hide: ['.hiw-hero .hiw-badge', '.hiw-hero h1'] }
   };
   var CFG = PAGES[KEY] || {};
