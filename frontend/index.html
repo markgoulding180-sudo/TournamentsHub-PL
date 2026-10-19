@@ -853,7 +853,8 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 /* ===== Section nav as a 4-button bar like the bottom tab bar (NAV_STYLE 'tabs') ===== */
 .sec-nav.sn-tabs{ padding:0; gap:0; }
 .sec-nav.sn-tabs .sn-arrow{ display:none !important; }
-.sec-nav.sn-tabs .sn-track{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:0; overflow:visible; padding:0 !important; scroll-snap-type:none; }
+.sec-nav.sn-tabs .sn-track{ -webkit-mask-image:none; mask-image:none; }   /* fixed buttons: no faded edges (that was for the scrolling pills) */
+.sec-nav.sn-tabs .sn-track{ display:grid; grid-template-columns:repeat(var(--sn-n, 4), minmax(0,1fr)); gap:0; overflow:visible; padding:0 !important; scroll-snap-type:none; }
 .sec-nav.sn-tabs .sn-item{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-width:0; padding:9px 4px 8px !important; border:none; border-radius:0; background:none; box-shadow:none;
   color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:12px !important; letter-spacing:.4px; text-align:center; position:relative; white-space:nowrap; }
 .sec-nav.sn-tabs .sn-item span{ overflow:hidden; text-overflow:ellipsis; max-width:100%; }
@@ -870,6 +871,8 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 @media (max-width:599px){
   .sec-nav.sn-tabs{ padding:0; }
   .sec-nav.sn-tabs .sn-item{ font-size:11px !important; padding:7px 2px 6px !important; gap:3px; white-space:normal; line-height:1.1; }
+  .sec-nav.sn-tabs .sn-item{ font-size:10.5px !important; letter-spacing:0; padding-left:2px !important; padding-right:2px !important; }   /* 5 buttons: keep every label inside its button */
+  .sec-nav.sn-tabs .sn-track{ grid-template-columns:repeat(var(--sn-n, 4), auto); justify-content:space-between; padding:0 6px !important; }
   .sec-nav.sn-tabs .sn-item span{ overflow:visible; }
   .sec-nav.sn-tabs .sn-item .icon{ width:19px !important; height:19px !important; }
 }
@@ -968,6 +971,7 @@ a.np-item:hover{ border-color:var(--accent); }
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/></symbol>
     <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8"/><path d="M12 8v12"/><path d="M12 8c-2-3-6-3-6-1s4 1 6 1zM12 8c2-3 6-3 6-1s-4 1-6 1z"/></symbol>
+    <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4V8z"/><path d="M14 6v12" stroke-dasharray="2 2"/><path d="M7 10h4M7 14h3"/></symbol>
     <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4V5z"/><path d="M8 9h8M8 12h5"/></symbol>
     <symbol id="i-news" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h6M7 13h10M7 16h10"/><rect x="14" y="8" width="3" height="3"/></symbol>
     <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
@@ -1989,6 +1993,7 @@ async function loadNotifs(){
   const NAV_STYLE = 'tabs';
   const TAB_ITEMS = [
     { id:'mineSection',   label:'My Tournaments', icon:'i-trophy' },
+    { href:'/challenges',  label:'Challenges',     icon:'i-ticket' },   // opens the Bet Challenges page
     { id:'newsSection',   label:'News',           icon:'i-news' },
     { id:'forumSection',  label:'Forum',          icon:'i-chat' },
     { href:'/how-it-works', label:'How It Works',   icon:'i-play' }   // opens the How It Works page
@@ -2002,7 +2007,9 @@ async function loadNotifs(){
     : [...document.querySelectorAll('main [data-nav]')];
   if (NAV_STYLE === 'tabs') {
     document.getElementById('secNav').classList.add('sn-tabs');
-    track.innerHTML = TAB_ITEMS.filter(t => t.href || document.getElementById(t.id)).map(t => t.href
+    const shown = TAB_ITEMS.filter(t => t.href || document.getElementById(t.id));
+    track.style.setProperty('--sn-n', shown.length);
+    track.innerHTML = shown.map(t => t.href
       ? `<a class="sn-item" href="${t.href}"><svg class="icon"><use href="#${t.icon}"/></svg><span>${esc(t.label)}</span></a>`
       : `<a class="sn-item" href="#${t.id}" data-for="${t.id}"><svg class="icon"><use href="#${t.icon}"/></svg><span>${esc(t.label)}</span></a>`).join('');
   }
