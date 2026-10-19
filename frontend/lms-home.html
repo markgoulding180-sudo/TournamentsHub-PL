@@ -102,6 +102,29 @@
 
     .lock-banner{ display:none; align-items:center; gap:8px; background:rgba(239,68,68,0.12); border:1px solid var(--red); color:#fca5a5; border-radius:.75rem; padding:.7rem 1rem; margin-bottom:20px; font-size:14px; }
     .out-banner{ display:none; align-items:center; gap:10px; background:rgba(239,68,68,0.1); border:1px solid var(--red); color:#fca5a5; border-radius:var(--radius); padding:18px 20px; margin-bottom:20px; font-size:15px; }
+    /* Knocked out: same "You're out" card as the Stock Market */
+    .out-banner.lms-out{ align-items:center; justify-content:space-between; gap:16px; padding:20px 22px; color:var(--text);
+      border:1px solid rgba(239,68,68,0.6); box-shadow:0 0 0 1px rgba(239,68,68,0.25), 0 10px 30px rgba(239,68,68,0.12);
+      background:linear-gradient(180deg, rgba(60,8,14,0.80), rgba(30,6,12,0.92)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #1a0a10; }
+    .lms-out .lo-info{ min-width:0; }
+    .lms-out .lo-label{ color:#fca5a5; font-weight:700; letter-spacing:.3px; text-transform:uppercase; font-size:12px; margin-bottom:6px; }
+    .lms-out .lo-value{ font-family:var(--font-display); font-size:40px; line-height:1; letter-spacing:.3px; color:var(--red); text-transform:uppercase; text-shadow:0 0 24px rgba(239,68,68,0.45); white-space:nowrap; }
+    .lms-out .lo-value i{ margin-right:10px; font-size:.8em; }
+    .lms-out .lo-meta{ margin-top:12px; font-size:12.5px; color:var(--text-dim); line-height:1.5; }
+    .lms-out .lo-meta b{ color:#fca5a5; font-weight:700; }
+    .lms-out .lo-meta .dot{ color:var(--text-faint); margin:0 6px; }
+    .lms-out .lo-text{ margin-top:6px; font-size:12.5px; color:var(--text-dim); }
+    .lms-out .lo-avatar{ position:relative; flex:none; width:68px; height:68px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(150deg,#2c3d5c,#161f33); border:2px solid var(--red); box-shadow:0 0 18px rgba(239,68,68,0.45);
+      font-family:var(--font-head); font-weight:700; font-size:24px; color:#fca5a5; letter-spacing:.5px; }
+    .lms-out .lo-avatar img{ width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; filter:grayscale(0.7); }
+    .lms-out .lo-tag{ position:absolute; bottom:-6px; left:50%; transform:translateX(-50%); background:var(--red); color:#fff; font-size:10.5px; font-weight:800; line-height:1;
+      padding:3px 7px; border-radius:10px; border:2px solid var(--bg); letter-spacing:.5px; }
+    @media (max-width:480px){
+      .out-banner.lms-out{ padding:16px; gap:12px; align-items:flex-start; }
+      .lms-out .lo-value{ font-size:32px; }
+      .lms-out .lo-avatar{ width:56px; height:56px; font-size:20px; margin-top:6px; }
+    }
     /* Final results — same classes/structure as Stock Market's final
        standings, for consistent styling across every tournament type. */
     .lb-header{ display:flex; align-items:center; gap:8px; padding:0 6px 6px; color:var(--text-faint); text-transform:uppercase; font-size:10px; letter-spacing:.3px; }
@@ -679,7 +702,15 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
 
     <div class="finished-banner" id="finishedBanner" style="display:none;"><i class="fas fa-trophy" style="font-size:20px;"></i> <span id="finishedText"></span></div>
     <div class="lock-banner" id="lockBanner"><i class="fas fa-lock"></i> <span id="lockText"></span></div>
-    <div class="out-banner" id="outBanner"><i class="fas fa-skull" style="font-size:20px;"></i> <span id="outText"></span></div>
+    <div class="out-banner lms-out" id="outBanner">
+      <div class="lo-info">
+        <div class="lo-label">Your tournament</div>
+        <div class="lo-value"><i class="fas fa-circle-xmark"></i>You&rsquo;re out</div>
+        <div class="lo-meta" id="outMeta"></div>
+        <div class="lo-text" id="outText"></div>
+      </div>
+      <div class="lo-avatar" id="outAvatar"><span id="outInitials"></span><span class="lo-tag">OUT</span></div>
+    </div>
 
     <!-- Enter gate -->
     <div class="card enter-gate" id="enterGate" style="display:none;">
@@ -786,6 +817,27 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       // rather than relying on each <img>'s onerror fallback to catch it.
       if (!team || team === 'NO_PICK') return BLANK_IMG;
       return `shirts/${getTeamShirtName(team)}.webp`;
+    }
+
+    // Avatar on the "You're out" card: their photo if they uploaded one, otherwise initials
+    function renderOutAvatar() {
+      const box = document.getElementById('outAvatar');
+      if (!box) return;
+      let u = null;
+      try { u = JSON.parse(localStorage.getItem('gbf_user') || 'null'); } catch (e) {}
+      const name = (u && (u.display_name || u.username)) || '';
+      const ini = document.getElementById('outInitials');
+      ini.textContent = (name.substring(0, 2) || '--').toUpperCase();
+      ini.style.display = '';
+      box.querySelectorAll('img').forEach(i => i.remove());
+      const photo = u && u.avatar_type === 'upload' && /^https:\/\//i.test(u.avatar_url || '') ? u.avatar_url : '';
+      if (photo) {
+        const img = document.createElement('img');
+        img.alt = ''; img.src = photo;
+        img.onerror = () => { img.remove(); ini.style.display = ''; };
+        box.insertBefore(img, box.firstChild);
+        ini.style.display = 'none';
+      }
     }
 
     function escapeHtml(str) {
@@ -1212,9 +1264,17 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           badge.innerHTML = `<i class="fas fa-skull"></i> Eliminated GW${data.eliminated_gameweek}`;
         } else if (data.is_eliminated) {
           outBanner.style.display = 'flex';
+          // "You're out" card: what knocked them out, then the avatar with an OUT tag
+          const outPick = picks.find(p => p.gameweek === data.eliminated_gameweek);
+          const outTeam = outPick && outPick.team && outPick.team !== 'NO_PICK' ? outPick.team : null;
+          const how = !outPick ? '' : !outTeam || outPick.result === 'missed' ? 'No pick made'
+            : `${outPick.result === 'draw' ? 'Drew' : 'Lost'} with ${escapeHtml(outTeam)}`;
+          document.getElementById('outMeta').innerHTML = ['<b>Eliminated</b>', `Out in Gameweek ${data.eliminated_gameweek}`, how]
+            .filter(Boolean).join('<span class="dot">·</span>');
           document.getElementById('outText').textContent = tournamentFinished
-            ? `The tournament has ended. You were eliminated in Gameweek ${data.eliminated_gameweek}.`
-            : `You were eliminated in Gameweek ${data.eliminated_gameweek}. You can still watch the tournament play out below.`;
+            ? 'The tournament has ended.'
+            : 'You can still watch the tournament play out below.';
+          renderOutAvatar();
           badge.className = 'status-badge out';
           badge.innerHTML = '<i class="fas fa-skull"></i> Eliminated';
         } else {

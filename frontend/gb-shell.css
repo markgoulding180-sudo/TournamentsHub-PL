@@ -114,7 +114,7 @@ html[data-gbs] .bg-glow{ display:none; }
   .gbs-top > .hero .hero-graphic{ display:none !important; }
   .gbs-top > .hero .hero-title-row{ margin:0 !important; }
   .gbs-tabs{ margin:4px 0 0; border-radius:0; border-left:none; border-right:none; }
-  .gbs-tab{ flex-direction:column; gap:3px; height:59px; padding:6px 2px; font-size:11px; white-space:normal; text-align:center; line-height:1.1; }
+  .gbs-tab{ flex-direction:column; gap:3px; height:auto; padding:7px 2px 6px; font-size:11px; white-space:normal; text-align:center; line-height:1.1; }   /* same height as the hub page tabs */
   .gbs-tab .gbs-icon{ width:19px; height:19px; }
 }
 
