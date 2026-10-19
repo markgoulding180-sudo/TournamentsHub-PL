@@ -1474,17 +1474,24 @@ function cardHtml(r){
 // Cover-flow swipe for a card row (phones only, 2+ cards). Returns a function to
 // call after the cards change. Each card is sized and faded by how far it is from
 // the middle, every frame while swiping. Tapping a side card brings it to the middle.
+// It goes round in a loop: copies of the cards sit either side of the real ones, so
+// there is always a card on the left and the right, and when a swipe lands on a copy
+// the row quietly jumps to the same real card.
 let mineFlow = null;
-function coverFlow(grid){
+function coverFlow(grid, dotsId){
   if (!grid) return () => {};
   const phone = matchMedia('(max-width:899px)');
-  const list = () => Array.from(grid.querySelectorAll('.t-card'));
-  let raf = 0;
+  const all = () => Array.from(grid.querySelectorAll('.t-card'));
+  const real = () => all().filter(c => !c.classList.contains('cf-clone'));
+  let raf = 0, settle = 0, n = 0, at = 0;
+  const pitch = () => { const c = all()[0]; return c ? c.offsetWidth : 1; };
+  const centreOn = (c) => c.offsetLeft + c.offsetWidth / 2 - grid.clientWidth / 2;
+  const nearest = () => Math.round(grid.scrollLeft / pitch());   // index across all cards (copies included)
   function paint(){
     raf = 0;
     if (!grid.classList.contains('cf')) return;
     const mid = grid.scrollLeft + grid.clientWidth / 2;
-    list().forEach(c => {
+    all().forEach(c => {
       const w = c.offsetWidth || 1;
       const d = (c.offsetLeft + w / 2 - mid) / w;        // 0 = in the middle, ±1 = one card away
       const a = Math.min(Math.abs(d), 1);
@@ -1492,21 +1499,44 @@ function coverFlow(grid){
       c.style.opacity = (1 - 0.35 * a).toFixed(3);
       c.style.zIndex = String(10 - Math.round(Math.min(Math.abs(d), 4) * 2));
     });
+    const wrap = document.getElementById(dotsId);
+    if (wrap && n) { const k = ((nearest() % n) + n) % n; wrap.querySelectorAll('i').forEach((dot, j) => dot.classList.toggle('on', j === k)); }
+  }
+  // after a swipe lands on a copy, jump to the matching real card (looks identical)
+  function wrapRound(){
+    if (!grid.classList.contains('cf') || !n) return;
+    const i = nearest();
+    at = ((i % n) + n) % n;
+    // shift by exactly one full set of cards, so what's on screen doesn't change at all
+    if (i < n) { grid.scrollLeft += n * pitch(); paint(); }
+    else if (i >= 2 * n) { grid.scrollLeft -= n * pitch(); paint(); }
   }
   function layout(){
-    const cards = list();
+    all().filter(c => c.classList.contains('cf-clone')).forEach(c => c.remove());
+    const cards = real();
     const on = phone.matches && cards.length > 1;
     grid.classList.toggle('cf', on);
     if (!on){
+      n = 0;
       grid.style.paddingLeft = grid.style.paddingRight = '';
       cards.forEach(c => { c.style.transform = c.style.opacity = c.style.zIndex = ''; });
       return;
     }
+    n = cards.length; if (at >= n) at = 0;
+    const copy = c => { const k = c.cloneNode(true); k.classList.add('cf-clone'); k.setAttribute('aria-hidden', 'true'); k.setAttribute('tabindex', '-1'); return k; };
+    cards.slice().reverse().forEach(c => grid.insertBefore(copy(c), grid.firstChild));
+    cards.forEach(c => grid.appendChild(copy(c)));
     const pad = Math.max(0, (grid.clientWidth - cards[0].offsetWidth) / 2);
     grid.style.paddingLeft = grid.style.paddingRight = pad + 'px';
+    grid.onscroll = null;                                // dots are handled here instead
+    grid.scrollLeft = centreOn(all()[n + at]);
     paint();
   }
-  grid.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(paint); }, { passive:true });
+  grid.addEventListener('scroll', () => {
+    if (!raf) raf = requestAnimationFrame(paint);
+    clearTimeout(settle); settle = setTimeout(wrapRound, 250);
+  }, { passive:true });
+  grid.addEventListener('scrollend', () => { clearTimeout(settle); wrapRound(); });
   addEventListener('resize', layout);
   grid.addEventListener('click', e => {
     const c = e.target.closest('.t-card');
@@ -1666,7 +1696,7 @@ function render(){
     mineCards.innerHTML = '<div class="empty-card">Pick a tournament below and join in.</div>';
   }
   dots('mineCards', 'mineDots');
-  if (!mineFlow) mineFlow = coverFlow(document.getElementById('mineCards'));
+  if (!mineFlow) mineFlow = coverFlow(document.getElementById('mineCards'), 'mineDots');
   mineFlow();
   // "You need to add selections…" — only when an entered tournament still needs picks
   const needN = STATE.mine.filter(r => STATE.picks[r.key] && !STATE.picks[r.key].hasPicked).length;
