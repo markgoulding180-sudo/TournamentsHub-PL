@@ -127,6 +127,21 @@
     .pay-item.ref .v{ color:var(--accent-2); }
     .pay-item.copied{ border-color:var(--green); }
     .pay-hint{ font-size:12px; color:var(--text-dim); margin-top:10px; line-height:1.5; }
+    /* simple summary: Pay now (overdue, by tournament) / Nothing overdue / All paid up */
+    .owe-top{ flex-basis:100%; }
+    .pay-now{ border-radius:14px; padding:16px; background:linear-gradient(180deg, rgba(239,68,68,.18), rgba(239,68,68,.07)); border:1px solid rgba(239,68,68,.6); }
+    .pay-now-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+    .pay-now-head .owe-label{ color:#fca5a5; margin:0; font-weight:700; }
+    .pay-now-head .owe-value{ color:#fff; }
+    .pay-now-row{ display:flex; align-items:center; gap:12px; padding:10px 0 2px; border-top:1px solid rgba(239,68,68,.3); margin-top:8px; }
+    .pay-now-row .nm{ flex:1; min-width:0; font-weight:700; font-size:15px; }
+    .pay-now-row .nm span{ display:block; font-weight:600; font-size:12.5px; color:#fca5a5; margin-top:2px; }
+    .pay-now-row .am{ font-family:var(--font-head); font-weight:700; font-size:18px; }
+    .all-ok{ border-radius:14px; padding:14px 16px; background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.45); color:#4ade80; font-family:var(--font-head); font-weight:700; font-size:20px; }
+    .all-ok small{ display:block; font-family:var(--font-body); font-weight:500; font-size:13px; color:var(--text-dim); margin-top:3px; }
+    .owe-total{ margin-top:10px; font-size:13px; color:var(--text-dim); }
+    .owe-total b{ color:var(--text); }
+    .card-total{ margin-left:auto; font-family:var(--font-head); color:var(--amber); }
     .owe-note{ flex-basis:100%; color:var(--text-dim); font-size:12.5px; line-height:1.5; border-top:1px solid var(--border); padding-top:12px; }
 
     .tt-row{ display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--border); }
@@ -249,18 +264,18 @@
     </section>
 
     <div class="owe-card" id="oweCard">
-      <div>
-        <div class="owe-label">You owe</div>
-        <div class="owe-value" id="oweValue">--</div>
-        <div id="oweOverdue"></div>
-      </div>
-      <div class="owe-next" id="oweNext"></div>
+      <div id="oweTop" class="owe-top"><div class="loading">Loading…</div></div>
       <div class="pay-to" id="payTo" style="display:none;"></div>
       <div class="owe-note" id="oweNote"></div>
     </div>
 
+    <div class="card" id="comingCard" style="display:none;">
+      <div class="card-title"><i class="fas fa-clock"></i> Coming Up <span class="card-total" id="comingTotal"></span></div>
+      <div id="comingList"></div>
+    </div>
+
     <div class="card">
-      <div class="card-title"><i class="fas fa-trophy"></i> Your Tournaments</div>
+      <div class="card-title"><i class="fas fa-circle-check"></i> Paid</div>
       <div id="ttList"><div class="loading">Loading…</div></div>
     </div>
 
@@ -300,70 +315,61 @@
 
     function renderTournaments(list) {
       const el = document.getElementById('ttList');
-      if (!list.length) {
-        el.innerHTML = '<div class="empty"><i class="fas fa-trophy"></i>No paid tournaments yet — join one to get started.</div>';
-        return;
-      }
-      // Overdue first (oldest due date first), then still to pay (soonest
-      // due first), then paid (most recently paid first).
-      const rank = { overdue: 0, due: 1, paid_late: 2, paid: 2 };
       const far = '9999-12-31';
-      list = [...list].sort((a, b) => {
-        const r = rank[a.status] - rank[b.status];
-        if (r) return r;
-        if (a.status === 'overdue' || a.status === 'due') return (a.payment_due_date || far).localeCompare(b.payment_due_date || far);
-        return (b.last_paid_at || '').localeCompare(a.last_paid_at || '');
-      });
-
-      el.innerHTML = list.map(t => {
-        const isPaid = t.status === 'paid' || t.status === 'paid_late';
-        const icon = isPaid ? 'fa-check' : t.status === 'overdue' ? 'fa-exclamation' : 'fa-clock';
-        const iconClass = isPaid ? 'paid' : t.status;
-        let chip;
-        if (t.status === 'paid') chip = `<span class="chip paid">Paid ${t.last_paid_at ? shortDate(t.last_paid_at) : ''}</span>`;
-        else if (t.status === 'paid_late') chip = `<span class="chip paid_late">Paid late ${t.last_paid_at ? shortDate(t.last_paid_at) : ''}</span>`;
-        else if (t.status === 'overdue') chip = `<span class="chip overdue">Overdue since ${shortDate(t.payment_due_date)}</span>`;
-        else chip = `<span class="chip due">${t.payment_due_date ? 'Due ' + shortDate(t.payment_due_date) : 'To pay'}</span>`;
-        const amount = isPaid ? t.fee : t.balance;
-        return `
+      // Coming up: still to pay, not late yet - soonest first
+      const due = list.filter(t => t.status === 'due').sort((a, b) => (a.payment_due_date || far).localeCompare(b.payment_due_date || far));
+      document.getElementById('comingCard').style.display = due.length ? '' : 'none';
+      document.getElementById('comingTotal').textContent = due.length ? money(due.reduce((s, t) => s + t.balance, 0)) : '';
+      document.getElementById('comingList').innerHTML = due.map(t => `
           <div class="tt-row">
-            <div class="tt-icon ${iconClass}"><i class="fas ${icon}"></i></div>
+            <div class="tt-icon due"><i class="fas fa-clock"></i></div>
             <div class="tt-info">
               <div class="tt-name">${escapeHtml(t.name)}</div>
-              <div class="tt-sub">Entered ${t.entered_at ? shortDate(t.entered_at) : ''}${!isPaid && t.paid > 0 ? ` · ${money(t.paid)} paid so far` : ''}</div>
+              <div class="tt-sub">Entered ${t.entered_at ? shortDate(t.entered_at) : ''}${t.paid > 0 ? ` · ${money(t.paid)} paid so far` : ''}</div>
             </div>
             <div class="tt-right">
-              <div class="tt-amt ${isPaid ? 'paid' : 'owed'}">${money(amount)}</div>
-              ${chip}
+              <div class="tt-amt owed">${money(t.balance)}</div>
+              <span class="chip due">${t.payment_due_date ? 'Due ' + shortDate(t.payment_due_date) : 'To pay'}</span>
             </div>
-          </div>`;
-      }).join('') + `
-        <div class="legend">
-          <span class="chip paid">Paid</span><span class="chip paid_late">Paid late</span><span class="chip due">Due</span><span class="chip overdue">Overdue</span>
-        </div>`;
+          </div>`).join('');
+      // Paid: most recent first
+      const paid = list.filter(t => t.status === 'paid' || t.status === 'paid_late').sort((a, b) => (b.last_paid_at || '').localeCompare(a.last_paid_at || ''));
+      if (!list.length) { el.innerHTML = '<div class="empty"><i class="fas fa-trophy"></i>No paid tournaments yet — join one to get started.</div>'; return; }
+      if (!paid.length) { el.innerHTML = '<div class="empty" style="padding:18px;">Nothing paid yet.</div>'; return; }
+      el.innerHTML = paid.map(t => `
+          <div class="tt-row">
+            <div class="tt-icon paid"><i class="fas fa-check"></i></div>
+            <div class="tt-info">
+              <div class="tt-name">${escapeHtml(t.name)}</div>
+              <div class="tt-sub">Entered ${t.entered_at ? shortDate(t.entered_at) : ''}</div>
+            </div>
+            <div class="tt-right">
+              <div class="tt-amt paid">${money(t.fee)}</div>
+              <span class="chip ${t.status}">${t.status === 'paid_late' ? 'Paid late' : 'Paid'} ${t.last_paid_at ? shortDate(t.last_paid_at) : ''}</span>
+            </div>
+          </div>`).join('');
     }
 
     function renderSummary(owed, list) {
-      const valueEl = document.getElementById('oweValue');
-      const overdueEl = document.getElementById('oweOverdue');
-      const nextEl = document.getElementById('oweNext');
-      if (owed > 0) {
-        valueEl.textContent = money(owed);
-        valueEl.className = 'owe-value owed';
+      const top = document.getElementById('oweTop');
+      const far = '9999-12-31';
+      const over = list.filter(t => t.status === 'overdue').sort((a, b) => (a.payment_due_date || far).localeCompare(b.payment_due_date || far));
+      const later = list.filter(t => t.status === 'due').reduce((s, t) => s + t.balance, 0);
+      const overTotal = over.reduce((s, t) => s + t.balance, 0);
+      if (over.length) {
+        // Overdue: say exactly how much and which tournament(s) it's for
+        top.innerHTML = `<div class="pay-now">
+            <div class="pay-now-head"><div class="owe-label"><i class="fas fa-triangle-exclamation"></i> Pay now · overdue</div><div class="owe-value">${money(overTotal)}</div></div>
+            ${over.map(t => `<div class="pay-now-row"><div class="nm">${escapeHtml(t.name)}<span>Was due ${shortDate(t.payment_due_date)}${t.paid > 0 ? ` · ${money(t.paid)} paid so far` : ''}</span></div><div class="am">${money(t.balance)}</div></div>`).join('')}
+          </div>
+          ${later > 0 ? `<div class="owe-total">Plus <b>${money(later)}</b> coming up later — see the dates below. Total to pay: <b>${money(owed)}</b></div>` : ''}`;
+      } else if (owed > 0) {
+        top.innerHTML = `<div class="all-ok">✓ Nothing overdue<small>${money(owed)} to pay by the dates below.</small></div>`;
       } else if (owed < 0) {
-        valueEl.textContent = `${money(owed)} credit`;
-        valueEl.className = 'owe-value clear';
+        top.innerHTML = `<div class="all-ok">✓ All paid up<small>You're ${money(owed)} in credit.</small></div>`;
       } else {
-        valueEl.textContent = '£0.00';
-        valueEl.className = 'owe-value clear';
+        top.innerHTML = `<div class="all-ok">✓ All paid up<small>Nothing to pay right now.</small></div>`;
       }
-      const overdueTotal = list.filter(t => t.status === 'overdue').reduce((s, t) => s + t.balance, 0);
-      overdueEl.innerHTML = overdueTotal > 0 ? `<span class="owe-overdue"><i class="fas fa-triangle-exclamation"></i> ${money(overdueTotal)} overdue</span>` : '';
-      const upcoming = list.filter(t => t.status === 'due' && t.payment_due_date)
-        .sort((a, b) => a.payment_due_date.localeCompare(b.payment_due_date))[0];
-      nextEl.innerHTML = upcoming
-        ? `<div class="owe-label">Next due</div><div class="when">${shortDate(upcoming.payment_due_date)} · ${money(upcoming.balance)}</div>`
-        : (owed <= 0 ? '<div class="owe-label">All paid up</div>' : '');
     }
 
     function renderPayTo(bank, owed) {
@@ -403,7 +409,7 @@
     async function loadWallet() {
       const token = localStorage.getItem('gbf_token');
       if (!token) {
-        document.getElementById('oweValue').textContent = '--';
+        document.getElementById('oweTop').innerHTML = '';
         document.getElementById('oweNote').textContent = 'Log in to see your wallet.';
         document.getElementById('ttList').innerHTML = '<div class="empty"><i class="fas fa-lock"></i>Log in to see your tournaments.</div>';
         document.getElementById('txList').innerHTML = '';

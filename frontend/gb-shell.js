@@ -310,38 +310,35 @@
     if (!token()) { body.innerHTML = loggedOut('wallet'); return; }
     var d = await getJSON('/api/tournaments?wallet=true');
     if (!d) { body.innerHTML = expired ? loggedOut('wallet') : '<div class="gbs-empty">Couldn\'t load your wallet right now.</div><a class="gbs-btn" href="/wallet">Open Wallet</a>'; return; }
-    var owed = d.owed || 0, list = d.tournaments || [];
-    var rank = { overdue: 0, due: 1, paid_late: 2, paid: 2 }, far = '9999-12-31';
-    var sorted = list.slice().sort(function (a, b) {
-      return (rank[a.status] - rank[b.status]) ||
-        ((a.status === 'overdue' || a.status === 'due') ? (a.payment_due_date || far).localeCompare(b.payment_due_date || far) : (b.last_paid_at || '').localeCompare(a.last_paid_at || ''));
-    });
-    var overdue = list.filter(function (t) { return t.status === 'overdue'; }).reduce(function (s, t) { return s + t.balance; }, 0);
-    var next = list.filter(function (t) { return t.status === 'due' && t.payment_due_date; }).sort(function (a, b) { return a.payment_due_date.localeCompare(b.payment_due_date); })[0];
-    var big = owed > 0 ? '<small>You owe</small><b class="owed">' + money(owed) + '</b>'
-            : owed < 0 ? '<small>In credit</small><b class="clear">' + money(owed) + '</b>'
-            : '<small>Balance</small><b class="clear">£0.00</b>';
-    var right = next ? '<div class="gbs-wp-next">Next due<span>' + shortDate(next.payment_due_date) + ' · ' + money(next.balance) + '</span></div>'
-              : (owed <= 0 ? '<div class="gbs-wp-next"><span style="color:var(--gbs-green)">All paid up</span></div>' : '');
-    var chip = function (t) {
-      return t.status === 'paid' ? '<span class="gbs-chip paid">Paid</span>'
-        : t.status === 'paid_late' ? '<span class="gbs-chip paid_late">Paid late</span>'
-        : t.status === 'overdue' ? '<span class="gbs-chip overdue">Overdue</span>'
-        : '<span class="gbs-chip due">' + (t.payment_due_date ? 'Due ' + shortDate(t.payment_due_date) : 'To pay') + '</span>';
-    };
-    var rows = sorted.slice(0, 6).map(function (t) {
-      var paid = t.status === 'paid' || t.status === 'paid_late';
-      return '<div class="gbs-wp-row"><span class="n">' + esc(t.name) + '</span>' + chip(t) + '<span class="a">' + money(paid ? t.fee : t.balance) + '</span></div>';
-    }).join('');
+    var owed = d.owed || 0, list = d.tournaments || [], far = '9999-12-31';
+    var byDue = function (a, b) { return (a.payment_due_date || far).localeCompare(b.payment_due_date || far); };
+    var over = list.filter(function (t) { return t.status === 'overdue'; }).sort(byDue);
+    var due = list.filter(function (t) { return t.status === 'due'; }).sort(byDue);
+    var paid = list.filter(function (t) { return t.status === 'paid' || t.status === 'paid_late'; })
+      .sort(function (a, b) { return (b.last_paid_at || '').localeCompare(a.last_paid_at || ''); });
+    var sum = function (a) { return a.reduce(function (s, t) { return s + (t.balance || 0); }, 0); };
+    // 1) what's overdue, by tournament - the one thing everyone must see
+    var top = over.length
+      ? '<div class="gbs-wp-now"><div class="gbs-wp-now-top"><small>⚠ Pay now · overdue</small><b>' + money(sum(over)) + '</b></div>' +
+          over.map(function (t) { return '<div class="gbs-wp-now-row"><span class="n">' + esc(t.name) + '<em>was due ' + shortDate(t.payment_due_date) + '</em></span><span class="a">' + money(t.balance) + '</span></div>'; }).join('') + '</div>'
+      : owed > 0 ? '<div class="gbs-wp-ok">✓ Nothing overdue</div>'
+      : owed < 0 ? '<div class="gbs-wp-ok big">✓ In credit ' + money(owed) + '</div>'
+      : '<div class="gbs-wp-ok big">✓ All paid up</div>';
+    // 2) still to pay later, soonest first
+    var coming = due.length ? '<div class="gbs-label">Coming up · ' + money(sum(due)) + '</div>' + due.map(function (t) {
+        return '<div class="gbs-wp-row"><span class="n">' + esc(t.name) + '</span><span class="gbs-chip due">' + (t.payment_due_date ? 'Due ' + shortDate(t.payment_due_date) : 'To pay') + '</span><span class="a">' + money(t.balance) + '</span></div>';
+      }).join('') : '';
+    // 3) how to pay
     var b = d.bank_details;
     var cp = function (label, val, copyVal) { return val ? '<button type="button" class="gbs-copy" data-copy="' + esc(copyVal || val) + '"><small>' + label + '<em>Copy</em></small><span>' + esc(val) + '</span></button>' : ''; };
     var pay = (b && owed > 0) ? '<div class="gbs-wp-pay"><div class="gbs-label" style="margin-top:0">Pay by bank transfer</div><div class="gbs-wp-grid">' +
         cp('Name', b.account_name) + cp('Sort code', b.sort_code, (b.sort_code || '').replace(/-/g, '')) + cp('Account no.', b.account_number) + cp('Reference', b.reference) + '</div>' +
         '<div class="gbs-hint">Always use <b style="color:var(--gbs-accent-2)">' + esc(b.reference || 'your username') + '</b> as the reference so your payment is matched to you.</div></div>' : '';
-    body.innerHTML = '<div class="gbs-wp-owe"><div>' + big + '</div>' + right + '</div>' +
-      (overdue > 0 ? '<div class="gbs-wp-over">⚠ ' + money(overdue) + ' overdue — please pay as soon as you can</div>' : '') +
-      (rows ? '<div class="gbs-label">Your tournaments</div>' + rows : '<div class="gbs-empty" style="padding:14px">No paid tournaments yet.</div>') +
-      pay + '<a class="gbs-btn" href="/wallet">Open Full Wallet ' + ic('arrow') + '</a>';
+    // 4) already paid (latest 3)
+    var done = paid.length ? '<div class="gbs-label">Paid</div>' + paid.slice(0, 3).map(function (t) {
+        return '<div class="gbs-wp-row paid"><span class="n">' + esc(t.name) + '</span><span class="gbs-chip paid">✓ Paid</span><span class="a">' + money(t.fee) + '</span></div>';
+      }).join('') : '';
+    body.innerHTML = top + coming + pay + done + (list.length ? '' : '<div class="gbs-empty" style="padding:14px">No paid tournaments yet.</div>') + '<a class="gbs-btn" href="/wallet">Open Full Wallet ' + ic('arrow') + '</a>';
   }
 
   // ---------- notifications pop-up (same as the Hub) ----------
