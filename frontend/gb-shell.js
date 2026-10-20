@@ -29,9 +29,9 @@
     cl:          [['Make Your Picks', '/champions-league', 'ball'], ['Leaderboard', '/champions-league-leaderboard', 'chart'], ['How It Works', '/champions-league-how-it-works', 'info']],
     darts:       [['Make Your Picks', '/darts', 'target'], ['Leaderboard', '/darts-leaderboard', 'chart']],
     football:    [['Fixtures', '/fixtures', 'cal'], ['Table', '/table', 'table'], ['Injuries', '/injuries', 'plus'], ['Clubs', '/links', 'shield']],
-    account:     [['Profile', '/profile', 'user'], ['My Tournaments', '/my-tournaments', 'trophy'], ['Wallet', '/wallet', 'wallet'], ['All Tournaments', '/tournaments', 'grid']],
+    account:     [['Profile', '/profile', 'user'], ['My Tournaments', '/?go=mine', 'trophy'], ['Wallet', '/wallet', 'wallet'], ['All Tournaments', '/tournaments', 'grid']],
     challenges:  [['All Challenges', '/challenges', 'stats'], ['Following', '/challenges?view=following', 'users'], ['My Challenges', '/challenges?view=mine', 'user']],
-    community:   [['Forum', '/forum', 'chat'], ['How It Works', '/how-it-works', 'play'], ['My Tournaments', '/my-tournaments', 'trophy']]
+    community:   [['Forum', '/forum', 'chat'], ['How It Works', '/how-it-works', 'play'], ['My Tournaments', '/?go=mine', 'trophy']]
   };
 
   // ---------- each page ----------
@@ -219,7 +219,7 @@
       '<nav class="gbs-drawer" id="gbsDrawer" aria-label="Menu">' +
         '<div class="gbs-drawer-head"><div class="gbs-logo-text">MENU</div><button type="button" class="gbs-ibtn" data-gbs-close title="Close">' + ic('close') + '</button></div>' +
         '<a href="' + HUB_URL + '">' + ic('home') + 'GB Hub</a>' +
-        '<a href="/my-tournaments">' + ic('trophy') + 'My Tournaments</a>' +
+        '<a href="/?go=mine">' + ic('trophy') + 'My Tournaments</a>' +
         '<a href="/tournaments">' + ic('grid') + 'All Tournaments</a>' +
         '<a href="/fixtures">' + ic('ball') + 'Prem Fixtures</a>' +
         '<a href="/table">' + ic('table') + 'League Table</a>' +

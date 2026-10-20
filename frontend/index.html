@@ -1012,7 +1012,7 @@ a.np-item:hover{ border-color:var(--accent); }
     <button class="icon-btn" onclick="openDrawer(false)" title="Close"><svg class="icon"><use href="#i-close"/></svg></button>
   </div>
   <a href="/"><svg class="icon"><use href="#i-home"/></svg>GB Hub</a>
-  <a href="/my-tournaments"><svg class="icon"><use href="#i-trophy"/></svg>My Tournaments</a>
+  <a href="#mineSection" onclick="openDrawer(false)"><svg class="icon"><use href="#i-trophy"/></svg>My Tournaments</a>
   <a href="/fixtures"><svg class="icon"><use href="#i-ball"/></svg>Prem Fixtures</a>
   <a href="/challenges"><svg class="icon"><use href="#i-chart"/></svg>Bet Challenges</a>
   <a href="/wallet"><svg class="icon"><use href="#i-wallet"/></svg>Wallet</a>
@@ -1889,10 +1889,12 @@ function refreshLogin(){
 try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch(e){}
 // "Tournaments" on the bottom bar of the other pages comes here as ?go=all (or #all):
 // open the page at the All Tournaments section once it has loaded.
-const GO_ALL = location.hash === '#all' || new URLSearchParams(location.search).get('go') === 'all';
-if (location.hash || GO_ALL) { try { history.replaceState(null, '', location.pathname); } catch(e){} }
-if (GO_ALL) window.addEventListener('load', () => {
-  const go = smooth => { const el = document.getElementById('all'); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: smooth ? 'smooth' : 'auto' }); };
+// "My Tournaments" links on every page come here as ?go=mine: open at the My Tournaments cards.
+const GO_TO = location.hash === '#all' || new URLSearchParams(location.search).get('go') === 'all' ? 'all'
+            : new URLSearchParams(location.search).get('go') === 'mine' ? 'mineSection' : null;
+if (location.hash || GO_TO) { try { history.replaceState(null, '', location.pathname); } catch(e){} }
+if (GO_TO) window.addEventListener('load', () => {
+  const go = smooth => { const el = document.getElementById(GO_TO); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior: smooth ? 'smooth' : 'auto' }); };
   setTimeout(() => go(true), 400);
   setTimeout(() => go(false), 1600);   // again once the cards above have finished loading
 });

@@ -7,6 +7,8 @@
     "api/gameweek-transition.js": { "maxDuration": 60 }
   },
   "redirects": [
+    { "source": "/my-tournaments", "destination": "/?go=mine", "permanent": false },
+    { "source": "/my-tournaments.html", "destination": "/?go=mine", "permanent": false },
     { "source": "/last-man-standing-pick", "destination": "/last-man-standing", "permanent": false },
     { "source": "/lms-pick.html", "destination": "/last-man-standing", "permanent": false },
     { "source": "/predictions-stats", "destination": "/predictions", "permanent": false },
@@ -48,7 +50,6 @@
     { "source": "/stock-market-player", "destination": "/stock-market-player.html" },
     { "source": "/stock-market-example", "destination": "/stock-market-example.html" },
     { "source": "/hub-test", "destination": "/index.html" },
-    { "source": "/my-tournaments", "destination": "/my-tournaments.html" },
     { "source": "/wallet", "destination": "/wallet.html" },
     { "source": "/how-it-works", "destination": "/how-it-works.html" }
   ]
