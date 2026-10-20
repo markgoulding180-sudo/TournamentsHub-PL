@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // STANDARDISED MATCH CARD LAYOUT - Same structure for all matches
         fixturesHTML += `
-          <div class="fixture ${finishedClass}" data-match-id="${match.id}" data-home-team="${match.home_team}" data-away-team="${match.away_team}">
+          <div class="fixture kit ${finishedClass}" style="${kitStyle(match.home_team, match.away_team)}" data-match-id="${match.id}" data-home-team="${match.home_team}" data-away-team="${match.away_team}">
             <!-- Top row: Date | Status | Points -->
             <div class="fixture-header">
               <span><i class="far fa-clock"></i> ${dateStr}</span>
@@ -376,6 +376,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
   
+  // Each club's main shirt colour (red, green, blue). The match card fades from
+  // the home side's colour on the left to the away side's on the right.
+  // (The colours live inside the function so it works wherever it's called from.)
+  function kitStyle(home, away) {
+    const KIT_COLOURS = {
+      'Arsenal': '239,1,7', 'Aston Villa': '122,20,60', 'Bournemouth': '218,41,28', 'Brentford': '227,6,19',
+      'Brighton': '0,87,184', 'Burnley': '108,29,69', 'Chelsea': '3,70,148', 'Coventry City': '89,183,232',
+      'Crystal Palace': '27,69,143', 'Everton': '0,51,153', 'Fulham': '225,225,225', 'Hull City': '245,161,45',
+      'Ipswich Town': '58,100,163', 'Leeds': '232,232,232', 'Leicester': '0,48,144', 'Liverpool': '200,16,46',
+      'Man City': '108,171,221', 'Man Utd': '218,41,28', 'Man United': '218,41,28', 'Manchester United': '218,41,28',
+      'Newcastle': '190,190,190', "Nott'm Forest": '221,0,0', 'Nottingham Forest': '221,0,0', 'Southampton': '215,25,32',
+      'Spurs': '226,228,236', 'Tottenham': '226,228,236', 'Sunderland': '235,23,43', 'West Ham': '122,38,58',
+      'Wolves': '253,185,19', 'Sheffield Utd': '238,39,55', 'Luton': '247,143,30'
+    };
+    const h = KIT_COLOURS[home] || '59,130,246', a = KIT_COLOURS[away] || '59,130,246';
+    return `--home:${h};--away:${a};`;
+  }
+
   function getTeamShirtName(teamName) {
     // Map team names to actual shirt file names (with spaces as they appear in filesystem)
     const shirtMap = {

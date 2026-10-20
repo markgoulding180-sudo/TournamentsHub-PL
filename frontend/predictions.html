@@ -41,6 +41,15 @@
       background: var(--bg-card);
       border: 1px solid var(--border-color);
     }
+    /* Club colours: the card fades from the home shirt colour (left) to the away shirt colour (right) */
+    .fixture.kit{
+      border:1px solid transparent !important;
+      background:
+        linear-gradient(90deg, rgba(var(--home),0.34) 0%, rgba(14,18,34,0.96) 38%, rgba(14,18,34,0.96) 62%, rgba(var(--away),0.34) 100%) padding-box,
+        linear-gradient(#0e1222, #0e1222) padding-box,
+        linear-gradient(90deg, rgba(var(--home),0.85), rgba(var(--away),0.85)) border-box !important;
+    }
+    .fixture.kit.fixture-finished{ opacity:.9; }
     
     /* Mobile: 3 cards in a row - Home | VS/Score | Away */
     .fixture-teams {
@@ -679,7 +688,7 @@
   <script src="auth-gate.js"></script>
   <script src="live-poll.js"></script>
   <script src="toast.js"></script>
-  <script src="predictions.js?v=2"></script>
+  <script src="predictions.js?v=3"></script>
   <script>
     // This drawer/hamburger markup existed already but had no JS behind it
     // anywhere on this page — clicking did nothing, and the avatar never
