@@ -1027,15 +1027,12 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             const lbRes = await fetch('/api/leaderboard?tournament=all&limit=50');
             const lbData = await lbRes.json();
             const entries = lbData.leaderboard || [];
-            const winners = entries.filter(e => (e.prize_awarded || 0) > 0);
+            const winners = entries.filter(e => (e.prize_awarded || 0) > 0).sort((a, b) => (b.prize_awarded - a.prize_awarded) || ((b.total_points || 0) - (a.total_points || 0)));
             const summaryEl = document.getElementById('predsFinishedSummary');
-            if (winners.length === 1) {
-              const w = winners[0];
-              const name = w.user?.display_name || 'Player';
-              summaryEl.textContent = `${name} wins with ${(w.total_points||0).toLocaleString()} points — £${(w.prize_awarded/100).toFixed(2)} prize.`;
-            } else if (winners.length > 1) {
-              const names = winners.map(w => w.user?.display_name || 'Player');
-              summaryEl.textContent = `${names.length}-way tie at the top — ${names.join(', ')} split the pot, £${(winners[0].prize_awarded/100).toFixed(2)} each.`;
+            if (winners.length) {
+              // 1st / 2nd / 3rd prizes (players level on points share)
+              const medal = (i) => ['🥇', '🥈', '🥉'][i] || '🏅';
+              summaryEl.textContent = 'Final prizes — ' + winners.map(w => `${medal(winners.findIndex(x => x.prize_awarded === w.prize_awarded && (x.total_points || 0) === (w.total_points || 0)))} ${w.user?.display_name || 'Player'} £${(w.prize_awarded/100).toFixed(2)} (${(w.total_points||0).toLocaleString()} pts)`).join(' · ');
             } else {
               summaryEl.textContent = `${t.current_entries ?? 0} entrants — see final standings below.`;
             }

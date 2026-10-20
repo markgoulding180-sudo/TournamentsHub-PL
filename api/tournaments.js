@@ -8373,6 +8373,45 @@ async function recomputeBetChallenge(db, ch) {
   return { ...ch, ...upd };
 }
 
+// ================= Season tournament prizes (1st / 2nd / 3rd) =================
+// The prize for each finishing place, in pence. A tournament can set its own
+// in prize_places (e.g. [18000, 8000, 4000]); if not, the standard rule:
+//   6+ players: 3rd = double the entry fee, the rest split 70/30 between
+//               1st and 2nd (2nd rounded to the nearest £5)
+//   4-5 players: 1st and 2nd only, 70/30
+//   3 or fewer: winner takes all
+function prizePlacesFor(t, entryCount) {
+  if (Array.isArray(t.prize_places) && t.prize_places.length && t.prize_places.every(v => Number.isInteger(v) && v >= 0)) return t.prize_places;
+  const fee = t.entry_fee || 0, pot = fee * entryCount;
+  if (pot <= 0) return [];
+  if (entryCount >= 6) {
+    const third = 2 * fee, rest = pot - third, second = Math.round(rest * 0.3 / 500) * 500;
+    return [rest - second, second, third];
+  }
+  if (entryCount >= 4) { const second = Math.round(pot * 0.3 / 500) * 500; return [pot - second, second]; }
+  return [pot];
+}
+
+// entries sorted best first. Players level on points share the prizes for
+// the places they take up between them (two tied for 1st split 1st + 2nd).
+function splitPrizesByPlace(entries, places) {
+  const awards = [];
+  let pos = 0;
+  while (pos < entries.length && pos < places.length) {
+    const pts = entries[pos].entry_points || 0;
+    let end = pos;
+    while (end + 1 < entries.length && (entries[end + 1].entry_points || 0) === pts) end++;
+    const group = entries.slice(pos, end + 1);
+    const total = places.slice(pos, end + 1).reduce((s, v) => s + v, 0);
+    const share = Math.floor(total / group.length);
+    let spare = total - share * group.length;   // odd pennies go to the first in the group
+    group.forEach(e => { const amount = share + (spare > 0 ? 1 : 0); if (spare > 0) spare--; if (amount > 0) awards.push({ id: e.id, place: pos + 1, amount }); });
+    pos = end + 1;
+  }
+  return awards;
+}
+function ordinalSuffix(n) { return n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'; }
+
 // A user's profile photo for leaderboards: only when they've uploaded one
 // (same rule as the profile page), otherwise null so pages show initials.
 function pickAvatarUrl(u) {
@@ -9960,7 +9999,7 @@ async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaNam
 
   const { data: liveTournaments } = await supabaseAdmin
     .schema(schemaName).from('tournaments')
-    .select('id, entry_fee, end_gameweek').eq('status', 'live');
+    .select('id, entry_fee, end_gameweek, prize_places').eq('status', 'live');
 
   for (const t of (liveTournaments || [])) {
     if (!t.end_gameweek || gameweek < t.end_gameweek) continue;
@@ -9995,19 +10034,23 @@ async function checkAndFinishSeasonTournament(supabaseAdmin, masterDb, schemaNam
     if (!entries || entries.length === 0) continue; // nothing to award — already marked finished above
 
     const topScore = entries[0].entry_points || 0;
-    const winners = entries.filter(e => (e.entry_points || 0) === topScore);
     const prizePool = (t.entry_fee || 0) * entries.length;
-    const share = Math.floor(prizePool / winners.length);
+    // 1st / 2nd / 3rd prizes: the tournament's own prize_places if set,
+    // otherwise the standard rule. Players level on points share the
+    // prizes for the places they cover.
+    const places = prizePlacesFor(t, entries.length);
+    const awards = splitPrizesByPlace(entries, places);
 
-    for (const w of winners) {
+    for (const a of awards) {
       await supabaseAdmin.schema(schemaName).from('tournament_entries')
-        .update({ prize_awarded: share }).eq('id', w.id);
+        .update({ prize_awarded: a.amount }).eq('id', a.id);
     }
 
+    const paid = awards.reduce((s, a) => s + a.amount, 0);
     await logPlatformEvent(supabaseAdmin, {
       tournament_type: schemaName, tournament_id: t.id, gameweek, event_type: 'tournament_finished',
-      message: `${schemaName === 'predictions' ? 'Predictions' : 'Fantasy'} finished GW${gameweek} — top score ${topScore}pts, ${winners.length} winner${winners.length === 1 ? '' : 's'} splitting £${(prizePool / 100).toFixed(2)} (£${(share / 100).toFixed(2)} each).`,
-      details: { top_score: topScore, winner_count: winners.length, prize_pool: prizePool, share_each: share, winner_entry_ids: winners.map(w => w.id) }
+      message: `${schemaName === 'predictions' ? 'Predictions' : 'Fantasy'} finished GW${gameweek} — top score ${topScore}pts. Prizes: ${awards.map(a => `${a.place}${ordinalSuffix(a.place)} £${(a.amount / 100).toFixed(2)}`).join(', ') || 'none'} (pot £${(prizePool / 100).toFixed(2)}).`,
+      details: { top_score: topScore, prize_pool: prizePool, prize_places: places, total_paid: paid, awards }
     });
   }
 }
