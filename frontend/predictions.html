@@ -50,6 +50,18 @@
         linear-gradient(90deg, rgba(var(--home),0.85), rgba(var(--away),0.85)) border-box !important;
     }
     .fixture.kit.fixture-finished{ opacity:.9; }
+    /* white text on the coloured cards (picked buttons/scores keep their own dark-on-white look) */
+    .fixture.kit .fixture-header, .fixture.kit .fixture-header > span:first-child, .fixture.kit .fixture-header i,
+    .fixture.kit .match-status, .fixture.kit .fixture-teams .score-card .vs, .fixture.kit .team-name, .fixture.kit .match-score, .fixture.kit .inline-score,
+    .fixture.kit .score-separator,
+    .fixture.kit .prediction-option input:not(:checked) + label,
+    .fixture.kit .prediction-option input:not(:checked) + label .sub-label,
+    .fixture.kit .score-input:not(.predicted-score){ color:#fff !important; }
+    .fixture.kit .score-input:not(.predicted-score)::placeholder{ color:rgba(255,255,255,.7) !important; }
+    /* Scoring System box: blue, not green */
+    .scoring-info{ background:rgba(59,130,246,0.10) !important; border:1px solid rgba(59,130,246,0.45) !important; }
+    .scoring-info h3, .scoring-info h3 i, .scoring-list i{ color:#fff !important; }
+    .scoring-list, .scoring-list li{ color:#dbe4f3 !important; }
     
     /* Mobile: 3 cards in a row - Home | VS/Score | Away */
     .fixture-teams {
