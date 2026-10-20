@@ -22,8 +22,8 @@
   --accent-red:       #ef4444;   /* Live, errors */
 
   --text-primary:     #ffffff;
-  --text-secondary:   rgba(255, 255, 255, 0.6);
-  --text-muted:       rgba(255, 255, 255, 0.35);
+  --text-secondary:   rgba(255,255,255,0.95);
+  --text-muted:       rgba(255,255,255,0.85);
 
   /* ── GRADIENTS ── */
   --gradient-hero:    linear-gradient(135deg, #0a0f2e 0%, #0f2060 50%, #0a1a4e 100%);

@@ -68,7 +68,7 @@ async function loadUserTournaments() {
     
     if (!data.tournaments || data.tournaments.length === 0) {
       container.innerHTML = '<p class="text-muted">No active tournaments. Join one below!</p>';
-      if (bannerBar) bannerBar.innerHTML = '<div class="t-left"><span style="color:rgba(255,255,255,0.5);font-size:0.85rem;">No active tournaments</span></div>';
+      if (bannerBar) bannerBar.innerHTML = '<div class="t-left"><span style="color:rgba(255,255,255,0.92);font-size:0.85rem;">No active tournaments</span></div>';
       return;
     }
 
@@ -143,7 +143,7 @@ async function loadUserTournaments() {
             </div>
           </div>
           <div class="t-right">
-            <span style="color:#22c55e;">${tournamentPoints}</span> <span style="font-size:0.7rem;color:rgba(255,255,255,0.6);">PTS</span>
+            <span style="color:#22c55e;">${tournamentPoints}</span> <span style="font-size:0.7rem;color:rgba(255,255,255,0.92);">PTS</span>
           </div>
         `;
       }
@@ -473,14 +473,14 @@ async function loadUserPredictions() {
           const pointsColor = points === 0 ? 'var(--accent-red)' : 'var(--accent-green)';
           statusLine = `<div style="font-size: 0.8rem; color: ${pointsColor}; margin-top:4px;">Result: ${actualResult} • ${points} pts</div>`;
         } else {
-          statusLine = `<div style="font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top:4px;">Not played yet</div>`;
+          statusLine = `<div style="font-size: 0.8rem; color:rgba(255,255,255,0.92); margin-top:4px;">Not played yet</div>`;
         }
         
         predictionsHTML += `
           <div style="padding: 0.6rem 0.75rem; background: ${bgShade}; border: 1px solid ${borderColor}; border-radius: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
             <div style="flex: 1; min-width: 0;">
               <div style="font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${match.home_team} vs ${match.away_team}</div>
-              <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">Your pick: ${pred.predicted_result} (${pred.home_score}-${pred.away_score})</div>
+              <div style="font-size: 0.8rem; color:rgba(255,255,255,0.92);">Your pick: ${pred.predicted_result} (${pred.home_score}-${pred.away_score})</div>
               ${statusLine}
             </div>
             ${statusIcon}
@@ -975,7 +975,7 @@ async function loadRecentActivity() {
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 0.375rem;">
           <div style="font-size: 0.8rem;">
             <div style="font-weight: 600;">${p.match.home_team} vs ${p.match.away_team}</div>
-            <div style="color: rgba(255,255,255,0.5); font-size: 0.7rem;">Predicted: ${p.predicted_result} (${p.home_score}-${p.away_score})</div>
+            <div style="color:rgba(255,255,255,0.92); font-size: 0.7rem;">Predicted: ${p.predicted_result} (${p.home_score}-${p.away_score})</div>
           </div>
           <div style="color: ${pointsColor}; font-weight: 700; font-size: 0.9rem;">+${p.points_earned}pts</div>
         </div>
