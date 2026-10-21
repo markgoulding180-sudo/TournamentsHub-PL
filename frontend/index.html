@@ -387,6 +387,10 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .icon-btn{ width:38px; height:38px; }
   main{ padding-top:14px; gap:14px; }
   .slides{ min-height:0; height:var(--hero-h); }
+  /* hub hero takes the banner's own shape (2056×765) so the opening
+     GB Hub Sports picture fills the whole box edge to edge */
+  .hero-panel{ container-type:inline-size; }
+  .slides.hero{ --hero-h:calc(100cqw * 765 / 2056); height:var(--hero-h); }
   .slide{ padding:clamp(18px, 4vh, 44px) 48px 46px; gap:clamp(24px, 3vw, 56px); overflow:hidden; }
   .slide.has-art{ grid-template-columns:minmax(0,1fr) minmax(0, min(46%, 760px)); }
   .eyebrow{ font-size:12px; letter-spacing:2.4px; }
