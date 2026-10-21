@@ -34,3 +34,6 @@ yarn-error.log*
 
 # Test coverage
 coverage/
+
+# Promo videos and other marketing files - kept on the PC, not put on the website
+marketing/

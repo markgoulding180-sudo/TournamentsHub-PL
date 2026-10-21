@@ -220,6 +220,20 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .hero-slide.slide-1 .hero-graphic{ display:none; }
 .hero:has(.slide-1.active) .hero-stats, .hero:has(.slide-2.active) .hero-stats{ opacity:0; pointer-events:none; }
 .hero-stats{ transition:opacity .6s; }
+/* opening slide: the GB Hub Sports banner on its own — the picture carries all the
+   words, so no text or buttons on top. Whole image shown (never cropped); a blurred
+   copy fills any space either side. */
+.hero-slide.slide-sports{ padding:0 !important; background:#01061a; }
+.hero-slide.slide-sports::before{ content:''; position:absolute; inset:-30px; z-index:0; display:block;
+  background:url('assets/hero-gb-sports.jpg') center / cover no-repeat; filter:blur(22px) brightness(.55); }
+.hero-slide.slide-sports::after{ content:''; position:absolute; inset:0; z-index:1;
+  background:url('assets/hero-gb-sports.jpg') center / contain no-repeat; }
+.hero:has(.slide-sports.active) .hero-stats{ opacity:0; pointer-events:none; }
+@media (max-width:899px){
+  /* phones: full width, at least the picture's own height (never wider than the screen) */
+  .hero-slide.slide-sports{ width:100%; min-width:0; justify-self:stretch; aspect-ratio:2056 / 765; overflow:hidden; }
+}
+
 .hero-graphic{ position:absolute; right:-40px; top:0; bottom:0; width:52%; display:flex; align-items:center; justify-content:center; opacity:0.95; pointer-events:none; }
 .hero-content{ position:relative; z-index:2; max-width:540px; margin-top:10px; }
 .hero-eyebrow{ display:inline-flex; align-items:center; gap:8px; color:var(--accent-2); font-family:var(--font-head); font-size:12px; font-weight:700; letter-spacing:2.2px; text-transform:uppercase; margin-bottom:12px; }
@@ -1028,7 +1042,8 @@ a.np-item:hover{ border-color:var(--accent); }
   <!-- ===== HERO: one slide per live/registering tournament + hub slides ===== -->
   <section class="panel hero-panel">
     <div class="slides hero" id="slides">
-      <div class="hero-slide slide-1 active">
+      <div class="hero-slide slide-sports active" role="img" aria-label="GB Hub Sports — sports prediction tournaments: football, darts, horse racing, basketball, tennis and more"></div>
+      <div class="hero-slide slide-1">
         <div class="hero-graphic">
           <svg viewBox="0 0 480 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
             <defs>
