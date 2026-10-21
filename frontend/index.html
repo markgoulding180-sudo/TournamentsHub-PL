@@ -1298,13 +1298,16 @@ async function pickStatus(type, id){
     const d = await postJSON({ action:'cl_get_tournament', tournament_id:id }); if (!d) return null;
     const matches = d.matches || [];
     const mds = [...new Set(matches.map(m => m.matchday).filter(Boolean))].sort((a, b) => a - b);
-    for (const md of mds) {
-      if (matches.filter(m => m.matchday === md).some(m => new Date(m.kickoff_time) <= new Date())) continue;
-      const picked = (d.my_picks || []).filter(p => p.matchday === md).length;
-      const first = matches.filter(m => m.matchday === md).map(m => m.kickoff_time).sort()[0];
-      return { hasPicked: picked >= 3, label:`Matchday ${md}`, deadline: first || null };
-    }
-    return null;
+    // Same rule as the Champions League page: the current matchday is the earliest
+    // one not fully finished. The next matchday only opens once every game of
+    // this one is finished, so never ask for picks on a matchday that isn't open.
+    const md = mds.find(n => !matches.filter(m => m.matchday === n).every(m => m.status === 'finished'));
+    if (!md) return null;
+    const mdMatches = matches.filter(m => m.matchday === md);
+    if (mdMatches.some(m => new Date(m.kickoff_time) <= new Date())) return null;   // under way: picks are locked
+    const picked = (d.my_picks || []).filter(p => p.matchday === md).length;
+    const first = mdMatches.map(m => m.kickoff_time).sort()[0];
+    return { hasPicked: picked >= 3, label:`Matchday ${md}`, deadline: first || null };
   }
   if ((type === 'lms' || type === 'predictions') && STATE.gw) {
     const d = await postJSON({ action:'check_gameweek_pick_status', tournament_type:type, tournament_id:id, gameweek:STATE.gw });
