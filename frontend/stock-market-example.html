@@ -840,6 +840,77 @@
     .gw-step .gw-now{ padding:0 4px; font-size:12.5px; }
     .gw-dots{ display:none; }
   }
+
+  /* ---------- match-day visual: a quick "live" replay of each match your players
+     were in, then the week's final values. Built from the real results and stats
+     (score, scorers, assists, cards, saves, minutes); only the event times are made up. ---------- */
+  .gw-step.in-card{ margin-top:16px; }
+  .mx-ov{ position:fixed; inset:0; z-index:100000; display:flex; align-items:center; justify-content:center; padding:16px;
+    background:rgba(2,6,18,0.82); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); animation:mxFade .25s ease; }
+  @keyframes mxFade{ from{ opacity:0; } to{ opacity:1; } }
+  .mx-box{ width:100%; max-width:520px; max-height:calc(100dvh - 32px); display:flex; flex-direction:column; overflow:hidden;
+    background:linear-gradient(180deg, #0f1d3d 0%, #0a1430 100%); border:1px solid rgba(96,165,250,0.35); border-radius:18px;
+    box-shadow:0 30px 80px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04) inset; animation:mxPop .3s ease; }
+  @keyframes mxPop{ from{ transform:translateY(14px) scale(.97); } to{ transform:none; } }
+  .mx-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.08);
+    font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:.6px; text-transform:uppercase; color:var(--accent-2); }
+  .mx-head .live{ display:inline-flex; align-items:center; gap:7px; }
+  .mx-head .live::before{ content:''; width:8px; height:8px; border-radius:50%; background:#ef4444; box-shadow:0 0 8px #ef4444; animation:mxBlink 1.2s infinite; }
+  .mx-head .live.off::before{ background:var(--text-faint); box-shadow:none; animation:none; }
+  @keyframes mxBlink{ 50%{ opacity:.3; } }
+  .mx-btns{ display:flex; gap:6px; flex:none; }
+  .mx-head .live{ min-width:0; }
+  .mx-skip{ white-space:nowrap; font-family:var(--font-head); font-size:12.5px; font-weight:700; color:#fff; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18); padding:5px 12px; border-radius:14px; }
+  .mx-skip:hover{ background:rgba(255,255,255,0.18); }
+  .mx-board{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:16px 14px 12px; }
+  .mx-team{ display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; min-width:0; }
+  .mx-team img{ width:64px; height:64px; object-fit:contain; filter:drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
+  .mx-team b{ font-family:var(--font-head); font-size:16px; line-height:1.1; overflow-wrap:anywhere; }
+  .mx-mid{ text-align:center; }
+  .mx-score{ font-family:var(--font-head); font-weight:700; font-size:40px; line-height:1; letter-spacing:2px; }
+  .mx-score.bump{ animation:mxBump .5s ease; }
+  @keyframes mxBump{ 40%{ transform:scale(1.25); color:var(--gold, #f5b83d); } }
+  .mx-clock{ display:inline-block; margin-top:6px; font-family:var(--font-head); font-weight:700; font-size:13px; color:#fff; background:var(--accent); padding:2px 10px; border-radius:10px; min-width:46px; }
+  .mx-clock.ht{ background:var(--amber); color:#1a1205; }
+  .mx-clock.ft{ background:var(--bg-panel); color:var(--text); }
+  .mx-feed{ flex:1; min-height:150px; max-height:240px; overflow:hidden; position:relative; margin:0 14px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.08);
+    -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 26px); mask-image:linear-gradient(180deg, transparent 0, #000 26px); }
+  .mx-feed-in{ display:flex; flex-direction:column; justify-content:flex-end; min-height:100%; gap:6px; }
+  .mx-ev{ display:grid; grid-template-columns:38px 22px 1fr; align-items:center; gap:6px; font-size:13.5px; padding:6px 8px; border-radius:9px; background:rgba(255,255,255,0.04); animation:mxIn .35s ease; }
+  @keyframes mxIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+  .mx-ev .m{ font-family:var(--font-head); font-weight:700; color:var(--accent-2); }
+  .mx-ev .ic{ text-align:center; }
+  .mx-ev.mine{ background:rgba(245,184,61,0.12); border:1px solid rgba(245,184,61,0.4); }
+  .mx-ev.mine .tag{ font-size:9.5px; font-weight:700; letter-spacing:.5px; color:var(--amber); text-transform:uppercase; margin-left:6px; }
+  .mx-ev.note{ grid-template-columns:1fr; text-align:center; font-family:var(--font-head); font-weight:700; letter-spacing:.5px; background:rgba(59,130,246,0.14); color:#fff; }
+  .mx-ev .yc{ display:inline-block; width:10px; height:13px; border-radius:2px; background:#facc15; }
+  .mx-ev .rc{ display:inline-block; width:10px; height:13px; border-radius:2px; background:#ef4444; }
+  .mx-mine{ padding:10px 14px 14px; }
+  .mx-mine h4{ font-family:var(--font-head); font-size:12px; letter-spacing:.6px; text-transform:uppercase; color:var(--text-faint); margin:0 0 8px; }
+  .mx-pl{ display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:10px; padding:7px 8px; border-radius:10px; background:rgba(255,255,255,0.05); margin-top:6px; }
+  .mx-pl img{ width:34px; height:34px; object-fit:contain; }
+  .mx-pl .n{ font-weight:700; font-size:14px; line-height:1.15; }
+  .mx-pl .s{ font-size:11.5px; color:var(--text-dim); }
+  .mx-pl .v{ text-align:right; font-family:var(--font-head); font-weight:700; font-size:15px; white-space:nowrap; }
+  .mx-pl .d{ display:block; font-size:12px; }
+  .mx-pl .d.up{ color:var(--green); } .mx-pl .d.down{ color:var(--red); } .mx-pl .d.flat{ color:var(--text-dim); }
+  .mx-note{ font-size:11px; color:var(--text-faint); text-align:center; padding:0 14px 12px; }
+  .mx-final{ padding:20px 16px 16px; text-align:center; overflow:auto; }
+  .mx-final .ic{ font-size:34px; color:var(--amber); }
+  .mx-final h3{ font-family:var(--font-head); font-size:22px; margin:8px 0 4px; }
+  .mx-final p{ font-size:13.5px; color:var(--text-dim); margin:0 auto 10px; max-width:400px; }
+  .mx-final .mx-pl{ text-align:left; }
+  .mx-total{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding:12px 14px; border-radius:12px; background:rgba(59,130,246,0.14); border:1px solid rgba(96,165,250,0.35); font-family:var(--font-head); font-weight:700; }
+  .mx-total .big{ font-size:22px; }
+  .mx-final .state-btn{ width:100%; justify-content:center; }
+  @media (max-width:600px){
+    .mx-ov{ padding:10px; }
+    .mx-box{ max-height:calc(100dvh - 20px); border-radius:16px; }
+    .mx-feed{ min-height:190px; max-height:42vh; }
+    .mx-team img{ width:54px; height:54px; }
+    .mx-score{ font-size:34px; }
+  }
+  @media (prefers-reduced-motion: reduce){ .mx-ov, .mx-box, .mx-ev, .mx-score.bump{ animation:none; } }
 </style>
 <script>
 function gbAvatar(url, text, cls){
@@ -883,11 +954,11 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
   <!-- practice bar + gameweek buttons -->
   <div class="demo-bar practice-bar">
     <div class="demo-note"><i class="fa-solid fa-flask"></i> <b>Practice game</b><span class="more"> &middot; play money, nothing is saved &middot; never touches a real tournament</span></div>
-    <div class="gw-step hidden" id="gwStep">
+    <div id="gwHome"><div class="gw-step hidden" id="gwStep">
       <button type="button" id="prevGwBtn" aria-label="Previous gameweek"><i class="fa-solid fa-chevron-left"></i></button>
       <span class="gw-now"><span id="gwNow">Before GW1</span><span class="gw-dots" id="gwDots"></span></span>
       <button type="button" class="go" id="nextGwBtn"><span id="nextGwTxt">Play GW1</span> <i class="fa-solid fa-chevron-right"></i></button>
-    </div>
+    </div></div>
   </div>
 
   <div id="loadingCard" class="state-card"><div class="state-inner"><i class="fa-solid fa-spinner fa-spin state-icon"></i><div class="state-title">Loading the practice game…</div></div></div>
@@ -1744,6 +1815,8 @@ function renderOpponent(o){
 
 function showState(html){
   const el = document.getElementById('stateCard');
+  const step = document.getElementById('gwStep'), home = document.getElementById('gwHome');
+  if (step && home && el.contains(step)) home.appendChild(step);   // rescue the gameweek buttons first
   if (!html) { el.style.display = 'none'; el.innerHTML = ''; return; }
   el.innerHTML = html; el.style.display = '';
 }
@@ -1803,6 +1876,13 @@ const $ = id => document.getElementById(id);
 const multText = m => '×' + (Math.round(m * 100) / 100);
 const signed = p => (p > 0 ? '+' : p < 0 ? '−' : '') + money(Math.abs(p));
 const clone = o => JSON.parse(JSON.stringify(o));
+// scroll so an element sits just under the top bar and the practice bar
+function scrollToEl(el){
+  if (!el) return;
+  const top = document.querySelector('.gbs-topbar'), bar = document.querySelector('.practice-bar');
+  const off = (top ? top.offsetHeight : 60) + (bar ? bar.offsetHeight : 0) + 8;
+  window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - off), behavior: 'smooth' });
+}
 
 // player photos: the same FPL headshots the real page uses; the team shirt if one fails
 function photoUrl(code){ return !code ? null : /^https:\/\//.test(code) ? code : FPL_PHOTO_URL + code + '.png'; }
@@ -1867,13 +1947,14 @@ function startDraft(){
   $('playWrap').classList.add('hidden'); $('gwStep').classList.add('hidden');
   $('draftWrap').classList.remove('hidden');
   renderSlots(); renderChecklist();
-  window.scrollTo({ top: 0 });
+  requestAnimationFrame(() => scrollToEl($('draftWrap')));
 }
 function openStarter(){
   if (pack.length) return;
   pack = openStarterPack(POOL, rng);
   $('packIntro').classList.add('hidden'); $('carouselBox').classList.remove('hidden');
   cardIdx = 0; renderCard(true); renderChecklist();
+  requestAnimationFrame(() => scrollToEl($('draftWrap')));
 }
 const slotOf = id => slots.find(s => s.player && s.player.id === id);
 const openSlot = pos => slots.find(s => s.type === pos && !s.player);
@@ -1972,23 +2053,230 @@ function lockSquad(){
   $('draftWrap').classList.add('hidden');
   $('playWrap').classList.remove('hidden'); $('gwStep').classList.remove('hidden');
   render();
-  window.scrollTo({ top: 0 });
+  requestAnimationFrame(() => scrollToEl($('stateCard')));
 }
 function snapshot(gw, detail, stageResults){
   return { gw, entries: clone(T.entries), matchups: clone(T.matchups), mult: T.cost_multiplier, detail: detail ? clone(detail) : null, stages: clone(stageResults) };
 }
 function playNext(){
+  if (MX.busy) return;
   if (view < snaps.length - 1) { view++; render(); return; }
   const gw = snaps.length;
   if (gw > END_GW) return;
+  const meBefore = clone(T.entries.find(e => e.isYou));
   const detail = settleGameweek(T, gw, gwData(gw));
   const stageResults = STAGES.filter(s => s.trigger_gameweek === gw).map(s => applyRelegationStage(T, s, gw));
   if (gw < END_GW) pairGameweek(T, gw + 1);
   snaps.push(snapshot(gw, detail, stageResults));
   view = snaps.length - 1;
-  render();
+  if (meBefore.relegated) { render(); return; }
+  runMatchDay(gw, meBefore, snaps[view]).catch(() => mxClose()).then(() => { render(); scrollToEl($('stateCard')); });
 }
-function goPrev(){ if (view > 0) { view--; render(); } }
+function goPrev(){ if (!MX.busy && view > 0) { view--; render(); } }
+// ================= match day visual =================
+// When you play a gameweek, each real match one of your players was in is
+// replayed as a short "live" feed: the real score, scorers, assists, cards,
+// saves and minutes from the data file. Only the minute each event happened
+// is invented (spread sensibly inside the time the player was on the pitch).
+// At full time it shows your players from that match and their new values,
+// then a final card shows the whole squad after the week.
+const MX = { skipMatch: false, skipAll: false, busy: false };
+const mxSleep = ms => new Promise(r => setTimeout(r, ms));
+async function mxWait(ms){
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (MX.skipMatch || MX.skipAll) return; await mxSleep(Math.min(40, end - Date.now())); }
+}
+function mxName(pid){ const p = POOL.find(x => x.id === pid); return p ? p.name : 'Player'; }
+function mxSeed(str){ let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+// the window a player was on the pitch: 90+ mins = whole game; 46-89 = started, came off;
+// under 46 = came on late
+function mxWindow(mins){
+  if (!mins) return null;
+  if (mins >= 90) return [1, 90];
+  if (mins >= 46) return [1, mins];
+  return [90 - mins + 1, 90];
+}
+function mxMinute(rnd, win){ const [a, b] = win || [1, 90]; return Math.max(1, Math.min(90, Math.floor(a + rnd() * (b - a + 1)))); }
+function mxBuild(gw, fx, mineIds){
+  const [hi, ai, hs, as] = fx, home = DATA.teams[hi], away = DATA.teams[ai];
+  const rnd = makeRng(mxSeed(`gw${gw}-${home}-${away}`));
+  const rows = (DATA.stats[gw] || []).filter(s => s[9] === hi || s[9] === ai)
+    .map(s => ({ pid: s[0], goals: s[1], assists: s[2], yc: s[3], rc: s[4], cs: s[5], saves: s[7], mins: s[8], side: s[9] === hi ? 'h' : 'a' }));
+  const ev = [];
+  ['h', 'a'].forEach(side => {
+    const need = side === 'h' ? hs : as;
+    const scorers = [];
+    rows.filter(r => r.side === side).forEach(r => { for (let i = 0; i < r.goals; i++) scorers.push(r); });
+    const assisters = [];
+    rows.filter(r => r.side === side).forEach(r => { for (let i = 0; i < r.assists; i++) assisters.push(r); });
+    const goals = scorers.slice(0, need).map(r => ({ r, min: mxMinute(rnd, mxWindow(r.mins)) }));
+    while (goals.length < need) goals.push({ r: null, min: mxMinute(rnd) });   // own goal by the other side
+    goals.sort((x, y) => x.min - y.min);
+    const pool = assisters.slice();
+    goals.forEach(g => {
+      let ast = null;
+      if (g.r) {
+        const k = pool.findIndex(a => a.pid !== g.r.pid);
+        if (k >= 0) ast = pool.splice(k, 1)[0];
+      }
+      ev.push({ min: g.min, type: 'goal', side, pid: g.r ? g.r.pid : null, ast: ast ? ast.pid : null });
+    });
+  });
+  rows.forEach(r => {
+    const win = mxWindow(r.mins);
+    if (!win) return;
+    for (let i = 0; i < r.yc; i++) ev.push({ min: mxMinute(rnd, win), type: 'yc', side: r.side, pid: r.pid });
+    if (r.rc) ev.push({ min: Math.min(90, Math.max(win[0] + 1, win[1])), type: 'rc', side: r.side, pid: r.pid });
+    if (!mineIds.has(r.pid)) return;
+    // your players only: saves, subs, clean sheets
+    const shown = Math.min(r.saves, 4);
+    for (let i = 0; i < shown; i++) ev.push({ min: mxMinute(rnd, win), type: 'save', side: r.side, pid: r.pid, n: i === shown - 1 && r.saves > shown ? r.saves : 0 });
+    if (r.mins < 90 && r.mins >= 46 && !r.rc) ev.push({ min: r.mins, type: 'off', side: r.side, pid: r.pid });
+    if (r.mins < 46) ev.push({ min: win[0], type: 'on', side: r.side, pid: r.pid });
+    if (r.cs) ev.push({ min: 90, type: 'cs', side: r.side, pid: r.pid, late: true });
+  });
+  // the playing time is real; anyone in the squad with no minutes is listed as didn't play
+  ev.sort((x, y) => (x.min - y.min) || ((x.late ? 1 : 0) - (y.late ? 1 : 0)) || (x.type === 'goal' ? -1 : 1));
+  return { gw, home, away, hs, as, events: ev };
+}
+function mxEvHtml(e, M, mineIds){
+  const team = e.side === 'h' ? M.home : M.away;
+  const mine = e.pid && mineIds.has(e.pid);
+  const n = e.pid ? escapeHtml(mxName(e.pid)) : '';
+  let ic = '', txt = '';
+  if (e.type === 'goal') {
+    ic = '⚽';
+    txt = e.pid ? `<b>GOAL!</b> ${n} (${escapeHtml(team)})${e.ast ? ` · assist ${escapeHtml(mxName(e.ast))}` : ''}` : `<b>GOAL!</b> ${escapeHtml(team)} — own goal`;
+  }
+  else if (e.type === 'yc') { ic = '<span class="yc"></span>'; txt = `Yellow card · ${n}`; }
+  else if (e.type === 'rc') { ic = '<span class="rc"></span>'; txt = `Red card · ${n} is off`; }
+  else if (e.type === 'save') { ic = '🧤'; txt = e.n ? `Another save by ${n} — ${e.n} in the game` : `Save by ${n}`; }
+  else if (e.type === 'off') { ic = '🔁'; txt = `${n} is substituted`; }
+  else if (e.type === 'on') { ic = '🔁'; txt = `${n} comes on`; }
+  else if (e.type === 'cs') { ic = '🛡️'; txt = `Clean sheet for ${n}`; }
+  const ast = e.ast && mineIds.has(e.ast);
+  return `<div class="mx-ev${mine || ast ? ' mine' : ''}"><span class="m">${e.min}'</span><span class="ic">${ic}</span><span>${txt}${mine || ast ? '<span class="tag">Your player</span>' : ''}</span></div>`;
+}
+function mxPlayerRow(p, endValue, extra){
+  const d = endValue - p.startValue;
+  const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  return `<div class="mx-pl"><img src="${escapeHtml(shirtUrl(p.team))}" alt="" onerror="this.style.visibility='hidden'">
+    <div><div class="n">${escapeHtml(p.name)}</div><div class="s">${extra}</div></div>
+    <div class="v">${money(endValue)}<span class="d ${cls}">${d === 0 ? 'no change' : signed(d)}</span></div></div>`;
+}
+function mxStatLine(p){
+  const s = p.gwStats || {};
+  if (p.frozen || !s.minutes) return 'Didn’t play · value locked';
+  const bits = [`${s.minutes} mins`];
+  if (s.goals_scored) bits.push(`${s.goals_scored} goal${s.goals_scored > 1 ? 's' : ''}`);
+  if (s.assists) bits.push(`${s.assists} assist${s.assists > 1 ? 's' : ''}`);
+  if (s.saves) bits.push(`${s.saves} saves`);
+  if (s.clean_sheets) bits.push('clean sheet');
+  if (s.yellow_cards) bits.push('yellow card');
+  if (s.red_cards) bits.push('red card');
+  if (s.goals_conceded && (p.position === 'gk' || p.position === 'def')) bits.push(`${s.goals_conceded} conceded`);
+  return bits.join(' · ');
+}
+function mxOpen(){
+  let ov = $('mxOverlay');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'mxOverlay'; ov.className = 'mx-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); document.body.appendChild(ov); }
+  document.documentElement.style.overflow = 'hidden';
+  return ov;
+}
+function mxClose(){ const ov = $('mxOverlay'); if (ov) ov.remove(); document.documentElement.style.overflow = ''; }
+
+async function mxPlayMatch(ov, M, idx, total, mineIds, myDet){
+  MX.skipMatch = false;
+  ov.innerHTML = `<div class="mx-box">
+    <div class="mx-head"><span class="live" id="mxLive">GW${M.gw} · Match ${idx} of ${total}</span>
+      <span class="mx-btns"><button type="button" class="mx-skip" id="mxSkip">Skip ›</button><button type="button" class="mx-skip" id="mxSkipAll">Skip all »</button></span></div>
+    <div class="mx-board">
+      <div class="mx-team"><img src="${escapeHtml(shirtUrl(M.home))}" alt=""><b>${escapeHtml(M.home)}</b></div>
+      <div class="mx-mid"><div class="mx-score" id="mxScore">0 - 0</div><span class="mx-clock" id="mxClock">0'</span></div>
+      <div class="mx-team"><img src="${escapeHtml(shirtUrl(M.away))}" alt=""><b>${escapeHtml(M.away)}</b></div>
+    </div>
+    <div class="mx-feed"><div class="mx-feed-in" id="mxFeed"><div class="mx-ev note">Kick off</div></div></div>
+    <div class="mx-mine" id="mxMine"></div>
+    <div class="mx-note">Real score, scorers and stats · event times are illustrative</div>
+  </div>`;
+  $('mxSkip').onclick = () => { MX.skipMatch = true; };
+  $('mxSkipAll').onclick = () => { MX.skipAll = true; };
+  const feed = $('mxFeed'), clock = $('mxClock'), score = $('mxScore');
+  let h = 0, a = 0, i = 0;
+  const push = html => { feed.insertAdjacentHTML('beforeend', html); while (feed.children.length > 8) feed.firstElementChild.remove(); };
+  const tick = 55;   // ms per match minute
+  for (let min = 1; min <= 90; min++) {
+    if (MX.skipMatch || MX.skipAll) break;
+    clock.textContent = min + "'";
+    while (i < M.events.length && M.events[i].min === min) {
+      const e = M.events[i++];
+      if (e.type === 'goal') { if (e.side === 'h') h++; else a++; score.textContent = `${h} - ${a}`; score.classList.remove('bump'); void score.offsetWidth; score.classList.add('bump'); }
+      push(mxEvHtml(e, M, mineIds));
+      await mxWait(e.type === 'goal' ? 900 : 500);
+    }
+    if (min === 45) {
+      clock.textContent = 'HT'; clock.className = 'mx-clock ht';
+      push(`<div class="mx-ev note">Half time · ${escapeHtml(M.home)} ${h} - ${a} ${escapeHtml(M.away)}</div>`);
+      await mxWait(1500);
+      clock.className = 'mx-clock';
+      if (!(MX.skipMatch || MX.skipAll)) push('<div class="mx-ev note">Second half under way</div>');
+    }
+    await mxWait(tick);
+  }
+  if (MX.skipAll) return;
+  // full time: always the real final score
+  score.textContent = `${M.hs} - ${M.as}`;
+  clock.textContent = 'FT'; clock.className = 'mx-clock ft';
+  const live = $('mxLive'); if (live) live.classList.add('off');
+  push(`<div class="mx-ev note">Full time · ${escapeHtml(M.home)} ${M.hs} - ${M.as} ${escapeHtml(M.away)}</div>`);
+  const mineHere = myDet.filter(p => p.team === M.home || p.team === M.away);
+  $('mxMine').innerHTML = `<h4>Your players in this match</h4>` + mineHere.map(p => mxPlayerRow(p, p.endValue, escapeHtml(mxStatLine(p)))).join('');
+  const sk = $('mxSkip'); if (sk) { sk.textContent = idx < total ? 'Next ›' : 'Continue ›'; }
+  MX.skipMatch = false;
+  await mxWait(3200);
+}
+
+async function mxFinal(ov, gw, myDet, meAfter, meBefore, S){
+  const total = meAfter.relegated ? meAfter.value_at_relegation : meAfter.current_value;
+  const d = total - meBefore.current_value;
+  const cut = (S.stages || []).some(r => !r.skipped);
+  const m = matchFor(S, gw, meAfter.id);
+  let h2h = '';
+  if (m && m.entry_id_2) {
+    const opp = entryIn(S, m.entry_id_1 === meAfter.id ? m.entry_id_2 : m.entry_id_1);
+    h2h = !m.winner_entry_id ? `You drew with <b>${escapeHtml(opp.name)}</b>.`
+      : m.winner_entry_id === meAfter.id ? `You beat <b>${escapeHtml(opp.name)}</b> by ${money(m.gap || 0)}.`
+      : `<b>${escapeHtml(opp.name)}</b> beat you by ${money(m.gap || 0)}.`;
+  }
+  ov.innerHTML = `<div class="mx-box"><div class="mx-final">
+    <div class="ic"><i class="fa-solid fa-flag-checkered"></i></div>
+    <h3>All Gameweek ${gw} games complete</h3>
+    <p>These are what your players are worth after this week’s games. ${h2h}${cut ? ' A relegation cut also paid every surviving player a share.' : ''}</p>
+    ${myDet.map((p, k) => mxPlayerRow(p, meAfter.relegated ? p.endValue : meAfter.squad_players[k].value, escapeHtml(`${p.team} · ${mxStatLine(p)}`))).join('')}
+    <div class="mx-total"><span>Your squad is worth</span><span><span class="big">${money(total)}</span> <span class="${d > 0 ? 'up' : d < 0 ? 'down' : ''}" style="color:${d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--text-dim)'}">${d === 0 ? '' : signed(d)}</span></span></div>
+    <button type="button" class="state-btn" id="mxDone"><i class="fa-solid fa-chart-line"></i> See the full breakdown</button>
+  </div></div>`;
+  await new Promise(res => { $('mxDone').onclick = res; });
+}
+
+async function runMatchDay(gw, meBefore, S){
+  const meAfter = S.entries.find(e => e.isYou);
+  const myDet = S.detail && S.detail[meAfter.id];
+  if (!myDet || !DATA.fixtures) return;
+  const mineIds = new Set(myDet.map(p => p.player_id));
+  // only the matches one of your players actually got on the pitch in
+  const teamIdx = new Set(myDet.filter(p => !p.frozen && p.gwStats && p.gwStats.minutes).map(p => DATA.teams.indexOf(p.team)));
+  const fixtures = (DATA.fixtures[gw] || []).filter(f => teamIdx.has(f[0]) || teamIdx.has(f[1]));
+  MX.busy = true; MX.skipAll = false;
+  const ov = mxOpen();
+  try {
+    for (let k = 0; k < fixtures.length && !MX.skipAll; k++) {
+      await mxPlayMatch(ov, mxBuild(gw, fixtures[k], mineIds), k + 1, fixtures.length, mineIds, myDet);
+    }
+    await mxFinal(ov, gw, myDet, meAfter, meBefore, S);
+  } finally { mxClose(); MX.busy = false; }
+}
+
 
 // ---- reading a snapshot ----
 const entryIn = (S, id) => S.entries.find(e => e.id === id);
@@ -2224,9 +2512,13 @@ function renderNotice(S, me){
     icon = 'fa-eye'; tone = ''; title = 'You’re out — but the season goes on';
     parts.unshift(`You were cut after Gameweek ${me.relegated_at_gameweek}. Keep pressing Play to watch how the rest of the league finishes.`);
   }
-  if (!parts.length) { showState(''); return; }
+  if (!parts.length) {
+    icon = 'fa-futbol'; title = `Gameweek ${S.gw} played`;
+    parts.push(`Every value has moved with the real Gameweek ${S.gw} results — see your squad and opponent below. Press <b>${view < snaps.length - 1 ? 'Show' : 'Play'} GW${S.gw + 1}</b> to carry on.`);
+  }
   showState(`<div class="state-inner"><i class="fa-solid ${icon || 'fa-circle-info'} state-icon"></i><div class="state-title">${title}</div>${parts.map(t => `<p class="state-text">${t}</p>`).join('')}</div>`);
   el.className = 'state-card' + (tone ? ' ' + tone : '');
+  const step = $('gwStep'); step.classList.add('in-card'); el.querySelector('.state-inner').appendChild(step);
 }
 
 // the league: same rows as the real page, every squad opens in place
