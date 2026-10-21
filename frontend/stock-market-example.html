@@ -2603,7 +2603,7 @@ async function init(){
   wire();
   ME = me0();
   try {
-    const res = await fetch('/assets/stockmarket-example-data.json', { cache: 'force-cache' });
+    const res = await fetch('/assets/stockmarket-example-data.json?v=2', { cache: 'force-cache' })   // bump v when the data file changes;
     if (!res.ok) throw new Error('HTTP ' + res.status);
     DATA = await res.json();
   } catch (e) {
