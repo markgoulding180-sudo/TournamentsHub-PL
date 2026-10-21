@@ -2244,9 +2244,14 @@ async function mxFinal(ov, gw, myDet, meAfter, meBefore, S){
   let h2h = '';
   if (m && m.entry_id_2) {
     const opp = entryIn(S, m.entry_id_1 === meAfter.id ? m.entry_id_2 : m.entry_id_1);
-    h2h = !m.winner_entry_id ? `You drew with <b>${escapeHtml(opp.name)}</b>.`
-      : m.winner_entry_id === meAfter.id ? `You beat <b>${escapeHtml(opp.name)}</b> by ${money(m.gap || 0)}.`
-      : `<b>${escapeHtml(opp.name)}</b> beat you by ${money(m.gap || 0)}.`;
+    // the head-to-head is decided on each squad's change this week; the winning
+    // margin is the gap between the two changes (yours up, theirs down = both count)
+    const mine = m.entry_id_1 === meAfter.id ? m.raw_total_1 : m.raw_total_2;
+    const theirs = m.entry_id_1 === meAfter.id ? m.raw_total_2 : m.raw_total_1;
+    const ch = v => `<b>${v === 0 ? '£0.00' : signed(Math.round(v))}</b>`;
+    const res = !m.winner_entry_id ? `You drew with <b>${escapeHtml(opp.name)}</b>`
+      : m.winner_entry_id === meAfter.id ? `You beat <b>${escapeHtml(opp.name)}</b>` : `<b>${escapeHtml(opp.name)}</b> beat you`;
+    h2h = `${res}: your squad ${ch(mine)}, theirs ${ch(theirs)}${m.winner_entry_id ? ` — a ${money(m.gap || 0)} gap` : ''}.`;
   }
   ov.innerHTML = `<div class="mx-box"><div class="mx-final">
     <div class="ic"><i class="fa-solid fa-flag-checkered"></i></div>
