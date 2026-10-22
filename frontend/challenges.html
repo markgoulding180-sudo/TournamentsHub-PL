@@ -178,6 +178,40 @@
     .err{ color:#fca5a5; font-size:13px; min-height:18px; margin:-4px 0 10px; }
     .how-mini{ font-size:12.5px; color:var(--text-dim); line-height:1.5; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); margin-bottom:14px; }
 
+    /* ---------- verified Premier League bets ---------- */
+    .mode-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+    .mode{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:10px 12px; border-radius:12px; border:1px solid var(--border-2); background:rgba(255,255,255,0.03); text-align:left; font-weight:700; font-size:14px; }
+    .mode small{ font-weight:500; font-size:11.5px; color:var(--text-dim); }
+    .mode i{ color:var(--accent-2); margin-right:6px; }
+    .mode.on{ border-color:var(--accent); background:rgba(59,130,246,0.16); box-shadow:0 0 0 1px rgba(59,130,246,0.3); }
+    select.inp{ appearance:none; -webkit-appearance:none; padding-right:36px; background-image:linear-gradient(45deg, transparent 50%, var(--text-dim) 50%), linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+      background-position:calc(100% - 18px) 52%, calc(100% - 13px) 52%; background-size:5px 5px; background-repeat:no-repeat; }
+    select.inp option, select.inp optgroup{ background:#0a1430; color:var(--text); }
+    .chips.mk .chip{ font-size:12.5px; padding:7px 11px; }
+    .pick-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .pick-row .inp.sm{ width:70px; text-align:center; padding:10px 6px; }
+    .legs{ display:flex; flex-direction:column; gap:8px; margin:12px 0 4px; }
+    .leg{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:11px; background:rgba(59,130,246,0.07); border:1px solid var(--border-2); }
+    .leg .lt{ flex:1; min-width:0; }
+    .leg .lt b{ display:block; font-size:14px; }
+    .leg .lt span{ font-size:12px; color:var(--text-dim); }
+    .leg .lo{ font-family:var(--font-head); font-weight:700; font-size:16px; white-space:nowrap; }
+    .leg .lx{ width:30px; height:30px; border-radius:50%; flex:none; color:var(--text-dim); background:rgba(255,255,255,0.05); }
+    .legs-empty{ font-size:12.5px; color:var(--text-faint); text-align:center; padding:10px; border:1px dashed var(--border-2); border-radius:11px; }
+    .vbadge{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:#86efac; }
+    .step-legs{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+    .sleg{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); }
+    .sleg .ri{ width:24px; height:24px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:11px; background:rgba(148,163,184,0.12); color:var(--text-dim); }
+    .sleg.won{ border-color:rgba(34,197,94,0.45); } .sleg.lost{ border-color:rgba(239,68,68,0.45); }
+    .sleg.won .ri{ background:rgba(34,197,94,0.16); color:var(--green); }
+    .sleg.lost .ri{ background:rgba(239,68,68,0.14); color:#fca5a5; }
+    .sleg .lt{ flex:1; min-width:0; }
+    .sleg .lt b{ display:block; font-size:13.5px; }
+    .sleg .lt span{ font-size:11.5px; color:var(--text-dim); }
+    .sleg .lo{ font-family:var(--font-head); font-weight:700; font-size:14px; white-space:nowrap; color:var(--text-dim); }
+    .sleg.void .lt b{ text-decoration:line-through; color:var(--text-dim); }
+    .auto-note{ margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
+
     /* zoomed slip */
     .zoom{ position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; padding:16px; }
     .zoom.open{ display:flex; }
@@ -238,10 +272,23 @@
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="betH">
       <h3 id="betH"><span>Add Bet <span id="betStepNo"></span></span> <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
       <div class="sub">Place it on your betting site first, then post it here.</div>
+      <div class="mode-tabs" id="betMode">
+        <button type="button" class="mode on" data-mode="v"><span><i class="fas fa-circle-check"></i>Verified PL bet</span><small>Settles itself from the real results</small></button>
+        <button type="button" class="mode" data-mode="s"><span><i class="fas fa-pen"></i>Any other bet</span><small>You mark it won or lost</small></button>
+      </div>
       <div class="stake-box">
         <div>Stake (your running total)<b id="betStake">£0</b></div>
         <div class="ret">Returns if it wins<b id="betReturn">—</b></div>
       </div>
+      <div id="vPanel">
+        <div class="field"><label>Match</label><select class="inp" id="vMatch"></select></div>
+        <div class="field"><label>Bet type</label><div class="chips mk" id="vMarket"></div></div>
+        <div class="field" id="vPick"></div>
+        <div class="field"><label>Odds for this selection <small>(from your betting site)</small></label><input class="inp" id="vOdds" placeholder="e.g. 5/4, Evens or 2.25" autocomplete="off"></div>
+        <button type="button" class="btn btn-ghost" id="vAdd" style="width:100%;"><i class="fas fa-plus"></i> Add to bet</button>
+        <div class="legs" id="vLegs"></div>
+      </div>
+      <div id="sPanel" hidden>
       <div class="field">
         <label>Odds</label>
         <div class="chips" id="oddsChips">
@@ -257,8 +304,9 @@
         <label>What's the bet?</label>
         <textarea class="inp" id="betSel" maxlength="300" placeholder="e.g. Arsenal to win & both teams to score"></textarea>
       </div>
+      </div>
       <div class="field">
-        <label>Bet slip picture <small>(screenshot from your betting app)</small></label>
+        <label>Bet slip picture <small id="imgHint">(screenshot from your betting app)</small></label>
         <div class="upload">
           <label class="upload-btn" for="betImg"><i class="fas fa-image"></i> Add picture</label>
           <input type="file" id="betImg" accept="image/*" hidden>
@@ -381,7 +429,7 @@
     const lb = c.latest_bet;
     const latest = lb
       ? `<div class="ch-latest">${lb.image_url ? `<img class="thumb" src="${esc(lb.image_url)}" alt="" loading="lazy">` : '<div class="ico"><i class="fas fa-receipt"></i></div>'}
-          <div class="txt"><b>Bet ${lb.step}: ${esc(lb.selection || 'See the bet slip')}</b><span>${money(lb.stake)} @ ${esc(lb.odds_text)} · ${ago(lb.created_at)}</span></div>
+          <div class="txt"><b>Bet ${lb.step}: ${esc(String(lb.selection || 'See the bet slip').split('\n').map(x => x.replace(/^.*?: /, '')).join(' · '))}</b><span>${lb.verified ? '<span class="vbadge"><i class="fas fa-circle-check"></i> Verified</span> · ' : ''}${money(lb.stake)} @ ${esc(lb.odds_text)} · ${ago(lb.created_at)}</span></div>
           <span class="pill ${BET[lb.status][0]}">${BET[lb.status][1]}</span></div>`
       : `<div class="ch-latest"><div class="ico"><i class="fas fa-hourglass-start"></i></div><div class="txt"><b>No bets yet</b><span>First bet coming soon</span></div></div>`;
     return `<article class="ch-card ${esc(c.status)}" data-open="${esc(c.id)}">
@@ -431,7 +479,12 @@
     const ret = b.status === 'won' ? `won <b style="color:var(--green)">${money(b.actual_return || b.potential_return)}</b>` : b.status === 'lost' ? 'lost' : b.status === 'void' ? 'void — stake back' : `to return <b>${money(b.potential_return)}</b>`;
     let host = ''; try { host = b.share_url ? new URL(b.share_url).hostname.replace(/^www\.|^m\./, '') : ''; } catch (e) {}
     let settle = '';
-    if (isLatest && c.can_manage && (b.status === 'pending' || CUR.is_admin)) {
+    const locked = b.verified && (!b.locks_at || new Date(b.locks_at).getTime() <= Date.now());
+    if (b.verified && isLatest && b.status === 'pending' && !CUR.is_admin) {
+      // verified: nobody marks it; the owner can only take it back before kick-off
+      settle = c.is_owner && !locked ? `<div class="settle"><div class="lbl">Changed your mind? You can remove it until the first kick-off.</div>
+        <button class="btn btn-ghost btn-sm" data-delbet="${esc(b.id)}"><i class="fas fa-trash"></i> Remove</button></div>` : '';
+    } else if (isLatest && c.can_manage && (b.status === 'pending' || CUR.is_admin)) {
       settle = `<div class="settle"><div class="lbl">${b.status === 'pending' ? 'How did it go?' : 'Admin: change the result'}</div>
         ${b.status !== 'won' ? `<button class="btn btn-green btn-sm" data-won="${esc(b.id)}"><i class="fas fa-check"></i> Won</button>` : ''}
         ${b.status !== 'lost' ? `<button class="btn btn-red btn-sm" data-res="lost" data-bet="${esc(b.id)}"><i class="fas fa-xmark"></i> Lost</button>` : ''}
@@ -444,12 +497,23 @@
       <div class="step-top"><div class="step-num">${b.step}</div>
         <div class="step-money"><b>${money(b.stake)}</b> @ <b>${esc(b.odds_text)}</b> · ${ret}</div>
         <span class="pill ${bs[0]}">${bs[1]}</span></div>
-      ${b.selection ? `<div class="step-sel">${esc(b.selection)}</div>` : ''}
+      ${b.verified ? legsHtml(b) : b.selection ? `<div class="step-sel">${esc(b.selection)}</div>` : ''}
       ${b.image_url ? `<img class="slip" src="${esc(b.image_url)}" alt="Bet slip" loading="lazy" data-zoom>` : ''}
       ${b.share_url ? `<a class="share-link" href="${esc(b.share_url)}" target="_blank" rel="noopener nofollow"><i class="fas fa-arrow-up-right-from-square"></i><span>Open the bet${host ? ' on ' + esc(host) : ''}</span></a>` : ''}
       <div class="step-meta">Posted ${ago(b.created_at)}${b.bookmaker && !host ? ' · ' + esc(b.bookmaker) : ''}</div>
       ${settle}
     </div>`;
+  }
+
+  const kickText = (iso) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  function legsHtml(b) {
+    const RI = { won: '<i class="fas fa-check"></i>', lost: '<i class="fas fa-xmark"></i>', void: '–' };
+    const rows = (b.legs || []).map(l => `<div class="sleg ${l.result || 'wait'}"><span class="ri">${RI[l.result] || '<i class="fas fa-clock"></i>'}</span>
+      <div class="lt"><b>${esc(l.label)}</b><span>${esc(l.home)} v ${esc(l.away)} · ${l.result === 'void' ? 'void' : kickText(l.kickoff)}</span></div><span class="lo">${esc(l.odds_text)}</span></div>`).join('');
+    const note = b.status === 'pending'
+      ? (new Date(b.locks_at).getTime() > Date.now() ? `Locks at kick-off (${kickText(b.locks_at)}) · settles itself from the real results` : 'Locked · settles itself as the results come in')
+      : 'Settled from the real results';
+    return `<div class="step-legs">${rows}</div><div class="auto-note"><span class="vbadge"><i class="fas fa-circle-check"></i> Verified</span> ${note}</div>`;
   }
 
   // ---------- clicks ----------
@@ -536,7 +600,145 @@
     if (/^\d+(\.\d+)?$/.test(s) && +s > 1) return +s;
     return null;
   }
+  // ---- verified Premier League bet builder ----
+  let MODE = 'v', FIX = null, LEGS = [], MK = 'result', PICK = {};
+  const MARKETS = [
+    ['result', 'Match result'], ['double_chance', 'Double chance'], ['btts', 'Both teams score'], ['total_goals', 'Total goals'],
+    ['correct_score', 'Correct score'], ['win_to_nil', 'Win to nil'], ['clean_sheet', 'Clean sheet'],
+    ['player_score', 'Player to score'], ['player_assist', 'Player assist'], ['player_card', 'Player carded'], ['gk_saves', 'Keeper saves']];
+  const PLAYER_MK = ['player_score', 'player_assist', 'player_card', 'gk_saves'];
+  const POS = { 1: 'Goalkeepers', 2: 'Defenders', 3: 'Midfielders', 4: 'Forwards' };
+  const ST = { i: ' (injured)', s: ' (suspended)', d: ' (doubtful)' };
+  const curMatch = () => FIX && FIX.fixtures.find(m => String(m.id) === $('vMatch').value);
+  function setMode(m) {
+    MODE = m;
+    document.querySelectorAll('#betMode .mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+    $('vPanel').hidden = m !== 'v'; $('sPanel').hidden = m !== 'v' ? false : true;
+    $('imgHint').textContent = m === 'v' ? '(optional — proof of your odds)' : '(screenshot from your betting app)';
+    $('betErr').textContent = '';
+    updateReturn();
+  }
+  $('betMode').addEventListener('click', e => { const b = e.target.closest('.mode'); if (b) setMode(b.dataset.mode); });
+  async function loadFixtures() {
+    if (FIX) return FIX;
+    try { FIX = await api({ challenge_fixtures: 1 }); } catch (e) { FIX = { fixtures: [], players: [] }; }
+    return FIX;
+  }
+  function renderMatches() {
+    const byGw = {};
+    FIX.fixtures.forEach(m => { (byGw[m.gw] = byGw[m.gw] || []).push(m); });
+    $('vMatch').innerHTML = Object.keys(byGw).map(gw => `<optgroup label="Gameweek ${gw}">${byGw[gw].map(m =>
+      `<option value="${m.id}">${esc(m.home)} v ${esc(m.away)} · ${esc(kickText(m.kickoff))}</option>`).join('')}</optgroup>`).join('');
+  }
+  function renderMarkets() {
+    $('vMarket').innerHTML = MARKETS.map(([k, t]) => `<button type="button" class="chip${k === MK ? ' on' : ''}" data-mk="${k}">${t}</button>`).join('');
+  }
+  const chip = (v, t, key) => `<button type="button" class="chip${PICK[key || 'pick'] === v ? ' on' : ''}" data-pk="${key || 'pick'}" data-v="${esc(v)}">${esc(t)}</button>`;
+  function renderPick() {
+    const m = curMatch(); if (!m) { $('vPick').innerHTML = ''; return; }
+    const H = m.home, A = m.away;
+    let h = '';
+    if (MK === 'result') h = `<label>Pick</label><div class="chips">${chip('home', H)}${chip('draw', 'Draw')}${chip('away', A)}</div>`;
+    else if (MK === 'double_chance') h = `<label>Pick</label><div class="chips">${chip('home_draw', H + ' or draw')}${chip('home_away', H + ' or ' + A)}${chip('draw_away', 'Draw or ' + A)}</div>`;
+    else if (MK === 'btts') h = `<label>Both teams to score?</label><div class="chips">${chip('yes', 'Yes')}${chip('no', 'No')}</div>`;
+    else if (MK === 'total_goals') h = `<label>Total goals in the match</label><div class="pick-row"><div class="chips" style="margin:0;">${chip('over', 'Over')}${chip('under', 'Under')}</div>
+      <select class="inp" id="vLine" style="width:auto;">${FIX.goal_lines.map(l => `<option value="${l}"${String(PICK.line || 2.5) === String(l) ? ' selected' : ''}>${l} goals</option>`).join('')}</select></div>`;
+    else if (MK === 'correct_score') h = `<label>Correct score</label><div class="pick-row"><span style="font-weight:700;">${esc(H)}</span>
+      <input class="inp sm" id="vCsH" type="number" min="0" max="9" inputmode="numeric" value="${PICK.csh != null ? PICK.csh : 1}"> <b>-</b>
+      <input class="inp sm" id="vCsA" type="number" min="0" max="9" inputmode="numeric" value="${PICK.csa != null ? PICK.csa : 0}"><span style="font-weight:700;">${esc(A)}</span></div>`;
+    else if (MK === 'win_to_nil' || MK === 'clean_sheet') h = `<label>Team</label><div class="chips">${chip('home', H)}${chip('away', A)}</div>`;
+    else {
+      const twice = { home: m.home_twice, away: m.away_twice };
+      const sides = ['home', 'away'].filter(sd => !twice[sd]);
+      if (!sides.length) h = '<div class="legs-empty">Both teams play twice this gameweek, so player bets on this match can\'t be checked. Pick another bet type.</div>';
+      else {
+        if (!sides.includes(PICK.side)) PICK.side = sides[0];
+        const teamId = PICK.side === 'home' ? m.home_id : m.away_id;
+        const list = FIX.players.filter(p => p.team === teamId && (MK !== 'gk_saves' || p.pos === 1)).sort((a, b) => a.pos - b.pos || a.name.localeCompare(b.name));
+        const groups = [1, 2, 3, 4].map(pos => { const ps = list.filter(p => p.pos === pos); return ps.length ? `<optgroup label="${POS[pos]}">${ps.map(p => `<option value="${p.id}"${String(PICK.player) === String(p.id) ? ' selected' : ''}>${esc(p.name)}${ST[p.st] || ''}</option>`).join('')}</optgroup>` : ''; }).join('');
+        h = `<label>Team</label><div class="chips">${sides.map(sd => chip(sd, sd === 'home' ? H : A, 'side')).join('')}</div>
+          <label style="margin-top:10px;">Player</label><select class="inp" id="vPlayer"><option value="">Choose a player…</option>${groups}</select>`;
+        if (MK === 'player_score') h += `<div class="chips" style="margin-top:10px;">${chip('1', 'Anytime', 'line')}${chip('2', '2 or more', 'line')}${chip('3', 'Hat-trick', 'line')}</div>`;
+        if (MK === 'gk_saves') h += `<label style="margin-top:10px;">Saves</label><select class="inp" id="vLine">${FIX.save_lines.map(l => `<option value="${l}"${String(PICK.line || 2.5) === String(l) ? ' selected' : ''}>Over ${l} saves</option>`).join('')}</select>`;
+        if (twice.home || twice.away) h += `<div class="legs-empty" style="margin-top:8px;">${esc(twice.home ? H : A)} play twice this gameweek, so their players can't be picked.</div>`;
+      }
+    }
+    $('vPick').innerHTML = h;
+  }
+  $('vMatch').addEventListener('change', () => { PICK = { line: PICK.line }; if (MK === 'player_score') PICK.line = '1'; renderPick(); });
+  $('vMarket').addEventListener('click', e => {
+    const c = e.target.closest('[data-mk]'); if (!c) return;
+    MK = c.dataset.mk; PICK = {}; if (MK === 'player_score') PICK.line = '1';
+    renderMarkets(); renderPick();
+  });
+  $('vPick').addEventListener('click', e => {
+    const c = e.target.closest('[data-pk]'); if (!c) return;
+    PICK[c.dataset.pk] = c.dataset.v;
+    if (c.dataset.pk === 'side') PICK.player = '';
+    renderPick();
+  });
+  $('vPick').addEventListener('change', e => {
+    if (e.target.id === 'vPlayer') PICK.player = e.target.value;
+    if (e.target.id === 'vLine') PICK.line = e.target.value;
+    if (e.target.id === 'vCsH') PICK.csh = e.target.value;
+    if (e.target.id === 'vCsA') PICK.csa = e.target.value;
+  });
+  // the selection as it'll be checked, plus the words shown in the list
+  function buildLeg() {
+    const m = curMatch(); if (!m) return { error: 'Pick a match' };
+    const H = m.home, A = m.away, side = (p) => p === 'home' ? H : A;
+    const leg = { match_id: m.id, market: MK, odds: $('vOdds').value.trim(), _m: m };
+    if (!parseOdds(leg.odds)) return { error: 'Enter the odds for this selection — like 5/4, Evens or 2.25' };
+    if (PLAYER_MK.includes(MK)) {
+      const sel = $('vPlayer'); const pid = sel ? sel.value : '';
+      if (!pid) return { error: 'Choose a player' };
+      const p = FIX.players.find(x => String(x.id) === pid);
+      leg.player_id = Number(pid);
+      if (MK === 'player_score') { leg.line = Number(PICK.line || 1); leg._label = leg.line === 1 ? `${p.name} to score` : leg.line === 2 ? `${p.name} to score 2+` : `${p.name} to score a hat-trick`; }
+      if (MK === 'player_assist') leg._label = `${p.name} to assist`;
+      if (MK === 'player_card') leg._label = `${p.name} to be shown a card`;
+      if (MK === 'gk_saves') { leg.line = Number($('vLine').value); leg._label = `${p.name} over ${leg.line} saves`; }
+      return { leg };
+    }
+    if (MK === 'correct_score') {
+      const a = parseInt($('vCsH').value, 10), b = parseInt($('vCsA').value, 10);
+      if (!(a >= 0 && a <= 9 && b >= 0 && b <= 9)) return { error: 'Enter a score from 0 to 9 for each team' };
+      leg.pick = `${a}-${b}`; leg._label = `Correct score ${H} ${a}-${b} ${A}`; return { leg };
+    }
+    if (!PICK.pick) return { error: 'Make your pick' };
+    leg.pick = PICK.pick;
+    if (MK === 'result') leg._label = leg.pick === 'draw' ? 'Draw' : `${side(leg.pick)} to win`;
+    if (MK === 'double_chance') leg._label = leg.pick === 'home_draw' ? `${H} or draw` : leg.pick === 'draw_away' ? `Draw or ${A}` : `${H} or ${A}`;
+    if (MK === 'btts') leg._label = `Both teams to score: ${leg.pick === 'yes' ? 'Yes' : 'No'}`;
+    if (MK === 'total_goals') { leg.line = Number($('vLine').value); leg._label = `${leg.pick === 'over' ? 'Over' : 'Under'} ${leg.line} goals`; }
+    if (MK === 'win_to_nil') leg._label = `${side(leg.pick)} to win to nil`;
+    if (MK === 'clean_sheet') leg._label = `${side(leg.pick)} to keep a clean sheet`;
+    return { leg };
+  }
+  function renderLegs() {
+    $('vLegs').innerHTML = LEGS.length
+      ? LEGS.map((l, i) => `<div class="leg"><div class="lt"><b>${esc(l._label)}</b><span>${esc(l._m.home)} v ${esc(l._m.away)} · ${esc(kickText(l._m.kickoff))}</span></div>
+          <span class="lo">${esc(l.odds)}</span><button type="button" class="lx" data-rmleg="${i}" aria-label="Remove"><i class="fas fa-xmark"></i></button></div>`).join('')
+        + (LEGS.length > 1 ? `<div class="legs-empty" style="border-style:solid;">${LEGS.length}-fold accumulator · every selection has to win</div>` : '')
+      : '<div class="legs-empty">Add one selection for a single, or more for an accumulator.</div>';
+    $('vAdd').innerHTML = LEGS.length ? '<i class="fas fa-plus"></i> Add another selection' : '<i class="fas fa-plus"></i> Add to bet';
+    updateReturn();
+  }
+  $('vAdd').onclick = () => {
+    const { leg, error } = buildLeg();
+    if (error) return $('betErr').textContent = error;
+    if (LEGS.length >= ((FIX && FIX.max_legs) || 12)) return $('betErr').textContent = 'That\'s the most selections allowed in one bet';
+    LEGS.push(leg); $('betErr').textContent = ''; $('vOdds').value = '';
+    renderLegs();
+  };
+  $('vLegs').addEventListener('click', e => { const x = e.target.closest('[data-rmleg]'); if (x) { LEGS.splice(Number(x.dataset.rmleg), 1); renderLegs(); } });
+
   function updateReturn() {
+    if (MODE === 'v') {
+      const o = LEGS.reduce((x, l) => x * (parseOdds(l.odds) || 1), 1);
+      $('betReturn').textContent = LEGS.length ? money(Math.round(CUR.challenge.current_amount * o)) : '—';
+      return;
+    }
     const o = parseOdds($('betOdds').value);
     $('betReturn').textContent = o ? money(Math.round(CUR.challenge.current_amount * o)) : '—';
     document.querySelectorAll('#oddsChips .chip').forEach(x => x.classList.toggle('on', x.dataset.o.toLowerCase() === $('betOdds').value.trim().toLowerCase()));
@@ -547,8 +749,18 @@
     $('betErr').textContent = '';
     $('betStepNo').textContent = CUR.bets.length + 1;
     $('betStake').textContent = money(CUR.challenge.current_amount);
-    updateReturn();
+    LEGS = []; MK = 'result'; PICK = {}; $('vOdds').value = '';
+    setMode('v');
+    $('vMatch').innerHTML = '<option>Loading matches…</option>'; $('vPick').innerHTML = ''; renderMarkets(); renderLegs();
     openSheet('betSheet');
+    loadFixtures().then(() => {
+      if (!FIX.fixtures.length) {
+        $('vMatch').innerHTML = '<option>No matches right now</option>';
+        $('vPick').innerHTML = '<div class="legs-empty">No Premier League matches to bet on right now. Use <b>Any other bet</b> instead.</div>';
+        return setMode('s');
+      }
+      renderMatches(); renderPick();
+    });
   }
   $('oddsChips').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; $('betOdds').value = c.dataset.o; updateReturn(); });
   $('betOdds').addEventListener('input', updateReturn);
@@ -579,6 +791,19 @@
     } catch (e) { toast('Long-press the box and choose Paste', true); $('betLink').focus(); }
   };
   $('betGo').onclick = async () => {
+    if (MODE === 'v') {
+      if (!LEGS.length) return $('betErr').textContent = 'Add at least one selection — pick it above, then tap Add to bet';
+      $('betGo').disabled = true; $('betGo').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
+      try {
+        await post({ action: 'challenge_add_bet', challenge_id: CUR.challenge.id, verified: true,
+          legs: LEGS.map(l => ({ match_id: l.match_id, market: l.market, pick: l.pick, line: l.line, player_id: l.player_id, odds: l.odds })),
+          share_url: $('betLink').value.trim(), image_base64: IMG ? IMG.base64 : undefined, file_ext: IMG ? IMG.ext : undefined });
+        closeSheets(); toast('Verified bet posted — it settles itself from the real results');
+        FIX = null; loadDetail(CUR.challenge.id);
+      } catch (err) { $('betErr').textContent = err.message; }
+      $('betGo').disabled = false; $('betGo').innerHTML = '<i class="fas fa-paper-plane"></i> Post Bet';
+      return;
+    }
     const odds = $('betOdds').value.trim();
     if (!parseOdds(odds)) return $('betErr').textContent = 'Enter the odds — like 5/4, Evens or 2.25';
     if (!$('betSel').value.trim() && !IMG && !$('betLink').value.trim()) return $('betErr').textContent = 'Say what the bet is, add a picture, or paste the share link';

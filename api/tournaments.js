@@ -85,9 +85,40 @@ module.exports = async (req, res) => {
     try {
       const params = new URLSearchParams(req.query);
 
+      // ---- Bet Challenges: upcoming Premier League matches + squads for verified bets ----
+      if (params.get('challenge_fixtures')) {
+        const nowIso = new Date().toISOString();
+        const { data: up } = await masterDb.from('matches').select('id, gameweek, home_team, away_team, kickoff_time, status')
+          .eq('status', 'upcoming').gt('kickoff_time', nowIso).order('kickoff_time', { ascending: true }).limit(40);
+        const gws = [...new Set((up || []).map(m => m.gameweek))].sort((a, b) => a - b).slice(0, 2);
+        const fixtures = (up || []).filter(m => gws.includes(m.gameweek));
+        const [{ data: teams }, { data: gwAll }] = await Promise.all([
+          masterDb.from('teams').select('id, name, short_name'),
+          gws.length ? masterDb.from('matches').select('gameweek, home_team, away_team').in('gameweek', gws) : Promise.resolve({ data: [] })
+        ]);
+        const teamIdByName = {}; (teams || []).forEach(t => { teamIdByName[t.name] = t.id; });
+        const playsByGw = {};
+        (gwAll || []).forEach(m => { [m.home_team, m.away_team].forEach(t => { const k = m.gameweek + ':' + t; playsByGw[k] = (playsByGw[k] || 0) + 1; }); });
+        const teamIds = [...new Set(fixtures.flatMap(m => [teamIdByName[m.home_team], teamIdByName[m.away_team]]).filter(Boolean))];
+        const { data: pls } = teamIds.length
+          ? await masterDb.from('players').select('id, web_name, team, element_type, status').in('team', teamIds).neq('status', 'u')
+          : { data: [] };
+        res.setHeader('Cache-Control', 'public, max-age=60');
+        return res.status(200).json({
+          fixtures: fixtures.map(m => ({ id: m.id, gw: m.gameweek, home: m.home_team, away: m.away_team, kickoff: m.kickoff_time,
+            home_id: teamIdByName[m.home_team] || null, away_id: teamIdByName[m.away_team] || null,
+            home_twice: (playsByGw[m.gameweek + ':' + m.home_team] || 0) > 1, away_twice: (playsByGw[m.gameweek + ':' + m.away_team] || 0) > 1 })),
+          players: (pls || []).map(p => ({ id: p.id, name: p.web_name, team: p.team, pos: p.element_type, st: p.status })),
+          goal_lines: VBET_GOAL_LINES, save_lines: VBET_SAVE_LINES, max_legs: VBET_MAX_LEGS
+        });
+      }
+
       // ---- Bet Challenges (e.g. "£10 to £500") ----
       // Anyone can look; being logged in adds "following" / "mine".
       if (params.get('challenges') || params.get('challenge')) {
+        // verified bets settle themselves from the real results before anything is shown
+        try { await settleVerifiedBets(supabaseAdmin, masterDb, params.get('challenge') ? [params.get('challenge')] : null); }
+        catch (e) { console.error('verified bets: settle failed', e); }
         let me = null;
         try {
           const h = req.headers.authorization;
@@ -142,7 +173,7 @@ module.exports = async (req, res) => {
         const ids = rows.map(r => r.id);
         const ownerIds = [...new Set(rows.map(r => r.user_id))];
         const [{ data: allBets }, { data: owners }, { data: follows }] = ids.length ? await Promise.all([
-          supabaseAdmin.from('bet_challenge_bets').select('challenge_id, step, status, stake, odds_text, selection, image_url, potential_return, created_at').in('challenge_id', ids),
+          supabaseAdmin.from('bet_challenge_bets').select('challenge_id, step, status, stake, odds_text, selection, image_url, potential_return, created_at, verified').in('challenge_id', ids),
           supabaseAdmin.from('users').select('id, username, display_name, avatar_url, avatar_type').in('id', ownerIds),
           supabaseAdmin.from('bet_challenge_follows').select('challenge_id, user_id').in('challenge_id', ids)
         ]) : [{ data: [] }, { data: [] }, { data: [] }];
@@ -156,7 +187,7 @@ module.exports = async (req, res) => {
             status: r.status, created_at: r.created_at, updated_at: r.updated_at, finished_at: r.finished_at,
             owner: { name: pickDisplayName(ownerById[r.user_id] || {}), avatar: pickAvatarUrl(ownerById[r.user_id]) },
             bets: b.length, wins: b.filter(x => x.status === 'won').length,
-            latest_bet: latest ? { step: latest.step, status: latest.status, stake: latest.stake, odds_text: latest.odds_text, selection: latest.selection, image_url: latest.image_url, potential_return: latest.potential_return, created_at: latest.created_at } : null,
+            latest_bet: latest ? { step: latest.step, status: latest.status, stake: latest.stake, odds_text: latest.odds_text, selection: latest.selection, image_url: latest.image_url, potential_return: latest.potential_return, created_at: latest.created_at, verified: !!latest.verified } : null,
             followers: f.length, following: !!(me && f.some(x => x.user_id === me.id)), is_owner: !!(me && me.id === r.user_id)
           };
         });
@@ -6743,10 +6774,45 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           if (action === 'challenge_add_bet') {
             if (!isOwner) return res.status(403).json({ error: 'Only the person who started this challenge can add bets' });
             if (ch.status !== 'active') return res.status(400).json({ error: 'This challenge has finished' });
-            if (latest && latest.status === 'pending') return res.status(400).json({ error: 'Mark your last bet as won or lost before adding the next one' });
+            if (latest && latest.status === 'pending') return res.status(400).json({ error: latest.verified ? 'Wait for your last bet to settle before adding the next one' : 'Mark your last bet as won or lost before adding the next one' });
+            // Verified Premier League bet: every leg checked against the real fixtures
+            let vLegs = null;
+            if (body.verified) {
+              const raw = Array.isArray(body.legs) ? body.legs.slice(0, VBET_MAX_LEGS + 1) : [];
+              if (!raw.length) return res.status(400).json({ error: 'Add at least one selection' });
+              if (raw.length > VBET_MAX_LEGS) return res.status(400).json({ error: `Up to ${VBET_MAX_LEGS} selections in one bet` });
+              const mIds = [...new Set(raw.map(l => Number(l.match_id)).filter(Number.isFinite))];
+              const { data: ms } = await masterDb.from('matches').select('id, gameweek, home_team, away_team, kickoff_time, status').in('id', mIds);
+              const gwsV = [...new Set((ms || []).map(m => m.gameweek))];
+              const [{ data: teamsV }, { data: gwMs }] = await Promise.all([
+                masterDb.from('teams').select('id, name'),
+                gwsV.length ? masterDb.from('matches').select('gameweek, home_team, away_team').in('gameweek', gwsV) : Promise.resolve({ data: [] })
+              ]);
+              const teamIdByName = {}; (teamsV || []).forEach(t => { teamIdByName[t.name] = t.id; });
+              const pIds = [...new Set(raw.map(l => Number(l.player_id)).filter(Number.isFinite))];
+              const { data: psV } = pIds.length ? await masterDb.from('players').select('id, web_name, team, element_type, status').in('id', pIds) : { data: [] };
+              const playerById = {}; (psV || []).forEach(p => { playerById[p.id] = p; });
+              vLegs = [];
+              for (const r of raw) {
+                const m = (ms || []).find(x => x.id === Number(r.match_id));
+                const counts = {};
+                (gwMs || []).filter(x => m && x.gameweek === m.gameweek).forEach(x => { [x.home_team, x.away_team].forEach(t => { counts[t] = (counts[t] || 0) + 1; }); });
+                const twice = new Set(Object.keys(counts).filter(t => counts[t] > 1));
+                const out = vbetBuildLeg(r, m, teamIdByName, playerById, twice);
+                if (out.error) return res.status(400).json({ error: out.error });
+                const key = `${out.leg.match_id}|${out.leg.market}|${out.leg.pick}|${out.leg.line}|${out.leg.player_id}`;
+                if (vLegs.some(l => `${l.match_id}|${l.market}|${l.pick}|${l.line}|${l.player_id}` === key)) return res.status(400).json({ error: 'The same selection is in there twice' });
+                vLegs.push(out.leg);
+              }
+              const dec = Math.round(vLegs.reduce((x, l) => x * l.odds_decimal, 1) * 1000) / 1000;
+              if (dec > 1001) return res.status(400).json({ error: 'Those odds are too big — keep the whole bet under 1000/1' });
+              body.odds = String(dec);
+              body.selection = vLegs.map(l => `${l.home} v ${l.away}: ${l.label}`).join('\n');
+            }
             const odds = parseBetOdds(body.odds);
             if (!odds) return res.status(400).json({ error: 'Enter the odds like 5/4, Evens or 2.25' });
-            const selection = String(body.selection || '').trim().slice(0, 300);
+            if (vLegs) odds.text = vLegs.length === 1 ? vLegs[0].odds_text : `${odds.decimal} (${vLegs.length}-fold)`;
+            const selection = String(body.selection || '').trim().slice(0, vLegs ? 1500 : 300);
             let shareUrl = String(body.share_url || '').trim();
             if (shareUrl && !/^https?:\/\/[^\s"'<>]{3,500}$/i.test(shareUrl)) return res.status(400).json({ error: "That share link doesn't look right — it should start with https://" });
             shareUrl = shareUrl ? shareUrl.replace(/^http:/i, 'https:') : null;
@@ -6769,7 +6835,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             const stake = ch.current_amount;
             const { data: nb, error } = await supabaseAdmin.from('bet_challenge_bets').insert({
               challenge_id: ch.id, user_id: user.id, step, stake, odds_text: odds.text, odds_decimal: odds.decimal,
-              potential_return: Math.round(stake * odds.decimal), selection: selection || null, bookmaker: bookmaker || null, share_url: shareUrl, image_url: imageUrl
+              potential_return: Math.round(stake * odds.decimal), selection: selection || null, bookmaker: bookmaker || null, share_url: shareUrl, image_url: imageUrl,
+              verified: !!vLegs, legs: vLegs, locks_at: vLegs ? vLegs.map(l => l.kickoff).sort()[0] : null
             }).select().single();
             if (error) return res.status(500).json({ error: 'Could not save the bet', detail: error.message });
             await supabaseAdmin.from('bet_challenges').update({ updated_at: new Date().toISOString() }).eq('id', ch.id);
@@ -6780,6 +6847,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             if (!bet) return res.status(400).json({ error: 'bet_id is required' });
             if (!latest || bet.id !== latest.id) return res.status(400).json({ error: 'Only the latest bet can be changed' });
             if (bet.status !== 'pending' && !isAdmin) return res.status(400).json({ error: 'This bet has already been settled — ask the admin to change it' });
+            if (bet.verified && !isAdmin) return res.status(403).json({ error: 'Verified bets settle themselves from the real results' });
             const result = body.result;
             if (!['won', 'lost', 'void', 'pending'].includes(result)) return res.status(400).json({ error: 'Result must be won, lost or void' });
             if (result === 'pending' && !isAdmin) return res.status(403).json({ error: 'Only the admin can reopen a bet' });
@@ -6797,6 +6865,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             if (!bet) return res.status(400).json({ error: 'bet_id is required' });
             if (!latest || bet.id !== latest.id) return res.status(400).json({ error: 'Only the latest bet can be removed' });
             if (bet.status !== 'pending' && !isAdmin) return res.status(400).json({ error: 'A settled bet can only be removed by the admin' });
+            if (bet.verified && !isAdmin) {
+              // locked once its first match kicks off (checked against the real kick-off times, in case one moved)
+              const { data: kms } = await masterDb.from('matches').select('kickoff_time, status').in('id', (bet.legs || []).map(l => l.match_id));
+              const started = (kms || []).some(m => m.status !== 'upcoming' || new Date(m.kickoff_time).getTime() <= Date.now())
+                || (bet.locks_at && new Date(bet.locks_at).getTime() <= Date.now());
+              if (started) return res.status(400).json({ error: 'This bet locked at kick-off, so it can\'t be removed now' });
+            }
             await supabaseAdmin.from('bet_challenge_bets').delete().eq('id', bet.id);
             const state = await recomputeBetChallenge(supabaseAdmin, ch);
             return res.status(200).json({ ok: true, challenge: state });
@@ -8371,6 +8446,166 @@ async function recomputeBetChallenge(db, ch) {
   const upd = { current_amount: current, status, updated_at: now, finished_at: status === 'active' ? null : (ch.finished_at || now) };
   await db.from('bet_challenges').update(upd).eq('id', ch.id);
   return { ...ch, ...upd };
+}
+
+// ================= Verified Premier League bets =================
+// A "verified" bet is built from lists (match, bet type, pick) instead of
+// typed text, so the page can settle it itself from the real results:
+// match bets from the final score, player bets from that gameweek's player
+// stats. The poster can't mark it won or lost; only the admin can override.
+// Odds still come from the poster's bookie (we have no odds feed), one price
+// per leg so a void leg can drop out of an accumulator like it would at a bookie.
+const VBET_MARKETS = ['result', 'double_chance', 'btts', 'total_goals', 'correct_score', 'win_to_nil', 'clean_sheet', 'player_score', 'player_assist', 'player_card', 'gk_saves'];
+const VBET_PLAYER_MARKETS = ['player_score', 'player_assist', 'player_card', 'gk_saves'];
+const VBET_GOAL_LINES = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5];
+const VBET_SAVE_LINES = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
+const VBET_MAX_LEGS = 12;
+const VBET_VOID_AFTER_MS = 72 * 3600 * 1000;      // a match never finished (postponed / abandoned)
+const VBET_STATS_SETTLE_MS = 150 * 60 * 1000;     // player stats count once synced 2h30 after kick-off
+
+// Checks one leg the poster picked and writes its wording. Returns { leg } or { error }.
+function vbetBuildLeg(raw, match, teamIdByName, playerById, doubleGwTeams) {
+  if (!match) return { error: 'That match is no longer available' };
+  const ko = new Date(match.kickoff_time).getTime();
+  if (match.status !== 'upcoming' || !(ko > Date.now() + 60 * 1000)) return { error: `${match.home_team} v ${match.away_team} has already kicked off` };
+  const market = String(raw.market || '');
+  if (!VBET_MARKETS.includes(market)) return { error: 'Pick a bet type' };
+  const odds = parseBetOdds(raw.odds);
+  if (!odds) return { error: 'Enter the odds for each selection, like 5/4, Evens or 2.25' };
+  if (odds.decimal > 101) return { error: 'Odds above 100/1 can\'t be used for a single selection' };
+  const H = match.home_team, A = match.away_team;
+  const side = (p) => (p === 'home' ? H : p === 'away' ? A : null);
+  const pick = String(raw.pick == null ? '' : raw.pick);
+  const leg = { match_id: match.id, gw: match.gameweek, home: H, away: A, kickoff: match.kickoff_time, market, pick, line: null,
+    player_id: null, player_name: null, odds_text: odds.text, odds_decimal: odds.decimal, label: '', result: null };
+  switch (market) {
+    case 'result':
+      if (!['home', 'draw', 'away'].includes(pick)) return { error: 'Pick home, draw or away' };
+      leg.label = pick === 'draw' ? 'Draw' : `${side(pick)} to win`; break;
+    case 'double_chance':
+      if (!['home_draw', 'draw_away', 'home_away'].includes(pick)) return { error: 'Pick a double chance' };
+      leg.label = pick === 'home_draw' ? `${H} or draw` : pick === 'draw_away' ? `Draw or ${A}` : `${H} or ${A}`; break;
+    case 'btts':
+      if (!['yes', 'no'].includes(pick)) return { error: 'Pick yes or no' };
+      leg.label = `Both teams to score: ${pick === 'yes' ? 'Yes' : 'No'}`; break;
+    case 'total_goals': {
+      const line = Number(raw.line);
+      if (!['over', 'under'].includes(pick) || !VBET_GOAL_LINES.includes(line)) return { error: 'Pick over or under and a goals line' };
+      leg.line = line; leg.label = `${pick === 'over' ? 'Over' : 'Under'} ${line} goals`; break;
+    }
+    case 'correct_score': {
+      const m = pick.match(/^(\d{1,2})-(\d{1,2})$/);
+      if (!m || +m[1] > 9 || +m[2] > 9) return { error: 'Enter a correct score like 2-1' };
+      leg.pick = `${+m[1]}-${+m[2]}`; leg.label = `Correct score ${H} ${+m[1]}-${+m[2]} ${A}`; break;
+    }
+    case 'win_to_nil':
+      if (!['home', 'away'].includes(pick)) return { error: 'Pick a team' };
+      leg.label = `${side(pick)} to win to nil`; break;
+    case 'clean_sheet':
+      if (!['home', 'away'].includes(pick)) return { error: 'Pick a team' };
+      leg.label = `${side(pick)} to keep a clean sheet`; break;
+    default: {
+      const p = playerById[Number(raw.player_id)];
+      if (!p) return { error: 'Pick a player' };
+      const pSide = p.team === teamIdByName[H] ? 'home' : p.team === teamIdByName[A] ? 'away' : null;
+      if (!pSide) return { error: `${p.web_name} doesn't play for ${H} or ${A}` };
+      if (p.status === 'u') return { error: `${p.web_name} isn't available` };
+      if (doubleGwTeams.has(side(pSide))) return { error: `${side(pSide)} play twice this gameweek, so player bets on their games can't be checked` };
+      leg.player_id = p.id; leg.player_name = p.web_name; leg.pick = pSide;
+      if (market === 'player_score') {
+        const line = Number(raw.line || 1);
+        if (![1, 2, 3].includes(line)) return { error: 'Pick anytime, 2+ or hat-trick' };
+        leg.line = line; leg.label = line === 1 ? `${p.web_name} to score` : line === 2 ? `${p.web_name} to score 2+` : `${p.web_name} to score a hat-trick`;
+      } else if (market === 'player_assist') {
+        leg.label = `${p.web_name} to assist`;
+      } else if (market === 'player_card') {
+        leg.label = `${p.web_name} to be shown a card`;
+      } else {
+        const line = Number(raw.line);
+        if (p.element_type !== 1) return { error: 'Saves bets are for goalkeepers only' };
+        if (!VBET_SAVE_LINES.includes(line)) return { error: 'Pick a saves line' };
+        leg.line = line; leg.label = `${p.web_name} over ${line} saves`;
+      }
+    }
+  }
+  return { leg };
+}
+
+// One leg's result: 'won' | 'lost' | 'void', or null while we're still waiting.
+function vbetJudge(leg, m, stat) {
+  const ko = new Date((m && m.kickoff_time) || leg.kickoff).getTime();   // the match's real kick-off (it may have moved)
+  const late = Date.now() - ko > VBET_VOID_AFTER_MS;
+  const finished = m && m.status === 'finished' && m.home_score != null && m.away_score != null;
+  if (!finished) return late ? 'void' : null;
+  const h = Number(m.home_score), a = Number(m.away_score);
+  const win = (x) => (x ? 'won' : 'lost');
+  switch (leg.market) {
+    case 'result': return win(leg.pick === 'home' ? h > a : leg.pick === 'away' ? a > h : h === a);
+    case 'double_chance': return win(leg.pick === 'home_draw' ? h >= a : leg.pick === 'draw_away' ? a >= h : h !== a);
+    case 'btts': return win((h > 0 && a > 0) === (leg.pick === 'yes'));
+    case 'total_goals': return win(leg.pick === 'over' ? h + a > leg.line : h + a < leg.line);
+    case 'correct_score': return win(`${h}-${a}` === leg.pick);
+    case 'win_to_nil': return win(leg.pick === 'home' ? h > a && a === 0 : a > h && h === 0);
+    case 'clean_sheet': return win(leg.pick === 'home' ? a === 0 : h === 0);
+  }
+  // player bets: wait for the stats synced after this match (up to 3 days)
+  const fresh = stat && stat.synced_at && new Date(stat.synced_at).getTime() >= ko + VBET_STATS_SETTLE_MS;
+  if (!fresh) return late ? (stat ? vbetJudgePlayer(leg, stat) : 'void') : null;
+  return vbetJudgePlayer(leg, stat);
+}
+function vbetJudgePlayer(leg, s) {
+  if (!s.minutes) return 'void';                       // didn't play: void, like a bookie
+  if (leg.market === 'player_score') return (s.goals_scored || 0) >= leg.line ? 'won' : 'lost';
+  if (leg.market === 'player_assist') return (s.assists || 0) >= 1 ? 'won' : 'lost';
+  if (leg.market === 'player_card') return (s.yellow_cards || 0) + (s.red_cards || 0) >= 1 ? 'won' : 'lost';
+  if (leg.market === 'gk_saves') return (s.saves || 0) > leg.line ? 'won' : 'lost';
+  return null;
+}
+
+// Settles every pending verified bet (or just those in the given challenges)
+// as far as the real results allow. Safe to call often: it only writes changes.
+async function settleVerifiedBets(db, masterDb, challengeIds) {
+  let q = db.from('bet_challenge_bets').select('*').eq('verified', true).eq('status', 'pending');
+  if (challengeIds && challengeIds.length) q = q.in('challenge_id', challengeIds);
+  const { data: bets } = await q;
+  if (!bets || !bets.length) return 0;
+  const legsAll = bets.flatMap(b => b.legs || []);
+  const matchIds = [...new Set(legsAll.map(l => l.match_id))];
+  const { data: matches } = await masterDb.from('matches').select('id, gameweek, home_team, away_team, kickoff_time, home_score, away_score, status').in('id', matchIds);
+  const matchById = {}; (matches || []).forEach(m => { matchById[m.id] = m; });
+  const statByKey = {};
+  const pl = legsAll.filter(l => l.player_id);
+  for (const gw of [...new Set(pl.map(l => l.gw))]) {
+    const ids = [...new Set(pl.filter(l => l.gw === gw).map(l => l.player_id))];
+    const { data: rows } = await masterDb.from('player_gameweek_stats').select('player_id, gameweek, goals_scored, assists, yellow_cards, red_cards, saves, minutes, synced_at').eq('gameweek', gw).in('player_id', ids);
+    (rows || []).forEach(r => { statByKey[`${r.gameweek}:${r.player_id}`] = r; });
+  }
+  let settled = 0;
+  for (const b of bets) {
+    let changed = false;
+    const legs = (b.legs || []).map(l => {
+      if (l.result) return l;
+      const r = vbetJudge(l, matchById[l.match_id], l.player_id ? statByKey[`${l.gw}:${l.player_id}`] : null);
+      if (r) { changed = true; return { ...l, result: r }; }
+      return l;
+    });
+    if (!changed) continue;
+    const upd = { legs };
+    if (legs.some(l => l.result === 'lost')) { upd.status = 'lost'; upd.actual_return = null; }
+    else if (legs.every(l => l.result)) {
+      const live = legs.filter(l => l.result === 'won');
+      if (!live.length) { upd.status = 'void'; upd.actual_return = null; }
+      else { upd.status = 'won'; upd.actual_return = Math.round(b.stake * live.reduce((x, l) => x * Number(l.odds_decimal), 1)); }
+    }
+    if (upd.status) upd.settled_at = new Date().toISOString();
+    await db.from('bet_challenge_bets').update(upd).eq('id', b.id).eq('status', 'pending');
+    if (upd.status) {
+      settled++;
+      const { data: ch } = await db.from('bet_challenges').select('*').eq('id', b.challenge_id).maybeSingle();
+      if (ch) await recomputeBetChallenge(db, ch);
+    }
+  }
+  return settled;
 }
 
 // ================= Season tournament prizes (1st / 2nd / 3rd) =================
