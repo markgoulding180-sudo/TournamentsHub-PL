@@ -218,5 +218,11 @@
       (document.head || document.documentElement).appendChild(l);
     }
     if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
+    // keep Chrome's install offer so Bet Challenges can show its own "Install" button
+    window.addEventListener('beforeinstallprompt', function (e) {
+      if (location.pathname.indexOf('/challenges') === 0) e.preventDefault();   // the page shows its own button instead
+      window.__gbInstall = e;
+      document.dispatchEvent(new Event('gb-installable'));
+    });
   } catch (e) {}
 })();

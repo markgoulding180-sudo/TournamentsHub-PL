@@ -212,6 +212,16 @@
     .sleg.void .lt b{ text-decoration:line-through; color:var(--text-dim); }
     .auto-note{ margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
 
+    /* Android: install the app (so bet slips can be shared straight in) */
+    .install-bar{ display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:14px; border-radius:14px; border:1px solid var(--accent);
+      background:linear-gradient(135deg, rgba(59,130,246,0.18), rgba(29,78,216,0.08)); }
+    .install-bar[hidden]{ display:none; }
+    .install-bar > i{ font-size:22px; color:var(--accent-2); }
+    .install-bar > div{ flex:1; min-width:0; }
+    .install-bar b{ display:block; font-size:14.5px; }
+    .install-bar span{ font-size:12.5px; color:var(--text-dim); }
+    .install-x{ width:30px; height:30px; border-radius:50%; flex:none; color:var(--text-dim); }
+
     /* settle pop-up */
     .st-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
     .st-head b{ font-size:13px; color:var(--text-dim); }
@@ -244,6 +254,12 @@
 </head>
 <body>
   <main>
+    <div class="install-bar" id="installBar" hidden>
+      <i class="fas fa-mobile-screen-button"></i>
+      <div><b>Install the GB Hub app</b><span>Then share bets straight from bet365: tap Share → GB Hub</span></div>
+      <button type="button" class="btn btn-primary btn-sm" id="installBtn"><i class="fas fa-download"></i> Install</button>
+      <button type="button" class="install-x" id="installX" aria-label="Not now"><i class="fas fa-xmark"></i></button>
+    </div>
     <div id="listView">
       <div class="ch-top">
         <div>
@@ -1061,6 +1077,22 @@
     SHARED = null;
     toast('Bet slip added — fill in the odds and post it');
   }
+
+  // ---------- Android: "Install" button (Chrome's own install offer, on our page) ----------
+  (function () {
+    const bar = $('installBar');
+    const standalone = () => window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    const dismissed = () => { try { return localStorage.getItem('gb_install_no') === '1'; } catch (e) { return false; } };
+    const show = () => { if (window.__gbInstall && !standalone() && !dismissed()) bar.hidden = false; };
+    document.addEventListener('gb-installable', show); show();
+    $('installBtn').onclick = async () => {
+      const ev = window.__gbInstall; if (!ev) return;
+      try { ev.prompt(); const r = await ev.userChoice; if (r && r.outcome === 'accepted') bar.hidden = true; } catch (e) {}
+      window.__gbInstall = null;
+    };
+    $('installX').onclick = () => { bar.hidden = true; try { localStorage.setItem('gb_install_no', '1'); } catch (e) {} };
+    window.addEventListener('appinstalled', () => { bar.hidden = true; toast('Installed — GB Hub is on your home screen. Now Share a bet from bet365 → GB Hub'); });
+  })();
 
   // ---------- routing ----------
   function route() {
