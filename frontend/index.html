@@ -336,6 +336,14 @@ main{ position:relative; z-index:1; width:100%; padding:20px var(--gutter) 40px;
 .soon-card b{ display:block; font-family:var(--font-head); font-weight:700; font-size:15px; }
 .soon-label{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:1.4px; text-transform:uppercase; color:var(--text-dim); margin-top:26px; }
 
+/* Picture buttons under the hero */
+.pic-bar{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; }
+.pic-btn{ display:block; padding:0; border:0; background:none; cursor:pointer; border-radius:16px; transition:transform .18s ease, filter .18s ease; }
+.pic-btn img{ display:block; width:100%; height:auto; }
+.pic-btn:hover{ transform:translateY(-3px) scale(1.015); filter:brightness(1.12) drop-shadow(0 8px 22px rgba(59,130,246,.45)); }
+.pic-btn:active{ transform:scale(.98); }
+.pic-btn:focus-visible{ outline:2px solid var(--accent-2); outline-offset:3px; }
+@media (max-width:899px){ .pic-bar{ gap:6px; } }
 /* Filter chips */
 .chips{ display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin-bottom:18px; }
 .chips::-webkit-scrollbar{ display:none; }
@@ -1115,6 +1123,13 @@ a.np-item:hover{ border-color:var(--accent); }
     </div>
   </section>
 
+  <!-- ===== PICTURE BUTTONS: quick ways in, right under the hero ===== -->
+  <div class="pic-bar" id="picBar" aria-label="Quick links">
+    <button type="button" class="pic-btn" data-go="football"><img src="assets/btn-football.webp" alt="Football tournaments — enter" width="720" height="309" decoding="async"></button>
+    <button type="button" class="pic-btn" data-go="darts"><img src="assets/btn-darts.webp" alt="Darts tournaments — enter" width="720" height="317" decoding="async"></button>
+    <button type="button" class="pic-btn" data-go="mine"><img src="assets/btn-mine.webp" alt="My tournaments — enter" width="720" height="311" decoding="async"></button>
+  </div>
+
   <!-- ===== SECTION NAV: built automatically from every section marked data-nav ===== -->
   <nav class="sec-nav" id="secNav" aria-label="Jump to a section">
     <button type="button" class="sn-arrow prev" id="snPrev" aria-label="Scroll left"><svg class="icon" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button>
@@ -1830,6 +1845,7 @@ function applyFilter(){
     let ok = true;
     if (f.kind === 'chip' && f.v !== 'all') ok = el.dataset.league === f.v || el.dataset.zone === f.v;
     if (f.kind === 'combo') ok = el.dataset.sport === f.sport && el.dataset.zone === f.zone;
+    if (f.kind === 'sport') ok = el.dataset.sport === f.v;
     el.hidden = !ok; if (ok) shown++;
   });
   const showSoon = f.kind === 'all' || (f.kind === 'chip' && (f.v === 'all' || f.v === 'darts'));
@@ -1844,6 +1860,16 @@ document.getElementById('chips').addEventListener('click', e => {
   const c = e.target.closest('.chip'); if (!c) return;
   STATE.filter = c.classList.contains('combo') || c.dataset.f === 'all' ? { kind:'all' } : { kind:'chip', v:c.dataset.f };
   applyFilter();
+});
+// picture buttons: Football / Darts show those tournaments, My Tournaments jumps to your section
+document.getElementById('picBar').addEventListener('click', e => {
+  const b = e.target.closest('.pic-btn'); if (!b) return;
+  const go = b.dataset.go;
+  const to = id => { const el = document.getElementById(id); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 130, behavior:'smooth' }); };
+  if (go === 'mine') return to('mineSection');
+  STATE.filter = go === 'darts' ? { kind:'chip', v:'darts' } : { kind:'sport', v:'football' };
+  applyFilter();
+  to('all');
 });
 document.getElementById('banners').addEventListener('click', e => {
   const b = e.target.closest('.banner'); if (!b) return;
@@ -2029,7 +2055,6 @@ async function loadNotifs(){
   // 'pills' = the original scrolling pill strip. Change this one word to switch back.
   const NAV_STYLE = 'tabs';
   const TAB_ITEMS = [
-    { id:'mineSection',   label:'My Tournaments', icon:'i-trophy' },
     { href:'/challenges',  label:'Challenges',     icon:'i-ticket' },   // opens the Bet Challenges page
     { id:'newsSection',   label:'News',           icon:'i-news' },
     { id:'forumSection',  label:'Forum',          icon:'i-chat' },
