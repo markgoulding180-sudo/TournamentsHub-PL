@@ -212,16 +212,6 @@
     .sleg.void .lt b{ text-decoration:line-through; color:var(--text-dim); }
     .auto-note{ margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
 
-    /* Android: install the app (so bet slips can be shared straight in) */
-    .install-bar{ display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:14px; border-radius:14px; border:1px solid var(--accent);
-      background:linear-gradient(135deg, rgba(59,130,246,0.18), rgba(29,78,216,0.08)); }
-    .install-bar[hidden]{ display:none; }
-    .install-bar > i{ font-size:22px; color:var(--accent-2); }
-    .install-bar > div{ flex:1; min-width:0; }
-    .install-bar b{ display:block; font-size:14.5px; }
-    .install-bar span{ font-size:12.5px; color:var(--text-dim); }
-    .install-x{ width:30px; height:30px; border-radius:50%; flex:none; color:var(--text-dim); }
-
     /* settle pop-up */
     .st-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
     .st-head b{ font-size:13px; color:var(--text-dim); }
@@ -233,9 +223,6 @@
     .tg.won.on{ background:rgba(34,197,94,0.16); border-color:var(--green); color:var(--green); }
     .tg.lost.on{ background:rgba(239,68,68,0.14); border-color:var(--red); color:#fca5a5; }
     .slip[hidden], .step-sel[hidden]{ display:none !important; }
-    .pk-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 14px; border-radius:12px; border:1px solid var(--border-2); background:rgba(255,255,255,0.04); }
-    .pk-item b{ display:block; font-size:15px; } .pk-item span{ font-size:12px; color:var(--text-dim); }
-    .pk-item:hover{ border-color:var(--accent); }
     .slip-pair{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
     .slip-pair figure{ margin:0; }
     .slip-pair figcaption{ font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-faint); margin-top:10px; }
@@ -255,12 +242,6 @@
 </head>
 <body>
   <main>
-    <div class="install-bar" id="installBar" hidden>
-      <i class="fas fa-mobile-screen-button"></i>
-      <div><b>Install the GB Hub app</b><span>Then share bets straight from bet365: tap Share → GB Hub</span></div>
-      <button type="button" class="btn btn-primary btn-sm" id="installBtn"><i class="fas fa-download"></i> Install</button>
-      <button type="button" class="install-x" id="installX" aria-label="Not now"><i class="fas fa-xmark"></i></button>
-    </div>
     <div id="listView">
       <div class="ch-top">
         <div>
@@ -338,9 +319,9 @@
         <input class="inp" id="betOdds" placeholder="e.g. 5/4, Evens or 2.25" autocomplete="off">
       </div>
       <div class="field">
-        <label>How many selections are on the slip? <small>(1 for a single)</small></label>
+        <label>How many selections are on the slip? <small>(1 for a single, up to 4 — it all has to fit on one screenshot)</small></label>
         <div class="pick-row"><button type="button" class="btn btn-ghost btn-sm" id="selMinus" aria-label="Fewer">−</button>
-          <input class="inp sm" id="betSelN" type="number" min="1" max="30" inputmode="numeric" value="1" style="width:70px;text-align:center;">
+          <input class="inp sm" id="betSelN" type="number" min="1" max="4" inputmode="numeric" value="1" style="width:70px;text-align:center;">
           <button type="button" class="btn btn-ghost btn-sm" id="selPlus" aria-label="More">+</button></div>
       </div>
       <div class="field">
@@ -365,16 +346,6 @@
       </div>
       <div class="err" id="betErr"></div>
       <button class="btn btn-primary" id="betGo" style="width:100%;"><i class="fas fa-paper-plane"></i> Post Bet</button>
-    </div>
-  </div>
-
-  <!-- A bet shared from a betting app (Android): which challenge is it for? -->
-  <div class="sheet-bg" id="pickSheet">
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pkH">
-      <h3 id="pkH"><span>Which challenge is it for?</span> <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
-      <div class="sub">Your shared bet slip is ready to post.</div>
-      <img class="slip" id="pkImg" alt="Shared bet slip" style="max-height:200px;margin:0 0 12px;" hidden>
-      <div class="st-rows" id="pkList"></div>
     </div>
   </div>
 
@@ -676,9 +647,8 @@
     $('startGo').disabled = true;
     try {
       const d = await post({ action: 'challenge_create', start_amount: s, target_amount: t, title: $('chName').value.trim() });
-      closeSheets();
-      if (SHARED) { useShared(d.challenge.id); }
-      else { toast('Challenge started — now add your first bet'); history.pushState({}, '', '/challenges?c=' + d.challenge.id); route(); }
+      closeSheets(); toast('Challenge started — now add your first bet');
+      history.pushState({}, '', '/challenges?c=' + d.challenge.id); route();
     } catch (err) { $('startErr').textContent = err.message; }
     $('startGo').disabled = false;
   };
@@ -884,7 +854,7 @@
       else toast('No link found — copy the share link from your betting app first', true);
     } catch (e) { toast('Long-press the box and choose Paste', true); $('betLink').focus(); }
   };
-  const selN = (d) => { const v = Math.min(30, Math.max(1, (parseInt($('betSelN').value, 10) || 1) + d)); $('betSelN').value = v; };
+  const selN = (d) => { const v = Math.min(4, Math.max(1, (parseInt($('betSelN').value, 10) || 1) + d)); $('betSelN').value = v; };
   $('selMinus').onclick = () => selN(-1); $('selPlus').onclick = () => selN(1);
   $('betSelN').addEventListener('change', () => selN(0));
   $('betGo').onclick = async () => {
@@ -1036,88 +1006,9 @@
     } catch (e) {}
   }
 
-  // ---------- a bet shared straight from a betting app (Android "Share" → GB Hub) ----------
-  let SHARED = null;
-  async function takeSharedBet() {
-    SET_CHECKED = true;   // no settle pop-up on top of this
-    history.replaceState(null, '', '/challenges');
-    let blob = null, info = {};
-    try {
-      const box = await caches.open('gb-shared-bet');
-      const r = await box.match('/shared/slip'); if (r) blob = await r.blob();
-      const i = await box.match('/shared/info'); if (i) info = await i.json();
-      await box.delete('/shared/slip'); await box.delete('/shared/info');
-    } catch (e) {}
-    const link = ((String(info.url || '') + ' ' + String(info.text || '')).match(/https?:\/\/[^\s"'<>]+/i) || [])[0] || '';
-    if (!blob && !link) { toast('Nothing came through from the share — try sharing the bet again', true); return; }
-    SHARED = { blob, link, text: String(info.text || '').replace(link, '').trim() };
-    if (!token()) { loginFirst('Log in, then share the bet again'); return; }
-    let mine = [];
-    try { mine = (await api({ challenges: 'mine' })).challenges || []; } catch (e) {}
-    const ready = mine.filter(c => c.status === 'active' && !(c.latest_bet && c.latest_bet.status === 'pending'));
-    if (!ready.length) {
-      const busy = mine.some(c => c.status === 'active');
-      toast(busy ? 'Settle your open bet first, then share the new one' : 'Start a challenge first — your shared bet will go straight in', !busy ? false : true);
-      if (!busy) { $('startErr').textContent = ''; openSheet('startSheet'); }
-      return;
-    }
-    if (ready.length === 1) return useShared(ready[0].id);
-    document.querySelector('#pickSheet h3 span').textContent = 'Which challenge is it for?';
-    document.querySelector('#pickSheet .sub').textContent = 'Your shared bet slip is ready to post.';
-    $('pkImg').hidden = !blob; if (blob) $('pkImg').src = URL.createObjectURL(blob);
-    $('pkList').innerHTML = ready.map(c => `<button type="button" class="pk-item" data-pk-ch="${esc(c.id)}"><div><b>${esc(c.title)}</b><span>${money(c.current_amount)} running · Bet ${(c.bets || 0) + 1} next</span></div><i class="fas fa-chevron-right"></i></button>`).join('');
-    openSheet('pickSheet');
-  }
-  $('pkList').addEventListener('click', e => { const b = e.target.closest('[data-pk-ch]'); if (b) { closeSheets(); useShared(b.dataset.pkCh); } });
-  async function useShared(chId) {
-    history.pushState({}, '', '/challenges?c=' + chId);
-    markTab(); $('listView').hidden = true; $('detailView').hidden = false;
-    await loadDetail(chId);
-    if (!CUR || !SHARED) return;
-    openBet();
-    if (SHARED.link) $('betLink').value = SHARED.link;
-    if (SHARED.blob) shrinkImage(SHARED.blob, img => { IMG = { base64: img.base64, ext: img.ext }; $('betPreviewImg').src = img.url; $('betPreview').classList.add('show'); }, msg => { $('betErr').textContent = msg; });
-    SHARED = null;
-    toast('Bet slip added — fill in the odds and post it');
-  }
-
-  // ---------- Android: "Install" button (Chrome's own install offer, on our page) ----------
-  (function () {
-    const bar = $('installBar');
-    const standalone = () => window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    const dismissed = () => { try { return localStorage.getItem('gb_install_no') === '1'; } catch (e) { return false; } };
-    // Android phones always see it (Chrome only offers one-tap install after you've used
-    // the page for a bit, so until then the button explains the menu route instead)
-    const android = /Android/i.test(navigator.userAgent);
-    const show = () => { if (android && !standalone() && !dismissed()) bar.hidden = false; };
-    document.addEventListener('gb-installable', show); show();
-    $('installBtn').onclick = async () => {
-      const ev = window.__gbInstall;
-      if (!ev) {
-        const samsung = /SamsungBrowser/i.test(navigator.userAgent);
-        alertSheet(samsung
-          ? 'In Samsung Internet: tap the <b>☰ menu</b> (bottom right), then <b>Add page to</b> → <b>Home screen</b>.'
-          : 'In Chrome: tap the <b>⋮ menu</b> (top right), then <b>Install app</b> (or <b>Add to Home screen</b> → <b>Install</b>).');
-        return;
-      }
-      try { ev.prompt(); const r = await ev.userChoice; if (r && r.outcome === 'accepted') bar.hidden = true; } catch (e) {}
-      window.__gbInstall = null;
-    };
-    function alertSheet(html) {
-      $('pkImg').hidden = true;
-      document.querySelector('#pickSheet h3 span').textContent = 'Install GB Hub';
-      document.querySelector('#pickSheet .sub').innerHTML = html + '<br><br>Then in bet365 tap <b>Share</b> → <b>GB Hub</b> and the bet slip comes straight here.';
-      $('pkList').innerHTML = '<button type="button" class="btn btn-primary" data-close style="width:100%;">Got it</button>';
-      openSheet('pickSheet');
-    }
-    $('installX').onclick = () => { bar.hidden = true; try { localStorage.setItem('gb_install_no', '1'); } catch (e) {} };
-    window.addEventListener('appinstalled', () => { bar.hidden = true; toast('Installed — GB Hub is on your home screen. Now Share a bet from bet365 → GB Hub'); });
-  })();
-
   // ---------- routing ----------
   function route() {
     const p = new URLSearchParams(location.search);
-    if (p.get('shared')) { markTab(); $('detailView').hidden = true; $('listView').hidden = false; loadList(); takeSharedBet(); return; }
     markTab();
     if (p.get('c')) loadDetail(p.get('c'));
     else { CUR = null; $('detailView').hidden = true; $('listView').hidden = false; loadList(); }

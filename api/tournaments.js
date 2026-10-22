@@ -6810,6 +6810,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               body.odds = String(dec);
               body.selection = vLegs.map(l => `${l.home} v ${l.away}: ${l.label}`).join('\n');
             }
+            if (!vLegs && Number(body.selections) > 4) return res.status(400).json({ error: 'Up to 4 selections per bet — it all has to fit on one screenshot' });
             const odds = parseBetOdds(body.odds);
             if (!odds) return res.status(400).json({ error: 'Enter the odds like 5/4, Evens or 2.25' });
             if (vLegs) odds.text = vLegs.length === 1 ? vLegs[0].odds_text : `${odds.decimal} (${vLegs.length}-fold)`;
@@ -6838,7 +6839,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               challenge_id: ch.id, user_id: user.id, step, stake, odds_text: odds.text, odds_decimal: odds.decimal,
               potential_return: Math.round(stake * odds.decimal), selection: selection || null, bookmaker: bookmaker || null, share_url: shareUrl, image_url: imageUrl,
               verified: !!vLegs, legs: vLegs, locks_at: vLegs ? vLegs.map(l => l.kickoff).sort()[0] : null,
-              selections_count: vLegs ? vLegs.length : Math.min(30, Math.max(1, Math.round(Number(body.selections) || 1)))
+              selections_count: vLegs ? vLegs.length : Math.min(4, Math.max(1, Math.round(Number(body.selections) || 1)))
             }).select().single();
             if (error) return res.status(500).json({ error: 'Could not save the bet', detail: error.message });
             await supabaseAdmin.from('bet_challenges').update({ updated_at: new Date().toISOString() }).eq('id', ch.id);
@@ -8499,7 +8500,7 @@ const VBET_MARKETS = ['result', 'double_chance', 'btts', 'total_goals', 'correct
 const VBET_PLAYER_MARKETS = ['player_score', 'player_assist', 'player_card', 'gk_saves'];
 const VBET_GOAL_LINES = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5];
 const VBET_SAVE_LINES = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5];
-const VBET_MAX_LEGS = 12;
+const VBET_MAX_LEGS = 4;          // same cap as photo bets: up to 4 selections
 const VBET_VOID_AFTER_MS = 72 * 3600 * 1000;      // a match never finished (postponed / abandoned)
 const VBET_STATS_SETTLE_MS = 150 * 60 * 1000;     // player stats count once synced 2h30 after kick-off
 
