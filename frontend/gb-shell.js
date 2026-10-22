@@ -227,7 +227,6 @@
         '<a href="/wallet">' + ic('wallet') + 'Wallet</a>' +
         '<a href="/how-it-works">' + ic('play') + 'How It Works</a>' +
         '<a href="/forum">' + ic('chat') + 'Forum</a>' +
-        '<a href="/challenges">' + ic('stats') + 'Bet Challenges</a>' +
         (u && u.is_admin ? '<a href="/admin">' + ic('cog') + 'Admin</a>' : '') +
         '<div class="gbs-drawer-label">Leaderboards</div>' +
         BOARDS.map(function (b) { return '<a href="' + b[1] + '">' + ic('chart') + esc(b[0]) + '</a>'; }).join('') +
