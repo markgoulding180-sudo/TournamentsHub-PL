@@ -205,3 +205,18 @@
   window.addEventListener('pageshow', check);
   setInterval(check, 60 * 1000);     // just reads the saved pass; only calls out when it's nearly up
 })();
+
+// ---- Android: GB Hub can be added to the home screen as an app, so a
+// betting app's Share button can send a bet slip straight to Bet Challenges.
+// iPhone is left exactly as it was (Apple doesn't let websites into the share
+// menu, and a home-screen app there would need its own log-in).
+(function () {
+  try {
+    if (!/Android/i.test(navigator.userAgent)) return;
+    if (!document.querySelector('link[rel="manifest"]')) {
+      var l = document.createElement('link'); l.rel = 'manifest'; l.href = '/manifest.webmanifest';
+      (document.head || document.documentElement).appendChild(l);
+    }
+    if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
+  } catch (e) {}
+})();

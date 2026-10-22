@@ -1,0 +1,27 @@
+{
+  "name": "GB Hub",
+  "short_name": "GB Hub",
+  "description": "Sports prediction tournaments",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050a1a",
+  "theme_color": "#050a1a",
+  "icons": [
+    { "src": "/assets/app-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/app-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/app-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "share_target": {
+    "action": "/share-bet",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "slip", "accept": ["image/*"] }]
+    }
+  }
+}

@@ -222,6 +222,9 @@
     .tg{ padding:7px 12px; border-radius:9px; font-weight:700; font-size:13px; border:1px solid var(--border-2); color:var(--text-dim); background:rgba(255,255,255,0.03); }
     .tg.won.on{ background:rgba(34,197,94,0.16); border-color:var(--green); color:var(--green); }
     .tg.lost.on{ background:rgba(239,68,68,0.14); border-color:var(--red); color:#fca5a5; }
+    .pk-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 14px; border-radius:12px; border:1px solid var(--border-2); background:rgba(255,255,255,0.04); }
+    .pk-item b{ display:block; font-size:15px; } .pk-item span{ font-size:12px; color:var(--text-dim); }
+    .pk-item:hover{ border-color:var(--accent); }
     .slip-pair{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
     .slip-pair figure{ margin:0; }
     .slip-pair figcaption{ font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-faint); margin-top:10px; }
@@ -345,6 +348,16 @@
       </div>
       <div class="err" id="betErr"></div>
       <button class="btn btn-primary" id="betGo" style="width:100%;"><i class="fas fa-paper-plane"></i> Post Bet</button>
+    </div>
+  </div>
+
+  <!-- A bet shared from a betting app (Android): which challenge is it for? -->
+  <div class="sheet-bg" id="pickSheet">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pkH">
+      <h3 id="pkH"><span>Which challenge is it for?</span> <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
+      <div class="sub">Your shared bet slip is ready to post.</div>
+      <img class="slip" id="pkImg" alt="Shared bet slip" style="max-height:200px;margin:0 0 12px;" hidden>
+      <div class="st-rows" id="pkList"></div>
     </div>
   </div>
 
@@ -646,8 +659,9 @@
     $('startGo').disabled = true;
     try {
       const d = await post({ action: 'challenge_create', start_amount: s, target_amount: t, title: $('chName').value.trim() });
-      closeSheets(); toast('Challenge started — now add your first bet');
-      history.pushState({}, '', '/challenges?c=' + d.challenge.id); route();
+      closeSheets();
+      if (SHARED) { useShared(d.challenge.id); }
+      else { toast('Challenge started — now add your first bet'); history.pushState({}, '', '/challenges?c=' + d.challenge.id); route(); }
     } catch (err) { $('startErr').textContent = err.message; }
     $('startGo').disabled = false;
   };
@@ -1005,9 +1019,53 @@
     } catch (e) {}
   }
 
+  // ---------- a bet shared straight from a betting app (Android "Share" → GB Hub) ----------
+  let SHARED = null;
+  async function takeSharedBet() {
+    SET_CHECKED = true;   // no settle pop-up on top of this
+    history.replaceState(null, '', '/challenges');
+    let blob = null, info = {};
+    try {
+      const box = await caches.open('gb-shared-bet');
+      const r = await box.match('/shared/slip'); if (r) blob = await r.blob();
+      const i = await box.match('/shared/info'); if (i) info = await i.json();
+      await box.delete('/shared/slip'); await box.delete('/shared/info');
+    } catch (e) {}
+    const link = ((String(info.url || '') + ' ' + String(info.text || '')).match(/https?:\/\/[^\s"'<>]+/i) || [])[0] || '';
+    if (!blob && !link) { toast('Nothing came through from the share — try sharing the bet again', true); return; }
+    SHARED = { blob, link, text: String(info.text || '').replace(link, '').trim() };
+    if (!token()) { loginFirst('Log in, then share the bet again'); return; }
+    let mine = [];
+    try { mine = (await api({ challenges: 'mine' })).challenges || []; } catch (e) {}
+    const ready = mine.filter(c => c.status === 'active' && !(c.latest_bet && c.latest_bet.status === 'pending'));
+    if (!ready.length) {
+      const busy = mine.some(c => c.status === 'active');
+      toast(busy ? 'Settle your open bet first, then share the new one' : 'Start a challenge first — your shared bet will go straight in', !busy ? false : true);
+      if (!busy) { $('startErr').textContent = ''; openSheet('startSheet'); }
+      return;
+    }
+    if (ready.length === 1) return useShared(ready[0].id);
+    $('pkImg').hidden = !blob; if (blob) $('pkImg').src = URL.createObjectURL(blob);
+    $('pkList').innerHTML = ready.map(c => `<button type="button" class="pk-item" data-pk-ch="${esc(c.id)}"><div><b>${esc(c.title)}</b><span>${money(c.current_amount)} running · Bet ${(c.bets || 0) + 1} next</span></div><i class="fas fa-chevron-right"></i></button>`).join('');
+    openSheet('pickSheet');
+  }
+  $('pkList').addEventListener('click', e => { const b = e.target.closest('[data-pk-ch]'); if (b) { closeSheets(); useShared(b.dataset.pkCh); } });
+  async function useShared(chId) {
+    history.pushState({}, '', '/challenges?c=' + chId);
+    markTab(); $('listView').hidden = true; $('detailView').hidden = false;
+    await loadDetail(chId);
+    if (!CUR || !SHARED) return;
+    openBet();
+    if (SHARED.link) $('betLink').value = SHARED.link;
+    if (SHARED.blob) shrinkImage(SHARED.blob, img => { IMG = { base64: img.base64, ext: img.ext }; $('betPreviewImg').src = img.url; $('betPreview').classList.add('show'); }, msg => { $('betErr').textContent = msg; });
+    SHARED = null;
+    toast('Bet slip added — fill in the odds and post it');
+  }
+
   // ---------- routing ----------
   function route() {
     const p = new URLSearchParams(location.search);
+    if (p.get('shared')) { markTab(); $('detailView').hidden = true; $('listView').hidden = false; loadList(); takeSharedBet(); return; }
     markTab();
     if (p.get('c')) loadDetail(p.get('c'));
     else { CUR = null; $('detailView').hidden = true; $('listView').hidden = false; loadList(); }
