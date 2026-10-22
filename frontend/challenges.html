@@ -232,6 +232,7 @@
     .tg{ padding:7px 12px; border-radius:9px; font-weight:700; font-size:13px; border:1px solid var(--border-2); color:var(--text-dim); background:rgba(255,255,255,0.03); }
     .tg.won.on{ background:rgba(34,197,94,0.16); border-color:var(--green); color:var(--green); }
     .tg.lost.on{ background:rgba(239,68,68,0.14); border-color:var(--red); color:#fca5a5; }
+    .slip[hidden], .step-sel[hidden]{ display:none !important; }
     .pk-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 14px; border-radius:12px; border:1px solid var(--border-2); background:rgba(255,255,255,0.04); }
     .pk-item b{ display:block; font-size:15px; } .pk-item span{ font-size:12px; color:var(--text-dim); }
     .pk-item:hover{ border-color:var(--accent); }
@@ -1061,6 +1062,8 @@
       return;
     }
     if (ready.length === 1) return useShared(ready[0].id);
+    document.querySelector('#pickSheet h3 span').textContent = 'Which challenge is it for?';
+    document.querySelector('#pickSheet .sub').textContent = 'Your shared bet slip is ready to post.';
     $('pkImg').hidden = !blob; if (blob) $('pkImg').src = URL.createObjectURL(blob);
     $('pkList').innerHTML = ready.map(c => `<button type="button" class="pk-item" data-pk-ch="${esc(c.id)}"><div><b>${esc(c.title)}</b><span>${money(c.current_amount)} running · Bet ${(c.bets || 0) + 1} next</span></div><i class="fas fa-chevron-right"></i></button>`).join('');
     openSheet('pickSheet');
@@ -1083,13 +1086,30 @@
     const bar = $('installBar');
     const standalone = () => window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
     const dismissed = () => { try { return localStorage.getItem('gb_install_no') === '1'; } catch (e) { return false; } };
-    const show = () => { if (window.__gbInstall && !standalone() && !dismissed()) bar.hidden = false; };
+    // Android phones always see it (Chrome only offers one-tap install after you've used
+    // the page for a bit, so until then the button explains the menu route instead)
+    const android = /Android/i.test(navigator.userAgent);
+    const show = () => { if (android && !standalone() && !dismissed()) bar.hidden = false; };
     document.addEventListener('gb-installable', show); show();
     $('installBtn').onclick = async () => {
-      const ev = window.__gbInstall; if (!ev) return;
+      const ev = window.__gbInstall;
+      if (!ev) {
+        const samsung = /SamsungBrowser/i.test(navigator.userAgent);
+        alertSheet(samsung
+          ? 'In Samsung Internet: tap the <b>☰ menu</b> (bottom right), then <b>Add page to</b> → <b>Home screen</b>.'
+          : 'In Chrome: tap the <b>⋮ menu</b> (top right), then <b>Install app</b> (or <b>Add to Home screen</b> → <b>Install</b>).');
+        return;
+      }
       try { ev.prompt(); const r = await ev.userChoice; if (r && r.outcome === 'accepted') bar.hidden = true; } catch (e) {}
       window.__gbInstall = null;
     };
+    function alertSheet(html) {
+      $('pkImg').hidden = true;
+      document.querySelector('#pickSheet h3 span').textContent = 'Install GB Hub';
+      document.querySelector('#pickSheet .sub').innerHTML = html + '<br><br>Then in bet365 tap <b>Share</b> → <b>GB Hub</b> and the bet slip comes straight here.';
+      $('pkList').innerHTML = '<button type="button" class="btn btn-primary" data-close style="width:100%;">Got it</button>';
+      openSheet('pickSheet');
+    }
     $('installX').onclick = () => { bar.hidden = true; try { localStorage.setItem('gb_install_no', '1'); } catch (e) {} };
     window.addEventListener('appinstalled', () => { bar.hidden = true; toast('Installed — GB Hub is on your home screen. Now Share a bet from bet365 → GB Hub'); });
   })();
