@@ -212,6 +212,23 @@
     .sleg.void .lt b{ text-decoration:line-through; color:var(--text-dim); }
     .auto-note{ margin-top:10px; font-size:12px; color:var(--text-dim); display:flex; align-items:center; gap:6px; }
 
+    /* settle pop-up */
+    .st-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .st-head b{ font-size:13px; color:var(--text-dim); }
+    .st-rows{ display:flex; flex-direction:column; gap:8px; }
+    .st-row{ display:flex; align-items:center; gap:10px; padding:9px 10px 9px 14px; border-radius:11px; background:rgba(255,255,255,0.03); border:1px solid var(--border); }
+    .st-row > span{ flex:1; font-weight:700; font-size:14px; }
+    .st-row.won{ border-color:rgba(34,197,94,0.5); } .st-row.lost{ border-color:rgba(239,68,68,0.5); }
+    .tg{ padding:7px 12px; border-radius:9px; font-weight:700; font-size:13px; border:1px solid var(--border-2); color:var(--text-dim); background:rgba(255,255,255,0.03); }
+    .tg.won.on{ background:rgba(34,197,94,0.16); border-color:var(--green); color:var(--green); }
+    .tg.lost.on{ background:rgba(239,68,68,0.14); border-color:var(--red); color:#fca5a5; }
+    .slip-pair{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+    .slip-pair figure{ margin:0; }
+    .slip-pair figcaption{ font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-faint); margin-top:10px; }
+    .slip-pair .slip{ margin-top:4px; max-width:min(100%, 320px); }
+    .sel-prog{ margin-top:8px; font-size:12.5px; color:var(--text-dim); }
+    .sel-prog b{ color:var(--green); }
+
     /* zoomed slip */
     .zoom{ position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; padding:16px; }
     .zoom.open{ display:flex; }
@@ -273,8 +290,8 @@
       <h3 id="betH"><span>Add Bet <span id="betStepNo"></span></span> <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
       <div class="sub">Place it on your betting site first, then post it here.</div>
       <div class="mode-tabs" id="betMode">
-        <button type="button" class="mode on" data-mode="v"><span><i class="fas fa-circle-check"></i>Verified PL bet</span><small>Settles itself from the real results</small></button>
-        <button type="button" class="mode" data-mode="s"><span><i class="fas fa-pen"></i>Any other bet</span><small>You mark it won or lost</small></button>
+        <button type="button" class="mode on" data-mode="s"><span><i class="fas fa-camera"></i>Bet slip photo</span><small>Any bet · you settle it with the winning slip</small></button>
+        <button type="button" class="mode" data-mode="v"><span><i class="fas fa-circle-check"></i>Verified PL bet</span><small>Settles itself from the real results</small></button>
       </div>
       <div class="stake-box">
         <div>Stake (your running total)<b id="betStake">£0</b></div>
@@ -301,7 +318,13 @@
         <input class="inp" id="betOdds" placeholder="e.g. 5/4, Evens or 2.25" autocomplete="off">
       </div>
       <div class="field">
-        <label>What's the bet?</label>
+        <label>How many selections are on the slip? <small>(1 for a single)</small></label>
+        <div class="pick-row"><button type="button" class="btn btn-ghost btn-sm" id="selMinus" aria-label="Fewer">−</button>
+          <input class="inp sm" id="betSelN" type="number" min="1" max="30" inputmode="numeric" value="1" style="width:70px;text-align:center;">
+          <button type="button" class="btn btn-ghost btn-sm" id="selPlus" aria-label="More">+</button></div>
+      </div>
+      <div class="field">
+        <label>What's the bet? <small>(optional if you add the picture)</small></label>
         <textarea class="inp" id="betSel" maxlength="300" placeholder="e.g. Arsenal to win & both teams to score"></textarea>
       </div>
       </div>
@@ -322,6 +345,32 @@
       </div>
       <div class="err" id="betErr"></div>
       <button class="btn btn-primary" id="betGo" style="width:100%;"><i class="fas fa-paper-plane"></i> Post Bet</button>
+    </div>
+  </div>
+
+  <!-- Settle an open bet: tick each selection, winning slip to prove a win -->
+  <div class="sheet-bg" id="settleSheet">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="stH">
+      <h3 id="stH"><span>Settle your open bet</span> <button type="button" data-close aria-label="Close"><i class="fas fa-xmark"></i></button></h3>
+      <div class="sub" id="stName"></div>
+      <img class="slip" id="stImg" alt="Your bet slip" data-zoom style="max-height:260px;margin:0 0 12px;">
+      <div class="step-sel" id="stSel" style="margin:0 0 12px;"></div>
+      <div class="stake-box">
+        <div>Stake<b id="stStake">£0</b></div>
+        <div class="ret">Returns if it wins<b id="stRet">—</b></div>
+      </div>
+      <div class="st-head"><b>How did each selection go?</b><button type="button" class="btn btn-ghost btn-sm" id="stAllWon"><i class="fas fa-check-double"></i> All won</button></div>
+      <div class="st-rows" id="stRows"></div>
+      <div id="stWonBox" hidden>
+        <div class="field" style="margin-top:12px;">
+          <label>Screenshot of the settled bet <small>(from your betting app, showing it won)</small></label>
+          <div class="upload"><label class="upload-btn" for="stWonImg"><i class="fas fa-image"></i> Add winning slip</label><input type="file" id="stWonImg" accept="image/*" hidden></div>
+          <div class="preview" id="stWonPrev"><img id="stWonPrevImg" alt="Settled slip"><button type="button" id="stWonClear" aria-label="Remove picture"><i class="fas fa-xmark"></i></button></div>
+        </div>
+        <div class="field"><label>Returns (stake included)</label><div class="money-inp"><span>£</span><input class="inp" id="stAmt" type="number" inputmode="decimal" step="0.01"></div></div>
+      </div>
+      <div class="err" id="stErr"></div>
+      <div class="row2"><button type="button" class="btn btn-ghost" id="stLater">Later</button><button type="button" class="btn btn-primary" id="stSave">Save</button></div>
     </div>
   </div>
 
@@ -484,6 +533,13 @@
       // verified: nobody marks it; the owner can only take it back before kick-off
       settle = c.is_owner && !locked ? `<div class="settle"><div class="lbl">Changed your mind? You can remove it until the first kick-off.</div>
         <button class="btn btn-ghost btn-sm" data-delbet="${esc(b.id)}"><i class="fas fa-trash"></i> Remove</button></div>` : '';
+    } else if (!b.verified && isLatest && b.status === 'pending' && c.is_owner) {
+      const n = b.selections_count || 1, done = (b.selection_results || []).filter(r => r === 'won').length;
+      settle = `<div class="settle"><div class="lbl">${n > 1 ? `${n} selections · tick them off as they finish` : 'Finished? Settle it here.'}</div>
+        <button class="btn btn-primary btn-sm" data-settle="${esc(b.id)}"><i class="fas fa-flag-checkered"></i> Settle bet</button>
+        <button class="btn btn-ghost btn-sm" data-res="void" data-bet="${esc(b.id)}">Void</button>
+        <button class="btn btn-ghost btn-sm" data-delbet="${esc(b.id)}" style="margin-left:auto;"><i class="fas fa-trash"></i> Remove</button>
+      </div>`;
     } else if (isLatest && c.can_manage && (b.status === 'pending' || CUR.is_admin)) {
       settle = `<div class="settle"><div class="lbl">${b.status === 'pending' ? 'How did it go?' : 'Admin: change the result'}</div>
         ${b.status !== 'won' ? `<button class="btn btn-green btn-sm" data-won="${esc(b.id)}"><i class="fas fa-check"></i> Won</button>` : ''}
@@ -498,7 +554,11 @@
         <div class="step-money"><b>${money(b.stake)}</b> @ <b>${esc(b.odds_text)}</b> · ${ret}</div>
         <span class="pill ${bs[0]}">${bs[1]}</span></div>
       ${b.verified ? legsHtml(b) : b.selection ? `<div class="step-sel">${esc(b.selection)}</div>` : ''}
-      ${b.image_url ? `<img class="slip" src="${esc(b.image_url)}" alt="Bet slip" loading="lazy" data-zoom>` : ''}
+      ${b.settled_image_url
+        ? `<div class="slip-pair">${b.image_url ? `<figure><figcaption>Bet slip</figcaption><img class="slip" src="${esc(b.image_url)}" alt="Bet slip" loading="lazy" data-zoom></figure>` : ''}
+            <figure><figcaption><i class="fas fa-circle-check" style="color:var(--green)"></i> Settled slip</figcaption><img class="slip" src="${esc(b.settled_image_url)}" alt="Settled bet slip" loading="lazy" data-zoom></figure></div>`
+        : b.image_url ? `<img class="slip" src="${esc(b.image_url)}" alt="Bet slip" loading="lazy" data-zoom>` : ''}
+      ${!b.verified && b.status === 'pending' && (b.selections_count || 1) > 1 ? `<div class="sel-prog"><b>${(b.selection_results || []).filter(r => r === 'won').length}</b> of ${b.selections_count} selections won so far</div>` : ''}
       ${b.share_url ? `<a class="share-link" href="${esc(b.share_url)}" target="_blank" rel="noopener nofollow"><i class="fas fa-arrow-up-right-from-square"></i><span>Open the bet${host ? ' on ' + esc(host) : ''}</span></a>` : ''}
       <div class="step-meta">Posted ${ago(b.created_at)}${b.bookmaker && !host ? ' · ' + esc(b.bookmaker) : ''}</div>
       ${settle}
@@ -536,6 +596,8 @@
     const z = e.target.closest('[data-zoom]');
     if (z) { $('zoomImg').src = z.src; $('zoom').classList.add('open'); return; }
     if (e.target.closest('#zoom')) { $('zoom').classList.remove('open'); return; }
+    const st = e.target.closest('[data-settle]');
+    if (st) { const b = CUR.bets.find(x => x.id === st.dataset.settle); if (b) openSettle({ ...b }, CUR.challenge); return; }
     const won = e.target.closest('[data-won]');
     if (won) { openWon(won.dataset.won); return; }
     const r = e.target.closest('[data-res]');
@@ -746,11 +808,12 @@
   function openBet() {
     IMG = null; $('betImg').value = ''; $('betPreview').classList.remove('show');
     ['betOdds', 'betSel', 'betLink'].forEach(id => $(id).value = '');
+    $('betSelN').value = 1;
     $('betErr').textContent = '';
     $('betStepNo').textContent = CUR.bets.length + 1;
     $('betStake').textContent = money(CUR.challenge.current_amount);
     LEGS = []; MK = 'result'; PICK = {}; $('vOdds').value = '';
-    setMode('v');
+    setMode('s');
     $('vMatch').innerHTML = '<option>Loading matches…</option>'; $('vPick').innerHTML = ''; renderMarkets(); renderLegs();
     openSheet('betSheet');
     loadFixtures().then(() => {
@@ -790,6 +853,9 @@
       else toast('No link found — copy the share link from your betting app first', true);
     } catch (e) { toast('Long-press the box and choose Paste', true); $('betLink').focus(); }
   };
+  const selN = (d) => { const v = Math.min(30, Math.max(1, (parseInt($('betSelN').value, 10) || 1) + d)); $('betSelN').value = v; };
+  $('selMinus').onclick = () => selN(-1); $('selPlus').onclick = () => selN(1);
+  $('betSelN').addEventListener('change', () => selN(0));
   $('betGo').onclick = async () => {
     if (MODE === 'v') {
       if (!LEGS.length) return $('betErr').textContent = 'Add at least one selection — pick it above, then tap Add to bet';
@@ -809,7 +875,7 @@
     if (!$('betSel').value.trim() && !IMG && !$('betLink').value.trim()) return $('betErr').textContent = 'Say what the bet is, add a picture, or paste the share link';
     $('betGo').disabled = true; $('betGo').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
     try {
-      await post({ action: 'challenge_add_bet', challenge_id: CUR.challenge.id, odds, selection: $('betSel').value.trim(), share_url: $('betLink').value.trim(),
+      await post({ action: 'challenge_add_bet', challenge_id: CUR.challenge.id, odds, selections: parseInt($('betSelN').value, 10) || 1, selection: $('betSel').value.trim(), share_url: $('betLink').value.trim(),
         image_base64: IMG ? IMG.base64 : undefined, file_ext: IMG ? IMG.ext : undefined });
       closeSheets(); toast('Bet posted — your followers have been notified');
       loadDetail(CUR.challenge.id);
@@ -843,6 +909,102 @@
     try { await post({ action: 'challenge_delete', challenge_id: CUR.challenge.id }); toast('Deleted'); history.pushState({}, '', '/challenges'); route(); } catch (e) { toast(e.message, true); }
   }
 
+  // ---------- settle pop-up ----------
+  // Shows itself when you come back with an open bet in a running challenge.
+  // Tick each selection won/lost (or "All won" if you missed it running).
+  // Any lost = bet lost. All won = needs the settled slip from your betting app.
+  let SET = null, SET_IMG = null, SET_QUEUE = [];
+  const shrinkImage = (file, done, fail) => {
+    if (!file || !/^image\//.test(file.type)) return fail("That file isn't a picture");
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      const url = cv.toDataURL('image/jpeg', 0.82); URL.revokeObjectURL(img.src);
+      done({ base64: url.split(',')[1], ext: 'jpg', url });
+    };
+    img.onerror = () => fail("Couldn't read that picture");
+    img.src = URL.createObjectURL(file);
+  };
+  function openSettle(bet, ch) {
+    const n = bet.selections_count || 1;
+    SET = { bet, ch, res: Array.from({ length: n }, (_, i) => (bet.selection_results || [])[i] || null) };
+    SET_IMG = null; $('stWonImg').value = ''; $('stWonPrev').classList.remove('show');
+    $('stName').innerHTML = `<b style="color:var(--text)">${esc(ch.title)}</b> · Bet ${bet.step} · posted ${ago(bet.created_at)}`;
+    $('stImg').hidden = !bet.image_url; if (bet.image_url) $('stImg').src = bet.image_url;
+    $('stSel').hidden = !bet.selection; $('stSel').textContent = bet.selection || '';
+    $('stStake').textContent = money(bet.stake);
+    $('stRet').textContent = money(bet.potential_return);
+    $('stAmt').value = (bet.potential_return / 100).toFixed(2);
+    $('stErr').textContent = '';
+    renderSettle();
+    openSheet('settleSheet');
+  }
+  function renderSettle() {
+    const n = SET.res.length;
+    $('stRows').innerHTML = SET.res.map((r, i) => `<div class="st-row ${r || ''}"><span>${n === 1 ? 'Your bet' : 'Selection ' + (i + 1)}</span>
+      <button type="button" class="tg won${r === 'won' ? ' on' : ''}" data-tg="${i}" data-v="won"><i class="fas fa-check"></i> Won</button>
+      <button type="button" class="tg lost${r === 'lost' ? ' on' : ''}" data-tg="${i}" data-v="lost"><i class="fas fa-xmark"></i> Lost</button></div>`).join('');
+    const anyLost = SET.res.includes('lost'), allWon = SET.res.every(r => r === 'won'), any = SET.res.some(Boolean);
+    $('stWonBox').hidden = !allWon;
+    $('stAllWon').hidden = n === 1;
+    const b = $('stSave');
+    b.disabled = !any;
+    b.className = 'btn ' + (anyLost ? 'btn-red' : allWon ? 'btn-green' : 'btn-primary');
+    b.innerHTML = !any ? 'Pick a result' : anyLost ? '<i class="fas fa-xmark"></i> Bet lost' : allWon ? '<i class="fas fa-trophy"></i> Bet won' : '<i class="fas fa-floppy-disk"></i> Save progress';
+  }
+  $('stRows').addEventListener('click', e => {
+    const t = e.target.closest('[data-tg]'); if (!t) return;
+    const i = Number(t.dataset.tg); SET.res[i] = SET.res[i] === t.dataset.v ? null : t.dataset.v;
+    $('stErr').textContent = ''; renderSettle();
+  });
+  $('stAllWon').onclick = () => { SET.res = SET.res.map(() => 'won'); renderSettle(); };
+  $('stWonImg').addEventListener('change', () => shrinkImage($('stWonImg').files[0],
+    img => { SET_IMG = img; $('stWonPrevImg').src = img.url; $('stWonPrev').classList.add('show'); $('stErr').textContent = ''; },
+    msg => { $('stErr').textContent = msg; }));
+  $('stWonClear').onclick = () => { SET_IMG = null; $('stWonImg').value = ''; $('stWonPrev').classList.remove('show'); };
+  function nextSettle() {
+    closeSheets();
+    const n = SET_QUEUE.shift();
+    if (n) setTimeout(() => openSettle(n.bet, n.ch), 250);
+  }
+  $('stLater').onclick = () => {
+    try { const k = 'gb_settle_later'; const s = JSON.parse(sessionStorage.getItem(k) || '[]'); s.push(SET.bet.id); sessionStorage.setItem(k, JSON.stringify(s)); } catch (e) {}
+    nextSettle();
+  };
+  $('stSave').onclick = async () => {
+    const anyLost = SET.res.includes('lost'), allWon = SET.res.every(r => r === 'won');
+    let amt;
+    if (allWon && !anyLost) {
+      if (!SET_IMG) return $('stErr').textContent = 'Add the screenshot of the settled bet showing it won';
+      amt = Math.round(parseFloat($('stAmt').value) * 100);
+      if (!(amt > SET.bet.stake)) return $('stErr').textContent = 'The returns have to be more than the stake';
+    }
+    if (anyLost && !confirm('Mark this bet as lost? That ends the challenge.')) return;
+    $('stSave').disabled = true;
+    try {
+      const d = await post({ action: 'challenge_progress', bet_id: SET.bet.id, results: SET.res,
+        settled_image_base64: allWon ? SET_IMG.base64 : undefined, file_ext: allWon ? SET_IMG.ext : undefined, actual_return: allWon ? amt : undefined });
+      toast(d.status === 'won' ? 'Nice one! Winnings rolled into the next bet' : d.status === 'lost' ? 'Unlucky — challenge over' : 'Progress saved');
+      const chId = SET.ch.id;
+      nextSettle();
+      if (CUR && CUR.challenge.id === chId) loadDetail(chId); else if (!CUR) loadList();
+    } catch (err) { $('stErr').textContent = err.message; $('stSave').disabled = false; }
+  };
+  // on arrival: any open photo bets in my running challenges?
+  let SET_CHECKED = false;
+  async function checkOpenBets() {
+    if (SET_CHECKED || !token()) return; SET_CHECKED = true;
+    let later = []; try { later = JSON.parse(sessionStorage.getItem('gb_settle_later') || '[]'); } catch (e) {}
+    try {
+      const d = await api({ challenges: 'mine' });
+      SET_QUEUE = (d.challenges || []).filter(c => c.status === 'active' && c.latest_bet && c.latest_bet.status === 'pending' && !c.latest_bet.verified && !later.includes(c.latest_bet.id))
+        .map(c => ({ bet: { ...c.latest_bet }, ch: c }));
+      if (SET_QUEUE.length && !document.querySelector('.sheet-bg.open')) { const n = SET_QUEUE.shift(); openSettle(n.bet, n.ch); }
+    } catch (e) {}
+  }
+
   // ---------- routing ----------
   function route() {
     const p = new URLSearchParams(location.search);
@@ -850,6 +1012,7 @@
     if (p.get('c')) loadDetail(p.get('c'));
     else { CUR = null; $('detailView').hidden = true; $('listView').hidden = false; loadList(); }
     window.scrollTo(0, 0);
+    setTimeout(checkOpenBets, 600);
   }
   $('backLink').onclick = (e) => { e.preventDefault(); history.pushState({}, '', VIEW === 'all' ? '/challenges' : '/challenges?view=' + VIEW); route(); };
   window.addEventListener('popstate', route);

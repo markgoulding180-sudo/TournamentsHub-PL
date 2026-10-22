@@ -173,7 +173,7 @@ module.exports = async (req, res) => {
         const ids = rows.map(r => r.id);
         const ownerIds = [...new Set(rows.map(r => r.user_id))];
         const [{ data: allBets }, { data: owners }, { data: follows }] = ids.length ? await Promise.all([
-          supabaseAdmin.from('bet_challenge_bets').select('challenge_id, step, status, stake, odds_text, selection, image_url, potential_return, created_at, verified').in('challenge_id', ids),
+          supabaseAdmin.from('bet_challenge_bets').select('id, challenge_id, step, status, stake, odds_text, odds_decimal, selection, image_url, potential_return, created_at, verified, selections_count, selection_results').in('challenge_id', ids),
           supabaseAdmin.from('users').select('id, username, display_name, avatar_url, avatar_type').in('id', ownerIds),
           supabaseAdmin.from('bet_challenge_follows').select('challenge_id, user_id').in('challenge_id', ids)
         ]) : [{ data: [] }, { data: [] }, { data: [] }];
@@ -187,7 +187,8 @@ module.exports = async (req, res) => {
             status: r.status, created_at: r.created_at, updated_at: r.updated_at, finished_at: r.finished_at,
             owner: { name: pickDisplayName(ownerById[r.user_id] || {}), avatar: pickAvatarUrl(ownerById[r.user_id]) },
             bets: b.length, wins: b.filter(x => x.status === 'won').length,
-            latest_bet: latest ? { step: latest.step, status: latest.status, stake: latest.stake, odds_text: latest.odds_text, selection: latest.selection, image_url: latest.image_url, potential_return: latest.potential_return, created_at: latest.created_at, verified: !!latest.verified } : null,
+            latest_bet: latest ? { id: latest.id, step: latest.step, status: latest.status, stake: latest.stake, odds_text: latest.odds_text, selection: latest.selection, image_url: latest.image_url, potential_return: latest.potential_return, created_at: latest.created_at, verified: !!latest.verified,
+              selections_count: latest.selections_count || 1, selection_results: latest.selection_results || null } : null,
             followers: f.length, following: !!(me && f.some(x => x.user_id === me.id)), is_owner: !!(me && me.id === r.user_id)
           };
         });
@@ -6836,7 +6837,8 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             const { data: nb, error } = await supabaseAdmin.from('bet_challenge_bets').insert({
               challenge_id: ch.id, user_id: user.id, step, stake, odds_text: odds.text, odds_decimal: odds.decimal,
               potential_return: Math.round(stake * odds.decimal), selection: selection || null, bookmaker: bookmaker || null, share_url: shareUrl, image_url: imageUrl,
-              verified: !!vLegs, legs: vLegs, locks_at: vLegs ? vLegs.map(l => l.kickoff).sort()[0] : null
+              verified: !!vLegs, legs: vLegs, locks_at: vLegs ? vLegs.map(l => l.kickoff).sort()[0] : null,
+              selections_count: vLegs ? vLegs.length : Math.min(30, Math.max(1, Math.round(Number(body.selections) || 1)))
             }).select().single();
             if (error) return res.status(500).json({ error: 'Could not save the bet', detail: error.message });
             await supabaseAdmin.from('bet_challenges').update({ updated_at: new Date().toISOString() }).eq('id', ch.id);
@@ -6848,6 +6850,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             if (!latest || bet.id !== latest.id) return res.status(400).json({ error: 'Only the latest bet can be changed' });
             if (bet.status !== 'pending' && !isAdmin) return res.status(400).json({ error: 'This bet has already been settled — ask the admin to change it' });
             if (bet.verified && !isAdmin) return res.status(403).json({ error: 'Verified bets settle themselves from the real results' });
+            if (body.result === 'won' && !isAdmin) return res.status(400).json({ error: 'Add the settled bet slip to mark it won — tap Settle bet' });
             const result = body.result;
             if (!['won', 'lost', 'void', 'pending'].includes(result)) return res.status(400).json({ error: 'Result must be won, lost or void' });
             if (result === 'pending' && !isAdmin) return res.status(403).json({ error: 'Only the admin can reopen a bet' });
@@ -6859,6 +6862,43 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             await supabaseAdmin.from('bet_challenge_bets').update({ status: result, actual_return: actual, settled_at: result === 'pending' ? null : new Date().toISOString() }).eq('id', bet.id);
             const state = await recomputeBetChallenge(supabaseAdmin, ch);
             return res.status(200).json({ ok: true, challenge: state });
+          }
+
+          // Ticking off a photo bet's selections as they finish. Any lost = the bet
+          // is lost. All won = it's won, but only with a picture of the settled
+          // ("Won") slip from the betting app as proof.
+          if (action === 'challenge_progress') {
+            if (!bet) return res.status(400).json({ error: 'bet_id is required' });
+            if (!latest || bet.id !== latest.id) return res.status(400).json({ error: 'Only the latest bet can be settled' });
+            if (bet.status !== 'pending') return res.status(400).json({ error: 'This bet has already been settled' });
+            if (bet.verified) return res.status(403).json({ error: 'Verified bets settle themselves from the real results' });
+            const n = bet.selections_count || 1;
+            const results = Array.isArray(body.results) ? body.results.slice(0, n) : [];
+            while (results.length < n) results.push(null);
+            if (results.some(r => r !== null && r !== 'won' && r !== 'lost')) return res.status(400).json({ error: 'Each selection is won, lost or not finished yet' });
+            const upd = { selection_results: results };
+            if (results.includes('lost')) {
+              Object.assign(upd, { status: 'lost', actual_return: null, settled_at: new Date().toISOString() });
+            } else if (results.every(r => r === 'won')) {
+              if (!body.settled_image_base64 && !isAdmin) return res.status(400).json({ error: 'Add a screenshot of the settled bet showing it won' });
+              let actual = body.actual_return != null && body.actual_return !== '' ? Math.round(Number(body.actual_return)) : bet.potential_return;
+              if (!Number.isFinite(actual) || actual <= bet.stake || actual > bet.stake * 1000) return res.status(400).json({ error: 'The returns must be more than the stake' });
+              if (body.settled_image_base64) {
+                const ext = String(body.file_ext || 'jpg').replace(/[^a-z]/gi, '').toLowerCase();
+                const okExt = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }[ext];
+                if (!okExt) return res.status(400).json({ error: 'The picture must be a JPG, PNG or WebP' });
+                const buf = Buffer.from(String(body.settled_image_base64), 'base64');
+                if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Picture too large (5MB max)' });
+                const path = `${ch.id}/${bet.step}-settled-${Date.now()}.${ext === 'jpeg' ? 'jpg' : ext}`;
+                const { error: upErr } = await supabaseAdmin.storage.from('bet-slips').upload(path, buf, { contentType: okExt, upsert: false });
+                if (upErr) return res.status(500).json({ error: 'Picture upload failed', detail: upErr.message });
+                upd.settled_image_url = supabaseAdmin.storage.from('bet-slips').getPublicUrl(path).data.publicUrl;
+              }
+              Object.assign(upd, { status: 'won', actual_return: actual, settled_at: new Date().toISOString() });
+            }
+            await supabaseAdmin.from('bet_challenge_bets').update(upd).eq('id', bet.id).eq('status', 'pending');
+            const state = upd.status ? await recomputeBetChallenge(supabaseAdmin, ch) : ch;
+            return res.status(200).json({ ok: true, status: upd.status || 'pending', challenge: state });
           }
 
           if (action === 'challenge_delete_bet') {
