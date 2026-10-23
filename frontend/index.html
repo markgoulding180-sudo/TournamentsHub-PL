@@ -921,6 +921,7 @@ a.np-item:hover{ border-color:var(--accent); }
 @media (min-width:600px){ .np-bg{ align-items:center; } }
 .np{ width:100%; max-width:520px; max-height:90vh; overflow:auto; background:var(--navy-1, #0a1430); border:1px solid rgba(245,184,61,.55); border-radius:20px 20px 0 0; padding:18px 18px calc(18px + env(safe-area-inset-bottom)); box-shadow:0 30px 80px rgba(0,0,0,.6); }
 @media (min-width:600px){ .np{ border-radius:20px; } }
+.np-img{ display:block; width:calc(100% + 36px); max-width:none; margin:-18px -18px 14px; aspect-ratio:900 / 506; object-fit:cover; border-radius:20px 20px 0 0; }
 .np-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
 .np-tag{ display:inline-flex; align-items:center; gap:6px; font-family:var(--font-head); font-weight:800; font-size:11px; letter-spacing:1.3px; text-transform:uppercase; color:var(--amber, #f5b83d); }
 .np-tag i{ width:7px; height:7px; border-radius:50%; background:var(--amber, #f5b83d); }
@@ -946,6 +947,7 @@ a.np-item:hover{ border-color:var(--accent); }
 <!-- Next tournament pop-up: join the registering tournament without leaving the hub -->
 <div class="np-bg" id="npBg" aria-hidden="true">
   <div class="np" role="dialog" aria-modal="true" aria-labelledby="npName">
+    <img class="np-img" id="npImg" alt="">
     <div class="np-head"><span class="np-tag"><i></i><span id="npTag">Registering</span></span><button type="button" class="np-x" id="npX" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button></div>
     <h3 id="npName"></h3>
     <div class="np-facts" id="npFacts"></div>
@@ -1569,6 +1571,7 @@ async function openNext(key){
   const t = r.t, info = TYPES[r.type], gw = t.gameweek;
   const fee = t.entry_fee ? money(t.entry_fee) : 'Free';
   const gws = gw ? (t.end_gameweek && t.end_gameweek !== gw ? `GW${gw}–GW${t.end_gameweek}` : `GW${gw}`) : '—';
+  document.getElementById('npImg').src = cardImg(r, info);
   document.getElementById('npTag').textContent = 'Registering · ' + info.title;
   document.getElementById('npName').textContent = t.name || info.title;
   document.getElementById('npFacts').innerHTML = `<div><span>Gameweeks</span><b>${esc(gws)}</b></div><div><span>Entry</span><b>${esc(fee)}</b></div>

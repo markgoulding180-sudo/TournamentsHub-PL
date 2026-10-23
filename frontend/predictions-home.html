@@ -157,6 +157,8 @@
     /* next tournament (registering while the current one is live) */
     .next-tourn{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; border-color:rgba(242,185,61,0.55); background:linear-gradient(135deg, rgba(242,185,61,0.10), rgba(242,185,61,0.02)), var(--bg-panel); }
     .next-tourn .nt-main{ flex:1; min-width:220px; }
+    .next-tourn .nt-img{ width:180px; max-width:100%; aspect-ratio:900 / 506; object-fit:cover; border-radius:12px; border:1px solid rgba(242,185,61,0.45); }
+    @media (max-width:600px){ .next-tourn .nt-img{ width:100%; } }
     .next-tourn .nt-tag{ display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:var(--gold); }
     .next-tourn .nt-tag i{ font-size:7px; }
     .next-tourn h3{ font-family:var(--font-head); font-size:21px; margin:6px 0 4px; }
@@ -1328,7 +1330,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             if (er.ok && (await er.json()).entry) action = `<span class="nt-in"><i class="fas fa-circle-check"></i> You're entered · picks open when Gameweek ${next.gameweek} opens</span>`;
           } catch (e) {}
         }
-        card.innerHTML = `<div class="nt-main">
+        card.innerHTML = `${next.hero_image ? `<img class="nt-img" src="${escapeHtml(next.hero_image)}" alt="">` : ''}<div class="nt-main">
             <div class="nt-tag"><i class="fas fa-circle"></i> Next tournament · Registering</div>
             <h3>${escapeHtml(next.name || 'Predictions')}</h3>
             <div class="nt-meta">${gws ? `<span>Gameweeks <b>${gws}</b></span>` : ''}<span>Entry <b>£${fee}</b></span><span>Entries <b>${next.current_entries ?? 0}</b></span>${next.gameweek ? `<span>Starts <b>Gameweek ${next.gameweek}</b></span>` : ''}</div>
