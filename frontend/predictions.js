@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // leaderboard, since no tournament_entries row would exist for them.
   const token = localStorage.getItem('gbf_token');
   const sessionExpiredCard = document.getElementById('sessionExpiredCard');
+  let onlyNext = null;   // entered ONLY in the next (registering) tournament: picks wait for its first gameweek
   if (token) {
     try {
       const tRes = await fetch('/api/tournaments?status=live');
@@ -36,8 +37,25 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         const entryData = await entryRes.json();
+        let entered = !!entryData.entry;
 
-        if (!entryData.entry) {
+        // Also fine: entered in the NEXT tournament that's taking entries
+        // while this one is still live (they make their picks for its first
+        // gameweek before it goes live). The live tournament's own check
+        // above is unchanged.
+        if (!entered) {
+          try {
+            const upData = await (await fetch('/api/tournaments?status=upcoming')).json();
+            const next = (upData.tournaments || [])[0];
+            if (next) {
+              const nr = await fetch(`/api/tournaments?tournament_id=${next.id}&my_entry=true`, { headers: { 'Authorization': `Bearer ${token}` } });
+              if (nr.ok) entered = !!(await nr.json()).entry;
+              if (entered) onlyNext = next;
+            }
+          } catch (e) {}
+        }
+
+        if (!entered) {
           // Not entered — hide the form entirely, show the gate instead.
           predictionsForm.style.display = 'none';
           entryGateCard.style.display = 'block';
@@ -69,6 +87,28 @@ document.addEventListener('DOMContentLoaded', async function() {
     currentGameweek = 36;
   }
   
+  // In the next tournament only, and its first gameweek hasn't opened yet:
+  // no picks for this gameweek (it isn't part of their tournament).
+  if (onlyNext && onlyNext.gameweek && currentGameweek < onlyNext.gameweek) {
+    predictionsForm.style.display = 'none';
+    const box = document.createElement('div');
+    box.className = 'card';
+    box.style.cssText = 'text-align:center;padding:28px 22px;margin:16px 0;';
+    const nm = String(onlyNext.name || 'your tournament').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    box.innerHTML = `<i class="fas fa-hourglass-half" style="font-size:30px;color:#f2b93d;margin-bottom:10px;display:block;"></i>
+      <h2 style="font-family:var(--font-head, inherit);font-size:21px;margin-bottom:8px;">You're in ${nm}</h2>
+      <p style="max-width:440px;margin:0 auto;font-size:14px;color:var(--text-dim, #c7d2e8);line-height:1.5;">It starts in <b>Gameweek ${onlyNext.gameweek}</b>, so Gameweek ${currentGameweek} isn't part of it.
+      Your picks open here as soon as Gameweek ${onlyNext.gameweek} opens — straight after the last Gameweek ${currentGameweek} match.</p>`;
+    // straight under the page heading, so it's the first thing they see
+    const h1 = document.getElementById('current-gw-display');
+    if (h1) h1.textContent = onlyNext.gameweek;
+    const head = h1 && h1.closest('h1');
+    const row = head && head.parentNode;   // the heading's own row
+    if (row && row.parentNode) row.parentNode.insertBefore(box, row.nextSibling);
+    else predictionsForm.parentNode.insertBefore(box, predictionsForm);
+    return;
+  }
+
   // Display current gameweek in header
   const gwDisplay = document.getElementById('current-gw-display');
   if (gwDisplay) {

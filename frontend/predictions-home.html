@@ -154,6 +154,16 @@
     }
 
     .card{ background:var(--bg-panel); border:1px solid var(--accent-dim); border-radius:var(--radius); padding:20px 22px; }
+    /* next tournament (registering while the current one is live) */
+    .next-tourn{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px; border-color:rgba(242,185,61,0.55); background:linear-gradient(135deg, rgba(242,185,61,0.10), rgba(242,185,61,0.02)), var(--bg-panel); }
+    .next-tourn .nt-main{ flex:1; min-width:220px; }
+    .next-tourn .nt-tag{ display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:var(--gold); }
+    .next-tourn .nt-tag i{ font-size:7px; }
+    .next-tourn h3{ font-family:var(--font-head); font-size:21px; margin:6px 0 4px; }
+    .next-tourn .nt-meta{ font-size:13px; color:var(--text-dim); display:flex; flex-wrap:wrap; gap:4px 14px; }
+    .next-tourn .nt-meta b{ color:var(--text); }
+    .next-tourn .nt-in{ display:inline-flex; align-items:center; gap:8px; font-family:var(--font-head); font-weight:700; font-size:15px; color:var(--green); padding:12px 4px; }
+    .next-tourn .hero-enter-btn{ background:linear-gradient(135deg, #f2b93d, #d39a1f); color:#1a1206; }
     .card-title{ font-family:var(--font-head); font-size:15px; font-weight:700; letter-spacing:.3px; display:flex; align-items:center; gap:9px; margin-bottom:16px; }
     .card-title .view-all{ margin-left:auto; font-size:12px; color:var(--accent-2); text-transform:none; letter-spacing:0; font-weight:600; }
 
@@ -652,6 +662,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         <a href="/leaderboard" class="hero-enter-btn" style="text-decoration:none;"><i class="fas fa-ranking-star"></i> View Full Standings</a>
       </div>
     </div>
+
+    <!-- The next tournament, taking entries while the current one is still live -->
+    <section class="card next-tourn" id="nextTournCard" style="display:none;"></section>
 
     <!-- Predict nav bar — quick access to the pages a user actually uses -->
     <nav class="predict-nav-bar">
@@ -1291,9 +1304,55 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       } catch (e) {}
     }
 
+    // ---------- Next tournament ----------
+    // When a new tournament is taking entries while the current one is still
+    // live, it gets its own panel with its own Enter button. The live
+    // tournament's hero above is left exactly as it is.
+    async function loadNextTournament() {
+      const card = document.getElementById('nextTournCard');
+      try {
+        const [liveRes, upRes] = await Promise.all([fetch('/api/tournaments?status=live'), fetch('/api/tournaments?status=upcoming')]);
+        const live = ((await liveRes.json()).tournaments || [])[0];
+        const next = ((await upRes.json()).tournaments || [])[0];
+        if (!live || !next) { card.style.display = 'none'; return; }   // only upcoming: the hero already shows it
+        const fee = ((next.entry_fee || 0) / 100).toFixed(2).replace(/\.00$/, '');
+        const gws = next.gameweek ? `GW${next.gameweek}${next.end_gameweek && next.end_gameweek !== next.gameweek ? '–GW' + next.end_gameweek : ''}` : '';
+        const closed = !!(next.closes_at && Date.now() >= new Date(next.closes_at).getTime());
+        let action = `<button type="button" class="hero-enter-btn" id="enterNextBtn"><i class="fas fa-right-to-bracket"></i> Enter — £${fee}</button>`;
+        const token = localStorage.getItem('gbf_token');
+        if (closed) action = '<span class="hero-enter-btn hero-closed-btn" aria-disabled="true"><i class="fas fa-lock"></i> Registration Closed</span>';
+        else if (!token) action = `<a href="/login?redirect=%2Fpredictions" class="hero-enter-btn"><i class="fas fa-right-to-bracket"></i> Log In to Enter — £${fee}</a>`;
+        else {
+          try {
+            const er = await fetch(`/api/tournaments?tournament_id=${next.id}&my_entry=true`, { headers: authHeaders() });
+            if (er.ok && (await er.json()).entry) action = `<span class="nt-in"><i class="fas fa-circle-check"></i> You're entered · picks open when Gameweek ${next.gameweek} opens</span>`;
+          } catch (e) {}
+        }
+        card.innerHTML = `<div class="nt-main">
+            <div class="nt-tag"><i class="fas fa-circle"></i> Next tournament · Registering</div>
+            <h3>${escapeHtml(next.name || 'Predictions')}</h3>
+            <div class="nt-meta">${gws ? `<span>Gameweeks <b>${gws}</b></span>` : ''}<span>Entry <b>£${fee}</b></span><span>Entries <b>${next.current_entries ?? 0}</b></span>${next.gameweek ? `<span>Starts <b>Gameweek ${next.gameweek}</b></span>` : ''}</div>
+          </div>${action}`;
+        card.style.display = '';
+        const b = document.getElementById('enterNextBtn');
+        if (b) b.onclick = async () => {
+          b.disabled = true; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entering…';
+          try {
+            const res = await fetch('/api/tournaments', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+              body: JSON.stringify({ action: 'join', tournament_id: next.id, tournament_type: 'predictions' }) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to enter');
+            loadNextTournament();
+          } catch (e) { b.disabled = false; b.innerHTML = `<i class="fas fa-right-to-bracket"></i> Enter — £${fee}`; alert(e.message || "Couldn't enter right now."); }
+        };
+        if (new URLSearchParams(location.search).get('next')) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (e) { console.error('Failed to load next tournament:', e); card.style.display = 'none'; }
+    }
+
     function loadAll() {
       loadThisWeek();
       loadTournament();
+      loadNextTournament();
       loadLeaderboardSnapshot();
       loadInjuriesSnapshot();
       loadTableSnapshot();
