@@ -1224,7 +1224,9 @@ async function postJSON(body){
 }
 // Each result has a key: the game type, or 'darts:<id>' for each darts tournament.
 // Darts cards/leaderboards link to their own tournament (?t=<id>).
-function titleOf(r){ return (r.type === 'darts' && r.t && r.t.name) || TYPES[r.type].title; }
+function titleOf(r){ return ((r.type === 'darts' || r.next) && r.t && r.t.name) || TYPES[r.type].title; }
+// The next tournament of a game (e.g. Predictions 2 registering while Predictions 1 is live) always goes last in a list, never beside the live one.
+const nextLast = (a, b) => (a.next ? 1 : 0) - (b.next ? 1 : 0);
 function hrefOf(r){ return r.type === 'darts' && r.t ? `${TYPES.darts.href}?t=${encodeURIComponent(r.t.id)}` : r.next ? TYPES[r.type].href + '?next=1' : TYPES[r.type].href; }
 function boardOf(r){ return r.type === 'darts' && r.t ? `${TYPES.darts.board}?t=${encodeURIComponent(r.t.id)}` : TYPES[r.type].board; }
 // A tournament can carry its own picture (darts: each event has its own art); otherwise the game's card image.
@@ -1357,7 +1359,7 @@ async function loadMine(){
     }
     return STATE.mine.some(m => m.key === r.key) ? r : null;   // unknown: keep what we had
   }));
-  STATE.mine = checks.filter(Boolean);
+  STATE.mine = checks.filter(Boolean).sort(nextLast);
   render();
   const picks = await Promise.all(STATE.mine.filter(r => !r.next).map(async r => [r.key, await pickStatus(r.type, r.t.id)]));
   picks.forEach(([key, st]) => { if (st) STATE.picks[key] = st; });
@@ -1658,7 +1660,7 @@ function render(){
   const all = Object.values(STATE.results);
   const sortFn = (a, b) => (isMine(b.key) - isMine(a.key)) || ((b.t.current_entries || 0) - (a.t.current_entries || 0));
   const live = all.filter(r => r.zone === 'live').sort(sortFn);
-  const open = all.filter(r => r.zone === 'open').sort(sortFn);
+  const open = all.filter(r => r.zone === 'open').sort((a, b) => nextLast(a, b) || sortFn(a, b));
 
   // "● 3 Live  ● 2 Registering" next to the My Tournaments / Welcome heading
   const countsEl = document.getElementById('mineCounts');
@@ -1746,7 +1748,7 @@ function render(){
 
   // All tournaments
   const order = { live:0, open:1, done:2, soon:3 };
-  document.getElementById('allCards').innerHTML = all.slice().sort((a, b) => order[a.zone] - order[b.zone]).map(cardHtml).join('');
+  document.getElementById('allCards').innerHTML = all.slice().sort((a, b) => (order[a.zone] + (a.next ? 0.5 : 0)) - (order[b.zone] + (b.next ? 0.5 : 0))).map(cardHtml).join('');
   document.getElementById('soonRow').innerHTML = DARTS_SOON.map(n => `<div class="soon-card"><img src="assets/darts-generic.jpg" alt="" loading="lazy"><div class="sb"><b>${esc(n)}</b><span class="pill soon" style="margin-top:6px">Coming soon</span></div></div>`).join('');
   applyFilter();
 
