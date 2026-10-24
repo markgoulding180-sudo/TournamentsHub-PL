@@ -132,6 +132,55 @@
     body{ background:linear-gradient(180deg, rgba(4,8,22,0.86), rgba(4,8,22,0.93)), url('assets/card-bg-sports.jpg') center top / cover fixed no-repeat, #060b1e; }
     .lb-card{ background:linear-gradient(rgba(4,9,30,0.80), rgba(4,9,30,0.80)), url('assets/card-bg-sports.jpg') center 40% / cover no-repeat, #081028 !important; }
     .lb-card, .lb-card *, .lb-hero h1, .lb-hero p{ text-shadow:0 1px 4px rgba(0,0,0,.85); }
+
+    /* ===== Player picks pop-up (tap a name on the leaderboard) ===== */
+    .lb-row.tap{ cursor:pointer; transition:background .15s; }
+    .lb-row.tap:hover{ background:rgba(59,130,246,0.08); }
+    .lb-row.tap .lb-name::after{ content:'\f054'; font-family:'Font Awesome 6 Free'; font-weight:900; font-size:10px; color:var(--text-faint); margin-left:8px; opacity:.7; }
+    .pp-bg{ position:fixed; inset:0; z-index:100000; background:rgba(2,5,14,0.78); backdrop-filter:blur(4px); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+    .pp-bg.open{ display:flex; }
+    .pp{ width:100%; max-width:640px; background:#0a1226; border:1px solid #1d2b4a; border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.6); overflow:hidden; text-shadow:none; }
+    .pp-head{ display:flex; align-items:center; gap:14px; padding:18px 18px 16px; background:linear-gradient(135deg, rgba(59,130,246,0.22), rgba(59,130,246,0.04)); border-bottom:1px solid var(--border); }
+    .pp-head .lb-avatar{ width:48px; height:48px; font-size:15px; }
+    .pp-who{ flex:1; min-width:0; }
+    .pp-who b{ display:block; font-size:18px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pp-who span{ font-size:12.5px; color:var(--text-faint); }
+    .pp-x{ width:36px; height:36px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); font-size:16px; flex:none; }
+    .pp-body{ padding:16px 18px 20px; }
+    .pp-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px; }
+    .pp-stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:9px 6px; text-align:center; }
+    .pp-stat b{ display:block; font-family:var(--font-display); font-size:20px; font-weight:400; }
+    .pp-stat span{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); }
+    .pp-h{ font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--accent-2); margin:6px 0 10px; display:flex; justify-content:space-between; align-items:baseline; }
+    .pp-h small{ font-family:var(--font-body); font-size:11.5px; letter-spacing:0; text-transform:none; color:var(--text-faint); font-weight:500; }
+    .pp-stage{ margin-bottom:12px; }
+    .pp-stage > div:first-child{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); margin-bottom:6px; }
+    .pp-pick{ display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; }
+    .pp-pick + .pp-pick{ margin-top:6px; }
+    .pp-pick.win{ border-color:rgba(34,197,94,0.45); }
+    .pp-pick.loss{ border-color:rgba(239,68,68,0.4); }
+    .pp-crest{ width:30px; height:30px; flex:none; object-fit:contain; }
+    .pp-crest.none{ display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:15px; }
+    .pp-t{ flex:1; min-width:0; }
+    .pp-t b{ display:block; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pp-t span{ font-size:12px; color:var(--text-faint); }
+    .pp-res{ flex:none; text-align:right; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+    .pp-res em{ display:block; font-style:normal; font-size:15px; font-family:var(--font-display); font-weight:400; letter-spacing:0; }
+    .pp-res.win{ color:var(--green); } .pp-res.loss{ color:var(--red); } .pp-res.pend{ color:var(--gold); }
+    .pp-note{ font-size:12.5px; color:var(--text-faint); background:var(--bg-card); border:1px dashed var(--border); border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+    .pp-teams{ display:grid; grid-template-columns:repeat(auto-fill, minmax(92px,1fr)); gap:7px; }
+    .pp-team{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 4px 7px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; text-align:center; position:relative; }
+    .pp-team img{ width:30px; height:30px; object-fit:contain; }
+    .pp-team span{ font-size:11px; font-weight:600; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+    .pp-team.used{ opacity:.38; filter:grayscale(1); }
+    .pp-team.used span{ text-decoration:line-through; }
+    .pp-team i.tag{ font-style:normal; font-size:9.5px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:.4px; }
+    @media (max-width:640px){
+      .pp-bg{ padding:0; }
+      .pp{ border-radius:0; min-height:100%; border:none; }
+      .pp-stats{ grid-template-columns:repeat(2,1fr); }
+      .pp-teams{ grid-template-columns:repeat(3,1fr); }
+    }
 </style>
 <script>
 /* Profile photo helper for leaderboards. url = uploaded photo (or null),
@@ -196,7 +245,19 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     <div class="lb-card">
       <div id="lbList"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div></div>
     </div>
+    <p style="text-align:center; color:var(--text-faint); font-size:12.5px; margin-top:12px;">Tap a player to see their picks and the teams they've used.</p>
   </main>
+
+  <div class="pp-bg" id="ppBg" role="dialog" aria-modal="true">
+    <div class="pp">
+      <div class="pp-head">
+        <div id="ppAv"></div>
+        <div class="pp-who"><b id="ppName"></b><span id="ppSub"></span></div>
+        <button class="pp-x" id="ppX" aria-label="Close"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="pp-body" id="ppBody"></div>
+    </div>
+  </div>
 
   <script>
     function escapeHtml(str) {
@@ -237,7 +298,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           const points = (entry.entry_points || 0).toLocaleString();
 
           return `
-            <div class="lb-row ${topClass}">
+            <div class="lb-row tap ${topClass}" data-entry="${escapeHtml(entry.entry_id || '')}" data-rank="${rank}">
               <div class="lb-rank ${topClass}">${rank}</div>
               ${gbAvatar(entry.avatar_url, initials, 'lb-avatar')}
               <div class="lb-name">${escapeHtml(name)}</div>
@@ -269,6 +330,77 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     }
     document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    // ===== Player picks pop-up =====
+    const ROUND_LABEL = { r16:'Round of 16', qf:'Quarter-Finals', sf:'Semi-Finals', final:'Final' };
+    const ROUND_ORDER = ['r16', 'qf', 'sf', 'final'];
+    function stageLabel(p){ return p.matchday ? 'Matchday ' + p.matchday : (ROUND_LABEL[p.round] || p.round || ''); }
+    function stageShort(p){ return p.matchday ? 'MD' + p.matchday : ({ r16:'R16', qf:'QF', sf:'SF', final:'Final' }[p.round] || p.round || ''); }
+    function stageSort(p){ return p.matchday ? p.matchday : 100 + ROUND_ORDER.indexOf(p.round); }
+    function crestImg(url, cls){
+      return url ? `<img class="${cls}" src="${escapeHtml(url)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<span class="${cls} none"><i class="fas fa-shield-halved"></i></span>`;
+    }
+    function closePicks(){ document.getElementById('ppBg').classList.remove('open'); document.body.style.overflow = ''; }
+    async function openPicks(row){
+      const entryId = row.dataset.entry; if (!entryId) return;
+      const name = row.querySelector('.lb-name').textContent;
+      const bg = document.getElementById('ppBg'), body = document.getElementById('ppBody');
+      document.getElementById('ppAv').innerHTML = row.querySelector('.lb-avatar') ? row.querySelector('.lb-avatar').outerHTML : '';
+      document.getElementById('ppName').textContent = name;
+      document.getElementById('ppSub').textContent = 'Rank ' + row.dataset.rank + ' · ' + row.querySelector('.lb-points').textContent.trim();
+      body.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading picks…</div>';
+      bg.classList.add('open'); bg.scrollTop = 0; document.body.style.overflow = 'hidden';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gbf_token')}` },
+          body: JSON.stringify({ action: 'cl_get_entry_picks', tournament_id: TOURNAMENT_ID, entry_id: entryId })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Failed');
+        const picks = (d.picks || []).slice().sort((a, b) => stageSort(a) - stageSort(b) || String(a.kickoff_time).localeCompare(String(b.kickoff_time)));
+        const teamById = {}; (d.teams || []).forEach(t => { teamById[t.id] = t; });
+        const won = picks.filter(p => p.result === 'win').length, lost = picks.filter(p => p.result === 'loss').length;
+        const usedClub = {}; picks.forEach(p => { if (!usedClub[p.club]) usedClub[p.club] = stageShort(p); });
+        let html = `<div class="pp-stats">
+            <div class="pp-stat"><b>${(d.player.entry_points || 0).toLocaleString()}</b><span>Points</span></div>
+            <div class="pp-stat"><b style="color:var(--green)">${won}</b><span>Won</span></div>
+            <div class="pp-stat"><b style="color:var(--red)">${lost}</b><span>Lost</span></div>
+            <div class="pp-stat"><b>${Object.keys(usedClub).length}<small style="font-family:var(--font-body);font-size:12px;color:var(--text-faint)">/${(d.teams || []).length}</small></b><span>Teams used</span></div>
+          </div>`;
+        html += `<div class="pp-h">Picks</div>`;
+        if (d.hidden_count) html += `<div class="pp-note"><i class="fas fa-lock" style="margin-right:6px"></i>${d.hidden_count > 1 ? d.hidden_count + ' picks' : '1 pick'} for the next matchday ${d.hidden_count > 1 ? 'stay' : 'stays'} hidden until its first game kicks off.</div>`;
+        if (!picks.length && !d.hidden_count) html += `<div class="pp-note">No picks yet.</div>`;
+        let last = null;
+        picks.forEach(p => {
+          const lbl = stageLabel(p);
+          if (lbl !== last) { if (last !== null) html += '</div>'; html += `<div class="pp-stage"><div>${escapeHtml(lbl)}</div>`; last = lbl; }
+          const t = teamById[p.team_id] || {};
+          const cls = p.result === 'win' ? 'win' : p.result === 'loss' ? 'loss' : 'pend';
+          const resTxt = p.result === 'win' ? 'Won' : p.result === 'loss' ? 'Lost' : (p.status === 'live' ? 'Live' : 'Pending');
+          const vs = p.opponent ? `${p.home ? 'vs' : 'at'} ${escapeHtml(p.opponent)}` : '';
+          const pred = p.predicted_home_score != null && p.predicted_away_score != null ? ` · predicted ${p.predicted_home_score}-${p.predicted_away_score}` : '';
+          const pts = p.result === 'win' || p.result === 'loss' ? `<em>${p.points_earned > 0 ? '+' : ''}${p.points_earned || 0}</em>` : (p.score ? `<em>${escapeHtml(p.score)}</em>` : '');
+          html += `<div class="pp-pick ${cls === 'pend' ? '' : cls}">
+              ${crestImg(t.crest_url, 'pp-crest')}
+              <div class="pp-t"><b>${escapeHtml(t.name || 'Unknown team')}${p.is_auto_pick ? ' <small style="color:var(--text-faint);font-weight:600">(auto)</small>' : ''}</b><span>${vs}${p.score && (p.result === 'win' || p.result === 'loss') ? ' · ' + escapeHtml(p.score) : ''}${pred}</span></div>
+              <div class="pp-res ${cls}">${pts}${resTxt}</div>
+            </div>`;
+        });
+        if (last !== null) html += '</div>';
+        const teams = (d.teams || []).slice().sort((a, b) => (!!usedClub[b.club] - !!usedClub[a.club]) || a.name.localeCompare(b.name));
+        html += `<div class="pp-h" style="margin-top:18px">Teams <small>Greyed out = already used</small></div><div class="pp-teams">` +
+          teams.map(t => `<div class="pp-team${usedClub[t.club] ? ' used' : ''}">${crestImg(t.crest_url, '')}<span>${escapeHtml(t.name.replace(/\s+(FC|CF|AC|SC)$/, ''))}</span>${usedClub[t.club] ? `<i class="tag">${escapeHtml(usedClub[t.club])}</i>` : ''}</div>`).join('') + '</div>';
+        body.innerHTML = html;
+      } catch (e) {
+        console.error('Player picks:', e);
+        body.innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load this player\'s picks right now.</div>';
+      }
+    }
+    document.getElementById('lbList').addEventListener('click', e => { const row = e.target.closest('.lb-row.tap'); if (row) openPicks(row); });
+    document.getElementById('ppX').addEventListener('click', closePicks);
+    document.getElementById('ppBg').addEventListener('click', e => { if (e.target.id === 'ppBg') closePicks(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicks(); });
 
     initAuth();
     loadLeaderboard();

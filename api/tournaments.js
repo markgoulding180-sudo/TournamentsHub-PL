@@ -4500,8 +4500,66 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; avatarById[u.id] = pickAvatarUrl(u); });
 
         return res.status(200).json({
-          leaderboard: entries.map((e, i) => ({ rank: i + 1, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points }))
+          leaderboard: entries.map((e, i) => ({ rank: i + 1, entry_id: e.id, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points }))
         });
+      }
+
+      // One player's Champions League picks, for the leaderboard pop-up.
+      // Read only. Another player's picks only show once that matchday/round
+      // has locked (its first game has kicked off), so nobody can copy
+      // upcoming picks; your own picks always show.
+      if (action === 'cl_get_entry_picks') {
+        const { tournament_id, entry_id } = req.body;
+        if (!user) return res.status(401).json({ error: 'Please log in.' });
+        if (!tournament_id || !entry_id) return res.status(400).json({ error: 'tournament_id and entry_id are required' });
+        try {
+          const { data: entry } = await supabaseAdmin.schema('champions_league').from('tournament_entries')
+            .select('id, user_id, entry_points').eq('id', entry_id).eq('tournament_id', tournament_id).maybeSingle();
+          if (!entry) return res.status(404).json({ error: 'Player not found' });
+          const [{ data: allTeams }, { data: matches }, { data: picks }, { data: player }] = await Promise.all([
+            supabaseAdmin.schema('champions_league').from('teams').select('id, name, short_name, crest_url, external_team_id').eq('tournament_id', tournament_id),
+            supabaseAdmin.schema('champions_league').from('matches').select('*').eq('tournament_id', tournament_id),
+            supabaseAdmin.schema('champions_league').from('picks').select('*').eq('entry_id', entry.id),
+            supabaseAdmin.from('users').select('id, display_name, username, avatar_type, avatar_url').eq('id', entry.user_id).maybeSingle()
+          ]);
+          const stageOf = x => x.matchday ? 'md:' + x.matchday : 'r:' + x.round;
+          const lockAt = {};
+          (matches || []).forEach(m => {
+            const k = stageOf(m);
+            const t = (m.status === 'live' || m.status === 'finished') ? 0 : (m.kickoff_time ? new Date(m.kickoff_time).getTime() : null);
+            if (t !== null && (lockAt[k] === undefined || t < lockAt[k])) lockAt[k] = t;
+          });
+          const isMe = entry.user_id === user.id, now = Date.now();
+          const shown = (picks || []).filter(p => isMe || (lockAt[stageOf(p)] !== undefined && now >= lockAt[stageOf(p)]));
+          const teamById = {};
+          (allTeams || []).forEach(t => { teamById[t.id] = t; });
+          const inFixtures = new Set();
+          (matches || []).forEach(m => { inFixtures.add(m.home_team_id); inFixtures.add(m.away_team_id); });
+          const teams = inFixtures.size ? (allTeams || []).filter(t => inFixtures.has(t.id)) : (allTeams || []);
+          const out = shown.map(p => {
+            const m = (matches || []).find(x => stageOf(x) === stageOf(p) && (x.home_team_id === p.team_id || x.away_team_id === p.team_id));
+            const home = m ? m.home_team_id === p.team_id : null;
+            const opp = m ? teamById[home ? m.away_team_id : m.home_team_id] : null;
+            return {
+              matchday: p.matchday, round: p.round, team_id: p.team_id,
+              club: (teamById[p.team_id] && teamById[p.team_id].external_team_id) || p.team_id,
+              opponent: opp ? opp.name : null, home,
+              kickoff_time: m ? m.kickoff_time : null, status: m ? m.status : null,
+              score: m && m.home_score != null && m.away_score != null ? (home ? m.home_score + '-' + m.away_score : m.away_score + '-' + m.home_score) : null,
+              predicted_home_score: p.predicted_home_score, predicted_away_score: p.predicted_away_score,
+              result: p.result, points_earned: p.points_earned, is_auto_pick: p.is_auto_pick
+            };
+          });
+          return res.status(200).json({
+            player: { name: (player && (player.display_name || player.username)) || 'Unknown', avatar_url: player ? pickAvatarUrl(player) : null, entry_points: entry.entry_points || 0, is_me: isMe },
+            picks: out,
+            hidden_count: (picks || []).length - shown.length,
+            teams: teams.map(t => ({ id: t.id, name: t.name, short_name: t.short_name, crest_url: t.crest_url, club: t.external_team_id || t.id }))
+          });
+        } catch (err) {
+          console.error('cl_get_entry_picks error:', err);
+          return res.status(500).json({ error: 'Could not load picks' });
+        }
       }
 
       // Consolidated here rather than its own /api/cl-sync.js file - a
