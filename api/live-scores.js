@@ -464,9 +464,28 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
         .select('id, user_id').eq('tournament_id', tournament.id).in('user_id', userIdsArr);
       if (!entries || entries.length === 0) continue;
 
-      const { data: predPoints } = await localDb
-        .schema('predictions').from('predictions')
-        .select('user_id, points_earned, match_id').in('user_id', entries.map(e => e.user_id));
+      // Only this tournament's gameweeks, read in pages of 1,000. Supabase
+      // returns at most 1,000 rows per request, so one plain select quietly
+      // dropped predictions once the table passed 1,000 rows (it has 1,150
+      // after GW8, and grows every gameweek) and totals could come out short.
+      // If any page fails, this tournament's totals are left as they were
+      // rather than overwritten with partial numbers.
+      const predPoints = [];
+      let predReadFailed = false;
+      const tournamentMatchIdList = [...tournamentMatchIds];
+      for (let from = 0; tournamentMatchIdList.length > 0; from += 1000) {
+        const { data: page, error: pageErr } = await localDb
+          .schema('predictions').from('predictions')
+          .select('id, user_id, points_earned, match_id')
+          .in('user_id', entries.map(e => e.user_id))
+          .in('match_id', tournamentMatchIdList)
+          .order('id', { ascending: true })
+          .range(from, from + 999);
+        if (pageErr) { predReadFailed = true; console.error(`Predictions read failed for ${tournament.name}:`, pageErr); break; }
+        predPoints.push(...(page || []));
+        if (!page || page.length < 1000) break;
+      }
+      if (predReadFailed || !tournamentMatches) continue;
 
       const totalsByUser = {};
       (predPoints || []).forEach(p => {

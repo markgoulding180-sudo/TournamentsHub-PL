@@ -1502,6 +1502,18 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           // real football data lives in the separate master project and
           // is re-syncable from the FPL API if ever needed, unlike
           // anything here).
+          // Supabase returns at most 1,000 rows per request, so bigger tables
+          // (predictions already has 1,150 rows) are read in pages of 1,000
+          // ordered by id; otherwise the backup silently missed rows.
+          const allRows = async (makeQuery) => {
+            const rows = [];
+            for (let from = 0; ; from += 1000) {
+              const { data, error } = await makeQuery().order('id', { ascending: true }).range(from, from + 999);
+              if (error) return { data: null, error };
+              rows.push(...(data || []));
+              if (!data || data.length < 1000) return { data: rows, error: null };
+            }
+          };
           const [
             users, walletTx, adminMessages, masterClock,
             predTournaments, predEntries, predictions, predHistory, gwSummary,
@@ -1509,39 +1521,39 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             stockTournaments, stockEntries, stockMarket, stockConfig, stockStages, stockTx, stockAudit, stockMatchups, stockHistory,
             fantasyTournaments, fantasyEntries, fantasyHistory
           ] = await Promise.all([
-            supabaseAdmin.from('users').select('*'),
-            supabaseAdmin.from('wallet_transactions').select('*'),
-            supabaseAdmin.from('admin_messages').select('*'),
-            supabaseAdmin.from('master_clock').select('*'),
-            supabaseAdmin.schema('predictions').from('tournaments').select('*'),
-            supabaseAdmin.schema('predictions').from('tournament_entries').select('*'),
-            supabaseAdmin.schema('predictions').from('predictions').select('*'),
-            supabaseAdmin.schema('predictions').from('prediction_history').select('*'),
-            supabaseAdmin.schema('predictions').from('gameweek_summary').select('*'),
-            supabaseAdmin.schema('lms').from('tournaments').select('*'),
-            supabaseAdmin.schema('lms').from('tournament_entries').select('*'),
-            supabaseAdmin.schema('lms').from('picks').select('*'),
-            supabaseAdmin.schema('stockmarket').from('tournaments').select('*'),
-            supabaseAdmin.schema('stockmarket').from('tournament_entries').select('*'),
-            supabaseAdmin.schema('stockmarket').from('player_market').select('*'),
+            allRows(() => supabaseAdmin.from('users').select('*')),
+            allRows(() => supabaseAdmin.from('wallet_transactions').select('*')),
+            allRows(() => supabaseAdmin.from('admin_messages').select('*')),
+            allRows(() => supabaseAdmin.from('master_clock').select('*')),
+            allRows(() => supabaseAdmin.schema('predictions').from('tournaments').select('*')),
+            allRows(() => supabaseAdmin.schema('predictions').from('tournament_entries').select('*')),
+            allRows(() => supabaseAdmin.schema('predictions').from('predictions').select('*')),
+            allRows(() => supabaseAdmin.schema('predictions').from('prediction_history').select('*')),
+            allRows(() => supabaseAdmin.schema('predictions').from('gameweek_summary').select('*')),
+            allRows(() => supabaseAdmin.schema('lms').from('tournaments').select('*')),
+            allRows(() => supabaseAdmin.schema('lms').from('tournament_entries').select('*')),
+            allRows(() => supabaseAdmin.schema('lms').from('picks').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('tournaments').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('tournament_entries').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('player_market').select('*')),
             supabaseAdmin.schema('stockmarket').from('config').select('*'),
-            supabaseAdmin.schema('stockmarket').from('tournament_stages').select('*'),
-            supabaseAdmin.schema('stockmarket').from('transactions').select('*'),
-            supabaseAdmin.schema('stockmarket').from('audit_log').select('*'),
-            supabaseAdmin.schema('stockmarket').from('matchups').select('*'),
-            supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*'),
-            supabaseAdmin.schema('fantasy').from('tournaments').select('*'),
-            supabaseAdmin.schema('fantasy').from('tournament_entries').select('*'),
-            supabaseAdmin.schema('fantasy').from('entry_gameweek_history').select('*')
+            allRows(() => supabaseAdmin.schema('stockmarket').from('tournament_stages').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('transactions').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('audit_log').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('matchups').select('*')),
+            allRows(() => supabaseAdmin.schema('stockmarket').from('player_gw_history').select('*')),
+            allRows(() => supabaseAdmin.schema('fantasy').from('tournaments').select('*')),
+            allRows(() => supabaseAdmin.schema('fantasy').from('tournament_entries').select('*')),
+            allRows(() => supabaseAdmin.schema('fantasy').from('entry_gameweek_history').select('*'))
           ]);
 
           // Real football data — separate database, but including it here
           // means the same report can cross-check predictions/picks
           // against actual results without needing two files.
           const [masterTeams, masterPlayers, masterMatches] = await Promise.all([
-            masterDb.from('teams').select('*'),
-            masterDb.from('players').select('*'),
-            masterDb.from('matches').select('*')
+            allRows(() => masterDb.from('teams').select('*')),
+            allRows(() => masterDb.from('players').select('*')),
+            allRows(() => masterDb.from('matches').select('*'))
           ]);
 
           const backup = {
