@@ -348,6 +348,21 @@ module.exports = async (req, res) => {
   }
 };
 
+// Supabase hands back at most 1,000 rows per request. Every read here that
+// can grow with the number of players goes through this, which keeps asking
+// for the next 1,000 (ordered, so nothing is skipped or repeated) until it
+// has them all. Returns null if any page fails, so callers can leave things
+// as they were instead of working from half the data.
+async function readAllRows(makeQuery, orderCol = 'id') {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await makeQuery().order(orderCol, { ascending: true }).range(from, from + 999);
+    if (error) { console.error('readAllRows failed:', error.message); return null; }
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) return rows;
+  }
+}
+
 async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   console.log(`[PREDICTIONS_DEBUG] calculatePointsForGameweek called for gw=${gameweek}`);
 
@@ -371,10 +386,11 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   const predictionUpdateRows = [];
 
   for (const match of matches) {
-    const { data: predictions, error: predFetchErr } = await localDb
+    const predictions = await readAllRows(() => localDb
       .schema('predictions').from('predictions')
       .select('*')
-      .eq('match_id', match.id);
+      .eq('match_id', match.id));
+    const predFetchErr = predictions ? null : { message: 'read failed' };
 
     console.log(`[PREDICTIONS_DEBUG] gw=${gameweek} match=${match.id} (${match.home_team} v ${match.away_team}): predictions fetched=${predictions ? predictions.length : 'null'}, error=${predFetchErr ? predFetchErr.message : 'none'}`);
 
@@ -411,12 +427,14 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   // taking so long (90+ sequential round trips confirmed for just a
   // couple of matches), and quite possibly why Fantasy/LMS processing
   // appeared to silently fail right after it in the same request.
-  if (predictionUpdateRows.length > 0) {
-    const { data: upsertData, error: predUpsertErr, status: upsertStatus } = await localDb
+  // Saved 500 at a time so a big gameweek (200 players x 10 matches =
+  // 2,000 predictions) never becomes one oversized request.
+  for (let i = 0; i < predictionUpdateRows.length; i += 500) {
+    const chunk = predictionUpdateRows.slice(i, i + 500);
+    const { error: predUpsertErr, status: upsertStatus } = await localDb
       .schema('predictions').from('predictions')
-      .upsert(predictionUpdateRows, { onConflict: 'id' })
-      .select('id, points_earned');
-    console.log(`[PREDICTIONS_DEBUG] gw=${gameweek}: upsert status=${upsertStatus}, returned rows=${upsertData ? upsertData.length : 'null'}, error=${predUpsertErr ? JSON.stringify(predUpsertErr) : 'none'}`);
+      .upsert(chunk, { onConflict: 'id' });
+    console.log(`[PREDICTIONS_DEBUG] gw=${gameweek}: upsert rows ${i + 1}-${i + chunk.length} status=${upsertStatus}, error=${predUpsertErr ? JSON.stringify(predUpsertErr) : 'none'}`);
     if (predUpsertErr) console.error('Batch predictions upsert failed:', predUpsertErr);
   }
   
@@ -447,7 +465,6 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
   console.log(`Found ${relevantTournaments.length} tournaments covering GW${gameweek}`);
 
   if (relevantTournaments.length > 0 && usersToUpdate.size > 0) {
-    const userIdsArr = [...usersToUpdate];
 
     for (const tournament of relevantTournaments) {
       const startGW = tournament.gameweek;
@@ -459,10 +476,13 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
         .from('matches').select('id').gte('gameweek', startGW).lte('gameweek', endGW);
       const tournamentMatchIds = new Set((tournamentMatches || []).map(m => m.id));
 
-      const { data: entries } = await localDb
+      // Every entry in this tournament, read by tournament (not with a list
+      // of player ids, which gets too long for one request with 200 players).
+      const entries = await readAllRows(() => localDb
         .schema('predictions').from('tournament_entries')
-        .select('id, user_id').eq('tournament_id', tournament.id).in('user_id', userIdsArr);
+        .select('id, user_id').eq('tournament_id', tournament.id));
       if (!entries || entries.length === 0) continue;
+      const entryUserIds = new Set(entries.map(e => e.user_id));
 
       // Only this tournament's gameweeks, read in pages of 1,000. Supabase
       // returns at most 1,000 rows per request, so one plain select quietly
@@ -470,22 +490,12 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
       // after GW8, and grows every gameweek) and totals could come out short.
       // If any page fails, this tournament's totals are left as they were
       // rather than overwritten with partial numbers.
-      const predPoints = [];
-      let predReadFailed = false;
-      const tournamentMatchIdList = [...tournamentMatchIds];
-      for (let from = 0; tournamentMatchIdList.length > 0; from += 1000) {
-        const { data: page, error: pageErr } = await localDb
-          .schema('predictions').from('predictions')
-          .select('id, user_id, points_earned, match_id')
-          .in('user_id', entries.map(e => e.user_id))
-          .in('match_id', tournamentMatchIdList)
-          .order('id', { ascending: true })
-          .range(from, from + 999);
-        if (pageErr) { predReadFailed = true; console.error(`Predictions read failed for ${tournament.name}:`, pageErr); break; }
-        predPoints.push(...(page || []));
-        if (!page || page.length < 1000) break;
-      }
-      if (predReadFailed || !tournamentMatches) continue;
+      const allRangePreds = await readAllRows(() => localDb
+        .schema('predictions').from('predictions')
+        .select('id, user_id, points_earned, match_id')
+        .gte('gameweek', startGW).lte('gameweek', endGW));
+      if (!allRangePreds || !tournamentMatches) { console.error(`Predictions read failed for ${tournament.name} - totals left as they were`); continue; }
+      const predPoints = allRangePreds.filter(p => entryUserIds.has(p.user_id));
 
       const totalsByUser = {};
       (predPoints || []).forEach(p => {
@@ -495,30 +505,34 @@ async function calculatePointsForGameweek(localDb, masterDb, gameweek) {
 
       const entryUpdateRows = entries.map(e => ({ id: e.id, entry_points: totalsByUser[e.user_id] || 0 }));
 
-      if (entryUpdateRows.length > 0) {
+      for (let i = 0; i < entryUpdateRows.length; i += 500) {
         const { error: entryUpsertErr } = await localDb
           .schema('predictions').from('tournament_entries')
-          .upsert(entryUpdateRows, { onConflict: 'id' });
+          .upsert(entryUpdateRows.slice(i, i + 500), { onConflict: 'id' });
         if (entryUpsertErr) console.error(`Batch entry_points upsert failed for ${tournament.name}:`, entryUpsertErr);
-        else console.log(`  Updated ${entryUpdateRows.length} entries for ${tournament.name}`);
       }
+      console.log(`  Updated ${entryUpdateRows.length} entries for ${tournament.name}`);
     }
 
     // Recalculate ranks
     console.log(`\n=== RECALCULATING TOURNAMENT RANKS ===`);
     for (const tournament of relevantTournaments) {
-      const { data: entries } = await localDb
+      const entriesRaw = await readAllRows(() => localDb
         .schema('predictions').from('tournament_entries')
         .select('id, entry_points, rank')
-        .eq('tournament_id', tournament.id)
-        .order('entry_points', { ascending: false });
+        .eq('tournament_id', tournament.id));
+      // Highest points first (same order as before); ties in a fixed order.
+      const entries = entriesRaw && entriesRaw.slice().sort((a, b) => ((b.entry_points || 0) - (a.entry_points || 0)) || String(a.id).localeCompare(String(b.id)));
 
       if (entries && entries.length > 0) {
         const rankUpdateRows = entries.map((e, i) => ({ id: e.id, rank: i + 1 }));
-        // One batch upsert instead of one .update() call per entry.
-        const { error: rankErr } = await localDb
-          .schema('predictions').from('tournament_entries')
-          .upsert(rankUpdateRows, { onConflict: 'id' });
+        let rankErr = null;
+        for (let i = 0; i < rankUpdateRows.length; i += 500) {
+          const { error } = await localDb
+            .schema('predictions').from('tournament_entries')
+            .upsert(rankUpdateRows.slice(i, i + 500), { onConflict: 'id' });
+          if (error) rankErr = error;
+        }
         if (rankErr) console.error(`Batch rank upsert failed for ${tournament.name}:`, rankErr);
         else console.log(`  ${tournament.name}: ranked ${entries.length} entries — top ${entries[0].entry_points} pts, bottom ${entries[entries.length - 1].entry_points} pts`);
       }

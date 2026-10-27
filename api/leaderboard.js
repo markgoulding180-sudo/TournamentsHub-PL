@@ -25,7 +25,8 @@ module.exports = async (req, res) => {
   try {
     const params = new URLSearchParams(req.query);
     const tournament = params.get('tournament') || 'all';
-    const limit = parseInt(params.get('limit')) || 50;
+    // One request can return at most 1,000 rows, so a page is capped there.
+    const limit = Math.min(parseInt(params.get('limit')) || 50, 1000);
     const offset = parseInt(params.get('offset')) || 0;
 
     const noCacheFetch = (url, options = {}) => fetch(url, { ...options, cache: 'no-store' });
@@ -119,10 +120,12 @@ module.exports = async (req, res) => {
     // That's exactly why the same person could show a different name
     // here than on the full leaderboard page. Purely a display source
     // change — entry_points and everything else below is untouched.
+    // Looked up 100 players at a time: one request with hundreds of ids
+    // makes the web address too long.
     let usersById = {};
-    if (userIds.length > 0) {
+    for (let i = 0; i < userIds.length; i += 100) {
       const { data: usersData } = await supabase
-        .from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIds);
+        .from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIds.slice(i, i + 100));
       (usersData || []).forEach(u => { usersById[u.id] = u; });
     }
 
@@ -131,11 +134,21 @@ module.exports = async (req, res) => {
     let gwPointsMap = {};
     const inRange = currentGameweek && chosen && currentGameweek >= (chosen.gameweek || 1) && currentGameweek <= (chosen.end_gameweek || chosen.gameweek || 38);
     if (inRange && userIds.length > 0) {
-      const { data: predictionsData, error: predictionsError } = await supabase
-        .schema('predictions').from('predictions')
-        .select('user_id, points_earned')
-        .in('user_id', userIds)
-        .eq('gameweek', currentGameweek);
+      // Everyone's predictions for this gameweek (200 players x 10 matches can
+      // pass 1,000 rows), read 1,000 at a time, then kept to this page's players.
+      const onPage = new Set(userIds);
+      let predictionsData = [], predictionsError = null;
+      for (let from = 0; ; from += 1000) {
+        const { data: page, error } = await supabase
+          .schema('predictions').from('predictions')
+          .select('id, user_id, points_earned')
+          .eq('gameweek', currentGameweek)
+          .order('id', { ascending: true })
+          .range(from, from + 999);
+        if (error) { predictionsError = error; break; }
+        predictionsData.push(...(page || []).filter(p => onPage.has(p.user_id)));
+        if (!page || page.length < 1000) break;
+      }
 
       if (!predictionsError && predictionsData) {
         // Sum points per user

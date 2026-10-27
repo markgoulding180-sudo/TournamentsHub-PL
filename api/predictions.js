@@ -476,10 +476,20 @@ async function getTrendsData(localDb, masterDb, gameweek, res) {
     // Get all predictions for this gameweek (local project).
     // No cross-project join here (matches lives in a different project),
     // so match/team lookups are done in-memory below via matchesById.
-    const { data: allPredictions, error: predError } = await localDb
-      .schema('predictions').from('predictions')
-      .select('*')
-      .eq('gameweek', parseInt(gameweek));
+    // Read 1,000 at a time: with 200 players a gameweek has 2,000 predictions,
+    // and a single read would quietly stop at 1,000 and skew the percentages.
+    let allPredictions = [], predError = null;
+    for (let from = 0; ; from += 1000) {
+      const { data: page, error } = await localDb
+        .schema('predictions').from('predictions')
+        .select('*')
+        .eq('gameweek', parseInt(gameweek))
+        .order('id', { ascending: true })
+        .range(from, from + 999);
+      if (error) { predError = error; break; }
+      allPredictions.push(...(page || []));
+      if (!page || page.length < 1000) break;
+    }
 
     if (predError) {
       return res.status(500).json({ error: 'Failed to fetch predictions', details: predError.message });

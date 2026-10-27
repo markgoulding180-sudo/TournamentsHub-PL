@@ -174,7 +174,7 @@ module.exports = async (req, res) => {
         const ownerIds = [...new Set(rows.map(r => r.user_id))];
         const [{ data: allBets }, { data: owners }, { data: follows }] = ids.length ? await Promise.all([
           supabaseAdmin.from('bet_challenge_bets').select('id, challenge_id, step, status, stake, odds_text, odds_decimal, selection, image_url, potential_return, created_at, verified, selections_count, selection_results').in('challenge_id', ids),
-          supabaseAdmin.from('users').select('id, username, display_name, avatar_url, avatar_type').in('id', ownerIds),
+          usersByIds(supabaseAdmin, ownerIds, 'id, username, display_name, avatar_url, avatar_type'),
           supabaseAdmin.from('bet_challenge_follows').select('challenge_id, user_id').in('challenge_id', ids)
         ]) : [{ data: [] }, { data: [] }, { data: [] }];
         const ownerById = {}; (owners || []).forEach(o => { ownerById[o.id] = o; });
@@ -497,7 +497,7 @@ module.exports = async (req, res) => {
 
           const draftingUserIds = (draftingEntries || []).map(e => e.user_id);
           const { data: draftingUsers } = draftingUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', draftingUserIds)
+            ? await usersByIds(supabaseAdmin, draftingUserIds, 'id, username, display_name, avatar_type, avatar_url')
             : { data: [] };
           const draftingNameByUserId = {};
           const draftingAvatarByUserId = {};
@@ -595,7 +595,7 @@ module.exports = async (req, res) => {
 
         const userIds = (allEntries || []).map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIds)
+          ? await usersByIds(supabaseAdmin, userIds, 'id, username, display_name, avatar_type, avatar_url')
           : { data: [] };
         const nameByUserId = {};
         const avatarByUserId = {};
@@ -920,7 +920,7 @@ module.exports = async (req, res) => {
 
         const userIdsFinal = (allEntriesFinal || []).map(e => e.user_id);
         const { data: usersFinal } = userIdsFinal.length > 0
-          ? await supabaseAdmin.from('users').select('id, username, display_name, avatar_type, avatar_url').in('id', userIdsFinal)
+          ? await usersByIds(supabaseAdmin, userIdsFinal, 'id, username, display_name, avatar_type, avatar_url')
           : { data: [] };
         const nameByUserIdFinal = {};
         const avatarByUserIdFinal = {};
@@ -1011,7 +1011,7 @@ module.exports = async (req, res) => {
             .select('id, user_id').in('id', opponentEntryIds);
           const oppUserIds = (oppEntries || []).map(e => e.user_id);
           const { data: oppUsers } = oppUserIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', oppUserIds)
+            ? await usersByIds(supabaseAdmin, oppUserIds, 'id, username, display_name')
             : { data: [] };
           const nameByUserId = {};
           (oppUsers || []).forEach(u => { nameByUserId[u.id] = pickDisplayName(u); });
@@ -1638,7 +1638,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           const entryIds = (allTournamentEntries || []).map(e => e.id);
           const userIds = (allTournamentEntries || []).map(e => e.user_id);
           const { data: exportUsers } = userIds.length > 0
-            ? await supabaseAdmin.from('users').select('id, email').in('id', userIds)
+            ? await usersByIds(supabaseAdmin, userIds, 'id, email')
             : { data: [] };
           const exportEmailByUserId = {};
           (exportUsers || []).forEach(u => { exportEmailByUserId[u.id] = u.email; });
@@ -2200,9 +2200,9 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           .order('username', { ascending: true });
         if (usersError) return res.status(500).json({ error: 'Failed to load users', details: usersError.message });
 
-        const { data: allTx, error: txError } = await supabaseAdmin
+        const { data: allTx, error: txError } = await readAllRowsT(() => supabaseAdmin
           .from('wallet_transactions')
-          .select('user_id, amount, type, tournament_type, tournament_id');
+          .select('id, user_id, amount, type, tournament_type, tournament_id'));
         if (txError) return res.status(500).json({ error: 'Failed to load transactions', details: txError.message });
 
         // Overdue = what's still owed on tournaments whose pay-by date
@@ -2288,21 +2288,21 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
         if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
 
-        const { data: payments, error: payErr } = await supabaseAdmin
+        const { data: paymentsAll, error: payErr } = await readAllRowsT(() => supabaseAdmin
           .from('wallet_transactions')
           .select('*')
-          .eq('type', 'payment')
-          .order('created_at', { ascending: false });
+          .eq('type', 'payment'));
+        const payments = (paymentsAll || []).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
         if (payErr) return res.status(500).json({ error: payErr.message });
 
         // Owed lines: for every user + tournament pair, the ledger total
         // (entry fees minus payments for that tournament). Anything still
         // above zero is money outstanding, shown alongside the payments
         // so the history reads as paid AND owed in one place.
-        const { data: tournamentTx, error: ttErr } = await supabaseAdmin
+        const { data: tournamentTx, error: ttErr } = await readAllRowsT(() => supabaseAdmin
           .from('wallet_transactions')
-          .select('user_id, amount, type, tournament_type, tournament_id, created_at')
-          .not('tournament_id', 'is', null);
+          .select('id, user_id, amount, type, tournament_type, tournament_id, created_at')
+          .not('tournament_id', 'is', null));
         if (ttErr) return res.status(500).json({ error: ttErr.message });
 
         const owedGroups = {};
@@ -2326,7 +2326,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const allRows = [...(payments || []).map(p => ({ ...p, kind: 'paid' })), ...owedRows];
 
         const userIds = [...new Set(allRows.map(p => p.user_id))];
-        const { data: users } = await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds);
+        const { data: users } = await usersByIds(supabaseAdmin, userIds, 'id, username, display_name');
         const userMap = {};
         (users || []).forEach(u => { userMap[u.id] = u.display_name || u.username; });
 
@@ -2526,7 +2526,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
               supabaseAdmin.from('bet_challenge_bets').select('challenge_id, step, created_at').in('challenge_id', fIds).eq('status', 'pending')
             ]);
             const fOwnerIds = [...new Set((fChs || []).map(c => c.user_id))];
-            const { data: fOwners } = fOwnerIds.length ? await supabaseAdmin.from('users').select('id, username, display_name').in('id', fOwnerIds) : { data: [] };
+            const { data: fOwners } = fOwnerIds.length ? await usersByIds(supabaseAdmin, fOwnerIds, 'id, username, display_name') : { data: [] };
             (fBets || []).forEach(b => {
               const f = myFollows.find(x => x.challenge_id === b.challenge_id);
               const c = (fChs || []).find(x => x.id === b.challenge_id);
@@ -2605,10 +2605,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         let usersById = {};
         const userIds = [...new Set((entries || []).map(e => e.user_id))];
         if (userIds.length > 0) {
-          const { data: usersData } = await supabaseAdmin
-            .from('users')
-            .select('id, username, display_name, avatar_type, avatar_url')
-            .in('id', userIds);
+          const { data: usersData } = await usersByIds(supabaseAdmin, userIds, 'id, username, display_name, avatar_type, avatar_url');
           (usersData || []).forEach(u => { usersById[u.id] = { ...u, avatar_url: pickAvatarUrl(u) }; });
         }
 
@@ -3118,7 +3115,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
         const userIds = [...userIdSet];
 
-        const { data: allUsers } = await supabaseAdmin.from('users').select('id, username, display_name').in('id', userIds);
+        const { data: allUsers } = await usersByIds(supabaseAdmin, userIds, 'id, username, display_name');
         const nameById = {};
         (allUsers || []).forEach(u => { nameById[u.id] = u.display_name || u.username; });
 
@@ -3450,7 +3447,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const latest = threads.slice(0, 8);
         const featured = threads.filter(t => t.bg_image).sort((a, b) => (b.pinned - a.pinned) || (b.created_at > a.created_at ? 1 : -1)).slice(0, 4);
         const ids = [...new Set([...latest, ...featured].map(t => t.user_id))];
-        const { data: authors } = ids.length ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_url').in('id', ids) : { data: [] };
+        const { data: authors } = ids.length ? await usersByIds(supabaseAdmin, ids, 'id, display_name, username, avatar_url') : { data: [] };
         const au = {}; (authors || []).forEach(u => { au[u.id] = u; });
         const withAuthor = t => ({ ...t, author_name: au[t.user_id] ? (au[t.user_id].display_name || au[t.user_id].username) : 'Unknown', author_avatar: au[t.user_id] ? au[t.user_id].avatar_url || null : null });
         const members = new Set(threads.map(t => t.user_id)).size;
@@ -3516,7 +3513,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = [...new Set(threads.map(t => t.user_id))];
         const { data: authors } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_url').in('id', userIds)
+          ? await usersByIds(supabaseAdmin, userIds, 'id, display_name, username, avatar_url')
           : { data: [] };
         const nameByUser = {}, avatarByUser = {};
         (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; avatarByUser[u.id] = u.avatar_url || null; });
@@ -3542,7 +3539,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         if (postsErr) return res.status(500).json({ error: postsErr.message });
 
         const userIds = [...new Set([thread.user_id, ...posts.map(p => p.user_id)])];
-        const { data: authors } = await supabaseAdmin.from('users').select('id, display_name, username, avatar_url').in('id', userIds);
+        const { data: authors } = await usersByIds(supabaseAdmin, userIds, 'id, display_name, username, avatar_url');
         const nameByUser = {}, avatarByUser = {};
         (authors || []).forEach(u => { nameByUser[u.id] = u.display_name || u.username; avatarByUser[u.id] = u.avatar_url || null; });
         const { data: tCat } = await supabaseAdmin.from('forum_categories').select('*').eq('id', thread.category_id).maybeSingle();
@@ -4280,7 +4277,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = entries.map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_type, avatar_url').in('id', userIds)
+          ? await usersByIds(supabaseAdmin, userIds, 'id, display_name, username, avatar_type, avatar_url')
           : { data: [] };
         const byId = {};
         const avatarById = {};
@@ -4540,7 +4537,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = entries.map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username, avatar_type, avatar_url').in('id', userIds)
+          ? await usersByIds(supabaseAdmin, userIds, 'id, display_name, username, avatar_type, avatar_url')
           : { data: [] };
         const byId = {};
         const avatarById = {};
@@ -4961,7 +4958,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const userIds = entries.map(e => e.user_id);
         const { data: users } = userIds.length > 0
-          ? await supabaseAdmin.from('users').select('id, display_name, username, email').in('id', userIds)
+          ? await usersByIds(supabaseAdmin, userIds, 'id, display_name, username, email')
           : { data: [] };
         const byId = {};
         (users || []).forEach(u => { byId[u.id] = u; });
@@ -6135,7 +6132,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
           const targetUserIds = predUserIds.filter(uid => uid !== user.id); // never touch your own predictions
 
-          const { data: usersRows } = await supabaseAdmin.from('users').select('id, username').in('id', targetUserIds);
+          const { data: usersRows } = await usersByIds(supabaseAdmin, targetUserIds, 'id, username');
           const usernameById = {};
           (usersRows || []).forEach(u => { usernameById[u.id] = u.username; });
 
@@ -10021,6 +10018,32 @@ async function promoteIfGameweekReached(supabaseAdmin, masterDb, schemaName, tou
 }
 
 const PAYMENT_SCHEMAS = ['predictions', 'lms', 'fantasy', 'stockmarket', 'darts', 'champions_league'];
+
+// Player names / photos for a list of ids, 100 at a time. One request with
+// hundreds of ids (e.g. 200 players in a tournament) makes the web address
+// too long and fails. Same { data, error } shape as a normal query.
+async function usersByIds(supabaseAdmin, ids, cols) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  const rows = [];
+  for (let i = 0; i < list.length; i += 100) {
+    const { data, error } = await supabaseAdmin.from('users').select(cols).in('id', list.slice(i, i + 100));
+    if (error) return { data: rows.length ? rows : null, error };
+    rows.push(...(data || []));
+  }
+  return { data: rows, error: null };
+}
+
+// Every row a query matches, 1,000 at a time (the most one request returns),
+// ordered by id so nothing is skipped or repeated. Same { data, error } shape.
+async function readAllRowsT(makeQuery) {
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await makeQuery().order('id', { ascending: true }).range(from, from + 999);
+    if (error) return { data: null, error };
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) return { data: rows, error: null };
+  }
+}
 
 // Bank details users pay entry fees into. Only ever sent to logged-in
 // users via the wallet endpoint, never baked into public page HTML.
