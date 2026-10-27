@@ -182,7 +182,10 @@
         return;
       }
       try {
-        const res = await fetch(`/api/tournaments?predictions_user_history=true&user_id=${userId}`);
+        // tournament_id (from a leaderboard link) keeps this to that tournament's gameweeks only
+        const tid = params.get('tournament_id');
+        const tok = localStorage.getItem('gbf_token');
+        const res = await fetch(`/api/tournaments?predictions_user_history=true&user_id=${encodeURIComponent(userId)}${tid ? '&tournament_id=' + encodeURIComponent(tid) : ''}`, { headers: tok ? { 'Authorization': `Bearer ${tok}` } : {} });
         if (!res.ok) {
           content.innerHTML = '<div class="empty">Couldn\'t find that player.</div>';
           return;
@@ -193,7 +196,7 @@
         const headerHtml = `
           <div class="header-card">
             <div class="name">${escapeHtml(data.player_name)}</div>
-            <div class="sub">Gameweek-by-gameweek history</div>
+            <div class="sub">${data.tournament ? escapeHtml(data.tournament.name) + ' · Gameweeks ' + data.tournament.gameweek + '–' + (data.tournament.end_gameweek || data.tournament.gameweek) : 'Gameweek-by-gameweek history'}</div>
             <div class="total">${data.total_points || 0}</div>
             <div class="total-label">Total Points</div>
           </div>`;
@@ -235,7 +238,7 @@
               <div class="pick-row">
                 <div class="pick-match">
                   <div class="teams">${escapeHtml(p.home_team)} v ${escapeHtml(p.away_team)}</div>
-                  <div class="your-pick">Your pick: ${escapeHtml(pickText)}</div>
+                  <div class="your-pick">Pick: ${escapeHtml(pickText)}</div>
                 </div>
                 <div class="pick-result">${resultText}</div>
                 <div class="pick-pts ${!scored ? '' : (p.points_earned > 0 ? 'some' : 'zero')}">${scored ? p.points_earned : '—'}</div>

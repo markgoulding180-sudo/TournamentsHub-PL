@@ -65,24 +65,35 @@ module.exports = async (req, res) => {
     // Resolving to the live predictions tournament and reading from there
     // instead makes this endpoint reflect the same reality every other
     // leaderboard in the app already does.
-    let resolvedTournamentId = tournament;
-    let tournamentStatus = null;
+    // Which Predictions tournament this board is for. Each tournament is
+    // completely separate: its own entries, and its own gameweek range
+    // (Predictions 1 = GW1-8, Predictions 2 = GW9-16 ...).
+    // "all"/"season" means the current one: the live tournament, otherwise
+    // the one taking entries (so once Predictions 1 has finished, the page
+    // moves on to Predictions 2 instead of still showing Predictions 1),
+    // otherwise the most recently finished one. Older tournaments stay
+    // viewable by passing their id (listed in `tournaments` below).
+    const { data: allPredTournaments } = await supabase
+      .schema('predictions').from('tournaments')
+      .select('id, name, status, gameweek, end_gameweek, created_at');
+    const predTournaments = (allPredTournaments || []).filter(t => ['live', 'upcoming', 'finished'].includes(t.status));
+    const newestFirst = (a, b) => ((b.gameweek || 0) - (a.gameweek || 0)) || String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    let chosen = null;
     if (tournament === 'all' || tournament === 'season') {
-      // Must also accept 'finished' here, not just 'live' — otherwise the
-      // moment a season tournament genuinely finishes, this resolves to
-      // null and the whole leaderboard page goes blank instead of
-      // showing the final result. Prefers live if somehow both exist.
-      const { data: candidateTournaments } = await supabase
-        .schema('predictions').from('tournaments')
-        .select('id, status').in('status', ['live', 'finished']);
-      const chosen = (candidateTournaments || []).find(t => t.status === 'live') || (candidateTournaments || [])[0];
-      resolvedTournamentId = chosen ? chosen.id : null;
-      tournamentStatus = chosen ? chosen.status : null;
+      chosen = predTournaments.filter(t => t.status === 'live').sort(newestFirst)[0]
+        || predTournaments.filter(t => t.status === 'upcoming').sort((a, b) => (a.gameweek || 0) - (b.gameweek || 0))[0]
+        || predTournaments.filter(t => t.status === 'finished').sort(newestFirst)[0]
+        || null;
+    } else {
+      chosen = (allPredTournaments || []).find(t => t.id === tournament) || null;
     }
+    const resolvedTournamentId = chosen ? chosen.id : null;
+    const tournamentStatus = chosen ? chosen.status : null;
+    const tournamentsList = predTournaments.slice().sort(newestFirst).map(t => ({ id: t.id, name: t.name, status: t.status, gameweek: t.gameweek, end_gameweek: t.end_gameweek }));
 
     if (!resolvedTournamentId) {
       return res.status(200).json({
-        tournament, leaderboard: [],
+        tournament, leaderboard: [], tournaments: tournamentsList,
         pagination: { offset, limit, total: 0, has_more: false }
       });
     }
@@ -115,9 +126,11 @@ module.exports = async (req, res) => {
       (usersData || []).forEach(u => { usersById[u.id] = u; });
     }
 
-    // Fetch current gameweek points for all users
+    // This gameweek's points - only when this gameweek is part of this
+    // tournament, so a finished tournament never picks up later gameweeks.
     let gwPointsMap = {};
-    if (currentGameweek && userIds.length > 0) {
+    const inRange = currentGameweek && chosen && currentGameweek >= (chosen.gameweek || 1) && currentGameweek <= (chosen.end_gameweek || chosen.gameweek || 38);
+    if (inRange && userIds.length > 0) {
       const { data: predictionsData, error: predictionsError } = await supabase
         .schema('predictions').from('predictions')
         .select('user_id, points_earned')
@@ -159,7 +172,11 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       tournament: tournament,
+      tournament_id: resolvedTournamentId,
+      tournament_name: chosen.name,
       tournament_status: tournamentStatus,
+      tournament_gameweeks: { start: chosen.gameweek, end: chosen.end_gameweek || chosen.gameweek },
+      tournaments: tournamentsList,
       leaderboard: formattedData,
       pagination: {
         offset,

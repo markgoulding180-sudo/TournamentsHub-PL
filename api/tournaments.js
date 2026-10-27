@@ -811,7 +811,34 @@ module.exports = async (req, res) => {
           .select('gameweek, match_id, home_team, away_team, predicted_result, home_score, away_score, points_earned')
           .eq('user_id', userIdParam)
           .order('gameweek', { ascending: true });
-        const { data: allPreds } = await predQuery;
+        // Opened from a tournament's leaderboard: only that tournament's
+        // gameweeks, so Predictions 2 never shows Predictions 1's picks or points.
+        let historyTournament = null;
+        if (predTournamentId) {
+          const { data: ht } = await supabaseAdmin.schema('predictions').from('tournaments')
+            .select('id, name, gameweek, end_gameweek').eq('id', predTournamentId).maybeSingle();
+          if (ht) {
+            historyTournament = ht;
+            predQuery = predQuery.gte('gameweek', ht.gameweek || 1).lte('gameweek', ht.end_gameweek || ht.gameweek || 38);
+          }
+        }
+        const { data: rawPreds } = await predQuery;
+
+        // Another player's picks stay hidden until that match kicks off,
+        // so nobody can copy them. Your own picks always show.
+        let viewerId = null;
+        try {
+          const viewerToken = (req.headers.authorization || '').replace('Bearer ', '');
+          if (viewerToken) { const { data: vd } = await supabaseAdmin.auth.getUser(viewerToken); viewerId = vd && vd.user ? vd.user.id : null; }
+        } catch (_) {}
+        let allPreds = rawPreds || [];
+        if (viewerId !== userIdParam && allPreds.length) {
+          const ids = [...new Set(allPreds.map(p => p.match_id))];
+          const { data: kos, error: koErr } = await masterDb.from('matches').select('id, kickoff_time, status').in('id', ids);
+          const started = {};
+          (kos || []).forEach(m => { started[m.id] = m.status === 'live' || m.status === 'finished' || (m.kickoff_time && Date.now() >= new Date(m.kickoff_time).getTime()); });
+          allPreds = koErr ? [] : allPreds.filter(p => started[p.match_id]);
+        }
 
         // Only count genuinely scored (finished) matches for stats — an
         // unscored, still-upcoming pick shouldn't count as a real "0".
@@ -861,6 +888,7 @@ module.exports = async (req, res) => {
 
         return res.status(200).json({
           player_name: playerName,
+          tournament: historyTournament,
           total_points: totalPoints,
           gameweeks: gwList,
           best_gameweek: bestGw ? { gameweek: bestGw.gameweek, points: bestGw.total } : null,
