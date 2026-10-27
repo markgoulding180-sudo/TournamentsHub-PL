@@ -3122,9 +3122,16 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const nameById = {};
         (allUsers || []).forEach(u => { nameById[u.id] = u.display_name || u.username; });
 
+        let duesByUser;
+        try {
+          duesByUser = await computeTournamentDuesForUsers(supabaseAdmin, userIds);
+        } catch (err) {
+          console.error('admin_get_tournament_dues_overview error:', err);
+          return res.status(500).json({ error: 'Could not load dues: ' + err.message });
+        }
         const byTournament = {};
         for (const uid of userIds) {
-          const dues = await computeUserTournamentDues(supabaseAdmin, uid);
+          const dues = duesByUser[uid] || [];
           dues.forEach(d => {
             if (d.covered) return; // only interested in who still owes
             const key = `${d.tournament_type}:${d.tournament_id}`;
@@ -4969,18 +4976,13 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         // same allocation as Payments & Bookkeeping (computeUserTournamentDues)
         // so the two screens always agree. A few users at a time.
         const payByUser = {};
-        const queue = [...new Set(userIds)];
-        const worker = async () => {
-          while (queue.length) {
-            const uid = queue.shift();
-            try {
-              const dues = await computeUserTournamentDues(supabaseAdmin, uid);
-              const d = dues.find(x => x.tournament_type === tournament_type && x.tournament_id === tournament_id);
-              payByUser[uid] = d ? { fee: d.entry_fee, paid: Math.min(d.paid || 0, d.entry_fee || 0), outstanding: d.outstanding, covered: d.covered } : null;
-            } catch (e) { payByUser[uid] = null; }
-          }
-        };
-        await Promise.all(Array.from({ length: 6 }, worker));
+        let duesByUser = {};
+        try { duesByUser = await computeTournamentDuesForUsers(supabaseAdmin, [...new Set(userIds)]); } catch (e) { console.error('entrants dues error:', e); }
+        [...new Set(userIds)].forEach(uid => {
+          const dues = duesByUser[uid];
+          const d = dues && dues.find(x => x.tournament_type === tournament_type && x.tournament_id === tournament_id);
+          payByUser[uid] = d ? { fee: d.entry_fee, paid: Math.min(d.paid || 0, d.entry_fee || 0), outstanding: d.outstanding, covered: d.covered } : null;
+        });
 
         const statusOf = p => !p ? 'unknown' : (p.fee || 0) === 0 ? 'free' : p.covered ? 'paid' : (p.paid > 0 ? 'part' : 'unpaid');
         return res.status(200).json({
@@ -10084,15 +10086,21 @@ async function computeUserTournamentDues(supabaseAdmin, userId) {
     });
   }
 
-  // Oldest first, so unallocated legacy credit is applied to whichever
-  // entry actually came first - a real, defensible ordering rather than
-  // an arbitrary one.
-  allEntries.sort((a, b) => new Date(a.entered_at) - new Date(b.entered_at));
-
   const { data: allTx } = await supabaseAdmin
     .from('wallet_transactions')
     .select('type, amount, tournament_type, tournament_id')
     .eq('user_id', userId);
+
+  return allocateTournamentDues(allEntries, allTx || []);
+}
+
+// The paid / owed allocation itself, shared by the one-user version above
+// and the all-users version below so both always give the same answer.
+function allocateTournamentDues(allEntries, allTx) {
+  // Oldest first, so unallocated legacy credit is applied to whichever
+  // entry actually came first - a real, defensible ordering rather than
+  // an arbitrary one.
+  allEntries.sort((a, b) => new Date(a.entered_at) - new Date(b.entered_at));
 
   const scopedPaidByTournament = {};
   let legacyGeneralCredit = 0;
@@ -10125,6 +10133,58 @@ async function computeUserTournamentDues(supabaseAdmin, userId) {
       outstanding: remaining
     };
   });
+}
+
+// Same dues as computeUserTournamentDues, for many users at once. The
+// admin "Who Owes What" list used to run that one user at a time - about
+// 13 database calls per user, one after another - which got slow enough
+// with every new tournament that the request timed out and the list sat
+// on "Loading...". This reads each table once (in pages of 1,000) and then
+// applies exactly the same allocation per user. Throws on a database error
+// rather than quietly showing someone as owing nothing.
+async function computeTournamentDuesForUsers(supabaseAdmin, userIds) {
+  const readAll = async (makeQuery) => {
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await makeQuery().order('id', { ascending: true }).range(from, from + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data || []));
+      if (!data || data.length < 1000) return rows;
+    }
+  };
+  const wanted = new Set(userIds);
+  const [entriesBySchema, tournamentsBySchema, payments] = await Promise.all([
+    Promise.all(PAYMENT_SCHEMAS.map(schema => readAll(() => supabaseAdmin.schema(schema).from('tournament_entries').select('id, user_id, tournament_id, entered_at')))),
+    Promise.all(PAYMENT_SCHEMAS.map(schema => readAll(() => supabaseAdmin.schema(schema).from('tournaments').select(schema === 'stockmarket' ? 'id, name, entry_fee, status, is_test' : 'id, name, entry_fee, status')))),
+    readAll(() => supabaseAdmin.from('wallet_transactions').select('id, user_id, type, amount, tournament_type, tournament_id').eq('type', 'payment'))
+  ]);
+
+  const entriesByUser = {};
+  PAYMENT_SCHEMAS.forEach((schema, i) => {
+    const tMap = {};
+    tournamentsBySchema[i].forEach(t => { tMap[t.id] = t; });
+    entriesBySchema[i].forEach(e => {
+      if (!wanted.has(e.user_id)) return;
+      const t = tMap[e.tournament_id];
+      if (!t) return; // entry with no matching tournament row - skip, nothing to charge
+      const isTest = schema === 'stockmarket' && t.is_test === true;
+      (entriesByUser[e.user_id] = entriesByUser[e.user_id] || []).push({
+        tournament_type: schema,
+        tournament_id: e.tournament_id,
+        tournament_name: t.name,
+        tournament_status: t.status,
+        entry_fee: isTest ? 0 : (t.entry_fee || 0),
+        is_test: isTest,
+        entered_at: e.entered_at
+      });
+    });
+  });
+  const txByUser = {};
+  payments.forEach(t => { if (wanted.has(t.user_id)) (txByUser[t.user_id] = txByUser[t.user_id] || []).push(t); });
+
+  const out = {};
+  userIds.forEach(uid => { out[uid] = allocateTournamentDues(entriesByUser[uid] || [], txByUser[uid] || []); });
+  return out;
 }
 
 function packPriceFor(config, rarity) {
