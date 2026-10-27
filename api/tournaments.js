@@ -9441,7 +9441,13 @@ async function processHeadToHeadGameweek(supabaseAdmin, masterDb, tournamentId, 
         }
       };
     });
-    const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? 0 : (s.value || 0)), 0));
+    // An empty slot (player left the league, free replacement still to
+    // pick) still holds its banked reserved_value, same as everywhere else
+    // that totals a squad. Counting it as 0 here dropped that money from the
+    // entry's total every time a gameweek settled; if that entry was then
+    // relegated, the missing amount never reached the survivors and vanished
+    // from the pot (GW8 test tournament: 5 empty slots x £4 = the £20 drift).
+    const newTotal = Math.round(fullSquad.reduce((sum, s) => sum + (s.empty ? (s.reserved_value || 0) : (s.value || 0)), 0));
     entryUpdateRows.push({
       ...entry, squad_players: fullSquad, last_week_value: entry.current_value, current_value: newTotal
     });
