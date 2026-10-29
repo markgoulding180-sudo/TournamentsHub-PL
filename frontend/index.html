@@ -418,11 +418,17 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
   .hero-stats{ display:none; }
 }
 
+/* WhatsApp group link in the top bar - desktop only (phones have it in the bottom bar) */
+.wa-pill{ display:inline-flex; align-items:center; gap:7px; flex:none; height:34px; padding:0 14px; border-radius:999px; background:rgba(37,211,102,0.14); border:1px solid rgba(37,211,102,0.55); color:#4ade80; font-family:var(--font-head); font-weight:700; font-size:14px; letter-spacing:.3px; white-space:nowrap; text-decoration:none; transition:background .2s, border-color .2s; }
+.wa-pill .icon{ width:17px; height:17px; color:#25d366; }
+.wa-pill:hover{ background:rgba(37,211,102,0.26); border-color:#25d366; color:#fff; }
+
 /* =====================================================================
    PHONE — app layout
    ===================================================================== */
 @media (max-width:899px){
   :root{ --gutter:12px; }
+  .wa-pill{ display:none; }
   body{ font-size:13.5px; padding-bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
   .topbar{ height:60px; gap:8px; }
   .logo-mark{ width:34px; height:34px; border-radius:10px; }
@@ -996,6 +1002,7 @@ a.np-item:hover{ border-color:var(--accent); }
   </a>
   <a class="icon-btn" id="walletBtn" href="/wallet" title="Wallet" onclick="return popClick(event,'wallet')"><svg class="icon"><use href="#i-wallet"/></svg></a>
   <button class="icon-btn" id="bellBtn" title="Notifications" onclick="popClick(event,'notif')"><svg class="icon"><use href="#i-bell"/></svg><span class="dot" id="bellDot"></span></button>
+  <a class="wa-pill" href="https://chat.whatsapp.com/GUDmLBuUEjmGiMkk0X2tnq" target="_blank" rel="noopener" title="Join our WhatsApp group"><svg class="icon"><use href="#i-wa"/></svg>WhatsApp Group</a>
   <button class="icon-btn menu-btn" title="Menu" onclick="openDrawer(true)"><svg class="icon"><use href="#i-menu"/></svg></button>
 </header>
 
