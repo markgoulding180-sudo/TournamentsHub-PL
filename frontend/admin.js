@@ -471,7 +471,8 @@ function renderWalletList() {
   if (search) {
     list = list.filter(u =>
       (u.username || '').toLowerCase().includes(search) ||
-      (u.display_name || '').toLowerCase().includes(search)
+      (u.display_name || '').toLowerCase().includes(search) ||
+      `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase().includes(search)
     );
   }
   // Status per user: 'paid' = has paid and owes nothing, 'owed' = has
@@ -524,6 +525,7 @@ function renderWalletList() {
             <i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}" style="font-size:0.7rem; color:var(--text-muted, #8a97b0);"></i>
             ${escapeHtmlWallet(u.display_name || u.username || u.email || u.id)}
             ${u.is_verified ? '<i class="fas fa-circle-check" title="Verified" style="color:var(--green); font-size:0.8rem;"></i>' : ''}
+            ${(u.first_name || u.last_name) ? `<span style="font-size:0.78rem; color:var(--text-muted, #8a97b0);">(${escapeHtmlWallet(`${u.first_name || ''} ${u.last_name || ''}`.trim())})</span>` : ''}
           </button>
         </td>
         <td style="padding:0.5rem; font-weight:700; color:${paid > 0 ? 'var(--green)' : 'var(--text-muted, #8a97b0)'};">

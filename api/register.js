@@ -24,6 +24,14 @@ module.exports = async (req, res) => {
       { global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) } }
     )
     const { username, display_name, email, password } = req.body
+    // Real first and last name: required for new accounts, used only by the
+    // admin to match entry payments (never shown on leaderboards).
+    const cleanName = v => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 50)
+    const first_name = cleanName(req.body.first_name)
+    const last_name = cleanName(req.body.last_name)
+    if (!first_name || !last_name) {
+      return res.status(400).json({ error: 'Please enter your first and last name.' })
+    }
     
     // Create user in Supabase Auth
     const { data, error } = await supabase.auth.admin.createUser({
@@ -44,7 +52,9 @@ module.exports = async (req, res) => {
         id: data.user.id,
         username,
         display_name,
-        email
+        email,
+        first_name,
+        last_name
       })
       .select()
 

@@ -572,7 +572,16 @@ async function handleRegisterSubmit(e) {
     return;
   }
 
+  const firstName = (document.getElementById('first-name')?.value || '').trim();
+  const lastName = (document.getElementById('last-name')?.value || '').trim();
+  if (!firstName || !lastName) {
+    showToast('Please enter your first and last name', 'error');
+    return;
+  }
+
   const userData = {
+    first_name: firstName,
+    last_name: lastName,
     username: document.getElementById('username').value,
     display_name: document.getElementById('display-name').value,
     email: document.getElementById('email').value,

@@ -2196,7 +2196,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
 
         const { data: allUsers, error: usersError } = await supabaseAdmin
           .from('users')
-          .select('id, username, display_name, email, is_verified')
+          .select('id, username, display_name, email, is_verified, first_name, last_name')
           .order('username', { ascending: true });
         if (usersError) return res.status(500).json({ error: 'Failed to load users', details: usersError.message });
 

@@ -62,6 +62,8 @@
       width:100%; background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
       padding:12px 14px; color:var(--text); font-family:var(--font-body); font-size:14.5px; transition:border-color .2s;
     }
+    .form-row-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .form-row-2 .form-group{ min-width:0; }
     .form-input::placeholder{ color:var(--text-faint); }
     .form-input:focus{ outline:none; border-color:var(--border-hover); }
     .form-hint{ font-size:12px; color:var(--text-faint); margin-top:6px; }
@@ -136,6 +138,18 @@
       <p class="sub">Join thousands of Premier League predictors</p>
 
       <form id="register-form">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="first-name" class="form-label"><i class="fas fa-user-tag"></i> First Name</label>
+            <input type="text" id="first-name" name="first_name" class="form-input" placeholder="First name" autocomplete="given-name" maxlength="50" required>
+          </div>
+          <div class="form-group">
+            <label for="last-name" class="form-label">Last Name</label>
+            <input type="text" id="last-name" name="last_name" class="form-input" placeholder="Last name" autocomplete="family-name" maxlength="50" required>
+          </div>
+        </div>
+        <p class="form-hint" style="margin:-6px 0 14px;">Your real name is only used to match your entry payments. It is never shown on leaderboards.</p>
+
         <div class="form-group">
           <label for="username" class="form-label"><i class="fas fa-user"></i> Username</label>
           <input type="text" id="username" name="username" class="form-input" placeholder="Choose a unique username" required>
@@ -206,7 +220,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="toast.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
   <script>
     // If we arrived here with a ?redirect=..., carry it through to the
     // "Sign in" link too, so switching to login instead keeps the chain intact.
