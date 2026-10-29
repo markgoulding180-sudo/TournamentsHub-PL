@@ -524,10 +524,13 @@ footer{ padding:18px var(--gutter) 34px; display:flex; justify-content:space-bet
 
   footer{ flex-direction:column; gap:4px; text-align:center; padding-bottom:22px; }
 
-  .tabbar{ display:grid; grid-template-columns:repeat(4,1fr); position:fixed; left:0; right:0; bottom:0; z-index:70; height:calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom); background:rgba(8,13,32,0.96); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border-2); }
+  .tabbar{ display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; z-index:70; height:calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom); background:rgba(8,13,32,0.96); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border-2); }
   .tab{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--text-faint); font-family:var(--font-head); font-weight:700; font-size:11px; letter-spacing:.4px; position:relative; }
   .tab .icon{ width:22px; height:22px; }
   .tab.active{ color:var(--text); }
+  /* WhatsApp group link: always green so it stands out */
+  .tab.tab-wa{ color:#25d366; }
+  .tab.tab-wa .icon{ color:#25d366; filter:drop-shadow(0 0 6px rgba(37,211,102,.45)); }
   .tab.active .icon{ color:var(--accent-2); filter:drop-shadow(0 0 6px var(--accent-glow)); }
   .tab.active::before{ content:''; position:absolute; top:0; left:30%; right:30%; height:2px; border-radius:2px; background:var(--accent); box-shadow:0 0 10px var(--accent-glow); }
 
@@ -974,6 +977,7 @@ a.np-item:hover{ border-color:var(--accent); }
     <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/></symbol>
     <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8"/><path d="M12 8v12"/><path d="M12 8c-2-3-6-3-6-1s4 1 6 1zM12 8c2-3 6-3 6-1s-4 1-6 1z"/></symbol>
     <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4V8z"/><path d="M14 6v12" stroke-dasharray="2 2"/><path d="M7 10h4M7 14h3"/></symbol>
+    <symbol id="i-wa" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z"/><path d="M9 8.5c-.4 2.4 2.6 6 5.5 6.5l1.4-1.4-1.9-1-1 .9c-1.1-.5-2-1.4-2.5-2.5l.9-1-1-1.9z"/></symbol>
     <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4V5z"/><path d="M8 9h8M8 12h5"/></symbol>
     <symbol id="i-news" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h6M7 13h10M7 16h10"/><rect x="14" y="8" width="3" height="3"/></symbol>
     <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
@@ -1181,6 +1185,7 @@ a.np-item:hover{ border-color:var(--accent); }
   <a class="tab" href="#all" id="tabAll"><svg class="icon"><use href="#i-grid"/></svg>Tournaments</a>
   <button class="tab" id="tabBoards" onclick="openSheet(true)"><svg class="icon"><use href="#i-chart"/></svg>Leaders</button>
   <a class="tab" id="tabWallet" href="/wallet" onclick="return popClick(event,'wallet')"><svg class="icon"><use href="#i-wallet"/></svg>Wallet</a>
+  <a class="tab tab-wa" id="tabWhatsApp" href="https://chat.whatsapp.com/GUDmLBuUEjmGiMkk0X2tnq" target="_blank" rel="noopener"><svg class="icon"><use href="#i-wa"/></svg>WhatsApp</a>
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
