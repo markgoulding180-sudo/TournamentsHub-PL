@@ -231,25 +231,36 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Gameweek and predictions array are required' });
       }
 
-      // Someone entered ONLY in a tournament that hasn't started yet (e.g.
-      // they registered for the next one during the last week of the current
-      // one) can't predict a gameweek before their tournament's first one.
-      // Anyone in a tournament covering this gameweek is unaffected, and if
-      // the check can't run it lets the picks through as before.
+      // Picks only count for a tournament the player is entered in, so they
+      // can only be saved for a gameweek one of their tournaments covers.
+      // - entered only in a tournament that starts later: "Not open yet"
+      // - not entered in any tournament covering this gameweek: "Enter first"
+      //   (this used to be allowed, so people made picks between tournaments
+      //   without entering and their picks counted for nothing)
+      // If the check itself can't run, picks go through as before.
       try {
         const gwNum = Number(gameweek);
-        const { data: myEntries } = await supabaseAdmin.schema('predictions').from('tournament_entries').select('tournament_id').eq('user_id', user.id);
+        const { data: myEntries, error: meErr } = await supabaseAdmin.schema('predictions').from('tournament_entries').select('tournament_id').eq('user_id', user.id);
+        if (meErr) throw meErr;
         const ids = (myEntries || []).map(e => e.tournament_id);
-        if (ids.length) {
-          const { data: ts } = await supabaseAdmin.schema('predictions').from('tournaments').select('gameweek, end_gameweek').in('id', ids);
-          const list = ts || [];
-          const covers = list.some(t => gwNum >= t.gameweek && gwNum <= (t.end_gameweek || t.gameweek));
-          if (list.length && !covers && list.every(t => t.gameweek > gwNum)) {
-            const startGw = Math.min(...list.map(t => t.gameweek));
+        const { data: allTs, error: tsErr } = await supabaseAdmin.schema('predictions').from('tournaments').select('id, name, status, gameweek, end_gameweek');
+        if (tsErr) throw tsErr;
+        const coversGw = t => gwNum >= t.gameweek && gwNum <= (t.end_gameweek || t.gameweek);
+        const mine = (allTs || []).filter(t => ids.includes(t.id));
+        if (!mine.some(coversGw)) {
+          if (mine.length && mine.every(t => t.gameweek > gwNum)) {
+            const startGw = Math.min(...mine.map(t => t.gameweek));
             return res.status(403).json({ error: 'Not open yet', message: `Your tournament starts in Gameweek ${startGw}, so Gameweek ${gwNum} picks don't count for it. Your picks open when Gameweek ${startGw} opens.` });
           }
+          const open = (allTs || []).find(t => coversGw(t) && (t.status === 'upcoming' || t.status === 'live'));
+          return res.status(403).json({
+            error: 'Not entered',
+            message: open
+              ? `Enter ${open.name} on the Predictions page to make your Gameweek ${gwNum} picks.`
+              : `There's no Predictions tournament running for Gameweek ${gwNum}.`
+          });
         }
-      } catch (gateErr) { console.error('next-tournament check failed (allowing picks):', gateErr); }
+      } catch (gateErr) { console.error('entry check failed (allowing picks):', gateErr); }
 
       // Get match details for human-readable columns (master project) —
       // includes kickoff_time so each match's own deadline can be checked

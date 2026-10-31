@@ -13,55 +13,48 @@ document.addEventListener('DOMContentLoaded', async function() {
   let onlyNext = null;   // entered ONLY in the next (registering) tournament: picks wait for its first gameweek
   if (token) {
     try {
-      const tRes = await fetch('/api/tournaments?status=live');
-      const tData = await tRes.json();
-      const liveTournament = (tData.tournaments || [])[0];
+      // Picks only count for a tournament you're entered in, so the form only
+      // shows if you're entered in the live tournament or the one taking
+      // entries. This used to be checked ONLY while a tournament was live -
+      // in the gap between two tournaments (Predictions 1 finished,
+      // Predictions 2 still registering) nothing was live, the check was
+      // skipped, and anyone could make picks without entering.
+      const [lData, uData] = await Promise.all([
+        fetch('/api/tournaments?status=live').then(r => r.json()).catch(() => ({})),
+        fetch('/api/tournaments?status=upcoming').then(r => r.json()).catch(() => ({}))
+      ]);
+      const liveTournament = (lData.tournaments || [])[0] || null;
+      const next = (uData.tournaments || [])[0] || null;
 
-      if (liveTournament) {
-        const entryRes = await fetch(`/api/tournaments?tournament_id=${liveTournament.id}&my_entry=true`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+      const myEntryIn = async (t) => {
+        if (!t) return false;
+        const r = await fetch(`/api/tournaments?tournament_id=${t.id}&my_entry=true`, { headers: { 'Authorization': `Bearer ${token}` } });
+        // fetch() doesn't throw on a 401: an expired login must not look like "not entered"
+        if (r.status === 401) { const e = new Error('expired'); e.expired = true; throw e; }
+        if (!r.ok) throw new Error('entry check failed');
+        return !!(await r.json()).entry;
+      };
 
-        // Real bug fixed here: fetch() doesn't throw on a 401, so an
-        // expired/invalid token used to flow straight through to
-        // "entryData.entry is missing" and show "You haven't entered
-        // this tournament yet" - wrongly telling a genuinely entered
-        // user they'd never joined, when the actual problem was just
-        // their login needing a refresh. Confirmed as the real cause
-        // for at least one user whose tournament_entries row was
-        // completely intact in the database the whole time.
-        if (entryRes.status === 401) {
+      let enteredLive = false, enteredNext = false;
+      try {
+        [enteredLive, enteredNext] = await Promise.all([myEntryIn(liveTournament), myEntryIn(next)]);
+      } catch (err) {
+        if (err.expired) {
           predictionsForm.style.display = 'none';
           sessionExpiredCard.style.display = 'block';
           return;
         }
-
-        const entryData = await entryRes.json();
-        let entered = !!entryData.entry;
-
-        // Also fine: entered in the NEXT tournament that's taking entries
-        // while this one is still live (they make their picks for its first
-        // gameweek before it goes live). The live tournament's own check
-        // above is unchanged.
-        if (!entered) {
-          try {
-            const upData = await (await fetch('/api/tournaments?status=upcoming')).json();
-            const next = (upData.tournaments || [])[0];
-            if (next) {
-              const nr = await fetch(`/api/tournaments?tournament_id=${next.id}&my_entry=true`, { headers: { 'Authorization': `Bearer ${token}` } });
-              if (nr.ok) entered = !!(await nr.json()).entry;
-              if (entered) onlyNext = next;
-            }
-          } catch (e) {}
-        }
-
-        if (!entered) {
-          // Not entered — hide the form entirely, show the gate instead.
-          predictionsForm.style.display = 'none';
-          entryGateCard.style.display = 'block';
-          return;
-        }
+        throw err;
       }
+
+      if (!enteredLive && !enteredNext) {
+        // Not entered in anything running or registering: no picks form.
+        predictionsForm.style.display = 'none';
+        entryGateCard.style.display = 'block';
+        return;
+      }
+      // Entered only in the next tournament: picks wait for its first gameweek (below).
+      if (!enteredLive && enteredNext) onlyNext = next;
     } catch (e) {
       console.error('Failed to check tournament entry status:', e);
       // If the check itself fails, fail open rather than blocking a
@@ -386,7 +379,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit predictions');
+        // the server's plain-English reason, e.g. "Enter Predictions 2 ... to make your picks"
+        throw new Error(data.message || data.error || 'Failed to submit predictions');
       }
       
       // The backend reports exactly what was saved vs skipped, and why —
