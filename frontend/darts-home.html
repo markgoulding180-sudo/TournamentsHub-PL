@@ -256,6 +256,10 @@
     .gs-qual-p small{ display:block; font-size:11px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .gs-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
     .gs-group{ background:var(--bg-panel); border:1px solid var(--border); border-radius:12px; padding:10px; }
+    /* Every other group a lighter blue, so neighbouring groups stand apart */
+    .gs-grid > .gs-group:nth-child(even){ background:linear-gradient(180deg, rgba(59,130,246,0.22), rgba(59,130,246,0.12)); border-color:rgba(96,165,250,0.45); }
+    .gs-grid > .gs-group:nth-child(even) .gs-match{ background:rgba(30,58,110,0.55); border-color:rgba(96,165,250,0.30); }
+    .gs-grid > .gs-group:nth-child(even) .gs-player{ background:rgba(20,40,80,0.65); }
     .gs-group-head{ display:flex; align-items:center; justify-content:space-between; font-family:var(--font-head); font-size:15px; margin:0 2px 8px; }
     .gs-pts{ font-size:12px; font-weight:700; color:var(--text-faint); }
     .gs-pts.earned{ color:var(--green); }
