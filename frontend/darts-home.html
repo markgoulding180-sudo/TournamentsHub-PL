@@ -280,7 +280,7 @@
     .gs-ph img{ width:100%; height:100%; object-fit:cover; object-position:top; }
     .gs-ph i{ font-size:13px; color:var(--text-faint); }
     .gs-name{ flex:1; min-width:0; font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .gs-name small{ font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; margin-left:3px; }
+    .gs-seed{ font-size:10px; font-weight:600; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px; }
     .gs-tag{ flex:none; font-family:var(--font-head); font-weight:700; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--accent); color:#fff; }
     .gs-tag.gs-tap{ background:transparent; color:var(--text-faint); border:1px dashed var(--border); }
     .gs-real{ flex:none; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(255,255,255,0.06); color:var(--text-dim); }
@@ -295,7 +295,6 @@
     .gs-pair{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:5px; align-items:stretch; }
     .gs-pair .gs-player{ flex-direction:column; justify-content:center; text-align:center; gap:5px; padding:7px 5px; height:100%; }
     .gs-pair .gs-name{ white-space:normal; overflow:visible; font-size:12.5px; line-height:1.2; overflow-wrap:anywhere; }
-    .gs-pair .gs-name small{ display:block; margin:2px 0 0; }
     .gs-pair .gs-ph{ width:40px; height:40px; }
     .gs-ph.gs-flag{ width:42px; height:28px; border-radius:4px; background:none; box-shadow:0 1px 4px rgba(0,0,0,0.45); }
     .gs-ph.gs-flag img{ object-position:center; }
@@ -332,7 +331,13 @@
       .gs-sum-pts{ grid-area:pts; }
       .gs-sum-chev{ grid-area:chev; align-self:center; }
       .gs-sum-pick{ grid-area:pick; }
-      .gs-sum-name{ font-size:15px; overflow-wrap:normal; }
+      .gs-sum-name{ font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .gs-sum-label{ white-space:nowrap; }
+      .gs-when{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .gs-pair .gs-player{ min-height:118px; justify-content:flex-start; padding-top:10px; }
+      .gs-pair .gs-name{ flex:none; }
+      .gs-pair .gs-name{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+      .gs-mypick{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .gs-sum-score{ font-size:15px; margin-left:auto; }
       .gs-sum-pick .gs-ph.gs-flag{ width:36px; height:24px; }
     }
@@ -344,7 +349,7 @@
       .gs-group{ padding:6px; border-radius:10px; }
       .gs-match{ padding:7px 6px; }
       .gs-pair .gs-name{ font-size:15.5px; }
-      .gs-pair .gs-name small{ font-size:10.5px; }
+      .gs-seed{ font-size:10.5px; }
       .gs-mypick{ font-size:15px; }
       .gs-real{ font-size:13px; }
       .gs-sum{ padding:10px 6px; gap:10px; }
@@ -905,7 +910,7 @@
       const p = playerById(winnerId);
       return `<button type="button" class="gs-sum ${open ? 'open' : ''}" onclick="gsToggleCard('${key}')">
           <span class="gs-sum-label">${label}</span>
-          <span class="gs-sum-pick">${playerThumb(p)}<span class="gs-sum-name">${escapeHtml(p.name)}</span><b class="gs-sum-score">${escapeHtml(score || '')}</b></span>
+          <span class="gs-sum-pick">${playerThumb(p)}<span class="gs-sum-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span><b class="gs-sum-score">${escapeHtml(score || '')}</b></span>
           ${gsPtsText(pts)}<i class="fas fa-chevron-${open ? 'up' : 'down'} gs-sum-chev"></i></button>`;
     }  // once all 16 group picks are saved, only your picked match shows per group unless this is on
 
@@ -927,7 +932,12 @@
       return m.winner_id === m.player1_id ? `${m.player1_legs}-${m.player2_legs}` : `${m.player2_legs}-${m.player1_legs}`;
     }
     // When a group match starts: "Sun 15 Nov or Mon 16 Nov (set by Saturday result)" reads better shorter.
-    function gsWhenText(m) { return String(m.scheduled_day || '').replace(/\s*\(set by Saturday result\)/, ' · set by Saturday’s result'); }
+    // "Sun 15 Nov or Mon 16 Nov (set by Saturday result)" -> "Sun 15 / Mon 16 Nov" so it fits on one line.
+    function gsWhenText(m) {
+      const t = String(m.scheduled_day || '');
+      const x = t.match(/^(\w{3} \d{1,2}) (\w{3}) or (\w{3} \d{1,2}) \2/);
+      return x ? `${x[1]} / ${x[3]} ${x[2]}` : t.replace(/\s*\(set by Saturday result\)/, '');
+    }
 
     // Grand Slam players show their country's flag (players.country holds
     // the flag code, e.g. gb-eng, nl). No country yet = person icon.
@@ -940,7 +950,7 @@
     }
     function gsPlayerBtn(pid, cls, onclick, extra) {
       const p = playerById(pid);
-      return `<button type="button" class="gs-player ${cls}" ${onclick ? `onclick="${onclick}"` : 'disabled'}>${playerThumb(p)}<span class="gs-name">${escapeHtml(p.name)}${p.is_seeded ? ' <small>seed</small>' : ''}</span>${extra || ''}</button>`;
+      return `<button type="button" class="gs-player ${cls}" ${onclick ? `onclick="${onclick}"` : 'disabled'}>${playerThumb(p)}<span class="gs-name">${escapeHtml(p.name)}</span>${p.is_seeded ? '<small class="gs-seed">seed</small>' : ''}${extra || ''}</button>`;
     }
     function gsScoreButtons(scores, chosen, onclickFn) {
       return `<div class="gs-scores">${scores.map(s => `<button type="button" class="score-picker-btn ${chosen === s ? 'selected' : ''}" onclick="${onclickFn}('${s}')">${s}</button>`).join('')}</div>`;
