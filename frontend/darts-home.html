@@ -306,6 +306,40 @@
     .gs-tbd{ font-size:12.5px; color:var(--text-faint); padding:9px 8px; border:1px dashed var(--border); border-radius:9px; text-align:center; }
     .gs-through{ font-size:12px; font-weight:700; color:var(--green); margin:8px 2px 0; }
     .gs-round-title{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-family:var(--font-head); font-weight:700; font-size:15px; margin:16px 2px 8px; }
+    .gs-grid > *{ min-width:0; }
+    .gs-sum{ display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box; text-align:left; padding:6px 4px; border-radius:9px; }
+    .gs-sum-label{ flex:none; font-family:var(--font-head); font-weight:700; font-size:14px; min-width:66px; }
+    .gs-sum-pick{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+    .gs-sum-pick .gs-ph.gs-flag{ width:30px; height:20px; }
+    .gs-sum-pick .gs-ph{ width:26px; height:26px; }
+    .gs-sum-name{ min-width:0; font-weight:600; font-size:14px; line-height:1.2; overflow-wrap:anywhere; }
+    .gs-sum-score{ flex:none; color:var(--accent-2); font-weight:800; font-size:14px; }
+    .gs-sum-pts{ flex:none; font-weight:800; font-size:14px; }
+    .gs-sum-pts.win{ color:var(--green); }
+    .gs-sum-pts.lose{ color:var(--red); }
+    .gs-sum-chev{ flex:none; font-size:12px; color:var(--text-faint); }
+    .gs-sum-body{ margin-top:8px; }
+    .gs-collapsible .gs-sum-body .gs-match{ margin-bottom:0; }
+    .gs-match.gs-collapsible{ padding:6px 8px; }
+    @media (max-width:640px){
+      #root{ padding:12px 6px !important; }
+      .gs-grid{ gap:8px; }
+      .gs-group{ padding:6px; border-radius:10px; }
+      .gs-match{ padding:7px 6px; }
+      .gs-pair .gs-name{ font-size:15.5px; }
+      .gs-pair .gs-name small{ font-size:10.5px; }
+      .gs-mypick{ font-size:15px; }
+      .gs-real{ font-size:13px; }
+      .gs-sum{ padding:10px 6px; gap:10px; }
+      .gs-sum-label{ font-size:15px; min-width:72px; }
+      .gs-sum-name{ font-size:16.5px; }
+      .gs-sum-score{ font-size:16.5px; }
+      .gs-sum-label{ min-width:0; }
+      .gs-sum-pts{ font-size:16px; }
+      .gs-sum-pick .gs-ph.gs-flag{ width:34px; height:23px; }
+      .gs-through{ font-size:14px; }
+      .gs-when{ font-size:12px; }
+    }
     .gs-ko-title{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin:22px 2px 0; }
     @media (max-width:640px){ .gs-grid{ grid-template-columns:1fr; } }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
@@ -842,7 +876,18 @@
     let gsGroupPicks = {}; // "A" -> { match: groupMatchId, winner: playerId, score: "5-3" }
     let gsKoPicks = {};    // "2-1" -> { winner: playerId, score: "10-6" }
     let gsShowRules = false;
-    let gsShowAll = false;  // once all 16 group picks are saved, only your picked match shows per group unless this is on
+    let gsShowAll = false;
+    const gsOpenCards = new Set(); // saved picks show as one line; tap to open the full match card
+    function gsToggleCard(k) { if (gsOpenCards.has(k)) gsOpenCards.delete(k); else gsOpenCards.add(k); renderBracket(); }
+    function gsPtsText(pts) { return pts == null ? '' : pts > 0 ? `<span class="gs-sum-pts win">+${pts} pts</span>` : '<span class="gs-sum-pts lose">0 pts</span>'; }
+    // One-line summary of a saved pick: flag, name + score, points, chevron.
+    function gsSummaryBtn(key, label, winnerId, score, pts, open) {
+      const p = playerById(winnerId);
+      return `<button type="button" class="gs-sum ${open ? 'open' : ''}" onclick="gsToggleCard('${key}')">
+          <span class="gs-sum-label">${label}</span>
+          <span class="gs-sum-pick">${playerThumb(p)}<span class="gs-sum-name">${escapeHtml(p.name)}</span><b class="gs-sum-score">${escapeHtml(score || '')}</b></span>
+          ${gsPtsText(pts)}<i class="fas fa-chevron-${open ? 'up' : 'down'} gs-sum-chev"></i></button>`;
+    }  // once all 16 group picks are saved, only your picked match shows per group unless this is on
 
     function groupLetters() {
       return [...new Set((bracketData.group_matches || []).map(m => m.group_letter).filter(Boolean))].sort();
@@ -920,6 +965,10 @@
           </div>`;
       }).join('');
       const through = winnerP ? `<div class="gs-through"><i class="fas fa-arrow-right"></i> ${escapeHtml(winnerP.name)} goes through</div>` : '';
+      if (!editable && pick) {
+        const open = gsOpenCards.has('G' + g);
+        return `<div class="gs-group gs-collapsible">${gsSummaryBtn('G' + g, `Group ${g}`, pick.winner, pick.score, saved ? saved.points_earned : null, open)}${open ? `<div class="gs-sum-body">${rows}${through}</div>` : ''}</div>`;
+      }
       return `<div class="gs-group"><div class="gs-group-head"><b>Group ${g}</b>${head}</div>${rows}${through}</div>`;
     }
 
@@ -988,11 +1037,13 @@
       const res = real.status === 'finished' && real.winner_id ? real.winning_score : null;
       const btn = (pid, i) => pid ? gsPlayerBtn(pid, res ? (real.winner_id === pid ? 'exact' : '') : '', null, res && real.winner_id === pid ? `<span class="gs-real pos1">${escapeHtml(res)}</span>` : '')
         : `<div class="gs-tbd">${r === 2 ? `Winner Group ${String.fromCharCode(65 + (n - 1) * 2 + i)}` : 'To be decided'}</div>`;
-      let mine = '<div class="gs-mypick">No pick for this match</div>';
       if (pred) {
+        const key = `K${r}-${n}`, open = gsOpenCards.has(key);
         const pts = pred.points_earned != null ? ` · ${pred.points_earned > 0 ? `<span style="color:var(--green);">+${pred.points_earned} pts</span>` : '<span style="color:var(--red);">0 pts</span>'}` : '';
-        mine = `<div class="gs-mypick">Your pick: <b>${escapeHtml(playerById(pred.predicted_winner_id).name)} ${escapeHtml(pred.predicted_score || '')}</b>${pts}</div>`;
+        return `<div class="gs-match gs-collapsible">${gsSummaryBtn(key, r === 5 ? 'Final' : `Match ${n}`, pred.predicted_winner_id, pred.predicted_score, pred.points_earned, open)}${open
+          ? `<div class="gs-sum-body"><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div><div class="gs-mypick">Your pick: <b>${escapeHtml(playerById(pred.predicted_winner_id).name)} ${escapeHtml(pred.predicted_score || '')}</b>${pts}</div></div>` : ''}</div>`;
       }
+      const mine = '<div class="gs-mypick">No pick for this match</div>';
       return `<div class="gs-match"><div class="gs-when">${label}</div><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div>${mine}</div>`;
     }
 
