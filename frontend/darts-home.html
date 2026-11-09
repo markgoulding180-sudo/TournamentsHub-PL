@@ -277,6 +277,27 @@
     .gs-real{ flex:none; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(255,255,255,0.06); color:var(--text-dim); }
     .gs-real.pos1, .gs-real.pos2{ color:var(--green); }
     .gs-real.pos3{ color:var(--red); }
+    .gs-match{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:8px; margin-bottom:8px; }
+    .gs-match:last-of-type{ margin-bottom:0; }
+    .gs-match.mine{ border-color:var(--accent-2); box-shadow:0 0 0 1px rgba(59,130,246,0.25); }
+    .gs-match.other{ opacity:.55; }
+    .gs-match .gs-player{ margin-bottom:0; }
+    .gs-when{ font-size:11px; color:var(--text-faint); margin:0 2px 6px; }
+    .gs-pair{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:5px; align-items:stretch; }
+    .gs-pair .gs-player{ flex-direction:column; justify-content:center; text-align:center; gap:5px; padding:7px 5px; height:100%; }
+    .gs-pair .gs-name{ white-space:normal; overflow:visible; font-size:12.5px; line-height:1.2; overflow-wrap:anywhere; }
+    .gs-pair .gs-name small{ display:block; margin:2px 0 0; }
+    .gs-pair .gs-ph{ width:40px; height:40px; }
+    .gs-pair .gs-tbd{ display:flex; align-items:center; justify-content:center; }
+    .gs-v{ align-self:center; text-align:center; font-size:10.5px; font-weight:700; color:var(--text-faint); letter-spacing:1px; }
+    .gs-score-label{ font-size:11.5px; color:var(--text-dim); margin:8px 2px 5px; }
+    .gs-scores{ display:flex; flex-wrap:wrap; gap:5px; }
+    .gs-scores .score-picker-btn{ padding:5px 8px; font-size:12px; min-width:0; }
+    .gs-mypick{ font-size:12px; color:var(--text-dim); margin:7px 2px 0; }
+    .gs-mypick b{ color:var(--text); }
+    .gs-tbd{ font-size:12.5px; color:var(--text-faint); padding:9px 8px; border:1px dashed var(--border); border-radius:9px; text-align:center; }
+    .gs-through{ font-size:12px; font-weight:700; color:var(--green); margin:8px 2px 0; }
+    .gs-round-title{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-family:var(--font-head); font-weight:700; font-size:15px; margin:16px 2px 8px; }
     .gs-ko-title{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin:22px 2px 0; }
     @media (max-width:640px){ .gs-grid{ grid-template-columns:1fr; } }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
@@ -444,7 +465,6 @@
       return WGP_SCORES[round] || null;
     }
     const VALID_SCORES_BY_ROUND = new Proxy({}, { get: (_, r) => validScores(Number(r)) });
-    let myGroupPicks = {}; // "A" -> { first: playerId, second: playerId }   (Grand Slam only)
     function isGrandSlam() { return !!(bracketData && bracketData.tournament && bracketData.tournament.bracket_type === 'grand_slam'); }
     function tName() { const t = bracketData && bracketData.tournament; return (t && (t.hero_title || t.name)) || 'Darts'; }
     let currentUser = null;
@@ -644,8 +664,6 @@
 
     function getRoundState(round) {
       const matches = Array.from({length: MATCHES_PER_ROUND[round]}, (_, i) => getMatch(round, i + 1));
-      // Grand Slam: the Last 32 opens once all 16 pairs are in (set after the groups)
-      if (isGrandSlam() && round === 1 && matches.some(m => !m || !m.player1_id || !m.player2_id)) return 'future';
       const determined = matches.filter(m => m.player1_id && m.player2_id);
       if (determined.length === 0) return 'future';
       const allFinished = determined.length === matches.length && determined.every(m => m.status === 'finished');
@@ -700,9 +718,9 @@
       document.title = `${tName()} - GB Tournaments`;
       if (t.bracket_type === 'grand_slam') {
         document.getElementById('heroEyebrow').textContent = 'Groups + Knockout';
-        document.getElementById('heroSub').textContent = 'Call the Groups. Then Every Knockout Round.';
+        document.getElementById('heroSub').textContent = 'One Match Per Group. Then the Whole Bracket.';
         const d = document.getElementById('heroDesc');
-        if (d) d.textContent = t.description || '48 players, 16 groups of three. Pick who finishes 1st and 2nd in every group, then pick the winners round by round from the Last 32 to the Final.';
+        if (d) d.textContent = '48 players, 16 groups of three — only the group winners go through. Pick one match from every group (winner and score), then the full knockout bracket from Round Two to the Final.';
       }
       if (t.hero_image) {
         const hero = document.querySelector('.hero');
@@ -714,9 +732,7 @@
 
     function renderBracket() {
       const t = bracketData.tournament;
-      // Grand Slam: picks carry on round by round after the start, so only a
-      // finished tournament locks the whole page (each round locks itself).
-      const locked = t.bracket_type === 'grand_slam' ? t.status === 'finished' : t.status !== 'upcoming';
+      const locked = t.status !== 'upcoming';
       const entry = bracketData.my_entry;
       renderHero(t);
       renderHeroStats(t, entry);
@@ -765,7 +781,7 @@
         return;
       }
 
-      if (t.bracket_type === 'grand_slam') { renderGrandSlam(t, locked); return; }
+      if (t.bracket_type === 'grand_slam') { renderGrandSlam(t); return; }
 
       // Entered, but the real draw doesn't exist yet — showing the
       // bracket here would mean picking a winner between "Seed 1" and
@@ -806,32 +822,38 @@
     }
 
 
-    // ================= GRAND SLAM: GROUP STAGE =================
-    const GROUP_PTS_QUALIFIED = 2, GROUP_PTS_EXACT = 5;
-    function futureText(round) {
-      return (isGrandSlam() && round === 1) ? 'Opens once the group stage finishes and the Last 32 draw is made' : 'Waiting on the previous round';
-    }
+    // ================= GRAND SLAM (2026 format) =================
+    // Groups: pick ONE match in each group - winner + exact score (first to 5).
+    // Knockout: once all 16 group winners are in Round Two, pick the whole
+    // bracket (15 matches, winner + score) before the knockout deadline.
+    const GS_GROUP_WIN = 2, GS_GROUP_EXACT = 3;
+    const GS_KO_ROUNDS = [2, 3, 4, 5];
+    const GS_KO_MATCHES = { 2: 8, 3: 4, 4: 2, 5: 1 };
+    const GS_KO_PTS = { 2: 3, 3: 5, 4: 8, 5: 13 };
+    const GS_KO_NAMES = { 2: 'Round Two', 3: 'Quarter-Finals', 4: 'Semi-Finals', 5: 'Final' };
+    let gsGroupPicks = {}; // "A" -> { match: groupMatchId, winner: playerId, score: "5-3" }
+    let gsKoPicks = {};    // "2-1" -> { winner: playerId, score: "10-6" }
+    let gsShowRules = false;
+
     function groupLetters() {
-      return [...new Set((bracketData.players || []).map(p => p.group_letter).filter(Boolean))].sort();
+      return [...new Set((bracketData.group_matches || []).map(m => m.group_letter).filter(Boolean))].sort();
     }
-    function groupPlayers(g) {
-      return (bracketData.players || []).filter(p => p.group_letter === g)
-        .sort((a, b) => (b.is_seeded ? 1 : 0) - (a.is_seeded ? 1 : 0) || (a.seed || 99) - (b.seed || 99) || a.name.localeCompare(b.name));
-    }
+    function groupMatchesOf(g) { return (bracketData.group_matches || []).filter(m => m.group_letter === g).sort((a, b) => a.match_no - b.match_no); }
     function groupsOpen(t) { return !(t.closes_at && Date.now() >= new Date(t.closes_at).getTime()) && t.status !== 'finished'; }
     function fmtWhen(iso) {
       try { return new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
     }
-    // Tap a player: first tap = 1st place, next tap = 2nd place. Tap a picked player again to clear them.
-    function tapGroupPlayer(g, pid) {
-      const cur = myGroupPicks[g] || {};
-      if (cur.first === pid) { myGroupPicks[g] = { first: cur.second || null, second: null }; }
-      else if (cur.second === pid) { myGroupPicks[g] = { first: cur.first || null, second: null }; }
-      else if (!cur.first) { myGroupPicks[g] = { first: pid, second: cur.second || null }; }
-      else { myGroupPicks[g] = { first: cur.first, second: pid }; }
-      renderBracket();
+    function playerById(id) { return (bracketData.players || []).find(p => p.id === id) || { id, name: 'TBD' }; }
+    function gsGroupScores() {
+      const n = parseInt(bracketData.tournament.round_formats && bracketData.tournament.round_formats.group, 10) || 5;
+      return Array.from({ length: n }, (_, i) => `${n}-${i}`);
     }
-    function groupPicksComplete() { return groupLetters().filter(g => myGroupPicks[g] && myGroupPicks[g].first && myGroupPicks[g].second).length; }
+    function gsResultScore(m) {
+      if (m.status !== 'finished' || !m.winner_id) return null;
+      return m.winner_id === m.player1_id ? `${m.player1_legs}-${m.player2_legs}` : `${m.player2_legs}-${m.player1_legs}`;
+    }
+    // When a group match starts: "Sun 15 Nov or Mon 16 Nov (set by Saturday result)" reads better shorter.
+    function gsWhenText(m) { return String(m.scheduled_day || '').replace(/\s*\(set by Saturday result\)/, ' · set by Saturday’s result'); }
 
     // Round photo for a player: tries every filename guess in turn
     // (e.g. "Gian van Veen" -> Gian-van-Veen.png, then Gian-Van-Veen.png),
@@ -849,26 +871,170 @@
       if (i < c.length) { img.dataset.i = i; img.src = c[i]; return; }
       img.onerror = null; img.parentElement.innerHTML = '<i class="fas fa-user"></i>';
     }
+    function gsPlayerBtn(pid, cls, onclick, extra) {
+      const p = playerById(pid);
+      return `<button type="button" class="gs-player ${cls}" ${onclick ? `onclick="${onclick}"` : 'disabled'}>${playerThumb(p)}<span class="gs-name">${escapeHtml(p.name)}${p.is_seeded ? ' <small>seed</small>' : ''}</span>${extra || ''}</button>`;
+    }
+    function gsScoreButtons(scores, chosen, onclickFn) {
+      return `<div class="gs-scores">${scores.map(s => `<button type="button" class="score-picker-btn ${chosen === s ? 'selected' : ''}" onclick="${onclickFn}('${s}')">${s}</button>`).join('')}</div>`;
+    }
+
+    // ---- Group picks ----
+    function gsTapGroup(g, matchId, pid) {
+      const cur = gsGroupPicks[g];
+      if (cur && cur.match === matchId && cur.winner === pid) delete gsGroupPicks[g];
+      else gsGroupPicks[g] = { match: matchId, winner: pid, score: (cur && cur.match === matchId) ? cur.score : null };
+      renderBracket();
+    }
+    function gsGroupScore(g, s) { if (gsGroupPicks[g]) gsGroupPicks[g].score = s; renderBracket(); }
+    function gsGroupDone() { return groupLetters().filter(g => gsGroupPicks[g] && gsGroupPicks[g].winner && gsGroupPicks[g].score).length; }
 
     function groupCardHtml(g, editable) {
-      const pick = myGroupPicks[g] || {};
-      const saved = (bracketData.my_group_predictions || []).find(x => x.group_letter === g);
-      const players = groupPlayers(g);
-      const resultsIn = players.some(p => p.group_position);
-      const rows = players.map(p => {
-        const myPos = pick.first === p.id ? 1 : pick.second === p.id ? 2 : 0;
-        let cls = 'gs-player' + (myPos ? ' picked' : '');
-        let tag = myPos ? `<span class="gs-tag">${myPos === 1 ? '1st' : '2nd'}</span>` : (editable ? '<span class="gs-tag gs-tap">Tap</span>' : '');
-        let real = '';
-        if (resultsIn && p.group_position) {
-          real = `<span class="gs-real pos${p.group_position}">${p.group_position === 1 ? 'Won group' : p.group_position === 2 ? '2nd' : '3rd · out'}</span>`;
-          if (myPos) cls += (p.group_position === myPos) ? ' exact' : (p.group_position <= 2 ? ' through' : ' wrong');
+      const pick = gsGroupPicks[g];
+      const saved = (bracketData.my_group_match_predictions || []).find(x => x.group_letter === g);
+      const winnerP = (bracketData.players || []).find(p => p.group_letter === g && p.group_position === 1);
+      let head = '';
+      if (saved && saved.points_earned != null) head = `<span class="gs-pts ${saved.points_earned > 0 ? 'earned' : ''}">+${saved.points_earned} pts</span>`;
+      else if (editable) head = `<span class="gs-pts">${pick && pick.score ? '<i class="fas fa-check" style="color:var(--green);"></i>' : 'Pick 1 match'}</span>`;
+      const rows = groupMatchesOf(g).map(m => {
+        const mine = pick && pick.match === m.id;
+        const res = gsResultScore(m);
+        const btn = (pid) => {
+          let cls = mine && pick.winner === pid ? 'picked' : '';
+          if (res && mine && pick.winner === pid) cls = m.winner_id === pid ? 'exact' : 'wrong';
+          const tag = res && m.winner_id === pid ? `<span class="gs-real pos1">${escapeHtml(res)}</span>` : '';
+          return gsPlayerBtn(pid, cls, editable ? `gsTapGroup('${g}','${m.id}','${pid}')` : null, tag);
+        };
+        let below = '';
+        if (mine && editable && pick.winner) {
+          below = `<div class="gs-score-label">Winning score for ${escapeHtml(playerById(pick.winner).name)}:</div>` + gsScoreButtons(gsGroupScores(), pick.score, `gsGroupScore.bind(null,'${g}')`);
+        } else if (mine && !editable) {
+          below = `<div class="gs-mypick">Your pick: <b>${escapeHtml(playerById(pick.winner).name)} ${escapeHtml(pick.score || '')}</b>${res ? (saved && saved.points_earned != null ? ` · ${saved.points_earned > 0 ? `<span style="color:var(--green);">+${saved.points_earned} pts</span>` : '0 pts'}` : '') : ''}</div>`;
         }
-        return `<button type="button" class="${cls}" ${editable ? `onclick="tapGroupPlayer('${g}','${p.id}')"` : 'disabled'}>
-            ${playerThumb(p)}<span class="gs-name">${escapeHtml(p.name)}${p.is_seeded ? ' <small>seed</small>' : ''}</span>${real}${tag}</button>`;
+        return `<div class="gs-match ${mine ? 'mine' : ''} ${pick && !mine ? 'other' : ''}">
+            <div class="gs-when">Match ${m.match_no} · ${escapeHtml(gsWhenText(m))}</div>
+            <div class="gs-pair">${btn(m.player1_id)}<div class="gs-v">v</div>${btn(m.player2_id)}</div>${below}
+          </div>`;
       }).join('');
-      const pts = saved && saved.points_earned != null ? `<span class="gs-pts ${saved.points_earned > 0 ? 'earned' : ''}">+${saved.points_earned} pts</span>` : '';
-      return `<div class="gs-group"><div class="gs-group-head"><b>Group ${g}</b>${pts}</div>${rows}</div>`;
+      const through = winnerP ? `<div class="gs-through"><i class="fas fa-arrow-right"></i> ${escapeHtml(winnerP.name)} goes through</div>` : '';
+      return `<div class="gs-group"><div class="gs-group-head"><b>Group ${g}</b>${head}</div>${rows}${through}</div>`;
+    }
+
+    async function saveGroupPicks() {
+      const msg = document.getElementById('groupMsg');
+      const half = groupLetters().filter(g => gsGroupPicks[g] && !gsGroupPicks[g].score);
+      if (half.length) { msg.innerHTML = `<span style="color:var(--red);">Pick the winning score in Group${half.length > 1 ? 's' : ''} ${half.join(', ')}.</span>`; return; }
+      const picks = groupLetters().filter(g => gsGroupPicks[g]).map(g => ({ group_match_id: gsGroupPicks[g].match, predicted_winner_id: gsGroupPicks[g].winner, predicted_score: gsGroupPicks[g].score }));
+      msg.innerHTML = '<span style="color:var(--text-dim);">Saving…</span>';
+      try {
+        await api('darts_submit_group_match_picks', { tournament_id: TOURNAMENT_ID, picks });
+        if (window.showToast) window.showToast('Group picks saved!', 'success');
+        await loadBracket();
+      } catch (err) {
+        msg.innerHTML = `<span style="color:var(--red);">${escapeHtml(err.message)}</span>`;
+      }
+    }
+
+    // ---- Knockout bracket ----
+    function gsKoMatch(r, n) { return getMatch(r, n) || {}; }
+    function gsKoOptions(r, n) {
+      if (r === 2) { const m = gsKoMatch(2, n); return [m.player1_id || null, m.player2_id || null]; }
+      return [gsKoPicks[`${r - 1}-${n * 2 - 1}`], gsKoPicks[`${r - 1}-${n * 2}`]].map(x => (x && x.winner) || null);
+    }
+    function gsKoReady() { const r2 = (bracketData.matches || []).filter(m => m.round === 2); return r2.length === 8 && r2.every(m => m.player1_id && m.player2_id); }
+    function gsKoOpen(t) {
+      return gsKoReady() && t.knockout_closes_at && Date.now() < new Date(t.knockout_closes_at).getTime()
+        && !(bracketData.matches || []).some(m => m.round >= 2 && m.status === 'finished');
+    }
+    // Drop later picks that no longer fit (their player was knocked out by a changed earlier pick).
+    function gsKoPrune() {
+      for (const r of [3, 4, 5]) for (let n = 1; n <= GS_KO_MATCHES[r]; n++) {
+        const k = `${r}-${n}`;
+        if (gsKoPicks[k] && !gsKoOptions(r, n).includes(gsKoPicks[k].winner)) delete gsKoPicks[k];
+      }
+    }
+    function gsTapKo(r, n, pid) {
+      const k = `${r}-${n}`;
+      if (gsKoPicks[k] && gsKoPicks[k].winner === pid) delete gsKoPicks[k];
+      else gsKoPicks[k] = { winner: pid, score: gsKoPicks[k] && gsKoPicks[k].winner === pid ? gsKoPicks[k].score : null };
+      gsKoPrune();
+      renderBracket();
+    }
+    function gsKoScore(k, s) { if (gsKoPicks[k]) gsKoPicks[k].score = s; renderBracket(); }
+    function gsKoDone() { return GS_KO_ROUNDS.reduce((sum, r) => sum + Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoPicks[`${r}-${i + 1}`]).filter(p => p && p.winner && p.score).length, 0); }
+
+    function gsKoMatchHtml(r, n, editable) {
+      const k = `${r}-${n}`;
+      const pick = gsKoPicks[k];
+      const real = gsKoMatch(r, n);
+      const pred = (bracketData.my_predictions || []).find(p => p.round === r && p.match_number === n);
+      const label = r === 5 ? 'Final' : `${GS_KO_NAMES[r]} · Match ${n}`;
+      if (editable) {
+        const opts = gsKoOptions(r, n);
+        let body;
+        if (!opts[0] || !opts[1]) {
+          body = `<div class="gs-tbd">Pick the two matches before this one first</div>`;
+        } else {
+          body = `<div class="gs-pair">${opts.map((pid, i) => (i ? '<div class="gs-v">v</div>' : '') + gsPlayerBtn(pid, pick && pick.winner === pid ? 'picked' : '', `gsTapKo(${r},${n},'${pid}')`)).join('')}</div>`;
+          if (pick && pick.winner) body += `<div class="gs-score-label">Winning score for ${escapeHtml(playerById(pick.winner).name)}:</div>` + gsScoreButtons(validScores(r) || [], pick.score, `gsKoScore.bind(null,'${k}')`);
+        }
+        return `<div class="gs-match ${pick && pick.score ? 'mine' : ''}"><div class="gs-when">${label}</div>${body}</div>`;
+      }
+      // Read-only: the real match, with your pick for this slot underneath.
+      const res = real.status === 'finished' && real.winner_id ? real.winning_score : null;
+      const btn = (pid, i) => pid ? gsPlayerBtn(pid, res ? (real.winner_id === pid ? 'exact' : '') : '', null, res && real.winner_id === pid ? `<span class="gs-real pos1">${escapeHtml(res)}</span>` : '')
+        : `<div class="gs-tbd">${r === 2 ? `Winner Group ${String.fromCharCode(65 + (n - 1) * 2 + i)}` : 'To be decided'}</div>`;
+      let mine = '<div class="gs-mypick">No pick for this match</div>';
+      if (pred) {
+        const pts = pred.points_earned != null ? ` · ${pred.points_earned > 0 ? `<span style="color:var(--green);">+${pred.points_earned} pts</span>` : '<span style="color:var(--red);">0 pts</span>'}` : '';
+        mine = `<div class="gs-mypick">Your pick: <b>${escapeHtml(playerById(pred.predicted_winner_id).name)} ${escapeHtml(pred.predicted_score || '')}</b>${pts}</div>`;
+      }
+      return `<div class="gs-match"><div class="gs-when">${label}</div><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div>${mine}</div>`;
+    }
+
+    function gsKnockoutHtml(t) {
+      const open = gsKoOpen(t);
+      const preds = (bracketData.my_predictions || []).filter(p => p.round >= 2);
+      const pts = preds.reduce((s, p) => s + (p.points_earned || 0), 0);
+      let html = `<div class="gs-ko-title">Knockout bracket</div>`;
+      if (!gsKoReady()) {
+        const known = (bracketData.players || []).filter(p => p.group_position === 1).length;
+        html += `<div class="gs-wait"><i class="fas fa-lock"></i> Opens once all 16 group winners are known (Tuesday night, ${known}/16 so far). You'll then pick all 15 knockout matches in one go — winner and score — before <b>${escapeHtml(fmtWhen(t.knockout_closes_at) || 'Round Two starts')}</b>.</div>`;
+        html += `<div class="gs-grid">${Array.from({ length: 8 }, (_, i) => gsKoMatchHtml(2, i + 1, false).replace('<div class="gs-mypick">No pick for this match</div>', '')).join('')}</div>`;
+        return html;
+      }
+      if (open) {
+        const done = gsKoDone();
+        const savedCount = preds.length;
+        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Round Two is set by the real group winners. Pick each winner and score, and your winners carry through to the next round. Picks close <b>${escapeHtml(fmtWhen(t.knockout_closes_at))}</b> — you can change them until then.${savedCount ? ' <span style="color:var(--green);"><i class="fas fa-check"></i> Bracket saved.</span>' : ''}</div>`;
+        GS_KO_ROUNDS.forEach(r => {
+          html += `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div>`;
+          html += `<div class="gs-grid">${Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoMatchHtml(r, i + 1, true)).join('')}</div>`;
+        });
+        html += `<button class="btn-primary" style="width:100%; margin:14px 0 4px;" onclick="saveKnockoutPicks()" ${done === 15 ? '' : 'disabled'}>${savedCount ? 'Update' : 'Save'} Knockout Bracket (${done}/15)</button>
+          <div class="submit-msg" id="koMsg">${done === 15 ? '' : '<span style="color:var(--gold);">Pick a winner and score for all 15 matches to save.</span>'}</div>`;
+        return html;
+      }
+      html += `<div class="gs-wait"><i class="fas fa-lock"></i> Knockout picks are closed. ${preds.length ? `<b style="color:var(--gold);">${pts} pt${pts === 1 ? '' : 's'}</b> from the knockout so far.` : "You didn't save a knockout bracket in time."}</div>`;
+      GS_KO_ROUNDS.forEach(r => {
+        html += `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div>`;
+        html += `<div class="gs-grid">${Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoMatchHtml(r, i + 1, false)).join('')}</div>`;
+      });
+      return html;
+    }
+
+    async function saveKnockoutPicks() {
+      const msg = document.getElementById('koMsg');
+      const picks = [];
+      GS_KO_ROUNDS.forEach(r => { for (let n = 1; n <= GS_KO_MATCHES[r]; n++) { const p = gsKoPicks[`${r}-${n}`]; if (p) picks.push({ round: r, match_number: n, predicted_winner_id: p.winner, predicted_score: p.score }); } });
+      msg.innerHTML = '<span style="color:var(--text-dim);">Saving…</span>';
+      try {
+        await api('darts_submit_knockout_picks', { tournament_id: TOURNAMENT_ID, picks });
+        if (window.showToast) window.showToast('Knockout bracket saved!', 'success');
+        await loadBracket();
+      } catch (err) {
+        msg.innerHTML = `<span style="color:var(--red);">${escapeHtml(err.message)}</span>`;
+      }
     }
 
     // Grand Slam, before the draw: everyone confirmed so far (admin keeps
@@ -885,80 +1051,58 @@
         </div>`;
     }
 
-    function renderGrandSlam(t, locked) {
+    function gsToggleRules() { gsShowRules = !gsShowRules; renderBracket(); }
+
+    function renderGrandSlam(t) {
       const open = groupsOpen(t);
       const letters = groupLetters();
-      const drawn = t.draw_finalized !== false;
-      const saved = bracketData.my_group_predictions || [];
+      const drawn = t.draw_finalized !== false && letters.length > 0;
+      const saved = bracketData.my_group_match_predictions || [];
       const groupPts = saved.reduce((sum, x) => sum + (x.points_earned || 0), 0);
+      const koDeadline = t.knockout_closes_at ? fmtWhen(t.knockout_closes_at) : 'Round Two starts';
       let html = '';
 
       const rules = `
         <div class="gs-rules">
           <div style="font-weight:700; margin-bottom:6px;">How it works</div>
           <ul>
-            <li><b>Groups:</b> 48 players in 16 groups of three. Before the group stage starts, pick who finishes <b>1st</b> and <b>2nd</b> in every group.</li>
-            <li>Each player you pick scores <b>${GROUP_PTS_QUALIFIED} pts</b> if they finish in the top two, or <b>${GROUP_PTS_EXACT} pts</b> if they finish in the exact place you picked — up to 10 pts a group.</li>
-            <li><b>Knockout:</b> once the groups finish, pick the winners round by round. Last 32 = 1pt, Last 16 = 2pts, Quarter-Finals = 4pts, Semi-Finals = 8pts, Final = 16pts.</li>
-            <li>Quarter-Finals, Semi-Finals and the Final also ask for the score — get it exactly right for <b>+2pts</b>.</li>
-            <li>Each round locks when its first match starts. Most points overall wins the pot.</li>
+            <li><b>Groups:</b> 48 players in 16 groups of three. Everyone plays the other two once (first to 5 legs) and <b>only the group winner goes through</b>.</li>
+            <li>Before <b>${escapeHtml(fmtWhen(t.closes_at))}</b>, pick <b>one match from each group</b> — who wins and the exact score (e.g. 5-3). <b>${GS_GROUP_WIN} pts</b> for the right winner, <b>+${GS_GROUP_EXACT}</b> for the exact score.</li>
+            <li><b>Knockout:</b> once the group stage ends (Tuesday night), pick the whole bracket — all 15 matches, winner and score — before <b>${escapeHtml(koDeadline)}</b>. Round Two is set by the real group winners; after that your own winners carry through.</li>
+            <li>Right winner / exact score: Round Two <b>3 / +3</b>, Quarter-Finals <b>5 / +5</b>, Semi-Finals <b>8 / +8</b>, Final <b>13 / +13</b>.</li>
+            <li>Most points overall wins the pot (226 max).</li>
           </ul>
         </div>`;
 
-      // ---- Group stage section ----
-      if (expandedRounds === null) {
-        expandedRounds = new Set();
-        if (open || getRoundState(1) === 'future') expandedRounds.add('G');
-        for (let r = 1; r <= 5; r++) { if (getRoundState(r) === 'current') expandedRounds.add(r); }
-      }
-      const gIsOpen = expandedRounds.has('G');
+      // ---- Group stage ----
       let gSummary = '';
       if (!drawn) gSummary = `<span class="round-summary tbd-summary"><i class="fas fa-hourglass-half"></i> Waiting for the group draw</span>`;
-      else if (open) gSummary = `<span class="round-summary" style="color:${saved.length >= letters.length ? 'var(--green)' : 'var(--gold)'};">${saved.length >= letters.length ? '<i class="fas fa-check"></i> Picks saved — you can change them until ' + escapeHtml(fmtWhen(t.closes_at)) : '<i class="fas fa-pen"></i> Picks close ' + escapeHtml(fmtWhen(t.closes_at))}</span>`;
+      else if (open) gSummary = `<span class="round-summary" style="color:${saved.length >= letters.length ? 'var(--green)' : 'var(--gold)'};">${saved.length >= letters.length ? '<i class="fas fa-check"></i> All 16 saved — change them until ' + escapeHtml(fmtWhen(t.closes_at)) : `<i class="fas fa-pen"></i> ${saved.length}/16 saved · closes ` + escapeHtml(fmtWhen(t.closes_at))}</span>`;
       else gSummary = `<span class="round-summary"><strong style="color:var(--gold);">${groupPts} pt${groupPts === 1 ? '' : 's'}</strong> from the groups</span>`;
-      html += `<div class="round-header ${open ? 'current' : 'past'}" onclick="toggleRound('G')">
-          <i class="fas fa-chevron-${gIsOpen ? 'down' : 'right'} round-chevron"></i>
+      html += `<div class="round-header ${open ? 'current' : 'past'}" style="cursor:default;">
           <span class="round-title-text">Group Stage</span>
-          <span class="badge">${GROUP_PTS_QUALIFIED} / ${GROUP_PTS_EXACT} pts</span>
+          <span class="badge">${GS_GROUP_WIN} pts · +${GS_GROUP_EXACT} exact</span>
           ${gSummary}
         </div>`;
+      html += open || !drawn ? rules : `<button type="button" class="btn-secondary" style="margin:0 0 12px;" onclick="gsToggleRules()"><i class="fas fa-circle-info"></i> ${gsShowRules ? 'Hide' : 'How it works'}</button>${gsShowRules ? rules : ''}`;
 
-      if (gIsOpen) {
-        if (!drawn) {
-          html += rules + `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet (the last places are decided on 6 November). Come back once they're announced to make your group picks.</div>${qualifiedHtml(t)}`;
-        } else if (open) {
-          const done = groupPicksComplete();
-          html += rules + `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Tap a player for <b>1st</b>, then another for <b>2nd</b>. Tap a picked player again to clear them.</div>`;
-          html += `<div class="gs-grid">${letters.map(g => groupCardHtml(g, true)).join('')}</div>`;
-          html += `<button class="btn-primary" style="width:100%; margin:12px 0 4px;" onclick="saveGroupPicks()" ${done === letters.length ? '' : 'disabled'}>
-              ${saved.length ? 'Update' : 'Save'} Group Picks (${done}/${letters.length})</button>
-            <div class="submit-msg" id="groupMsg">${done === letters.length ? '' : `<span style="color:var(--gold);">Pick 1st and 2nd in all ${letters.length} groups to save.</span>`}</div>`;
-        } else {
-          html += saved.length
-            ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`
-            : `<div class="gs-wait"><i class="fas fa-circle-info"></i> You didn't make any group picks before the group stage started — you can still play every knockout round below.</div>`;
-        }
+      if (!drawn) {
+        html += `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet. Come back once they're announced to make your group picks.</div>${qualifiedHtml(t)}`;
+      } else if (open) {
+        const done = gsGroupDone();
+        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> In each group, tap the player you think wins <b>one</b> of the three matches, then pick the score. Tap them again to clear. Save any time — you can change your picks until the deadline.</div>`;
+        html += `<div class="gs-grid">${letters.map(g => groupCardHtml(g, true)).join('')}</div>`;
+        html += `<button class="btn-primary" style="width:100%; margin:12px 0 4px;" onclick="saveGroupPicks()">${saved.length ? 'Update' : 'Save'} Group Picks (${done}/${letters.length})</button>
+          <div class="submit-msg" id="groupMsg">${done === letters.length ? '' : `<span style="color:var(--gold);">${letters.length - done} group${letters.length - done === 1 ? '' : 's'} still to pick — any group left empty scores 0.</span>`}</div>`;
+      } else {
+        html += saved.length
+          ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`
+          : `<div class="gs-wait"><i class="fas fa-circle-info"></i> You didn't make any group picks before the group stage started — you can still pick the knockout bracket below.</div><div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`;
       }
 
       // ---- Knockout ----
-      html += `<div class="gs-ko-title">Knockout</div>`;
-      html += roundsHtml(locked);
-      if (!locked) html += `<div class="submit-msg" id="submitMsg"></div>`;
+      if (drawn) html += gsKnockoutHtml(t);
       document.getElementById('root').innerHTML = html;
-    }
-
-    async function saveGroupPicks() {
-      const msg = document.getElementById('groupMsg');
-      const picks = groupLetters().map(g => ({ group_letter: g, first_id: (myGroupPicks[g] || {}).first, second_id: (myGroupPicks[g] || {}).second }));
-      if (picks.some(p => !p.first_id || !p.second_id)) { msg.innerHTML = '<span style="color:var(--red);">Pick 1st and 2nd in every group first.</span>'; return; }
-      msg.innerHTML = '<span style="color:var(--text-dim);">Saving…</span>';
-      try {
-        await api('darts_submit_group_picks', { tournament_id: TOURNAMENT_ID, picks });
-        if (window.showToast) window.showToast('Group picks saved!', 'success');
-        await loadBracket();
-      } catch (err) {
-        msg.innerHTML = `<span style="color:var(--red);">${escapeHtml(err.message)}</span>`;
-      }
     }
 
     function roundsIntro(locked) {
@@ -1000,7 +1144,7 @@
 
         let summaryHtml = '';
         if (state === 'future') {
-          summaryHtml = `<span class="round-summary tbd-summary"><i class="fas fa-lock"></i> ${futureText(round)}</span>`;
+          summaryHtml = `<span class="round-summary tbd-summary"><i class="fas fa-lock"></i> Waiting on the previous round</span>`;
         } else if (state === 'past' && roundPreds.length === 0) {
           summaryHtml = `<span class="round-summary tbd-summary">Not picked</span>`;
         } else if (state === 'past') {
@@ -1037,7 +1181,7 @@
         }
 
         if (state === 'future') {
-          html += `<div class="match-row"><span class="tbd">${futureText(round)}</span></div>`;
+          html += `<div class="match-row"><span class="tbd">Waiting on the previous round</span></div>`;
           continue;
         }
 
@@ -1252,8 +1396,12 @@
           return;
         }
         bracketData = await api('darts_get_bracket', { tournament_id: TOURNAMENT_ID });
-        myGroupPicks = {};
-        (bracketData.my_group_predictions || []).forEach(gp => { myGroupPicks[gp.group_letter] = { first: gp.first_id, second: gp.second_id }; });
+        if (isGrandSlam()) {
+          gsGroupPicks = {};
+          (bracketData.my_group_match_predictions || []).forEach(gp => { gsGroupPicks[gp.group_letter] = { match: gp.group_match_id, winner: gp.predicted_winner_id, score: gp.predicted_score }; });
+          gsKoPicks = {};
+          (bracketData.my_predictions || []).filter(p => p.round >= 2).forEach(p => { gsKoPicks[`${p.round}-${p.match_number}`] = { winner: p.predicted_winner_id, score: p.predicted_score }; });
+        }
         (bracketData.my_predictions || []).forEach(p => {
           myPicks[`${p.round}-${p.match_number}`] = p.predicted_winner_id;
           if (p.predicted_score) myScores[`${p.round}-${p.match_number}`] = p.predicted_score;

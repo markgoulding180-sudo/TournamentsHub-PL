@@ -2523,65 +2523,74 @@ function dartsAdminValidScores(t, round) {
   return DARTS_VALID_SCORES_BY_ROUND[round] || null;
 }
 
-// ---- Grand Slam tools: group results, Last 32 draw, legs formats ----
+// ---- Grand Slam tools: group match results, tie-breaks, knockout deadline ----
+// Each group match is entered like a knockout result: choose the score,
+// then click the winner. When a group's third result is in, the winner
+// goes into their Round Two slot automatically (wins, then leg difference,
+// then legs won); a tie that still can't be split is chosen here by hand.
+function dartsGsLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 function renderDartsGrandSlamTools(data) {
   const box = document.getElementById('dartsGsTools');
   if (!box) return;
   const t = data.tournament || {};
+  const roundSel = document.getElementById('dartsRoundSelect');
+  const r1Opt = roundSel && roundSel.querySelector('option[value="1"]');
+  if (r1Opt) r1Opt.hidden = t.bracket_type === 'grand_slam';
   if (t.bracket_type !== 'grand_slam') { box.innerHTML = ''; return; }
   const players = data.players || [];
-  const letters = [...new Set(players.map(p => p.group_letter).filter(Boolean))].sort();
-  const nameOf = id => (players.find(p => p.id === id) || {}).name || '';
-  const sel = 'padding:0.35rem 0.5rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px; font-size:0.8rem; min-width:0; flex:1;';
-  const groupRows = letters.map(g => {
-    const ps = players.filter(p => p.group_letter === g);
-    const first = ps.find(p => p.group_position === 1), second = ps.find(p => p.group_position === 2);
-    const opts = (cur) => '<option value="">—</option>' + ps.map(p => `<option value="${p.id}" ${cur && cur.id === p.id ? 'selected' : ''}>${escapeHtmlAdmin(p.name)}</option>`).join('');
-    return `<div style="display:flex; align-items:center; gap:0.4rem; padding:0.3rem 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap;">
-      <b style="width:22px;">${g}</b>
-      <span style="font-size:0.72rem; color:var(--text-muted);">1st</span><select id="gsFirst-${g}" style="${sel}">${opts(first)}</select>
-      <span style="font-size:0.72rem; color:var(--text-muted);">2nd</span><select id="gsSecond-${g}" style="${sel}">${opts(second)}</select>
-      <button class="btn" style="padding:0.3rem 0.7rem; font-size:0.78rem;" onclick="saveDartsGroupResult('${g}')">${first ? 'Update' : 'Save'}</button>
-      ${first ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : ''}
-    </div>`;
+  const gms = data.group_matches || [];
+  const letters = [...new Set(gms.map(m => m.group_letter))].sort();
+  const nameOf = id => (players.find(p => p.id === id) || {}).name || 'TBD';
+  const n = parseInt(t.round_formats && t.round_formats.group, 10) || 5;
+  const scores = Array.from({ length: n }, (_, i) => `${n}-${i}`);
+  const sel = 'padding:0.35rem 0.5rem; background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); border-radius:6px; font-size:0.8rem;';
+  const groupsHtml = letters.map(g => {
+    const ms = gms.filter(m => m.group_letter === g).sort((a, b) => a.match_no - b.match_no);
+    const winner = players.find(p => p.group_letter === g && p.group_position === 1);
+    const allIn = ms.length === 3 && ms.every(m => m.status === 'finished');
+    let status = `<span class="text-muted" style="font-size:0.75rem;">${ms.filter(m => m.status === 'finished').length}/3 played</span>`;
+    if (winner) status = `<span style="font-size:0.78rem; color:var(--accent-green);"><i class="fas fa-check-circle"></i> ${escapeHtmlAdmin(winner.name)} through</span>`;
+    else if (allIn) status = `<span style="font-size:0.78rem; color:var(--accent-amber, #f59e0b);"><i class="fas fa-triangle-exclamation"></i> Tie — choose the winner</span>`;
+    const rows = ms.map(m => {
+      const done = m.status === 'finished';
+      const res = done ? (m.winner_id === m.player1_id ? `${m.player1_legs}-${m.player2_legs}` : `${m.player2_legs}-${m.player1_legs}`) : '';
+      return `<div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0; flex-wrap:wrap;">
+        <span style="width:100%; font-size:0.72rem; color:var(--text-muted);">M${m.match_no} · ${escapeHtmlAdmin(m.scheduled_day || '')}</span>
+        ${dartsAdminPlayerButton(nameOf(m.player1_id), m.winner_id === m.player1_id, false, `saveDartsGroupMatch('${m.id}','${m.player1_id}')`)}
+        <span style="font-size:0.75rem; color:var(--text-muted);">vs</span>
+        ${dartsAdminPlayerButton(nameOf(m.player2_id), m.winner_id === m.player2_id, false, `saveDartsGroupMatch('${m.id}','${m.player2_id}')`)}
+        <select id="gsScore-${m.id}" style="${sel}"><option value="">Score…</option>${scores.map(s => `<option value="${s}" ${res === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        ${done ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : ''}
+      </div>`;
+    }).join('');
+    const tie = allIn && !winner ? `<div style="display:flex; gap:0.4rem; align-items:center; margin-top:0.3rem; flex-wrap:wrap;">
+        <select id="gsTie-${g}" style="${sel} flex:1;"><option value="">Group ${g} winner…</option>${players.filter(p => p.group_letter === g).map(p => `<option value="${p.id}">${escapeHtmlAdmin(p.name)}</option>`).join('')}</select>
+        <button class="btn" style="padding:0.3rem 0.7rem; font-size:0.78rem;" onclick="saveDartsGroupWinner('${g}')">Set winner</button></div>` : '';
+    return `<div style="padding:0.5rem 0; border-bottom:1px solid var(--border-color);">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;"><b>Group ${g}</b>${status}</div>${rows}${tie}</div>`;
   }).join('');
-  const qualified = players.filter(p => p.group_position === 1 || p.group_position === 2)
-    .sort((a, b) => a.group_letter.localeCompare(b.group_letter) || a.group_position - b.group_position);
-  const r1 = (data.matches || []).filter(m => m.round === 1).sort((a, b) => a.match_number - b.match_number);
-  const qOpts = (cur) => '<option value="">—</option>' + qualified.map(p => `<option value="${p.id}" ${cur === p.id ? 'selected' : ''}>${p.group_letter}${p.group_position} · ${escapeHtmlAdmin(p.name)}</option>`).join('');
-  const pairRows = r1.map(m => `<div style="display:flex; align-items:center; gap:0.4rem; padding:0.3rem 0; border-bottom:1px solid var(--border-color); flex-wrap:wrap;">
-      <span style="width:34px; font-size:0.78rem; color:var(--text-muted);">M${m.match_number}</span>
-      <select id="gsPairA-${m.match_number}" style="${sel}" ${m.status === 'finished' ? 'disabled' : ''}>${qOpts(m.player1_id)}</select>
-      <span style="font-size:0.72rem; color:var(--text-muted);">v</span>
-      <select id="gsPairB-${m.match_number}" style="${sel}" ${m.status === 'finished' ? 'disabled' : ''}>${qOpts(m.player2_id)}</select>
-      <button class="btn" style="padding:0.3rem 0.7rem; font-size:0.78rem;" ${m.status === 'finished' ? 'disabled' : ''} onclick="saveDartsKnockoutPair(${m.match_number})">Save</button>
-      ${m.player1_id && m.player2_id ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : ''}
-    </div>`).join('');
   const groupsDone = letters.filter(g => players.some(p => p.group_letter === g && p.group_position === 1)).length;
-  const pairsDone = r1.filter(m => m.player1_id && m.player2_id).length;
-  const fmt = t.round_formats || {};
   box.innerHTML = `
     <details style="margin-bottom:0.75rem; border:1px solid var(--border-color); border-radius:8px; padding:0.5rem 0.75rem;" ${groupsDone < letters.length ? 'open' : ''}>
-      <summary style="cursor:pointer; font-weight:700;">Group results (${groupsDone}/${letters.length} entered)</summary>
-      <p class="text-muted" style="font-size:0.78rem; margin:0.4rem 0;">Pick who finished 1st and 2nd in each group (the other player is 3rd) and press Save — everyone's picks for that group are scored straight away (2 pts a player in the top two, 5 for the exact place). Saving again corrects a mistake without double-counting.</p>
-      ${groupRows}
-    </details>
-    <details style="margin-bottom:0.75rem; border:1px solid var(--border-color); border-radius:8px; padding:0.5rem 0.75rem;" ${groupsDone === letters.length && pairsDone < r1.length ? 'open' : ''}>
-      <summary style="cursor:pointer; font-weight:700;">Last 32 draw (${pairsDone}/${r1.length} matches set)</summary>
-      <p class="text-muted" style="font-size:0.78rem; margin:0.4rem 0;">Once the groups are in, set the 16 Last 32 matches from the real draw (e.g. A1 v B2). Only top-two finishers can be picked, each once. Players can pick the Last 32 when all 16 are set. Match 1 & 2 winners meet in Last 16 match 1, 3 & 4 in match 2, and so on.</p>
-      ${qualified.length ? pairRows : '<p class="text-muted" style="font-size:0.8rem;">Enter the group results first.</p>'}
+      <summary style="cursor:pointer; font-weight:700;">Group results (${groupsDone}/${letters.length} groups decided)</summary>
+      <p class="text-muted" style="font-size:0.78rem; margin:0.4rem 0;">Choose the score, then click the winner. Everyone's pick for that match is scored straight away (2 pts winner, +3 exact score). Saving again corrects a mistake without double-counting. When a group's third match is in, the winner goes into Round Two automatically.</p>
+      ${groupsHtml || '<p class="text-muted" style="font-size:0.8rem;">No group fixtures yet.</p>'}
     </details>
     <details style="margin-bottom:0.75rem; border:1px solid var(--border-color); border-radius:8px; padding:0.5rem 0.75rem;">
-      <summary style="cursor:pointer; font-weight:700;">Match lengths for score rounds (first to ${fmt[3] || '?'} / ${fmt[4] || '?'} / ${fmt[5] || '?'} legs)</summary>
+      <summary style="cursor:pointer; font-weight:700;">Knockout picks close: ${t.knockout_closes_at ? escapeHtmlAdmin(new Date(t.knockout_closes_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : 'not set'}</summary>
       <div style="display:flex; gap:0.5rem; align-items:end; flex-wrap:wrap; margin-top:0.5rem;">
-        <label style="font-size:0.75rem;">QF first to<br><input type="number" id="gsFmt3" class="form-input" style="width:90px;" value="${fmt[3] || 16}"></label>
-        <label style="font-size:0.75rem;">SF first to<br><input type="number" id="gsFmt4" class="form-input" style="width:90px;" value="${fmt[4] || 16}"></label>
-        <label style="font-size:0.75rem;">Final first to<br><input type="number" id="gsFmt5" class="form-input" style="width:90px;" value="${fmt[5] || 16}"></label>
-        <button class="btn" onclick="saveDartsRoundFormats()">Save lengths</button>
+        <input type="datetime-local" id="gsKoDeadline" class="form-input" style="max-width:240px;" value="${dartsGsLocalInput(t.knockout_closes_at)}">
+        <button class="btn" onclick="saveDartsKnockoutDeadline()">Save</button>
       </div>
     </details>
     <div id="dartsGsMsg" style="font-size:0.85rem; margin-bottom:0.5rem;">${_dartsGsLastMsg}</div>`;
   _dartsGsLastMsg = '';
+  if (roundSel && roundSel.value === '1') { roundSel.value = '2'; loadDartsMatches(); }
 }
 let _dartsGsLastMsg = '';   // kept across the reload that follows each save
 function dartsGsSay(html) { _dartsGsLastMsg = html; const m = document.getElementById('dartsGsMsg'); if (m) m.innerHTML = html; }
@@ -2592,34 +2601,36 @@ async function dartsAdminPost(body) {
   if (!r.ok) throw new Error(d.error || 'Failed');
   return d;
 }
-async function saveDartsGroupResult(g) {
+async function saveDartsGroupMatch(matchId, winnerId) {
   const msg = document.getElementById('dartsGsMsg');
-  const first_id = document.getElementById(`gsFirst-${g}`).value, second_id = document.getElementById(`gsSecond-${g}`).value;
-  if (!first_id || !second_id || first_id === second_id) { msg.innerHTML = `<span style="color:var(--accent-red);">Group ${g}: pick two different players for 1st and 2nd.</span>`; return; }
-  if (!confirm(`Save Group ${g}: 1st and 2nd as chosen?
-
-This scores everyone's picks for Group ${g}.`)) return;
+  const score = document.getElementById(`gsScore-${matchId}`).value;
+  if (!score) { msg.innerHTML = '<span style="color:var(--accent-red);">Choose the score from the dropdown on that match first. Nothing was saved.</span>'; return; }
+  const gm = ((_dartsAdminBracket && _dartsAdminBracket.group_matches) || []).find(m => m.id === matchId) || {};
+  const winnerName = ((_dartsAdminBracket && _dartsAdminBracket.players) || []).find(p => p.id === winnerId)?.name || 'this player';
+  if (!confirm(`Group ${gm.group_letter || ''}: ${winnerName} wins ${score}?\n\nThis scores everyone's pick for this match.`)) return;
   try {
-    const d = await dartsAdminPost({ action: 'darts_admin_set_group_result', tournament_id: document.getElementById('dartsResultsTournamentSelect').value, group_letter: g, first_id, second_id });
-    dartsGsSay(`<span style="color:var(--accent-green);">Group ${g} saved — ${d.scored} entr${d.scored === 1 ? 'y' : 'ies'} scored.</span>`);
+    const d = await dartsAdminPost({ action: 'darts_admin_set_group_match_result', tournament_id: document.getElementById('dartsResultsTournamentSelect').value, group_match_id: matchId, winner_id: winnerId, score });
+    dartsGsSay(`<span style="color:var(--accent-green);">Saved — ${d.scored} pick${d.scored === 1 ? '' : 's'} scored.${d.group === 'winner' ? ` Group ${gm.group_letter} winner is in Round Two.` : d.group === 'tie' ? ` Group ${gm.group_letter} is tied — choose the winner below the matches.` : ''}</span>`);
     loadDartsMatches();
   } catch (e) { msg.innerHTML = `<span style="color:var(--accent-red);">Failed: ${escapeHtmlAdmin(e.message)}</span>`; }
 }
-async function saveDartsKnockoutPair(n) {
+async function saveDartsGroupWinner(g) {
   const msg = document.getElementById('dartsGsMsg');
-  const player1_id = document.getElementById(`gsPairA-${n}`).value || null, player2_id = document.getElementById(`gsPairB-${n}`).value || null;
+  const winner_id = document.getElementById(`gsTie-${g}`).value;
+  if (!winner_id) { msg.innerHTML = `<span style="color:var(--accent-red);">Choose the Group ${g} winner first.</span>`; return; }
   try {
-    await dartsAdminPost({ action: 'darts_admin_set_knockout_pair', tournament_id: document.getElementById('dartsResultsTournamentSelect').value, match_number: n, player1_id, player2_id });
-    dartsGsSay(`<span style="color:var(--accent-green);">Last 32 match ${n} ${player1_id ? 'saved' : 'cleared'}.</span>`);
+    await dartsAdminPost({ action: 'darts_admin_set_group_winner', tournament_id: document.getElementById('dartsResultsTournamentSelect').value, group_letter: g, winner_id });
+    dartsGsSay(`<span style="color:var(--accent-green);">Group ${g} winner set and placed in Round Two.</span>`);
     loadDartsMatches();
   } catch (e) { msg.innerHTML = `<span style="color:var(--accent-red);">Failed: ${escapeHtmlAdmin(e.message)}</span>`; }
 }
-async function saveDartsRoundFormats() {
+async function saveDartsKnockoutDeadline() {
   const msg = document.getElementById('dartsGsMsg');
+  const v = document.getElementById('gsKoDeadline').value;
+  if (!v) { msg.innerHTML = '<span style="color:var(--accent-red);">Pick a date and time first.</span>'; return; }
   try {
-    const d = await dartsAdminPost({ action: 'darts_admin_set_round_formats', tournament_id: document.getElementById('dartsResultsTournamentSelect').value,
-      round_formats: { 3: +document.getElementById('gsFmt3').value, 4: +document.getElementById('gsFmt4').value, 5: +document.getElementById('gsFmt5').value } });
-    dartsGsSay(`<span style="color:var(--accent-green);">Match lengths saved: first to ${d.round_formats[3]} / ${d.round_formats[4]} / ${d.round_formats[5]}.</span>`);
+    await dartsAdminPost({ action: 'darts_admin_set_knockout_deadline', tournament_id: document.getElementById('dartsResultsTournamentSelect').value, knockout_closes_at: new Date(v).toISOString() });
+    dartsGsSay('<span style="color:var(--accent-green);">Knockout picks deadline saved.</span>');
     loadDartsMatches();
   } catch (e) { msg.innerHTML = `<span style="color:var(--accent-red);">Failed: ${escapeHtmlAdmin(e.message)}</span>`; }
 }

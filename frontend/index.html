@@ -1247,11 +1247,19 @@ function cardImg(r, info){ return (r && r.t && r.t.hero_image) || info.img; }
 async function pickStatus(type, id){
   if (type === 'darts') {
     const d = await postJSON({ action:'darts_get_bracket', tournament_id:id }); if (!d) return null;
-    // Grand Slam: before the group stage, the picks needed are the 16 groups
+    // Grand Slam: one pick per group before the group stage, then the
+    // whole 15-match knockout bracket before Round Two.
     const gt = d.tournament || {};
-    if (gt.bracket_type === 'grand_slam' && gt.draw_finalized !== false && !(gt.closes_at && Date.now() >= new Date(gt.closes_at).getTime())) {
-      const groups = new Set((d.players || []).map(p => p.group_letter).filter(Boolean)).size;
-      return { hasPicked: (d.my_group_predictions || []).length >= groups, label:'Group picks', deadline: gt.closes_at };
+    if (gt.bracket_type === 'grand_slam') {
+      const now = Date.now();
+      if (gt.draw_finalized !== false && !(gt.closes_at && now >= new Date(gt.closes_at).getTime())) {
+        const groups = new Set((d.group_matches || []).map(m => m.group_letter).filter(Boolean)).size;
+        return groups ? { hasPicked: (d.my_group_match_predictions || []).length >= groups, label:'Group picks', deadline: gt.closes_at } : null;
+      }
+      const r2 = (d.matches || []).filter(m => m.round === 2);
+      const koOpen = r2.length === 8 && r2.every(m => m.player1_id && m.player2_id) && gt.knockout_closes_at && now < new Date(gt.knockout_closes_at).getTime();
+      if (koOpen) return { hasPicked: (d.my_predictions || []).filter(p => p.round >= 2).length >= 15, label:'Knockout bracket', deadline: gt.knockout_closes_at };
+      return null;
     }
     const matches = d.matches || [];
     const rounds = [...new Set(matches.map(m => m.round))].sort((a, b) => a - b);
