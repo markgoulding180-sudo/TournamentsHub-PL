@@ -842,6 +842,7 @@
     let gsGroupPicks = {}; // "A" -> { match: groupMatchId, winner: playerId, score: "5-3" }
     let gsKoPicks = {};    // "2-1" -> { winner: playerId, score: "10-6" }
     let gsShowRules = false;
+    let gsShowAll = false;  // once all 16 group picks are saved, only your picked match shows per group unless this is on
 
     function groupLetters() {
       return [...new Set((bracketData.group_matches || []).map(m => m.group_letter).filter(Boolean))].sort();
@@ -890,7 +891,7 @@
     function gsGroupScore(g, s) { if (gsGroupPicks[g]) gsGroupPicks[g].score = s; renderBracket(); }
     function gsGroupDone() { return groupLetters().filter(g => gsGroupPicks[g] && gsGroupPicks[g].winner && gsGroupPicks[g].score).length; }
 
-    function groupCardHtml(g, editable) {
+    function groupCardHtml(g, editable, onlyMine) {
       const pick = gsGroupPicks[g];
       const saved = (bracketData.my_group_match_predictions || []).find(x => x.group_letter === g);
       const winnerP = (bracketData.players || []).find(p => p.group_letter === g && p.group_position === 1);
@@ -899,6 +900,7 @@
       else if (editable) head = `<span class="gs-pts">${pick && pick.score ? '<i class="fas fa-check" style="color:var(--green);"></i>' : 'Pick 1 match'}</span>`;
       const rows = groupMatchesOf(g).map(m => {
         const mine = pick && pick.match === m.id;
+        if (onlyMine && pick && !mine) return '';
         const res = gsResultScore(m);
         const btn = (pid) => {
           let cls = mine && pick.winner === pid ? 'picked' : '';
@@ -930,6 +932,7 @@
       try {
         await api('darts_submit_group_match_picks', { tournament_id: TOURNAMENT_ID, picks });
         if (window.showToast) window.showToast('Group picks saved!', 'success');
+        gsShowAll = false;
         await loadBracket();
       } catch (err) {
         msg.innerHTML = `<span style="color:var(--red);">${escapeHtml(err.message)}</span>`;
@@ -1053,6 +1056,15 @@
     }
 
     function gsToggleRules() { gsShowRules = !gsShowRules; renderBracket(); }
+    // Back to just-my-picks: drop any unsaved changes and show the saved picks again.
+    function gsToggleShowAll() {
+      gsShowAll = !gsShowAll;
+      if (!gsShowAll) {
+        gsGroupPicks = {};
+        (bracketData.my_group_match_predictions || []).forEach(gp => { gsGroupPicks[gp.group_letter] = { match: gp.group_match_id, winner: gp.predicted_winner_id, score: gp.predicted_score }; });
+      }
+      renderBracket();
+    }
 
     function renderGrandSlam(t) {
       const open = groupsOpen(t);
@@ -1089,15 +1101,21 @@
 
       if (!drawn) {
         html += `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet. Come back once they're announced to make your group picks.</div>${qualifiedHtml(t)}`;
+      } else if (open && saved.length >= letters.length && !gsShowAll) {
+        html += `<div class="gs-hint"><i class="fas fa-check" style="color:var(--green);"></i> All ${letters.length} group picks saved — here are the matches you picked. You can change them until <b>${escapeHtml(fmtWhen(t.closes_at))}</b>.</div>`;
+        html += `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false, true)).join('')}</div>`;
+        html += `<button class="btn-secondary" style="width:100%; margin:12px 0 4px;" onclick="gsToggleShowAll()"><i class="fas fa-pen"></i> Change My Picks</button>`;
       } else if (open) {
         const done = gsGroupDone();
         html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> In each group, tap the player you think wins <b>one</b> of the three matches, then pick the score. Tap them again to clear. Save any time — you can change your picks until the deadline.</div>`;
         html += `<div class="gs-grid">${letters.map(g => groupCardHtml(g, true)).join('')}</div>`;
         html += `<button class="btn-primary" style="width:100%; margin:12px 0 4px;" onclick="saveGroupPicks()">${saved.length ? 'Update' : 'Save'} Group Picks (${done}/${letters.length})</button>
           <div class="submit-msg" id="groupMsg">${done === letters.length ? '' : `<span style="color:var(--gold);">${letters.length - done} group${letters.length - done === 1 ? '' : 's'} still to pick — any group left empty scores 0.</span>`}</div>`;
+        if (saved.length >= letters.length) html += `<button class="btn-secondary" style="width:100%; margin:4px 0;" onclick="gsToggleShowAll()"><i class="fas fa-xmark"></i> Cancel — Keep My Saved Picks</button>`;
       } else {
         html += saved.length
-          ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`
+          ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false, !gsShowAll)).join('')}</div>
+             <button class="btn-secondary" style="width:100%; margin:12px 0 4px;" onclick="gsToggleShowAll()">${gsShowAll ? 'Show Just My Picks' : 'Show All Group Matches'}</button>`
           : `<div class="gs-wait"><i class="fas fa-circle-info"></i> You didn't make any group picks before the group stage started — you can still pick the knockout bracket below.</div><div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`;
       }
 
