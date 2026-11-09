@@ -288,6 +288,10 @@
     .gs-pair .gs-name{ white-space:normal; overflow:visible; font-size:12.5px; line-height:1.2; overflow-wrap:anywhere; }
     .gs-pair .gs-name small{ display:block; margin:2px 0 0; }
     .gs-pair .gs-ph{ width:40px; height:40px; }
+    .gs-ph.gs-flag{ width:42px; height:28px; border-radius:4px; background:none; box-shadow:0 1px 4px rgba(0,0,0,0.45); }
+    .gs-ph.gs-flag img{ object-position:center; }
+    .gs-pair .gs-ph.gs-flag{ width:48px; height:32px; }
+    .gs-qual-p .gs-ph.gs-flag{ width:42px; height:28px; }
     .gs-pair .gs-tbd{ display:flex; align-items:center; justify-content:center; }
     .gs-v{ align-self:center; text-align:center; font-size:10.5px; font-weight:700; color:var(--text-faint); letter-spacing:1px; }
     .gs-score-label{ font-size:11.5px; color:var(--text-dim); margin:8px 2px 5px; }
@@ -855,21 +859,14 @@
     // When a group match starts: "Sun 15 Nov or Mon 16 Nov (set by Saturday result)" reads better shorter.
     function gsWhenText(m) { return String(m.scheduled_day || '').replace(/\s*\(set by Saturday result\)/, ' · set by Saturday’s result'); }
 
-    // Round photo for a player: tries every filename guess in turn
-    // (e.g. "Gian van Veen" -> Gian-van-Veen.png, then Gian-Van-Veen.png),
-    // then falls back to the person icon.
+    // Grand Slam players show their country's flag (players.country holds
+    // the flag code, e.g. gb-eng, nl). No country yet = person icon.
+    const FLAG_NAMES = { 'gb-eng': 'England', 'gb-sct': 'Scotland', 'gb-wls': 'Wales', 'gb-nir': 'Northern Ireland', nl: 'Netherlands', de: 'Germany', pl: 'Poland', se: 'Sweden', cz: 'Czech Republic', at: 'Austria', be: 'Belgium', us: 'USA', ph: 'Philippines', au: 'Australia', ie: 'Ireland', ca: 'Canada', jp: 'Japan', lv: 'Latvia', lt: 'Lithuania', ch: 'Switzerland', za: 'South Africa', nz: 'New Zealand' };
     function playerThumb(p) {
-      const cands = playerPhotoCandidates(p.name);
-      const json = escapeHtml(JSON.stringify(cands)).replace(/"/g, '&quot;');
-      return cands.length
-        ? `<span class="gs-ph"><img src="${cands[0]}" alt="${escapeHtml(p.name)}" data-c="${json}" data-i="0" onerror="gsPhotoNext(this)"></span>`
-        : `<span class="gs-ph"><i class="fas fa-user"></i></span>`;
-    }
-    function gsPhotoNext(img) {
-      let c = []; try { c = JSON.parse(img.dataset.c || '[]'); } catch (e) {}
-      const i = (+img.dataset.i || 0) + 1;
-      if (i < c.length) { img.dataset.i = i; img.src = c[i]; return; }
-      img.onerror = null; img.parentElement.innerHTML = '<i class="fas fa-user"></i>';
+      const c = String((p && p.country) || '').toLowerCase();
+      if (!/^[a-z]{2}(-[a-z]{3})?$/.test(c)) return `<span class="gs-ph"><i class="fas fa-user"></i></span>`;
+      const label = escapeHtml(FLAG_NAMES[c] || c.toUpperCase());
+      return `<span class="gs-ph gs-flag" title="${label}"><img src="https://flagcdn.com/w80/${c}.png" alt="${label}" loading="lazy" onerror="this.onerror=null; this.parentElement.classList.remove('gs-flag'); this.parentElement.innerHTML='<i class=&quot;fas fa-user&quot;></i>'"></span>`;
     }
     function gsPlayerBtn(pid, cls, onclick, extra) {
       const p = playerById(pid);
