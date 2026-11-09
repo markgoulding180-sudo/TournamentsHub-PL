@@ -364,6 +364,7 @@
     }
     .gs-ko-title{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin:22px 2px 0; }
     @media (max-width:640px){ .gs-grid{ grid-template-columns:1fr; } }
+    @media (min-width:1024px){ .gs-grid{ grid-template-columns:repeat(4, minmax(0, 1fr)); } }
     .loading, .empty{ text-align:center; padding:40px; color:var(--text-dim); }
     /* Mobile hamburger drawer — standard across every page */
     .icon-btn.menu-toggle{ display:none; }
