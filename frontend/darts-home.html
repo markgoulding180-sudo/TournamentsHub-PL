@@ -324,6 +324,18 @@
     .gs-sum-pts.lose{ color:var(--red); }
     .gs-sum-chev{ flex:none; font-size:12px; color:var(--text-faint); }
     .gs-sum-body{ margin-top:8px; }
+    /* Desktop: the group cards are narrow, so the one-line summary becomes two:
+       "Group A ... points ^" on top, then flag, player name and score underneath. */
+    @media (min-width:641px){
+      .gs-sum{ display:grid; grid-template-columns:1fr auto auto; grid-template-areas:"label pts chev" "pick pick pick"; row-gap:8px; column-gap:10px; padding:8px 6px; }
+      .gs-sum-label{ grid-area:label; min-width:0; }
+      .gs-sum-pts{ grid-area:pts; }
+      .gs-sum-chev{ grid-area:chev; align-self:center; }
+      .gs-sum-pick{ grid-area:pick; }
+      .gs-sum-name{ font-size:15px; overflow-wrap:normal; }
+      .gs-sum-score{ font-size:15px; margin-left:auto; }
+      .gs-sum-pick .gs-ph.gs-flag{ width:36px; height:24px; }
+    }
     .gs-collapsible .gs-sum-body .gs-match{ margin-bottom:0; }
     .gs-match.gs-collapsible{ padding:6px 8px; }
     @media (max-width:640px){
