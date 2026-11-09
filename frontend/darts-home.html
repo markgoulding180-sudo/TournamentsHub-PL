@@ -877,7 +877,10 @@
     let gsKoPicks = {};    // "2-1" -> { winner: playerId, score: "10-6" }
     let gsShowRules = false;
     let gsShowAll = false;
-    const gsOpenCards = new Set(); // saved picks show as one line; tap to open the full match card
+    // Saved-pick cards stay open until the match has a result, then fold to one
+    // line. This set holds the cards the player has tapped away from that default.
+    const gsOpenCards = new Set();
+    function gsCardOpen(k, played) { return played ? gsOpenCards.has(k) : !gsOpenCards.has(k); }
     function gsToggleCard(k) { if (gsOpenCards.has(k)) gsOpenCards.delete(k); else gsOpenCards.add(k); renderBracket(); }
     function gsPtsText(pts) { return pts == null ? '' : pts > 0 ? `<span class="gs-sum-pts win">+${pts} pts</span>` : '<span class="gs-sum-pts lose">0 pts</span>'; }
     // One-line summary of a saved pick: flag, name + score, points, chevron.
@@ -966,7 +969,8 @@
       }).join('');
       const through = winnerP ? `<div class="gs-through"><i class="fas fa-arrow-right"></i> ${escapeHtml(winnerP.name)} goes through</div>` : '';
       if (!editable && pick) {
-        const open = gsOpenCards.has('G' + g);
+        const pm = groupMatchesOf(g).find(m => m.id === pick.match);
+        const open = gsCardOpen('G' + g, !!(pm && pm.status === 'finished'));
         return `<div class="gs-group gs-collapsible">${gsSummaryBtn('G' + g, `Group ${g}`, pick.winner, pick.score, saved ? saved.points_earned : null, open)}${open ? `<div class="gs-sum-body">${rows}${through}</div>` : ''}</div>`;
       }
       return `<div class="gs-group"><div class="gs-group-head"><b>Group ${g}</b>${head}</div>${rows}${through}</div>`;
@@ -1038,7 +1042,7 @@
       const btn = (pid, i) => pid ? gsPlayerBtn(pid, res ? (real.winner_id === pid ? 'exact' : '') : '', null, res && real.winner_id === pid ? `<span class="gs-real pos1">${escapeHtml(res)}</span>` : '')
         : `<div class="gs-tbd">${r === 2 ? `Winner Group ${String.fromCharCode(65 + (n - 1) * 2 + i)}` : 'To be decided'}</div>`;
       if (pred) {
-        const key = `K${r}-${n}`, open = gsOpenCards.has(key);
+        const key = `K${r}-${n}`, open = gsCardOpen(key, real.status === 'finished');
         const pts = pred.points_earned != null ? ` · ${pred.points_earned > 0 ? `<span style="color:var(--green);">+${pred.points_earned} pts</span>` : '<span style="color:var(--red);">0 pts</span>'}` : '';
         return `<div class="gs-match gs-collapsible">${gsSummaryBtn(key, r === 5 ? 'Final' : `Match ${n}`, pred.predicted_winner_id, pred.predicted_score, pred.points_earned, open)}${open
           ? `<div class="gs-sum-body"><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div><div class="gs-mypick">Your pick: <b>${escapeHtml(playerById(pred.predicted_winner_id).name)} ${escapeHtml(pred.predicted_score || '')}</b>${pts}</div></div>` : ''}</div>`;

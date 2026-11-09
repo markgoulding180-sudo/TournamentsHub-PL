@@ -4264,6 +4264,25 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
             scored++;
           }
 
+          // Saturday's result decides the other two days: the loser plays the
+          // 2nd player on Sunday, the winner plays them on Monday (Groups
+          // A-H) or Tuesday (I-P) at 19:00. A day already set by hand for
+          // that same date (e.g. a Sunday session time) is kept.
+          if (gm.match_no === 1) {
+            const loser = winner_id === gm.player1_id ? gm.player2_id : gm.player1_id;
+            const others = (groupRows || []).filter(m => m.match_no !== 1);
+            const sunday = others.find(m => m.player1_id === loser || m.player2_id === loser);
+            const later = others.find(m => m !== sunday);
+            const days = dartsGsGroupDays(tournament, gm.group_letter);
+            for (const [m, text] of [[sunday, days.sunday], [later, days.later]]) {
+              if (!m || !text) continue;
+              const dayPart = text.split(' ').slice(0, 3).join(' ');
+              const cur = String(m.scheduled_day || '');
+              if (cur.startsWith(dayPart) && !/set by Saturday/i.test(cur)) continue;
+              await supabaseAdmin.schema('darts').from('group_matches').update({ scheduled_day: text }).eq('id', m.id);
+            }
+          }
+
           let groupNote = null;
           if (standing) {
             if (standing.decided) {
@@ -10052,6 +10071,17 @@ function dartsGsGroupStanding(groupMatches) {
   const cmp = (a, b) => { const x = key(a), y = key(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return y[i] - x[i]; return 0; };
   rows.sort(cmp);
   return { order: rows.map(r => r.id), table: rows, decided: rows.length === 3 && cmp(rows[0], rows[1]) !== 0 };
+}
+// Group days follow Saturday (the day group picks close): Sunday for the
+// Saturday loser, then Monday (Groups A-H) or Tuesday (I-P) at 19:00 for
+// the Saturday winner. Sunday's session (13:00 / 19:30) isn't known until
+// the PDC's order of play.
+function dartsGsGroupDays(tournament, letter) {
+  if (!tournament || !tournament.closes_at) return {};
+  const sat = new Date(tournament.closes_at);
+  const day = n => new Date(sat.getTime() + n * 86400000).toLocaleDateString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+  const late = String(letter) <= 'H' ? 2 : 3;
+  return { sunday: `${day(1)} (time TBC)`, later: `${day(late)} 19:00` };
 }
 // Round Two slot for a group: A and B meet in match 1, C and D in match 2 ...
 function dartsGsSlotFor(letter) {
