@@ -239,6 +239,11 @@
     .submit-msg{ text-align:center; font-size:13px; margin-top:10px; }
     /* ---------- Grand Slam group stage ---------- */
     .gs-rules{ text-align:left; margin:10px 0 12px; padding:14px 16px; border:1px solid var(--border); border-radius:10px; background:var(--bg-panel); font-size:13px; }
+    .gs-rules-toggle{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; margin:0 0 12px; padding:12px 16px; border:1px solid var(--accent-dim); border-radius:10px; background:var(--bg-panel); font-family:var(--font-head); font-weight:700; font-size:15px; text-align:left; }
+    .gs-rules-toggle span i{ color:var(--accent-2); margin-right:6px; }
+    .gs-rules-toggle.open{ margin-bottom:0; border-bottom-left-radius:0; border-bottom-right-radius:0; }
+    .gs-rules-toggle.open + .gs-rules{ margin-top:0; border-top:none; border-top-left-radius:0; border-top-right-radius:0; }
+    .enter-gate + .gs-rules-toggle{ margin-top:12px; }
     .gs-rules ul{ margin:0; padding-left:18px; color:var(--text-dim); line-height:1.7; }
     .gs-rules b{ color:var(--text); }
     .gs-hint, .gs-wait{ font-size:12.5px; color:var(--text-dim); background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:10px 14px; margin:0 0 12px; line-height:1.5; }
@@ -804,7 +809,7 @@
             ${t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
               : `<a href="/login?redirect=${encodeURIComponent(location.pathname + location.search)}" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`}
-          </div>${qualifiedHtml(t)}`;
+          </div>${t.bracket_type === 'grand_slam' ? gsRulesHtml(t) : ''}${qualifiedHtml(t)}`;
         return;
       }
 
@@ -819,7 +824,7 @@
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
               : `<button class="btn-primary" id="enterBtn" onclick="enterTournament()"><i class="fas fa-right-to-bracket"></i> Enter Now — £${((t.entry_fee||0)/100).toFixed(2)}</button>`}
             <div class="submit-msg" id="enterMsg"></div>
-          </div>${qualifiedHtml(t)}`;
+          </div>${t.bracket_type === 'grand_slam' ? gsRulesHtml(t) : ''}${qualifiedHtml(t)}`;
         return;
       }
 
@@ -1030,7 +1035,7 @@
         const opts = gsKoOptions(r, n);
         let body;
         if (!opts[0] || !opts[1]) {
-          body = `<div class="gs-tbd">Pick the two matches before this one first</div>`;
+          body = `<div class="gs-tbd">Pick the winners of the two matches before this one first</div>`;
         } else {
           body = `<div class="gs-pair">${opts.map((pid, i) => (i ? '<div class="gs-v">v</div>' : '') + gsPlayerBtn(pid, pick && pick.winner === pid ? 'picked' : '', `gsTapKo(${r},${n},'${pid}')`)).join('')}</div>`;
           if (pick && pick.winner) body += `<div class="gs-score-label">Winning score for ${escapeHtml(playerById(pick.winner).name)}:</div>` + gsScoreButtons(validScores(r) || [], pick.score, `gsKoScore.bind(null,'${k}')`);
@@ -1058,14 +1063,14 @@
       let html = `<div class="gs-ko-title">Knockout bracket</div>`;
       if (!gsKoReady()) {
         const known = (bracketData.players || []).filter(p => p.group_position === 1).length;
-        html += `<div class="gs-wait"><i class="fas fa-lock"></i> Opens once all 16 group winners are known (Tuesday night, ${known}/16 so far). You'll then pick all 15 knockout matches in one go — winner and score — before <b>${escapeHtml(fmtWhen(t.knockout_closes_at) || 'Round Two starts')}</b>.</div>`;
+        html += `<div class="gs-wait"><i class="fas fa-lock"></i> The bracket opens once all 16 group winners are known on Tuesday night (${known}/16 so far). You'll then pick all 15 knockout matches in one go — winner and exact score — before <b>${escapeHtml(fmtWhen(t.knockout_closes_at) || 'Round Two starts')}</b>.</div>`;
         html += `<div class="gs-grid">${Array.from({ length: 8 }, (_, i) => gsKoMatchHtml(2, i + 1, false).replace('<div class="gs-mypick">No pick for this match</div>', '')).join('')}</div>`;
         return html;
       }
       if (open) {
         const done = gsKoDone();
         const savedCount = preds.length;
-        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Round Two is set by the real group winners. Pick each winner and score, and your winners carry through to the next round. Picks close <b>${escapeHtml(fmtWhen(t.knockout_closes_at))}</b> — you can change them until then.${savedCount ? ' <span style="color:var(--green);"><i class="fas fa-check"></i> Bracket saved.</span>' : ''}</div>`;
+        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Round Two uses the real group winners. Pick a winner and exact score for every match — your winners carry through to the next round. Picks close <b>${escapeHtml(fmtWhen(t.knockout_closes_at))}</b> — you can change them until then.${savedCount ? ' <span style="color:var(--green);"><i class="fas fa-check"></i> Bracket saved.</span>' : ''}</div>`;
         GS_KO_ROUNDS.forEach(r => {
           html += `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div>`;
           html += `<div class="gs-grid">${Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoMatchHtml(r, i + 1, true)).join('')}</div>`;
@@ -1111,6 +1116,23 @@
     }
 
     function gsToggleRules() { gsShowRules = !gsShowRules; renderBracket(); }
+    // "How it works" - a full-width bar, collapsed on load, tap to open.
+    function gsRulesHtml(t) {
+      const groupDeadline = escapeHtml(fmtWhen(t.closes_at));
+      const koDeadline = escapeHtml(t.knockout_closes_at ? fmtWhen(t.knockout_closes_at) : 'Round Two starts');
+      const body = gsShowRules ? `
+        <div class="gs-rules">
+          <ul>
+            <li><b>The groups:</b> 48 players in 16 groups of three. Each player plays the other two once (first to 5 legs), and <b>only the group winner goes through</b> to the knockout.</li>
+            <li><b>Group picks — by ${groupDeadline}:</b> in every group, choose <b>one</b> of the three matches and pick who wins it and the exact score (e.g. 5-3). <b>${GS_GROUP_WIN} pts</b> for the right winner, <b>+${GS_GROUP_EXACT}</b> more for the exact score — up to 5 pts a group.</li>
+            <li><b>Knockout picks — by ${koDeadline}:</b> the bracket opens when the group stage finishes on Tuesday night. Pick all 15 matches in one go, each with a winner and exact score. Round Two uses the real group winners; from the Quarter-Finals on, the players are the winners you picked.</li>
+            <li><b>Knockout points</b> (right winner, + exact score): Round Two <b>3 +3</b>, Quarter-Finals <b>5 +5</b>, Semi-Finals <b>8 +8</b>, Final <b>13 +13</b>.</li>
+            <li>You can change your picks as often as you like until each deadline. Entries close at ${groupDeadline}.</li>
+            <li>Most points overall wins the pot (226 pts max).</li>
+          </ul>
+        </div>` : '';
+      return `<button type="button" class="gs-rules-toggle ${gsShowRules ? 'open' : ''}" onclick="gsToggleRules()"><span><i class="fas fa-circle-info"></i> How it works</span><i class="fas fa-chevron-${gsShowRules ? 'up' : 'down'}"></i></button>${body}`;
+    }
     // Back to just-my-picks: drop any unsaved changes and show the saved picks again.
     function gsToggleShowAll() {
       gsShowAll = !gsShowAll;
@@ -1127,20 +1149,8 @@
       const drawn = t.draw_finalized !== false && letters.length > 0;
       const saved = bracketData.my_group_match_predictions || [];
       const groupPts = saved.reduce((sum, x) => sum + (x.points_earned || 0), 0);
-      const koDeadline = t.knockout_closes_at ? fmtWhen(t.knockout_closes_at) : 'Round Two starts';
       let html = '';
 
-      const rules = `
-        <div class="gs-rules">
-          <div style="font-weight:700; margin-bottom:6px;">How it works</div>
-          <ul>
-            <li><b>Groups:</b> 48 players in 16 groups of three. Everyone plays the other two once (first to 5 legs) and <b>only the group winner goes through</b>.</li>
-            <li>Before <b>${escapeHtml(fmtWhen(t.closes_at))}</b>, pick <b>one match from each group</b> — who wins and the exact score (e.g. 5-3). <b>${GS_GROUP_WIN} pts</b> for the right winner, <b>+${GS_GROUP_EXACT}</b> for the exact score.</li>
-            <li><b>Knockout:</b> once the group stage ends (Tuesday night), pick the whole bracket — all 15 matches, winner and score — before <b>${escapeHtml(koDeadline)}</b>. Round Two is set by the real group winners; after that your own winners carry through.</li>
-            <li>Right winner / exact score: Round Two <b>3 / +3</b>, Quarter-Finals <b>5 / +5</b>, Semi-Finals <b>8 / +8</b>, Final <b>13 / +13</b>.</li>
-            <li>Most points overall wins the pot (226 max).</li>
-          </ul>
-        </div>`;
 
       // ---- Group stage ----
       let gSummary = '';
@@ -1152,7 +1162,7 @@
           <span class="badge">${GS_GROUP_WIN} pts · +${GS_GROUP_EXACT} exact</span>
           ${gSummary}
         </div>`;
-      html += open || !drawn ? rules : `<button type="button" class="btn-secondary" style="margin:0 0 12px;" onclick="gsToggleRules()"><i class="fas fa-circle-info"></i> ${gsShowRules ? 'Hide' : 'How it works'}</button>${gsShowRules ? rules : ''}`;
+      html += gsRulesHtml(t);
 
       if (!drawn) {
         html += `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet. Come back once they're announced to make your group picks.</div>${qualifiedHtml(t)}`;
@@ -1162,16 +1172,16 @@
         html += `<button class="btn-secondary" style="width:100%; margin:12px 0 4px;" onclick="gsToggleShowAll()"><i class="fas fa-pen"></i> Change My Picks</button>`;
       } else if (open) {
         const done = gsGroupDone();
-        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> In each group, tap the player you think wins <b>one</b> of the three matches, then pick the score. Tap them again to clear. Save any time — you can change your picks until the deadline.</div>`;
+        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> In each group, choose <b>one</b> of the three matches: tap the player you think will win it, then pick the score. Tap the player again to clear it. Save whenever you like — you can change your picks until <b>${escapeHtml(fmtWhen(t.closes_at))}</b>.</div>`;
         html += `<div class="gs-grid">${letters.map(g => groupCardHtml(g, true)).join('')}</div>`;
         html += `<button class="btn-primary" style="width:100%; margin:12px 0 4px;" onclick="saveGroupPicks()">${saved.length ? 'Update' : 'Save'} Group Picks (${done}/${letters.length})</button>
-          <div class="submit-msg" id="groupMsg">${done === letters.length ? '' : `<span style="color:var(--gold);">${letters.length - done} group${letters.length - done === 1 ? '' : 's'} still to pick — any group left empty scores 0.</span>`}</div>`;
+          <div class="submit-msg" id="groupMsg">${done === letters.length ? '' : `<span style="color:var(--gold);">${letters.length - done} group${letters.length - done === 1 ? '' : 's'} still to pick — a group with no pick scores 0.</span>`}</div>`;
         if (saved.length >= letters.length) html += `<button class="btn-secondary" style="width:100%; margin:4px 0;" onclick="gsToggleShowAll()"><i class="fas fa-xmark"></i> Cancel — Keep My Saved Picks</button>`;
       } else {
         html += saved.length
           ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false, !gsShowAll)).join('')}</div>
              <button class="btn-secondary" style="width:100%; margin:12px 0 4px;" onclick="gsToggleShowAll()">${gsShowAll ? 'Show Just My Picks' : 'Show All Group Matches'}</button>`
-          : `<div class="gs-wait"><i class="fas fa-circle-info"></i> You didn't make any group picks before the group stage started — you can still pick the knockout bracket below.</div><div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`;
+          : `<div class="gs-wait"><i class="fas fa-circle-info"></i> You didn't make any group picks before the deadline — you can still pick the knockout bracket below.</div><div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`;
       }
 
       // ---- Knockout ----
