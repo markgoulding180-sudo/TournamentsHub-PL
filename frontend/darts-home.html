@@ -311,38 +311,13 @@
     .gs-through{ font-size:12px; font-weight:700; color:var(--green); margin:8px 2px 0; }
     .gs-round-title{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-family:var(--font-head); font-weight:700; font-size:15px; margin:16px 2px 8px; }
     .gs-grid > *{ min-width:0; }
-    .gs-sum{ display:flex; align-items:center; gap:8px; width:100%; box-sizing:border-box; text-align:left; padding:6px 4px; border-radius:9px; }
-    .gs-sum-label{ flex:none; font-family:var(--font-head); font-weight:700; font-size:14px; min-width:66px; }
-    .gs-sum-pick{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
-    .gs-sum-pick .gs-ph.gs-flag{ width:30px; height:20px; }
-    .gs-sum-pick .gs-ph{ width:26px; height:26px; }
-    .gs-sum-name{ min-width:0; font-weight:600; font-size:14px; line-height:1.2; overflow-wrap:anywhere; }
-    .gs-sum-score{ flex:none; color:var(--accent-2); font-weight:800; font-size:14px; }
-    .gs-sum-pts{ flex:none; font-weight:800; font-size:14px; }
-    .gs-sum-pts.win{ color:var(--green); }
-    .gs-sum-pts.lose{ color:var(--red); }
-    .gs-sum-chev{ flex:none; font-size:12px; color:var(--text-faint); }
-    .gs-sum-body{ margin-top:8px; }
-    /* Desktop: the group cards are narrow, so the one-line summary becomes two:
-       "Group A ... points ^" on top, then flag, player name and score underneath. */
     @media (min-width:641px){
-      .gs-sum{ display:grid; grid-template-columns:1fr auto auto; grid-template-areas:"label pts chev" "pick pick pick"; row-gap:8px; column-gap:10px; padding:8px 6px; }
-      .gs-sum-label{ grid-area:label; min-width:0; }
-      .gs-sum-pts{ grid-area:pts; }
-      .gs-sum-chev{ grid-area:chev; align-self:center; }
-      .gs-sum-pick{ grid-area:pick; }
-      .gs-sum-name{ font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .gs-sum-label{ white-space:nowrap; }
       .gs-when{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .gs-pair .gs-player{ min-height:118px; justify-content:flex-start; padding-top:10px; }
       .gs-pair .gs-name{ flex:none; }
       .gs-pair .gs-name{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
       .gs-mypick{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .gs-sum-score{ font-size:15px; margin-left:auto; }
-      .gs-sum-pick .gs-ph.gs-flag{ width:36px; height:24px; }
     }
-    .gs-collapsible .gs-sum-body .gs-match{ margin-bottom:0; }
-    .gs-match.gs-collapsible{ padding:6px 8px; }
     @media (max-width:640px){
       #root{ padding:12px 6px !important; }
       .gs-grid{ gap:8px; }
@@ -352,16 +327,28 @@
       .gs-seed{ font-size:10.5px; }
       .gs-mypick{ font-size:15px; }
       .gs-real{ font-size:13px; }
-      .gs-sum{ padding:10px 6px; gap:10px; }
-      .gs-sum-label{ font-size:15px; min-width:72px; }
-      .gs-sum-name{ font-size:16.5px; }
-      .gs-sum-score{ font-size:16.5px; }
-      .gs-sum-label{ min-width:0; }
-      .gs-sum-pts{ font-size:16px; }
-      .gs-sum-pick .gs-ph.gs-flag{ width:34px; height:23px; }
       .gs-through{ font-size:14px; }
       .gs-when{ font-size:12px; }
     }
+    .gl-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 12px; }
+    .gl-stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:9px 6px; text-align:center; }
+    .gl-stat b{ display:block; font-family:var(--font-display); font-size:20px; font-weight:400; }
+    .gl-stat b small{ font-family:var(--font-body); font-size:12px; color:var(--text-faint); }
+    .gl-stat span{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); }
+    .gl-list{ display:grid; grid-template-columns:1fr; gap:6px; }
+    @media (min-width:1024px){ .gl-list{ grid-template-columns:1fr 1fr; } }
+    .gl-pick{ display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; min-width:0; }
+    .gl-pick.win{ border-color:rgba(34,197,94,0.45); }
+    .gl-pick.loss{ border-color:rgba(239,68,68,0.4); }
+    .gl-g{ flex:none; width:26px; height:26px; border-radius:7px; background:var(--bg-card-2, #101a38); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700; font-size:13px; }
+    .gl-flag{ flex:none; width:30px; height:20px; border-radius:3px; object-fit:cover; box-shadow:0 1px 3px rgba(0,0,0,.5); }
+    .gl-t{ flex:1; min-width:0; }
+    .gl-t b{ display:block; font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .gl-t span{ font-size:12px; color:var(--text-faint); }
+    .gl-res{ flex:none; text-align:right; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+    .gl-res em{ display:block; font-style:normal; font-size:15px; font-family:var(--font-display); font-weight:400; letter-spacing:0; }
+    .gl-res.win{ color:var(--green); } .gl-res.loss{ color:var(--red); } .gl-res.pend{ color:var(--gold); }
+    @media (max-width:640px){ .gl-stats{ gap:6px; } .gl-stat b{ font-size:18px; } .gl-t b{ font-size:15.5px; } }
     .gs-ko-title{ font-family:var(--font-head); font-weight:700; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--accent-2); margin:22px 2px 0; }
     @media (max-width:640px){ .gs-grid{ grid-template-columns:1fr; } }
     @media (min-width:1024px){ .gs-grid{ grid-template-columns:repeat(4, minmax(0, 1fr)); } }
@@ -899,21 +886,7 @@
     let gsGroupPicks = {}; // "A" -> { match: groupMatchId, winner: playerId, score: "5-3" }
     let gsKoPicks = {};    // "2-1" -> { winner: playerId, score: "10-6" }
     let gsShowRules = false;
-    let gsShowAll = false;
-    // Saved-pick cards stay open until the match has a result, then fold to one
-    // line. This set holds the cards the player has tapped away from that default.
-    const gsOpenCards = new Set();
-    function gsCardOpen(k, played) { return played ? gsOpenCards.has(k) : !gsOpenCards.has(k); }
-    function gsToggleCard(k) { if (gsOpenCards.has(k)) gsOpenCards.delete(k); else gsOpenCards.add(k); renderBracket(); }
-    function gsPtsText(pts) { return pts == null ? '' : pts > 0 ? `<span class="gs-sum-pts win">+${pts} pts</span>` : '<span class="gs-sum-pts lose">0 pts</span>'; }
-    // One-line summary of a saved pick: flag, name + score, points, chevron.
-    function gsSummaryBtn(key, label, winnerId, score, pts, open) {
-      const p = playerById(winnerId);
-      return `<button type="button" class="gs-sum ${open ? 'open' : ''}" onclick="gsToggleCard('${key}')">
-          <span class="gs-sum-label">${label}</span>
-          <span class="gs-sum-pick">${playerThumb(p)}<span class="gs-sum-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span><b class="gs-sum-score">${escapeHtml(score || '')}</b></span>
-          ${gsPtsText(pts)}<i class="fas fa-chevron-${open ? 'up' : 'down'} gs-sum-chev"></i></button>`;
-    }  // once all 16 group picks are saved, only your picked match shows per group unless this is on
+    let gsShowAll = false;  // all 16 saved: show your picks as a list unless "change" / "show all" is on
 
     function groupLetters() {
       return [...new Set((bracketData.group_matches || []).map(m => m.group_letter).filter(Boolean))].sort();
@@ -967,7 +940,7 @@
     function gsGroupScore(g, s) { if (gsGroupPicks[g]) gsGroupPicks[g].score = s; renderBracket(); }
     function gsGroupDone() { return groupLetters().filter(g => gsGroupPicks[g] && gsGroupPicks[g].winner && gsGroupPicks[g].score).length; }
 
-    function groupCardHtml(g, editable, onlyMine) {
+    function groupCardHtml(g, editable) {
       const pick = gsGroupPicks[g];
       const saved = (bracketData.my_group_match_predictions || []).find(x => x.group_letter === g);
       const winnerP = (bracketData.players || []).find(p => p.group_letter === g && p.group_position === 1);
@@ -976,7 +949,6 @@
       else if (editable) head = `<span class="gs-pts">${pick && pick.score ? '<i class="fas fa-check" style="color:var(--green);"></i>' : 'Pick 1 match'}</span>`;
       const rows = groupMatchesOf(g).map(m => {
         const mine = pick && pick.match === m.id;
-        if (onlyMine && pick && !mine) return '';
         const res = gsResultScore(m);
         const btn = (pid) => {
           let cls = mine && pick.winner === pid ? 'picked' : '';
@@ -996,12 +968,65 @@
           </div>`;
       }).join('');
       const through = winnerP ? `<div class="gs-through"><i class="fas fa-arrow-right"></i> ${escapeHtml(winnerP.name)} goes through</div>` : '';
-      if (!editable && pick) {
-        const pm = groupMatchesOf(g).find(m => m.id === pick.match);
-        const open = gsCardOpen('G' + g, !!(pm && pm.status === 'finished'));
-        return `<div class="gs-group gs-collapsible">${gsSummaryBtn('G' + g, `Group ${g}`, pick.winner, pick.score, saved ? saved.points_earned : null, open)}${open ? `<div class="gs-sum-body">${rows}${through}</div>` : ''}</div>`;
-      }
       return `<div class="gs-group"><div class="gs-group-head"><b>Group ${g}</b>${head}</div>${rows}${through}</div>`;
+    }
+
+    // ---- Your picks as a list (same look as the leaderboard pop-up) ----
+    function gsFlag(p) {
+      const c = String((p && p.country) || '').toLowerCase();
+      return /^[a-z]{2}(-[a-z]{3})?$/.test(c) ? `<img class="gl-flag" src="https://flagcdn.com/w80/${c}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="gl-flag"></span>';
+    }
+    // badge, picked player id + score, opponent line, real result (winnerId, score) or when, points
+    function gsListRow(badge, pickId, pickScore, vs, winnerId, score, when, pts) {
+      const done = !!winnerId;
+      const won = done && winnerId === pickId;
+      const cls = !done ? '' : (pts > 0 ? 'win' : 'loss');
+      const exact = won && score === pickScore;
+      const sub = done ? `${escapeHtml(playerById(winnerId).name)} won ${escapeHtml(score || '')}` : escapeHtml(when || 'Not played yet');
+      const res = done ? `<em>${pts > 0 ? '+' : ''}${pts || 0}</em>${exact ? 'Exact' : won ? 'Right' : 'Wrong'}` : 'To play';
+      return `<div class="gl-pick ${cls}">${badge}${gsFlag(playerById(pickId))}
+          <div class="gl-t"><b>${escapeHtml(playerById(pickId).name)} ${escapeHtml(pickScore || '')}</b><span>${vs ? escapeHtml(vs) + ' · ' : ''}${sub}</span></div>
+          <div class="gl-res ${done ? cls : 'pend'}">${res}</div></div>`;
+    }
+    function gsStatsHtml() {
+      const rows = [];
+      (bracketData.my_group_match_predictions || []).forEach(x => {
+        const m = (bracketData.group_matches || []).find(g => g.id === x.group_match_id) || {};
+        rows.push({ done: m.status === 'finished', pts: x.points_earned, exact: gsResultScore(m) === x.predicted_score && m.winner_id === x.predicted_winner_id });
+      });
+      (bracketData.my_predictions || []).filter(x => x.round >= 2).forEach(x => {
+        const m = gsKoMatch(x.round, x.match_number);
+        rows.push({ done: m.status === 'finished', pts: x.points_earned, exact: m.winner_id === x.predicted_winner_id && m.winning_score === x.predicted_score });
+      });
+      const played = rows.filter(r => r.done), right = played.filter(r => r.pts > 0).length, exact = played.filter(r => r.exact).length;
+      const total = rows.reduce((s, r) => s + (r.pts || 0), 0);
+      return `<div class="gl-stats">
+          <div class="gl-stat"><b>${total}</b><span>Points</span></div>
+          <div class="gl-stat"><b style="color:var(--green)">${right}<small>/${played.length}</small></b><span>Right winner</span></div>
+          <div class="gl-stat"><b style="color:var(--gold)">${exact}</b><span>Exact score</span></div>
+          <div class="gl-stat"><b>${rows.length - played.length}</b><span>To play</span></div>
+        </div>`;
+    }
+    function gsGroupListHtml() {
+      const saved = (bracketData.my_group_match_predictions || []).slice().sort((a, b) => a.group_letter.localeCompare(b.group_letter));
+      return `<div class="gl-list">${saved.map(x => {
+        const m = (bracketData.group_matches || []).find(g => g.id === x.group_match_id) || {};
+        const opp = x.predicted_winner_id === m.player1_id ? m.player2_id : m.player1_id;
+        return gsListRow(`<span class="gl-g">${escapeHtml(x.group_letter)}</span>`, x.predicted_winner_id, x.predicted_score, 'v ' + playerById(opp).name,
+          m.status === 'finished' ? m.winner_id : null, gsResultScore(m), gsWhenText(m), x.points_earned);
+      }).join('')}</div>`;
+    }
+    function gsKoListHtml() {
+      const preds = (bracketData.my_predictions || []).filter(p => p.round >= 2);
+      return GS_KO_ROUNDS.map(r => {
+        const rows = preds.filter(p => p.round === r).sort((a, b) => a.match_number - b.match_number);
+        if (!rows.length) return '';
+        return `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div><div class="gl-list">${rows.map(p => {
+          const m = gsKoMatch(r, p.match_number);
+          const vs = m.player1_id && m.player2_id ? `${playerById(m.player1_id).name} v ${playerById(m.player2_id).name}` : '';
+          return gsListRow('', p.predicted_winner_id, p.predicted_score, vs, m.status === 'finished' ? m.winner_id : null, m.winning_score, r === 5 ? 'Final' : `Match ${p.match_number}`, p.points_earned);
+        }).join('')}</div>`;
+      }).join('');
     }
 
     async function saveGroupPicks() {
@@ -1069,12 +1094,6 @@
       const res = real.status === 'finished' && real.winner_id ? real.winning_score : null;
       const btn = (pid, i) => pid ? gsPlayerBtn(pid, res ? (real.winner_id === pid ? 'exact' : '') : '', null, res && real.winner_id === pid ? `<span class="gs-real pos1">${escapeHtml(res)}</span>` : '')
         : `<div class="gs-tbd">${r === 2 ? `Winner Group ${String.fromCharCode(65 + (n - 1) * 2 + i)}` : 'To be decided'}</div>`;
-      if (pred) {
-        const key = `K${r}-${n}`, open = gsCardOpen(key, real.status === 'finished');
-        const pts = pred.points_earned != null ? ` · ${pred.points_earned > 0 ? `<span style="color:var(--green);">+${pred.points_earned} pts</span>` : '<span style="color:var(--red);">0 pts</span>'}` : '';
-        return `<div class="gs-match gs-collapsible">${gsSummaryBtn(key, r === 5 ? 'Final' : `Match ${n}`, pred.predicted_winner_id, pred.predicted_score, pred.points_earned, open)}${open
-          ? `<div class="gs-sum-body"><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div><div class="gs-mypick">Your pick: <b>${escapeHtml(playerById(pred.predicted_winner_id).name)} ${escapeHtml(pred.predicted_score || '')}</b>${pts}</div></div>` : ''}</div>`;
-      }
       const mine = '<div class="gs-mypick">No pick for this match</div>';
       return `<div class="gs-match"><div class="gs-when">${label}</div><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div>${mine}</div>`;
     }
@@ -1103,10 +1122,7 @@
         return html;
       }
       html += `<div class="gs-wait"><i class="fas fa-lock"></i> Knockout picks are closed. ${preds.length ? `<b style="color:var(--gold);">${pts} pt${pts === 1 ? '' : 's'}</b> from the knockout so far.` : "You didn't save a knockout bracket in time."}</div>`;
-      GS_KO_ROUNDS.forEach(r => {
-        html += `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div>`;
-        html += `<div class="gs-grid">${Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoMatchHtml(r, i + 1, false)).join('')}</div>`;
-      });
+      html += gsKoListHtml();
       return html;
     }
 
@@ -1191,7 +1207,7 @@
         html += `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> The 16 groups haven't been drawn yet. Come back once they're announced to make your group picks.</div>${qualifiedHtml(t)}`;
       } else if (open && saved.length >= letters.length && !gsShowAll) {
         html += `<div class="gs-hint"><i class="fas fa-check" style="color:var(--green);"></i> All ${letters.length} group picks saved — here are the matches you picked. You can change them until <b>${escapeHtml(fmtWhen(t.closes_at))}</b>.</div>`;
-        html += `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false, true)).join('')}</div>`;
+        html += gsStatsHtml() + gsGroupListHtml();
         html += `<button class="btn-secondary" style="width:100%; margin:12px 0 4px;" onclick="gsToggleShowAll()"><i class="fas fa-pen"></i> Change My Picks</button>`;
       } else if (open) {
         const done = gsGroupDone();
@@ -1202,7 +1218,7 @@
         if (saved.length >= letters.length) html += `<button class="btn-secondary" style="width:100%; margin:4px 0;" onclick="gsToggleShowAll()"><i class="fas fa-xmark"></i> Cancel — Keep My Saved Picks</button>`;
       } else {
         html += saved.length
-          ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false, !gsShowAll)).join('')}</div>
+          ? `${gsShowAll ? `<div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>` : gsStatsHtml() + gsGroupListHtml()}
              <button class="btn-secondary" style="width:100%; margin:12px 0 4px;" onclick="gsToggleShowAll()">${gsShowAll ? 'Show Just My Picks' : 'Show All Group Matches'}</button>`
           : `<div class="gs-wait"><i class="fas fa-circle-info"></i> You didn't make any group picks before the deadline — you can still pick the knockout bracket below.</div><div class="gs-grid">${letters.map(g => groupCardHtml(g, false)).join('')}</div>`;
       }
