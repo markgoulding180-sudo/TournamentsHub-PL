@@ -4339,6 +4339,69 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ success: true, knockout_closes_at: when.toISOString() });
       }
 
+      // A player's Grand Slam picks, opened from the leaderboard. Group
+      // picks show once group picks have closed, knockout picks once the
+      // bracket has closed - before that only the player sees their own.
+      if (action === 'darts_get_entry_picks') {
+        const { tournament_id, entry_id } = req.body;
+        if (!tournament_id || !entry_id) return res.status(400).json({ error: 'tournament_id and entry_id are required' });
+        const { data: tournament } = await supabaseAdmin.schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
+        if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
+        const { data: entry } = await supabaseAdmin.schema('darts').from('tournament_entries').select('*').eq('id', entry_id).eq('tournament_id', tournament_id).maybeSingle();
+        if (!entry) return res.status(404).json({ error: 'Entry not found' });
+        const isMine = entry.user_id === user.id;
+        const now = Date.now();
+        const { data: players } = await supabaseAdmin.schema('darts').from('players').select('id, name, country, group_letter, group_position').eq('tournament_id', tournament_id);
+        const pl = {};
+        (players || []).forEach(p => { pl[p.id] = { name: p.name, country: p.country }; });
+        const { data: koMatches } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).gte('round', 2);
+        const groupOpen = tournament.status !== 'finished' && tournament.closes_at && now < new Date(tournament.closes_at).getTime();
+        const koOpen = tournament.status !== 'finished' && !(koMatches || []).some(m => m.status === 'finished')
+          && (!tournament.knockout_closes_at || now < new Date(tournament.knockout_closes_at).getTime());
+
+        let group = [];
+        let groupHidden = false;
+        if (tournament.bracket_type === 'grand_slam') {
+          if (groupOpen && !isMine) groupHidden = true;
+          else {
+            const { data: gp } = await supabaseAdmin.schema('darts').from('group_match_predictions').select('*').eq('entry_id', entry.id);
+            const gmIds = (gp || []).map(x => x.group_match_id);
+            const { data: gms } = gmIds.length ? await supabaseAdmin.schema('darts').from('group_matches').select('*').in('id', gmIds) : { data: [] };
+            const gmById = {};
+            (gms || []).forEach(m => { gmById[m.id] = m; });
+            group = (gp || []).map(x => {
+              const m = gmById[x.group_match_id] || {};
+              const done = m.status === 'finished' && m.winner_id;
+              const score = done ? (m.winner_id === m.player1_id ? `${m.player1_legs}-${m.player2_legs}` : `${m.player2_legs}-${m.player1_legs}`) : null;
+              const opp = x.predicted_winner_id === m.player1_id ? m.player2_id : m.player1_id;
+              return { group_letter: x.group_letter, match_no: m.match_no, scheduled_day: m.scheduled_day,
+                pick: pl[x.predicted_winner_id] || null, predicted_score: x.predicted_score, opponent: pl[opp] || null,
+                status: done ? 'finished' : 'upcoming', winner: done ? (pl[m.winner_id] || null) : null, score, points_earned: x.points_earned };
+            }).sort((a, b) => a.group_letter.localeCompare(b.group_letter));
+          }
+        }
+
+        let knockout = [];
+        let koHidden = false;
+        if (koOpen && !isMine) koHidden = true;
+        else {
+          const { data: kp } = await supabaseAdmin.schema('darts').from('predictions').select('*').eq('entry_id', entry.id).gte('round', 2);
+          knockout = (kp || []).map(x => {
+            const m = (koMatches || []).find(k => k.round === x.round && k.match_number === x.match_number) || {};
+            return { round: x.round, match_number: x.match_number, pick: pl[x.predicted_winner_id] || null, predicted_score: x.predicted_score,
+              player1: pl[m.player1_id] || null, player2: pl[m.player2_id] || null, status: m.status === 'finished' ? 'finished' : 'upcoming',
+              winner: m.status === 'finished' ? (pl[m.winner_id] || null) : null, score: m.status === 'finished' ? m.winning_score : null, points_earned: x.points_earned };
+          }).sort((a, b) => a.round - b.round || a.match_number - b.match_number);
+        }
+
+        const { data: u } = await supabaseAdmin.from('users').select('display_name, username').eq('id', entry.user_id).maybeSingle();
+        return res.status(200).json({
+          player: { name: (u && (u.display_name || u.username)) || 'Unknown', entry_points: entry.entry_points || 0, is_me: isMine },
+          group, group_hidden: groupHidden, knockout, knockout_hidden: koHidden,
+          group_closes_at: tournament.closes_at, knockout_closes_at: tournament.knockout_closes_at
+        });
+      }
+
       if (action === 'darts_get_leaderboard') {
         const { tournament_id } = req.body;
         if (!tournament_id) return res.status(400).json({ error: 'tournament_id is required' });
@@ -4355,8 +4418,17 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         const avatarById = {};
         (users || []).forEach(u => { byId[u.id] = u.display_name || u.username; avatarById[u.id] = pickAvatarUrl(u); });
 
+        const { data: lbTournament } = await supabaseAdmin.schema('darts').from('tournaments').select('name, bracket_type').eq('id', tournament_id).maybeSingle();
+        // Equal points share a rank (1, 2, 2, 4).
+        let lastPts = null, lastRank = 0;
         return res.status(200).json({
-          leaderboard: entries.map((e, i) => ({ rank: i + 1, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points }))
+          tournament_name: lbTournament ? lbTournament.name : null,
+          bracket_type: lbTournament ? lbTournament.bracket_type : null,
+          leaderboard: entries.map((e, i) => {
+            const pts = e.entry_points || 0;
+            if (pts !== lastPts) { lastRank = i + 1; lastPts = pts; }
+            return { rank: lastRank, entry_id: e.id, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points };
+          })
         });
       }
 

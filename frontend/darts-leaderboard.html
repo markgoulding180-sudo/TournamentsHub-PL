@@ -63,6 +63,43 @@
     .lb-card{ background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
     .lb-row{ display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border); }
     .lb-row:last-child{ border-bottom:none; }
+    .lb-row.tap{ cursor:pointer; transition:background .15s; }
+    .lb-row.tap:hover{ background:rgba(59,130,246,0.08); }
+    .lb-row.tap .lb-name::after{ content:'\f054'; font-family:'Font Awesome 6 Free'; font-weight:900; font-size:11px; color:var(--text-faint); margin-left:8px; opacity:.6; }
+    .lb-tip{ font-size:12.5px; color:var(--text-faint); text-align:center; margin:-6px 0 12px; }
+    /* Player picks pop-up */
+    .pp-bg{ position:fixed; inset:0; z-index:100000; background:rgba(2,5,14,0.78); backdrop-filter:blur(4px); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+    .pp-bg.open{ display:flex; }
+    .pp{ width:100%; max-width:640px; background:#0a1226; border:1px solid #1d2b4a; border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.6); overflow:hidden; text-shadow:none; }
+    .pp-head{ display:flex; align-items:center; gap:14px; padding:18px 18px 16px; background:linear-gradient(135deg, rgba(59,130,246,0.22), rgba(59,130,246,0.04)); border-bottom:1px solid var(--border); }
+    .pp-head .lb-avatar{ width:48px; height:48px; font-size:15px; }
+    .pp-who{ flex:1; min-width:0; }
+    .pp-who b{ display:block; font-size:18px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pp-who span{ font-size:12.5px; color:var(--text-faint); }
+    .pp-x{ width:36px; height:36px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border); color:var(--text); font-size:16px; flex:none; cursor:pointer; }
+    .pp-body{ padding:16px 18px 20px; }
+    .pp-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px; }
+    .pp-stat{ background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:9px 6px; text-align:center; }
+    .pp-stat b{ display:block; font-family:var(--font-display); font-size:20px; font-weight:400; }
+    .pp-stat span{ font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-faint); }
+    .pp-h{ font-family:var(--font-head); font-size:13px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; color:var(--accent-2); margin:6px 0 10px; display:flex; justify-content:space-between; align-items:baseline; }
+    .pp-h small{ font-family:var(--font-body); font-size:11.5px; letter-spacing:0; text-transform:none; color:var(--text-faint); font-weight:500; }
+    .pp-stage{ margin-bottom:12px; }
+    .pp-stage > div:first-child{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-faint); margin-bottom:6px; }
+    .pp-pick{ display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; }
+    .pp-pick + .pp-pick{ margin-top:6px; }
+    .pp-pick.win{ border-color:rgba(34,197,94,0.45); }
+    .pp-pick.loss{ border-color:rgba(239,68,68,0.4); }
+    .pp-g{ flex:none; width:26px; height:26px; border-radius:7px; background:var(--bg-card-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--font-head); font-weight:700; font-size:13px; }
+    .pp-flag{ flex:none; width:30px; height:20px; border-radius:3px; object-fit:cover; box-shadow:0 1px 3px rgba(0,0,0,.5); }
+    .pp-t{ flex:1; min-width:0; }
+    .pp-t b{ display:block; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pp-t span{ font-size:12px; color:var(--text-faint); }
+    .pp-res{ flex:none; text-align:right; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
+    .pp-res em{ display:block; font-style:normal; font-size:15px; font-family:var(--font-display); font-weight:400; letter-spacing:0; }
+    .pp-res.win{ color:var(--green); } .pp-res.loss{ color:var(--red); } .pp-res.pend{ color:var(--gold); }
+    .pp-note{ font-size:12.5px; color:var(--text-faint); background:var(--bg-card); border:1px dashed var(--border); border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+    @media (max-width:640px){ .pp-bg{ padding:16px 8px; } .pp-body{ padding:14px 12px 18px; } .pp-stats{ gap:6px; } .pp-stat b{ font-size:18px; } }
     .lb-row.top1{ background:linear-gradient(90deg, rgba(242,185,61,0.08), transparent); }
     .lb-row.top2{ background:linear-gradient(90deg, rgba(199,206,219,0.06), transparent); }
     .lb-row.top3{ background:linear-gradient(90deg, rgba(208,138,79,0.07), transparent); }
@@ -188,17 +225,31 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
   <main>
     <section class="lb-hero">
       <div class="lb-hero-icon"><i class="fas fa-bullseye"></i></div>
-      <h1>World Grand Prix Leaderboard</h1>
-      <p>Every entrant, ranked by total bracket points.</p>
+      <h1 id="lbTitle">Darts Leaderboard</h1>
+      <p>Every entrant, ranked by total points.</p>
       <a href="/darts" style="display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:9px 18px; border:1px solid var(--border); border-radius:8px; color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600;"><i class="fas fa-arrow-left"></i> Back to Darts</a>
     </section>
 
+    <div class="lb-tip" id="lbTip" hidden><i class="fas fa-hand-pointer"></i> Tap a name to see their picks</div>
     <div class="lb-card">
       <div id="lbList"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div></div>
     </div>
   </main>
 
+  <div class="pp-bg" id="ppBg" role="dialog" aria-modal="true">
+    <div class="pp">
+      <div class="pp-head">
+        <div id="ppAv"></div>
+        <div class="pp-who"><b id="ppName"></b><span id="ppSub"></span></div>
+        <button class="pp-x" id="ppX" aria-label="Close"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="pp-body" id="ppBody"></div>
+    </div>
+  </div>
+
   <script>
+    let TOURNAMENT_ID = null;
+    let IS_GRAND_SLAM = false;
     function escapeHtml(str) {
       return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
@@ -234,7 +285,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
       }
       list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard…</div>';
 
-      const TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || await resolveDefaultTournamentId();
+      TOURNAMENT_ID = new URLSearchParams(window.location.search).get('t') || await resolveDefaultTournamentId();
       if (!TOURNAMENT_ID) {
         list.innerHTML = '<div class="empty"><i class="fas fa-circle-info"></i>No darts tournament is currently available.</div>';
         return;
@@ -250,6 +301,9 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         if (!response.ok) throw new Error(data.error || 'Failed to load leaderboard');
 
         const entries = data.leaderboard || [];
+        if (data.tournament_name) { document.getElementById('lbTitle').textContent = data.tournament_name; document.title = `${data.tournament_name} Leaderboard - GB Tournaments`; }
+        IS_GRAND_SLAM = data.bracket_type === 'grand_slam';
+        document.getElementById('lbTip').hidden = !(IS_GRAND_SLAM && entries.length);
         if (entries.length === 0) {
           list.innerHTML = '<div class="empty"><i class="fas fa-ranking-star"></i>No entrants yet.</div>';
           return;
@@ -263,7 +317,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
           const points = (entry.entry_points || 0).toLocaleString();
 
           return `
-            <div class="lb-row ${topClass}">
+            <div class="lb-row ${topClass}${IS_GRAND_SLAM && entry.entry_id ? ' tap' : ''}" data-entry="${escapeHtml(entry.entry_id || '')}" data-rank="${rank}">
               <div class="lb-rank ${topClass}">${rank}</div>
               ${gbAvatar(entry.avatar_url, initials, 'lb-avatar')}
               <div class="lb-name">${escapeHtml(name)}</div>
@@ -295,6 +349,85 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     }
     document.getElementById('mobileMenuBtn').addEventListener('click', () => toggleMobileNav(true));
     document.getElementById('mobileNavOverlay').addEventListener('click', () => toggleMobileNav(false));
+
+    // ---- A player's picks (Grand Slam) ----
+    const KO_NAMES = { 2: 'Round Two', 3: 'Quarter-Finals', 4: 'Semi-Finals', 5: 'Final' };
+    function flagImg(p) {
+      const c = String((p && p.country) || '').toLowerCase();
+      return /^[a-z]{2}(-[a-z]{3})?$/.test(c) ? `<img class="pp-flag" src="https://flagcdn.com/w80/${c}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '<span class="pp-flag"></span>';
+    }
+    function whenText(t) { return String(t || '').replace(/^(\w{3} \d{1,2}) (\w{3}) or (\w{3} \d{1,2}) \2.*$/, '$1 / $3 $2').replace(/\s*\(set by Saturday result\)/, ''); }
+    function fmtDeadline(iso) { try { return new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+    function pickRow(badge, p) {
+      const done = p.status === 'finished';
+      const won = done && p.winner && p.pick && p.winner.name === p.pick.name;
+      const cls = !done ? 'pend' : (p.points_earned > 0 ? 'win' : 'loss');
+      const exact = done && won && p.points_earned > 0 && p.score === p.predicted_score;
+      const sub = done ? `${escapeHtml(p.winner ? p.winner.name : '')} won ${escapeHtml(p.score || '')}` : escapeHtml(p.when || 'Not played yet');
+      const res = done ? `<em>${p.points_earned > 0 ? '+' : ''}${p.points_earned || 0}</em>${exact ? 'Exact' : won ? 'Right' : 'Wrong'}` : 'To play';
+      return `<div class="pp-pick ${cls === 'pend' ? '' : cls}">
+          ${badge}${flagImg(p.pick)}
+          <div class="pp-t"><b>${escapeHtml(p.pick ? p.pick.name : '—')} ${escapeHtml(p.predicted_score || '')}</b><span>${escapeHtml(p.vs || '')}${p.vs ? ' · ' : ''}${sub}</span></div>
+          <div class="pp-res ${cls}">${res}</div>
+        </div>`;
+    }
+    function closePicks() { document.getElementById('ppBg').classList.remove('open'); document.body.style.overflow = ''; }
+    async function openPicks(row) {
+      const entryId = row.dataset.entry; if (!entryId) return;
+      const bg = document.getElementById('ppBg'), body = document.getElementById('ppBody');
+      document.getElementById('ppAv').innerHTML = row.querySelector('.lb-avatar') ? row.querySelector('.lb-avatar').outerHTML : '';
+      document.getElementById('ppName').textContent = row.querySelector('.lb-name').textContent;
+      document.getElementById('ppSub').textContent = 'Rank ' + row.dataset.rank + ' · ' + row.querySelector('.lb-points').textContent.trim();
+      body.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading picks…</div>';
+      bg.classList.add('open'); bg.scrollTop = 0; document.body.style.overflow = 'hidden';
+      try {
+        const res = await fetch('/api/tournaments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('gbf_token')}` },
+          body: JSON.stringify({ action: 'darts_get_entry_picks', tournament_id: TOURNAMENT_ID, entry_id: entryId })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Failed');
+        const group = d.group || [], ko = d.knockout || [];
+        const all = group.concat(ko);
+        const gPts = group.reduce((s, p) => s + (p.points_earned || 0), 0);
+        const kPts = ko.reduce((s, p) => s + (p.points_earned || 0), 0);
+        const exact = all.filter(p => p.status === 'finished' && p.points_earned > 0 && p.score === p.predicted_score).length;
+        const right = all.filter(p => p.status === 'finished' && p.points_earned > 0).length;
+        const played = all.filter(p => p.status === 'finished').length;
+        let html = `<div class="pp-stats">
+            <div class="pp-stat"><b>${(d.player.entry_points || 0).toLocaleString()}</b><span>Points</span></div>
+            <div class="pp-stat"><b style="color:var(--green)">${right}<small style="font-family:var(--font-body);font-size:12px;color:var(--text-faint)">/${played}</small></b><span>Right winner</span></div>
+            <div class="pp-stat"><b style="color:var(--gold)">${exact}</b><span>Exact score</span></div>
+            <div class="pp-stat"><b>${all.length - played}</b><span>To play</span></div>
+          </div>`;
+        html += `<div class="pp-h">Group picks <small>${gPts} pt${gPts === 1 ? '' : 's'}</small></div>`;
+        if (d.group_hidden) html += `<div class="pp-note"><i class="fas fa-lock" style="margin-right:6px"></i>Group picks stay hidden until picks close (${escapeHtml(fmtDeadline(d.group_closes_at))}).</div>`;
+        else if (!group.length) html += `<div class="pp-note">No group picks.</div>`;
+        else html += group.map(p => pickRow(`<span class="pp-g">${escapeHtml(p.group_letter)}</span>`, { ...p, vs: p.opponent ? 'v ' + p.opponent.name : '', when: whenText(p.scheduled_day) })).join('');
+        if (ko.length || d.knockout_hidden) {
+          html += `<div class="pp-h" style="margin-top:18px">Knockout picks <small>${kPts} pt${kPts === 1 ? '' : 's'}</small></div>`;
+          if (d.knockout_hidden) html += `<div class="pp-note"><i class="fas fa-lock" style="margin-right:6px"></i>Knockout picks stay hidden until the bracket closes${d.knockout_closes_at ? ' (' + escapeHtml(fmtDeadline(d.knockout_closes_at)) + ')' : ''}.</div>`;
+          else {
+            let last = null;
+            ko.forEach(p => {
+              if (p.round !== last) { if (last !== null) html += '</div>'; html += `<div class="pp-stage"><div>${KO_NAMES[p.round] || 'Round ' + p.round}</div>`; last = p.round; }
+              const vs = p.player1 && p.player2 ? `${p.player1.name} v ${p.player2.name}` : '';
+              html += pickRow('', { ...p, vs, when: p.round === 5 ? 'Final' : 'Match ' + p.match_number });
+            });
+            if (last !== null) html += '</div>';
+          }
+        }
+        body.innerHTML = html;
+      } catch (e) {
+        console.error('Player picks:', e);
+        body.innerHTML = '<div class="empty"><i class="fas fa-triangle-exclamation"></i>Couldn\'t load this player\'s picks right now.</div>';
+      }
+    }
+    document.getElementById('lbList').addEventListener('click', e => { const row = e.target.closest('.lb-row.tap'); if (row) openPicks(row); });
+    document.getElementById('ppX').addEventListener('click', closePicks);
+    document.getElementById('ppBg').addEventListener('click', e => { if (e.target.id === 'ppBg') closePicks(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicks(); });
 
     initAuth();
     loadLeaderboard();
