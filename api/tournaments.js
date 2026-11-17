@@ -4158,57 +4158,47 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         return res.status(200).json({ success: true, saved: rows.length });
       }
 
-      // Window 2 (once all 8 Round Two matches are set, until
-      // knockout_closes_at): the whole knockout bracket in one go - all 15
-      // matches, winner and score. Round Two uses the real group winners;
-      // every later match must be between your own picks from the round
-      // before. Can be changed until the deadline.
+      // Knockout picks, round by round. A round opens once all its real
+      // pairings are known (Round Two = the group winners, later rounds =
+      // the real winners of the round before) and closes at that round's
+      // deadline in tournaments.round_closes_at (or as soon as one of its
+      // matches has a result). Pick every match in the round - winner and
+      // exact score; picks can be changed until the deadline.
       if (action === 'darts_submit_knockout_picks') {
         const { tournament_id, picks } = req.body;
-        if (!tournament_id || !Array.isArray(picks)) return res.status(400).json({ error: 'tournament_id and your knockout picks are required' });
+        const round = Number(req.body.round);
+        if (!tournament_id || !Array.isArray(picks) || !DARTS_GS_KO_ROUNDS.includes(round)) return res.status(400).json({ error: 'tournament_id, round and your picks are required' });
         const { data: tournament } = await supabaseAdmin.schema('darts').from('tournaments').select('*').eq('id', tournament_id).maybeSingle();
         if (!tournament) return res.status(404).json({ error: 'Tournament not found' });
-        if (tournament.bracket_type !== 'grand_slam') return res.status(400).json({ error: 'This tournament has no knockout bracket picks.' });
+        if (tournament.bracket_type !== 'grand_slam') return res.status(400).json({ error: 'This tournament has no knockout picks.' });
         const { data: entry } = await supabaseAdmin.schema('darts').from('tournament_entries').select('id').eq('tournament_id', tournament_id).eq('user_id', user.id).maybeSingle();
         if (!entry) return res.status(400).json({ error: "You're not entered in this tournament." });
-        const { data: koMatches } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).in('round', DARTS_GS_KO_ROUNDS);
-        const r2 = (koMatches || []).filter(m => m.round === 2);
-        if (r2.length !== DARTS_GS_KO_MATCHES[2] || r2.some(m => !m.player1_id || !m.player2_id)) {
-          return res.status(400).json({ error: "The knockout bracket isn't open yet — it opens once all 16 group winners are known." });
+        const name = DARTS_GS_KO_NAMES[round];
+        const { data: roundMatches } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).eq('round', round);
+        if ((roundMatches || []).length !== DARTS_GS_KO_MATCHES[round] || roundMatches.some(m => !m.player1_id || !m.player2_id)) {
+          return res.status(400).json({ error: `${name} picks aren't open yet — they open once all the ${name} matches are known.` });
         }
-        if (!tournament.knockout_closes_at || Date.now() >= new Date(tournament.knockout_closes_at).getTime() || (koMatches || []).some(m => m.status === 'finished')) {
-          return res.status(403).json({ error: 'Knockout picks are closed — Round Two has started.' });
+        const closesAt = dartsGsRoundClosesAt(tournament, round);
+        if (tournament.status === 'finished' || (closesAt && Date.now() >= closesAt.getTime()) || roundMatches.some(m => m.status === 'finished')) {
+          return res.status(403).json({ error: `${name} picks are closed.` });
         }
-        const pick = {};
+        const scores = dartsValidScores(tournament, round) || [];
+        const byNo = {};
         for (const p of picks) {
-          const round = Number(p && p.round), mn = Number(p && p.match_number);
-          if (!DARTS_GS_KO_ROUNDS.includes(round) || !(mn >= 1 && mn <= DARTS_GS_KO_MATCHES[round])) return res.status(400).json({ error: 'One of your picks is for a match that doesn\'t exist.' });
-          if (pick[`${round}-${mn}`]) return res.status(400).json({ error: 'You picked the same match twice.' });
-          pick[`${round}-${mn}`] = { round, match_number: mn, predicted_winner_id: p.predicted_winner_id, predicted_score: p.predicted_score };
+          const mn = Number(p && p.match_number);
+          const m = roundMatches.find(x => x.match_number === mn);
+          if (!m) return res.status(400).json({ error: `One of your picks is for a match that isn't in the ${name}.` });
+          if (byNo[mn]) return res.status(400).json({ error: 'You picked the same match twice.' });
+          const label = round === 5 ? 'the Final' : `${name} match ${mn}`;
+          if (p.predicted_winner_id !== m.player1_id && p.predicted_winner_id !== m.player2_id) return res.status(400).json({ error: `${label}: your winner has to be one of the two players in that match.` });
+          if (!scores.includes(p.predicted_score)) return res.status(400).json({ error: `${label}: pick the winning score too.` });
+          byNo[mn] = { entry_id: entry.id, round, match_number: mn, predicted_winner_id: p.predicted_winner_id, predicted_score: p.predicted_score, points_earned: null };
         }
-        const name = { 2: 'Round Two', 3: 'Quarter-Final', 4: 'Semi-Final', 5: 'Final' };
-        const rows = [];
-        for (const round of DARTS_GS_KO_ROUNDS) {
-          const scores = dartsValidScores(tournament, round) || [];
-          for (let mn = 1; mn <= DARTS_GS_KO_MATCHES[round]; mn++) {
-            const p = pick[`${round}-${mn}`];
-            const label = round === 5 ? 'the Final' : `${name[round]} match ${mn}`;
-            if (!p || !p.predicted_winner_id) return res.status(400).json({ error: `Pick a winner for ${label} — all 15 knockout matches are needed. Nothing has been saved yet.` });
-            let options;
-            if (round === 2) {
-              const m = r2.find(x => x.match_number === mn);
-              options = [m.player1_id, m.player2_id];
-            } else {
-              options = [pick[`${round - 1}-${mn * 2 - 1}`], pick[`${round - 1}-${mn * 2}`]].map(x => x && x.predicted_winner_id);
-            }
-            if (!options.includes(p.predicted_winner_id)) return res.status(400).json({ error: `${label}: your winner has to be one of the two players in that match.` });
-            if (!scores.includes(p.predicted_score)) return res.status(400).json({ error: `${label}: pick the winning score too.` });
-            rows.push({ entry_id: entry.id, round, match_number: mn, predicted_winner_id: p.predicted_winner_id, predicted_score: p.predicted_score, points_earned: null });
-          }
-        }
-        const { error: upErr } = await supabaseAdmin.schema('darts').from('predictions').upsert(rows, { onConflict: 'entry_id,round,match_number' });
+        const missing = roundMatches.filter(m => !byNo[m.match_number]).map(m => m.match_number);
+        if (missing.length) return res.status(400).json({ error: `Pick every ${name} match — still to pick: match ${missing.join(', ')}. Nothing has been saved yet.` });
+        const { error: upErr } = await supabaseAdmin.schema('darts').from('predictions').upsert(Object.values(byNo), { onConflict: 'entry_id,round,match_number' });
         if (upErr) return res.status(500).json({ error: upErr.message });
-        return res.status(200).json({ success: true, saved: rows.length });
+        return res.status(200).json({ success: true, saved: Object.keys(byNo).length });
       }
 
       // Admin: record a group match (winner + score, e.g. 5-3) and score
@@ -4325,23 +4315,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         }
       }
 
-      // Admin: when the knockout bracket picks close (Grand Slam).
-      if (action === 'darts_admin_set_knockout_deadline') {
-        const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', user.id).maybeSingle();
-        if (!caller || !caller.is_admin) return res.status(403).json({ error: 'Admin access required' });
-        const { tournament_id, knockout_closes_at } = req.body;
-        const when = knockout_closes_at ? new Date(knockout_closes_at) : null;
-        if (!tournament_id || !when || isNaN(when.getTime())) return res.status(400).json({ error: 'tournament_id and a valid knockout_closes_at are required' });
-        const { data: tournament } = await supabaseAdmin.schema('darts').from('tournaments').select('bracket_type').eq('id', tournament_id).maybeSingle();
-        if (!tournament || tournament.bracket_type !== 'grand_slam') return res.status(400).json({ error: 'Only Grand Slam tournaments have a knockout picks deadline.' });
-        const { error: dErr } = await supabaseAdmin.schema('darts').from('tournaments').update({ knockout_closes_at: when.toISOString() }).eq('id', tournament_id);
-        if (dErr) return res.status(500).json({ error: dErr.message });
-        return res.status(200).json({ success: true, knockout_closes_at: when.toISOString() });
-      }
-
       // A player's Grand Slam picks, opened from the leaderboard. Group
-      // picks show once group picks have closed, knockout picks once the
-      // bracket has closed - before that only the player sees their own.
+      // picks show once group picks have closed, and each knockout round's
+      // picks once that round has closed - before that only the player sees
+      // their own.
       if (action === 'darts_get_entry_picks') {
         const { tournament_id, entry_id } = req.body;
         if (!tournament_id || !entry_id) return res.status(400).json({ error: 'tournament_id and entry_id are required' });
@@ -4356,8 +4333,10 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
         (players || []).forEach(p => { pl[p.id] = { name: p.name, country: p.country }; });
         const { data: koMatches } = await supabaseAdmin.schema('darts').from('matches').select('*').eq('tournament_id', tournament_id).gte('round', 2);
         const groupOpen = tournament.status !== 'finished' && tournament.closes_at && now < new Date(tournament.closes_at).getTime();
-        const koOpen = tournament.status !== 'finished' && !(koMatches || []).some(m => m.status === 'finished')
-          && (!tournament.knockout_closes_at || now < new Date(tournament.knockout_closes_at).getTime());
+        const roundClosed = r => {
+          const at = dartsGsRoundClosesAt(tournament, r);
+          return tournament.status === 'finished' || (at && now >= at.getTime()) || (koMatches || []).some(m => m.round === r && m.status === 'finished');
+        };
 
         let group = [];
         let groupHidden = false;
@@ -4381,24 +4360,23 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           }
         }
 
-        let knockout = [];
-        let koHidden = false;
-        if (koOpen && !isMine) koHidden = true;
-        else {
-          const { data: kp } = await supabaseAdmin.schema('darts').from('predictions').select('*').eq('entry_id', entry.id).gte('round', 2);
-          knockout = (kp || []).map(x => {
-            const m = (koMatches || []).find(k => k.round === x.round && k.match_number === x.match_number) || {};
-            return { round: x.round, match_number: x.match_number, pick: pl[x.predicted_winner_id] || null, predicted_score: x.predicted_score,
-              player1: pl[m.player1_id] || null, player2: pl[m.player2_id] || null, status: m.status === 'finished' ? 'finished' : 'upcoming',
-              winner: m.status === 'finished' ? (pl[m.winner_id] || null) : null, score: m.status === 'finished' ? m.winning_score : null, points_earned: x.points_earned };
-          }).sort((a, b) => a.round - b.round || a.match_number - b.match_number);
-        }
+        // Rounds whose picks are still secret from other players.
+        const hiddenRounds = isMine ? [] : DARTS_GS_KO_ROUNDS.filter(r => !roundClosed(r)
+          && (koMatches || []).filter(m => m.round === r).every(m => m.player1_id && m.player2_id));
+        const { data: kp } = await supabaseAdmin.schema('darts').from('predictions').select('*').eq('entry_id', entry.id).gte('round', 2);
+        const knockout = (kp || []).filter(x => isMine || roundClosed(x.round)).map(x => {
+          const m = (koMatches || []).find(k => k.round === x.round && k.match_number === x.match_number) || {};
+          return { round: x.round, match_number: x.match_number, pick: pl[x.predicted_winner_id] || null, predicted_score: x.predicted_score,
+            player1: pl[m.player1_id] || null, player2: pl[m.player2_id] || null, status: m.status === 'finished' ? 'finished' : 'upcoming',
+            winner: m.status === 'finished' ? (pl[m.winner_id] || null) : null, score: m.status === 'finished' ? m.winning_score : null, points_earned: x.points_earned };
+        }).sort((a, b) => a.round - b.round || a.match_number - b.match_number);
 
         const { data: u } = await supabaseAdmin.from('users').select('display_name, username').eq('id', entry.user_id).maybeSingle();
         return res.status(200).json({
           player: { name: (u && (u.display_name || u.username)) || 'Unknown', entry_points: entry.entry_points || 0, is_me: isMine },
-          group, group_hidden: groupHidden, knockout, knockout_hidden: koHidden,
-          group_closes_at: tournament.closes_at, knockout_closes_at: tournament.knockout_closes_at
+          group, group_hidden: groupHidden, knockout,
+          knockout_hidden_rounds: hiddenRounds.map(r => { const at = dartsGsRoundClosesAt(tournament, r); return { round: r, name: DARTS_GS_KO_NAMES[r], closes_at: at ? at.toISOString() : null }; }),
+          group_closes_at: tournament.closes_at
         });
       }
 
@@ -10106,14 +10084,21 @@ function dartsValidScores(tournament, round) {
 // ---- Grand Slam of Darts (2026 format) ----
 // 16 groups of three, every player plays the other two (first to 5 legs);
 // only the group winner reaches Round Two. Group picks: 2 pts for the
-// winner, +3 for the exact score. Knockout bracket: the round's points for
-// the winner and the same again for the exact score.
+// winner, +3 for the exact score. Knockout picks (round by round): the
+// round's points for the winner and the same again for the exact score.
 const DARTS_GS_GROUP_FIRST_TO = 5;
 const DARTS_GS_GROUP_WIN_PTS = 2;
 const DARTS_GS_GROUP_SCORE_PTS = 3;
 const DARTS_GS_KO_ROUNDS = [2, 3, 4, 5];
 const DARTS_GS_KO_MATCHES = { 2: 8, 3: 4, 4: 2, 5: 1 };
 const DARTS_GS_KO_PTS = { 2: 3, 3: 5, 4: 8, 5: 13 };
+const DARTS_GS_KO_NAMES = { 2: 'Round Two', 3: 'Quarter-Finals', 4: 'Semi-Finals', 5: 'Final' };
+// When a knockout round's picks close: tournaments.round_closes_at = { "2": iso, "3": iso, ... }
+function dartsGsRoundClosesAt(tournament, round) {
+  const v = tournament && tournament.round_closes_at && tournament.round_closes_at[String(round)];
+  const d = v ? new Date(v) : null;
+  return d && !isNaN(d.getTime()) ? d : null;
+}
 function dartsGsGroupScores(tournament) {
   const n = parseInt(tournament && tournament.round_formats && tournament.round_formats.group, 10) || DARTS_GS_GROUP_FIRST_TO;
   return Array.from({ length: n }, (_, i) => `${n}-${i}`);

@@ -2523,17 +2523,11 @@ function dartsAdminValidScores(t, round) {
   return DARTS_VALID_SCORES_BY_ROUND[round] || null;
 }
 
-// ---- Grand Slam tools: group match results, tie-breaks, knockout deadline ----
+// ---- Grand Slam tools: group match results and tie-breaks ----
 // Each group match is entered like a knockout result: choose the score,
 // then click the winner. When a group's third result is in, the winner
 // goes into their Round Two slot automatically (wins, then leg difference,
 // then legs won); a tie that still can't be split is chosen here by hand.
-function dartsGsLocalInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 function renderDartsGrandSlamTools(data) {
   const box = document.getElementById('dartsGsTools');
   if (!box) return;
@@ -2581,13 +2575,6 @@ function renderDartsGrandSlamTools(data) {
       <p class="text-muted" style="font-size:0.78rem; margin:0.4rem 0;">Choose the score, then click the winner. Everyone's pick for that match is scored straight away (2 pts winner, +3 exact score). Saving again corrects a mistake without double-counting. When a group's third match is in, the winner goes into Round Two automatically.</p>
       ${groupsHtml || '<p class="text-muted" style="font-size:0.8rem;">No group fixtures yet.</p>'}
     </details>
-    <details style="margin-bottom:0.75rem; border:1px solid var(--border-color); border-radius:8px; padding:0.5rem 0.75rem;">
-      <summary style="cursor:pointer; font-weight:700;">Knockout picks close: ${t.knockout_closes_at ? escapeHtmlAdmin(new Date(t.knockout_closes_at).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : 'not set'}</summary>
-      <div style="display:flex; gap:0.5rem; align-items:end; flex-wrap:wrap; margin-top:0.5rem;">
-        <input type="datetime-local" id="gsKoDeadline" class="form-input" style="max-width:240px;" value="${dartsGsLocalInput(t.knockout_closes_at)}">
-        <button class="btn" onclick="saveDartsKnockoutDeadline()">Save</button>
-      </div>
-    </details>
     <div id="dartsGsMsg" style="font-size:0.85rem; margin-bottom:0.5rem;">${_dartsGsLastMsg}</div>`;
   _dartsGsLastMsg = '';
   if (roundSel && roundSel.value === '1') { roundSel.value = '2'; loadDartsMatches(); }
@@ -2624,17 +2611,6 @@ async function saveDartsGroupWinner(g) {
     loadDartsMatches();
   } catch (e) { msg.innerHTML = `<span style="color:var(--accent-red);">Failed: ${escapeHtmlAdmin(e.message)}</span>`; }
 }
-async function saveDartsKnockoutDeadline() {
-  const msg = document.getElementById('dartsGsMsg');
-  const v = document.getElementById('gsKoDeadline').value;
-  if (!v) { msg.innerHTML = '<span style="color:var(--accent-red);">Pick a date and time first.</span>'; return; }
-  try {
-    await dartsAdminPost({ action: 'darts_admin_set_knockout_deadline', tournament_id: document.getElementById('dartsResultsTournamentSelect').value, knockout_closes_at: new Date(v).toISOString() });
-    dartsGsSay('<span style="color:var(--accent-green);">Knockout picks deadline saved.</span>');
-    loadDartsMatches();
-  } catch (e) { msg.innerHTML = `<span style="color:var(--accent-red);">Failed: ${escapeHtmlAdmin(e.message)}</span>`; }
-}
-
 async function loadDartsMatches() {
   const round = parseInt(document.getElementById('dartsRoundSelect').value);
   const listEl = document.getElementById('dartsMatchesList');

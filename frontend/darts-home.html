@@ -1016,19 +1016,6 @@
           m.status === 'finished' ? m.winner_id : null, gsResultScore(m), gsWhenText(m), x.points_earned);
       }).join('')}</div>`;
     }
-    function gsKoListHtml() {
-      const preds = (bracketData.my_predictions || []).filter(p => p.round >= 2);
-      return GS_KO_ROUNDS.map(r => {
-        const rows = preds.filter(p => p.round === r).sort((a, b) => a.match_number - b.match_number);
-        if (!rows.length) return '';
-        return `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div><div class="gl-list">${rows.map(p => {
-          const m = gsKoMatch(r, p.match_number);
-          const vs = m.player1_id && m.player2_id ? `${playerById(m.player1_id).name} v ${playerById(m.player2_id).name}` : '';
-          return gsListRow('', p.predicted_winner_id, p.predicted_score, vs, m.status === 'finished' ? m.winner_id : null, m.winning_score, r === 5 ? 'Final' : `Match ${p.match_number}`, p.points_earned);
-        }).join('')}</div>`;
-      }).join('');
-    }
-
     async function saveGroupPicks() {
       const msg = document.getElementById('groupMsg');
       const half = groupLetters().filter(g => gsGroupPicks[g] && !gsGroupPicks[g].score);
@@ -1045,95 +1032,106 @@
       }
     }
 
-    // ---- Knockout bracket ----
+    // ---- Knockout, round by round ----
+    // Each round opens once its real players are known and closes at its
+    // own deadline (tournament.round_closes_at), or as soon as one of its
+    // matches has a result.
     function gsKoMatch(r, n) { return getMatch(r, n) || {}; }
-    function gsKoOptions(r, n) {
-      if (r === 2) { const m = gsKoMatch(2, n); return [m.player1_id || null, m.player2_id || null]; }
-      return [gsKoPicks[`${r - 1}-${n * 2 - 1}`], gsKoPicks[`${r - 1}-${n * 2}`]].map(x => (x && x.winner) || null);
+    const gsKoEditing = new Set();  // rounds with saved picks the player is changing
+    function gsRoundMatches(r) { return Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoMatch(r, i + 1)); }
+    function gsRoundClosesAt(t, r) { const v = t.round_closes_at && t.round_closes_at[String(r)]; return v ? new Date(v) : null; }
+    function gsRoundState(t, r) {
+      const ms = gsRoundMatches(r);
+      const at = gsRoundClosesAt(t, r);
+      const closed = t.status === 'finished' || (at && Date.now() >= at.getTime()) || ms.some(m => m.status === 'finished');
+      if (closed) return 'closed';
+      return ms.every(m => m.player1_id && m.player2_id) ? 'open' : 'waiting';
     }
-    function gsKoReady() { const r2 = (bracketData.matches || []).filter(m => m.round === 2); return r2.length === 8 && r2.every(m => m.player1_id && m.player2_id); }
-    function gsKoOpen(t) {
-      return gsKoReady() && t.knockout_closes_at && Date.now() < new Date(t.knockout_closes_at).getTime()
-        && !(bracketData.matches || []).some(m => m.round >= 2 && m.status === 'finished');
-    }
-    // Drop later picks that no longer fit (their player was knocked out by a changed earlier pick).
-    function gsKoPrune() {
-      for (const r of [3, 4, 5]) for (let n = 1; n <= GS_KO_MATCHES[r]; n++) {
-        const k = `${r}-${n}`;
-        if (gsKoPicks[k] && !gsKoOptions(r, n).includes(gsKoPicks[k].winner)) delete gsKoPicks[k];
-      }
-    }
+    function gsMyRoundPreds(r) { return (bracketData.my_predictions || []).filter(p => p.round === r); }
     function gsTapKo(r, n, pid) {
       const k = `${r}-${n}`;
       if (gsKoPicks[k] && gsKoPicks[k].winner === pid) delete gsKoPicks[k];
       else gsKoPicks[k] = { winner: pid, score: gsKoPicks[k] && gsKoPicks[k].winner === pid ? gsKoPicks[k].score : null };
-      gsKoPrune();
       renderBracket();
     }
     function gsKoScore(k, s) { if (gsKoPicks[k]) gsKoPicks[k].score = s; renderBracket(); }
-    function gsKoDone() { return GS_KO_ROUNDS.reduce((sum, r) => sum + Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoPicks[`${r}-${i + 1}`]).filter(p => p && p.winner && p.score).length, 0); }
-
-    function gsKoMatchHtml(r, n, editable) {
-      const k = `${r}-${n}`;
-      const pick = gsKoPicks[k];
-      const real = gsKoMatch(r, n);
-      const pred = (bracketData.my_predictions || []).find(p => p.round === r && p.match_number === n);
-      const label = r === 5 ? 'Final' : `${GS_KO_NAMES[r]} · Match ${n}`;
-      if (editable) {
-        const opts = gsKoOptions(r, n);
-        let body;
-        if (!opts[0] || !opts[1]) {
-          body = `<div class="gs-tbd">Pick the winners of the two matches before this one first</div>`;
-        } else {
-          body = `<div class="gs-pair">${opts.map((pid, i) => (i ? '<div class="gs-v">v</div>' : '') + gsPlayerBtn(pid, pick && pick.winner === pid ? 'picked' : '', `gsTapKo(${r},${n},'${pid}')`)).join('')}</div>`;
-          if (pick && pick.winner) body += `<div class="gs-score-label">Winning score for ${escapeHtml(playerById(pick.winner).name)}:</div>` + gsScoreButtons(validScores(r) || [], pick.score, `gsKoScore.bind(null,'${k}')`);
-        }
-        return `<div class="gs-match ${pick && pick.score ? 'mine' : ''}"><div class="gs-when">${label}</div>${body}</div>`;
-      }
-      // Read-only: the real match, with your pick for this slot underneath.
-      const res = real.status === 'finished' && real.winner_id ? real.winning_score : null;
-      const btn = (pid, i) => pid ? gsPlayerBtn(pid, res ? (real.winner_id === pid ? 'exact' : '') : '', null, res && real.winner_id === pid ? `<span class="gs-real pos1">${escapeHtml(res)}</span>` : '')
-        : `<div class="gs-tbd">${r === 2 ? `Winner Group ${String.fromCharCode(65 + (n - 1) * 2 + i)}` : 'To be decided'}</div>`;
-      const mine = '<div class="gs-mypick">No pick for this match</div>';
-      return `<div class="gs-match"><div class="gs-when">${label}</div><div class="gs-pair">${btn(real.player1_id, 0)}<div class="gs-v">v</div>${btn(real.player2_id, 1)}</div>${mine}</div>`;
+    function gsRoundDone(r) { return Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoPicks[`${r}-${i + 1}`]).filter(p => p && p.winner && p.score).length; }
+    function gsEditRound(r) { gsKoEditing.add(r); renderBracket(); }
+    // Back to the saved picks for a round, dropping unsaved changes.
+    function gsCancelRound(r) {
+      gsKoEditing.delete(r);
+      Object.keys(gsKoPicks).filter(k => k.startsWith(`${r}-`)).forEach(k => delete gsKoPicks[k]);
+      gsMyRoundPreds(r).forEach(p => { gsKoPicks[`${r}-${p.match_number}`] = { winner: p.predicted_winner_id, score: p.predicted_score }; });
+      renderBracket();
     }
-
+    // Where an unknown player in a later round comes from, e.g. "Winner R2 Match 3".
+    function gsFeederText(r, n, i) {
+      if (r === 2) return `Winner Group ${String.fromCharCode(65 + (n - 1) * 2 + i)}`;
+      const prev = r === 3 ? 'Round Two' : r === 4 ? 'QF' : 'SF';
+      return `Winner ${prev} ${n * 2 - 1 + i}`;
+    }
+    function gsKoPickCard(r, n) {
+      const k = `${r}-${n}`, pick = gsKoPicks[k], m = gsKoMatch(r, n);
+      const label = r === 5 ? 'Final' : `${GS_KO_NAMES[r]} · Match ${n}`;
+      let body = `<div class="gs-pair">${[m.player1_id, m.player2_id].map((pid, i) => (i ? '<div class="gs-v">v</div>' : '') + gsPlayerBtn(pid, pick && pick.winner === pid ? 'picked' : '', `gsTapKo(${r},${n},'${pid}')`)).join('')}</div>`;
+      if (pick && pick.winner) body += `<div class="gs-score-label">Winning score for ${escapeHtml(playerById(pick.winner).name)}:</div>` + gsScoreButtons(validScores(r) || [], pick.score, `gsKoScore.bind(null,'${k}')`);
+      return `<div class="gs-match ${pick && pick.score ? 'mine' : ''}"><div class="gs-when">${label}</div>${body}</div>`;
+    }
+    function gsKoPreviewCard(r, n) {
+      const m = gsKoMatch(r, n);
+      const label = r === 5 ? 'Final' : `${GS_KO_NAMES[r]} · Match ${n}`;
+      const side = (pid, i) => pid ? gsPlayerBtn(pid, '', null) : `<div class="gs-tbd">${gsFeederText(r, n, i)}</div>`;
+      return `<div class="gs-match"><div class="gs-when">${label}</div><div class="gs-pair">${side(m.player1_id, 0)}<div class="gs-v">v</div>${side(m.player2_id, 1)}</div></div>`;
+    }
+    function gsKoRoundList(r) {
+      const rows = gsMyRoundPreds(r).sort((a, b) => a.match_number - b.match_number);
+      return `<div class="gl-list">${rows.map(p => {
+        const m = gsKoMatch(r, p.match_number);
+        const vs = m.player1_id && m.player2_id ? `${playerById(m.player1_id).name} v ${playerById(m.player2_id).name}` : '';
+        return gsListRow('', p.predicted_winner_id, p.predicted_score, vs, m.status === 'finished' ? m.winner_id : null, m.winning_score, r === 5 ? 'Final' : `Match ${p.match_number}`, p.points_earned);
+      }).join('')}</div>`;
+    }
     function gsKnockoutHtml(t) {
-      const open = gsKoOpen(t);
       const preds = (bracketData.my_predictions || []).filter(p => p.round >= 2);
       const pts = preds.reduce((s, p) => s + (p.points_earned || 0), 0);
-      let html = `<div class="gs-ko-title">Knockout bracket</div>`;
-      if (!gsKoReady()) {
-        const known = (bracketData.players || []).filter(p => p.group_position === 1).length;
-        html += `<div class="gs-wait"><i class="fas fa-lock"></i> The bracket opens once all 16 group winners are known on Tuesday night (${known}/16 so far). You'll then pick all 15 knockout matches in one go — winner and exact score — before <b>${escapeHtml(fmtWhen(t.knockout_closes_at) || 'Round Two starts')}</b>.</div>`;
-        html += `<div class="gs-grid">${Array.from({ length: 8 }, (_, i) => gsKoMatchHtml(2, i + 1, false).replace('<div class="gs-mypick">No pick for this match</div>', '')).join('')}</div>`;
-        return html;
-      }
-      if (open) {
-        const done = gsKoDone();
-        const savedCount = preds.length;
-        html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Round Two uses the real group winners. Pick a winner and exact score for every match — your winners carry through to the next round. Picks close <b>${escapeHtml(fmtWhen(t.knockout_closes_at))}</b> — you can change them until then.${savedCount ? ' <span style="color:var(--green);"><i class="fas fa-check"></i> Bracket saved.</span>' : ''}</div>`;
-        GS_KO_ROUNDS.forEach(r => {
-          html += `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div>`;
-          html += `<div class="gs-grid">${Array.from({ length: GS_KO_MATCHES[r] }, (_, i) => gsKoMatchHtml(r, i + 1, true)).join('')}</div>`;
-        });
-        html += `<button class="btn-primary" style="width:100%; margin:14px 0 4px;" onclick="saveKnockoutPicks()" ${done === 15 ? '' : 'disabled'}>${savedCount ? 'Update' : 'Save'} Knockout Bracket (${done}/15)</button>
-          <div class="submit-msg" id="koMsg">${done === 15 ? '' : '<span style="color:var(--gold);">Pick a winner and score for all 15 matches to save.</span>'}</div>`;
-        return html;
-      }
-      html += `<div class="gs-wait"><i class="fas fa-lock"></i> Knockout picks are closed. ${preds.length ? `<b style="color:var(--gold);">${pts} pt${pts === 1 ? '' : 's'}</b> from the knockout so far.` : "You didn't save a knockout bracket in time."}</div>`;
-      html += gsKoListHtml();
+      let html = `<div class="gs-ko-title">Knockout${preds.some(p => p.points_earned != null) ? ` <span style="font-size:13px; color:var(--gold); letter-spacing:0; text-transform:none;">${pts} pt${pts === 1 ? '' : 's'}</span>` : ''}</div>`;
+      GS_KO_ROUNDS.forEach(r => {
+        const state = gsRoundState(t, r);
+        const at = gsRoundClosesAt(t, r);
+        const mine = gsMyRoundPreds(r);
+        const need = GS_KO_MATCHES[r];
+        html += `<div class="gs-round-title">${GS_KO_NAMES[r]} <span class="badge">${GS_KO_PTS[r]} pts · +${GS_KO_PTS[r]} exact score</span></div>`;
+        if (state === 'waiting') {
+          html += `<div class="gs-wait"><i class="fas fa-hourglass-half"></i> Opens for picks once all the ${GS_KO_NAMES[r]} players are known${at ? ` · picks close <b>${escapeHtml(fmtWhen(at))}</b>` : ''}.</div>`;
+          html += `<div class="gs-grid">${Array.from({ length: need }, (_, i) => gsKoPreviewCard(r, i + 1)).join('')}</div>`;
+        } else if (state === 'open' && mine.length >= need && !gsKoEditing.has(r)) {
+          html += `<div class="gs-hint"><i class="fas fa-check" style="color:var(--green);"></i> ${GS_KO_NAMES[r]} picks saved. You can change them until <b>${escapeHtml(fmtWhen(at))}</b>.</div>`;
+          html += gsKoRoundList(r);
+          html += `<button class="btn-secondary" style="width:100%; margin:10px 0 4px;" onclick="gsEditRound(${r})"><i class="fas fa-pen"></i> Change My ${GS_KO_NAMES[r]} Picks</button>`;
+        } else if (state === 'open') {
+          const done = gsRoundDone(r);
+          html += `<div class="gs-hint"><i class="fas fa-hand-pointer"></i> Pick the winner and exact score of ${need === 1 ? 'the Final' : `all ${need} matches`}. Picks close <b>${escapeHtml(fmtWhen(at))}</b>.</div>`;
+          html += `<div class="gs-grid">${Array.from({ length: need }, (_, i) => gsKoPickCard(r, i + 1)).join('')}</div>`;
+          html += `<button class="btn-primary" style="width:100%; margin:12px 0 4px;" onclick="saveKnockoutPicks(${r})" ${done === need ? '' : 'disabled'}>${mine.length ? 'Update' : 'Save'} ${GS_KO_NAMES[r]} Picks (${done}/${need})</button>
+            <div class="submit-msg" id="koMsg${r}">${done === need ? '' : `<span style="color:var(--gold);">Pick a winner and score for ${need === 1 ? 'the Final' : `all ${need} matches`} to save.</span>`}</div>`;
+          if (mine.length) html += `<button class="btn-secondary" style="width:100%; margin:4px 0;" onclick="gsCancelRound(${r})"><i class="fas fa-xmark"></i> Cancel — Keep My Saved Picks</button>`;
+        } else {
+          if (mine.length) html += gsKoRoundList(r);
+          else html += `<div class="gs-wait"><i class="fas fa-lock"></i> ${GS_KO_NAMES[r]} picks are closed — you didn't pick ${r === 5 ? 'the Final' : 'this round'}.</div><div class="gs-grid">${Array.from({ length: need }, (_, i) => gsKoPreviewCard(r, i + 1)).join('')}</div>`;
+        }
+      });
       return html;
     }
 
-    async function saveKnockoutPicks() {
-      const msg = document.getElementById('koMsg');
+    async function saveKnockoutPicks(r) {
+      const msg = document.getElementById('koMsg' + r);
       const picks = [];
-      GS_KO_ROUNDS.forEach(r => { for (let n = 1; n <= GS_KO_MATCHES[r]; n++) { const p = gsKoPicks[`${r}-${n}`]; if (p) picks.push({ round: r, match_number: n, predicted_winner_id: p.winner, predicted_score: p.score }); } });
+      for (let n = 1; n <= GS_KO_MATCHES[r]; n++) { const p = gsKoPicks[`${r}-${n}`]; if (p) picks.push({ match_number: n, predicted_winner_id: p.winner, predicted_score: p.score }); }
       msg.innerHTML = '<span style="color:var(--text-dim);">Saving…</span>';
       try {
-        await api('darts_submit_knockout_picks', { tournament_id: TOURNAMENT_ID, picks });
-        if (window.showToast) window.showToast('Knockout bracket saved!', 'success');
+        await api('darts_submit_knockout_picks', { tournament_id: TOURNAMENT_ID, round: r, picks });
+        if (window.showToast) window.showToast(`${GS_KO_NAMES[r]} picks saved!`, 'success');
+        gsKoEditing.delete(r);
         await loadBracket();
       } catch (err) {
         msg.innerHTML = `<span style="color:var(--red);">${escapeHtml(err.message)}</span>`;
@@ -1158,15 +1156,15 @@
     // "How it works" - a full-width bar, collapsed on load, tap to open.
     function gsRulesHtml(t) {
       const groupDeadline = escapeHtml(fmtWhen(t.closes_at));
-      const koDeadline = escapeHtml(t.knockout_closes_at ? fmtWhen(t.knockout_closes_at) : 'Round Two starts');
+      const rd = r => { const at = gsRoundClosesAt(t, r); return at ? escapeHtml(fmtWhen(at)) : 'before it starts'; };
       const body = gsShowRules ? `
         <div class="gs-rules">
           <ul>
             <li><b>The groups:</b> 48 players in 16 groups of three. Each player plays the other two once (first to 5 legs), and <b>only the group winner goes through</b> to the knockout.</li>
             <li><b>Group picks — by ${groupDeadline}:</b> in every group, choose <b>one</b> of the three matches and pick who wins it and the exact score (e.g. 5-3). <b>${GS_GROUP_WIN} pts</b> for the right winner, <b>+${GS_GROUP_EXACT}</b> more for the exact score — up to 5 pts a group.</li>
-            <li><b>Knockout picks — by ${koDeadline}:</b> the bracket opens when the group stage finishes on Tuesday night. Pick all 15 matches in one go, each with a winner and exact score. Round Two uses the real group winners; from the Quarter-Finals on, the players are the winners you picked.</li>
+            <li><b>Knockout picks — round by round:</b> each round opens once its real players are known. Pick the winner and exact score of every match in that round before its deadline: Round Two by ${rd(2)}, Quarter-Finals by ${rd(3)}, Semi-Finals by ${rd(4)}, Final by ${rd(5)}.</li>
             <li><b>Knockout points</b> (right winner, + exact score): Round Two <b>3 +3</b>, Quarter-Finals <b>5 +5</b>, Semi-Finals <b>8 +8</b>, Final <b>13 +13</b>.</li>
-            <li>You can change your picks as often as you like until each deadline. Entries close at ${groupDeadline}.</li>
+            <li>You can change your picks as often as you like until each deadline. Other players' picks show on the leaderboard once each deadline has passed. Entries close at ${groupDeadline}.</li>
             <li>Most points overall wins the pot (226 pts max).</li>
           </ul>
         </div>` : '';

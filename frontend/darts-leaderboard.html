@@ -405,10 +405,10 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
         if (d.group_hidden) html += `<div class="pp-note"><i class="fas fa-lock" style="margin-right:6px"></i>Group picks stay hidden until picks close (${escapeHtml(fmtDeadline(d.group_closes_at))}).</div>`;
         else if (!group.length) html += `<div class="pp-note">No group picks.</div>`;
         else html += group.map(p => pickRow(`<span class="pp-g">${escapeHtml(p.group_letter)}</span>`, { ...p, vs: p.opponent ? 'v ' + p.opponent.name : '', when: whenText(p.scheduled_day) })).join('');
-        if (ko.length || d.knockout_hidden) {
+        const hiddenRounds = d.knockout_hidden_rounds || [];
+        if (ko.length || hiddenRounds.length) {
           html += `<div class="pp-h" style="margin-top:18px">Knockout picks <small>${kPts} pt${kPts === 1 ? '' : 's'}</small></div>`;
-          if (d.knockout_hidden) html += `<div class="pp-note"><i class="fas fa-lock" style="margin-right:6px"></i>Knockout picks stay hidden until the bracket closes${d.knockout_closes_at ? ' (' + escapeHtml(fmtDeadline(d.knockout_closes_at)) + ')' : ''}.</div>`;
-          else {
+          {
             let last = null;
             ko.forEach(p => {
               if (p.round !== last) { if (last !== null) html += '</div>'; html += `<div class="pp-stage"><div>${KO_NAMES[p.round] || 'Round ' + p.round}</div>`; last = p.round; }
@@ -417,6 +417,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             });
             if (last !== null) html += '</div>';
           }
+          hiddenRounds.forEach(h => { html += `<div class="pp-note"><i class="fas fa-lock" style="margin-right:6px"></i>${escapeHtml(h.name)} picks stay hidden until they close${h.closes_at ? ' (' + escapeHtml(fmtDeadline(h.closes_at)) + ')' : ''}.</div>`; });
         }
         body.innerHTML = html;
       } catch (e) {
