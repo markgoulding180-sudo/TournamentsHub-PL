@@ -4405,7 +4405,7 @@ async function fetchAllRows(queryFactory, pageSize = 1000) {
           leaderboard: entries.map((e, i) => {
             const pts = e.entry_points || 0;
             if (pts !== lastPts) { lastRank = i + 1; lastPts = pts; }
-            return { rank: lastRank, entry_id: e.id, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points };
+            return { rank: lastRank, entry_id: e.id, user_id: e.user_id, display_name: byId[e.user_id] || 'Unknown', avatar_url: avatarById[e.user_id] || null, entry_points: e.entry_points, prize_awarded: e.prize_awarded || 0 };
           })
         });
       }

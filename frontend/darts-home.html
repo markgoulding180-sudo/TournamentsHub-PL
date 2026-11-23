@@ -246,6 +246,12 @@
     .enter-gate + .gs-rules-toggle{ margin-top:12px; }
     .gs-rules ul{ margin:0; padding-left:18px; color:var(--text-dim); line-height:1.7; }
     .gs-rules b{ color:var(--text); }
+    .gs-champ{ display:flex; align-items:center; gap:14px; margin:0 0 14px; padding:14px 18px; border:1px solid var(--gold); border-radius:12px; background:linear-gradient(90deg, rgba(242,185,61,0.16), rgba(242,185,61,0.04)); text-align:left; }
+    .gs-champ > i{ font-size:30px; color:var(--gold); }
+    .gs-champ-k{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); }
+    .gs-champ-n{ font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--text); line-height:1.2; }
+    .gs-champ-s{ font-size:13px; color:var(--text-dim); margin-top:2px; }
+    .gs-champ-s a{ color:var(--accent-2); }
     .gs-hint, .gs-wait{ font-size:12.5px; color:var(--text-dim); background:rgba(59,130,246,0.08); border:1px solid var(--accent-dim); border-radius:10px; padding:10px 14px; margin:0 0 12px; line-height:1.5; }
     .gs-hint i, .gs-wait i{ color:var(--accent-2); margin-right:4px; }
     /* Grand Slam: qualified players before the draw */
@@ -782,7 +788,32 @@
       }
     }
 
+    // Finished tournament: a winner banner sits above whatever the page shows.
+    let gsChampionHtml = '';
     function renderBracket() {
+      renderBracketInner();
+      if (gsChampionHtml) document.getElementById('root').insertAdjacentHTML('afterbegin', gsChampionHtml);
+    }
+    async function loadChampion() {
+      const t = bracketData && bracketData.tournament;
+      if (!t || t.status !== 'finished') return;
+      try {
+        const token = localStorage.getItem('gbf_token');
+        const res = await fetch('/api/tournaments', { method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': `Bearer ${token}` } : {}),
+          body: JSON.stringify({ action: 'darts_get_leaderboard', tournament_id: TOURNAMENT_ID }) });
+        if (!res.ok) return;
+        const data = await res.json();
+        const winners = (data.leaderboard || []).filter(e => e.rank === 1);
+        if (!winners.length) return;
+        const names = winners.map(w => escapeHtml(w.display_name || 'Unknown')).join(' & ');
+        const prize = winners.reduce((a, w) => a + (w.prize_awarded || 0), 0);
+        gsChampionHtml = `<div class="gs-champ"><i class="fas fa-trophy"></i><div><div class="gs-champ-k">${winners.length > 1 ? 'Joint winners' : 'Winner'}</div><div class="gs-champ-n">${names}</div><div class="gs-champ-s">${winners[0].entry_points || 0} pts${prize ? ' · won £' + (prize / 100).toFixed(2).replace(/\.00$/, '') : ''} · <a href="/darts-leaderboard?t=${encodeURIComponent(TOURNAMENT_ID)}">Final leaderboard</a></div></div></div>`;
+        renderBracket();
+      } catch (e) { console.error('Failed to load winner:', e); }
+    }
+
+    function renderBracketInner() {
       const t = bracketData.tournament;
       const locked = t.status !== 'upcoming';
       const entry = bracketData.my_entry;
@@ -808,10 +839,12 @@
         document.getElementById('root').innerHTML = `
           <div class="card enter-gate">
             <i class="fas fa-bullseye" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
-            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the ${escapeHtml(tName())}</h2>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">${t.status === 'finished' ? escapeHtml(tName()) + ' — finished' : 'Enter the ' + escapeHtml(tName())}</h2>
             <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
             ${drawPendingWarning}
-            ${t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
+            ${t.status === 'finished'
+              ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-flag-checkered"></i> Tournament Finished</span>`
+              : t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
               : `<a href="/login?redirect=${encodeURIComponent(location.pathname + location.search)}" class="btn-primary" style="display:inline-block;"><i class="fas fa-right-to-bracket"></i> Log In to Enter</a>`}
           </div>${t.bracket_type === 'grand_slam' ? gsRulesHtml(t) : ''}${qualifiedHtml(t)}`;
@@ -822,10 +855,12 @@
         document.getElementById('root').innerHTML = `
           <div class="card enter-gate">
             <i class="fas fa-bullseye" style="font-size:36px; color:var(--gold); margin-bottom:14px;"></i>
-            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">Enter the ${escapeHtml(tName())}</h2>
+            <h2 style="font-family:var(--font-head); font-size:21px; margin-bottom:8px;">${t.status === 'finished' ? escapeHtml(tName()) + ' — finished' : 'Enter the ' + escapeHtml(tName())}</h2>
             <p style="max-width:440px; margin:0 auto 18px; font-size:14px; color:var(--text-dim);">${escapeHtml(t.description || '')}</p>
             ${drawPendingWarning}
-            ${t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
+            ${t.status === 'finished'
+              ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-flag-checkered"></i> Tournament Finished</span>`
+              : t.closes_at && Date.now() >= new Date(t.closes_at).getTime()
               ? `<span class="btn-secondary" style="display:inline-block;cursor:default;"><i class="fas fa-lock"></i> Registration Closed</span>`
               : `<button class="btn-primary" id="enterBtn" onclick="enterTournament()"><i class="fas fa-right-to-bracket"></i> Enter Now — £${((t.entry_fee||0)/100).toFixed(2)}</button>`}
             <div class="submit-msg" id="enterMsg"></div>
@@ -1514,6 +1549,7 @@
           if (!res.ok) throw new Error(data.error || 'Failed to load tournament');
           bracketData = { tournament: data.tournament, players: [], matches: [], my_entry: null, my_predictions: [] };
           renderBracket();
+          loadChampion();
           return;
         }
         bracketData = await api('darts_get_bracket', { tournament_id: TOURNAMENT_ID });
@@ -1528,6 +1564,7 @@
           if (p.predicted_score) myScores[`${p.round}-${p.match_number}`] = p.predicted_score;
         });
         renderBracket();
+        loadChampion();
       } catch (err) {
         const isAuthError = /invalid or expired token|authentication required|user not found/i.test(err.message);
         if (isAuthError) {
@@ -1593,11 +1630,12 @@
     })();
 
     async function resolveDefaultTournamentId() {
-      for (const status of ['live', 'upcoming']) {
+      for (const status of ['live', 'upcoming', 'finished']) {
         try {
           const res = await fetch(`/api/tournaments?tournament_type=darts&status=${status}`);
           const data = await res.json();
           const list = Array.isArray(data) ? data : (data.tournaments || []);
+          if (status === 'finished') list.sort((a, b) => String(b.start_date || b.created_at || '').localeCompare(String(a.start_date || a.created_at || '')));
           if (list[0]) return list[0].id;
         } catch (e) {
           console.error(`Failed to look up ${status} darts tournament:`, e);

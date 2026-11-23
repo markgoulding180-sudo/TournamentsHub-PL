@@ -118,6 +118,7 @@
     .lb-row.top3 .lb-avatar{ border-color:var(--bronze); color:var(--bronze); }
 
     .lb-name{ flex:1; min-width:0; font-size:14.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .lb-prize{ display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:rgba(242,185,61,0.15); color:var(--gold); font-size:11px; font-weight:700; white-space:nowrap; vertical-align:middle; }
     .lb-points{ flex-shrink:0; font-family:var(--font-display); font-size:19px; color:var(--text); }
     .lb-points .unit{ font-family:var(--font-body); font-size:11px; font-weight:600; color:var(--text-faint); margin-left:4px; text-transform:uppercase; }
 
@@ -263,11 +264,12 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     // an ID that matches nothing, which returns an empty result rather
     // than an error, so it looked like a legitimately empty leaderboard.
     async function resolveDefaultTournamentId() {
-      for (const status of ['live', 'upcoming']) {
+      for (const status of ['live', 'upcoming', 'finished']) {
         try {
           const res = await fetch(`/api/tournaments?tournament_type=darts&status=${status}`);
           const data = await res.json();
           const list = Array.isArray(data) ? data : (data.tournaments || []);
+          if (status === 'finished') list.sort((a, b) => String(b.start_date || b.created_at || '').localeCompare(String(a.start_date || a.created_at || '')));
           if (list[0]) return list[0].id;
         } catch (e) {
           console.error(`Failed to look up ${status} darts tournament:`, e);
@@ -320,7 +322,7 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
             <div class="lb-row ${topClass}${IS_GRAND_SLAM && entry.entry_id ? ' tap' : ''}" data-entry="${escapeHtml(entry.entry_id || '')}" data-rank="${rank}">
               <div class="lb-rank ${topClass}">${rank}</div>
               ${gbAvatar(entry.avatar_url, initials, 'lb-avatar')}
-              <div class="lb-name">${escapeHtml(name)}</div>
+              <div class="lb-name">${escapeHtml(name)}${entry.prize_awarded ? ` <span class="lb-prize"><i class="fas fa-trophy"></i> Won £${(entry.prize_awarded / 100).toFixed(2).replace(/\.00$/, '')}</span>` : ''}</div>
               <div class="lb-points">${points}<span class="unit">pts</span></div>
             </div>`;
         }).join('');
