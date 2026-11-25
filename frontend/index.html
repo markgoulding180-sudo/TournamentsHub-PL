@@ -1291,8 +1291,13 @@ async function pickStatus(type, id){
     return { hasPicked: picked >= 3, label:`Matchday ${md}`, deadline: first || null };
   }
   if ((type === 'lms' || type === 'predictions') && STATE.gw) {
-    const d = await postJSON({ action:'check_gameweek_pick_status', tournament_type:type, tournament_id:id, gameweek:STATE.gw });
-    return d && d.pickApplicable ? { hasPicked: !!d.hasPicked, label:`Gameweek ${STATE.gw}` } : null;
+    // A Last Man Standing still registering for a later start: its first
+    // pick is for its own start gameweek, closing at its own close time.
+    const t = type === 'lms' ? STATE.mine.map(r => r.t).find(x => x && x.id === id) : null;
+    const later = t && t.status === 'upcoming' && t.gameweek > STATE.gw;
+    const gw = later ? t.gameweek : STATE.gw;
+    const d = await postJSON({ action:'check_gameweek_pick_status', tournament_type:type, tournament_id:id, gameweek:gw });
+    return d && d.pickApplicable ? { hasPicked: !!d.hasPicked, label:`Gameweek ${gw}`, deadline: later ? (t.closes_at || null) : undefined } : null;
   }
   return null;   // Fantasy / Stock Market: no weekly pick to report
 }
@@ -1446,7 +1451,7 @@ async function myStats(r){
 function deadlineText(r){
   const pk = STATE.picks[r.key];
   const iso = (pk && pk.deadline) || ((r.type === 'lms' || r.type === 'predictions' || r.type === 'fantasy') && r.zone === 'live' ? STATE.deadline : null)
-    || (r.type === 'lms' && r.zone === 'open' ? STATE.deadline : null);
+    || (r.type === 'lms' && r.zone === 'open' ? ((r.t && r.t.closes_at) || STATE.deadline) : null);
   const left = untilText(iso);
   return left ? `<span class="dl">⏱ ${left}</span>` : '';
 }

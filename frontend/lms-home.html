@@ -1004,6 +1004,12 @@ function gbInitials(name){ return String(name || '?').trim().substring(0, 2).toU
     let lmsDeadline = null;
     function renderStatBar(t, gw, deadline){
       if (deadline !== undefined) lmsDeadline = deadline || null;
+      // Registering for a later start: show its own start gameweek and
+      // close time, not the site-wide gameweek that's being played now.
+      if (t && t.status === 'upcoming' && t.closes_at) {
+        lmsDeadline = t.closes_at;
+        if (t.gameweek) gw = t.gameweek;
+      }
       const ms = lmsDeadline ? new Date(lmsDeadline) - Date.now() : 0;
       const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
       const left = ms > 0 ? (d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + 'm') : '';
